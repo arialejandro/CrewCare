@@ -268,6 +268,11 @@ Route::middleware(['auth','permission:locations.create'])->group(function () {
     Route::get('/scoutings/{id}/edit', [App\Http\Controllers\ScoutingReportController::class, 'edit'])->name('scoutings.edit')->whereNumber('id');
     Route::put('/scoutings/{id}', [App\Http\Controllers\ScoutingReportController::class, 'update'])->name('scoutings.update')->whereNumber('id');
 
+    // (2026-08-01 · captura fluida, Paso 8) Borrador AUTOMÁTICO para mapear en captura:
+    // crea/actualiza un borrador con el estado actual del form y devuelve id + URLs (JSON).
+    // Segmento fijo NO numérico → nunca lo captura `/scoutings/{id}` (whereNumber).
+    Route::post('/scoutings/mapeo-borrador', [App\Http\Controllers\ScoutingReportController::class, 'draftForMapping'])->name('scoutings.mapping.draft');
+
     // ---- MAPEO DE LA LOCACIÓN (delta #48): pines sobre lienzos, insumo del PAE. ----
     // Mismo permiso que editar (locations.create). El segmento fijo `/mapeo` va con
     // {id} numérico, así nunca lo captura el show `/scoutings/{id}` del grupo de abajo.

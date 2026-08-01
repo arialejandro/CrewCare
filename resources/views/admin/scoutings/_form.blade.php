@@ -635,7 +635,20 @@
                 </a>
                 <div class="form-text">Se abre en otra pestaña para no perder lo que estás editando aquí. Si acabas de cambiar datos de la locación, guárdalos antes.</div>
             @else
-                <div class="alert alert-info mb-0 py-2">Guarda primero la locación para poder mapearla (agregar lienzos y colocar pines).</div>
+                {{-- (2026-08-01 · captura fluida, Paso 8) Mapear en CAPTURA sin guardar a mano:
+                     el botón persiste/actualiza un BORRADOR (create-or-update) con lo que llevas
+                     y abre el mapeo en otra pestaña; el formulario queda ligado a ese borrador
+                     (pasa a modo edición) para que al Guardar se ACTUALICE y no se duplique. --}}
+                <input type="hidden" name="mapping_draft_id" value="">
+                <button type="button" id="map-open-draft"
+                        data-draft-url="{{ route('scoutings.mapping.draft') }}"
+                        class="btn btn-outline-primary d-inline-flex align-items-center gap-2">
+                    @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-ico'])
+                    <span>Abrir mapeo de la locación</span>
+                </button>
+                <div id="map-draft-status" class="form-text cc-muted mt-1">
+                    No necesitas guardar: se prepara un borrador con lo que llevas y el mapeo abre en otra pestaña. Al <strong>Guardar</strong> el scouting, ese borrador se convierte en el reporte (no se duplica).
+                </div>
             @endif
         </div>
     </div>
@@ -1309,6 +1322,74 @@
         }
     })();
     // La lógica GPS + hospitales vive en public/js/crewcare-geo.js (incluido por el parcial _geo-capture).
+
+    // (2026-08-01 · captura fluida, Paso 8) Mapear en CAPTURA sin guardar a mano.
+    // Al tocar "Abrir mapeo": persiste/actualiza un BORRADOR (create-or-update) con lo que lleva
+    // el formulario y abre el mapeo en otra pestaña. La 1ª vez, liga el <form> a ese borrador
+    // (modo edición) para que al Guardar se ACTUALICE y NO se duplique. Sólo existe en creación.
+    (function () {
+        var btn = document.getElementById('map-open-draft');
+        if (!btn) return;
+        var form = document.querySelector('form[data-cc-autosave="scouting-report"]');
+        if (!form) return;
+        var url = btn.getAttribute('data-draft-url');
+        var draftInput = form.querySelector('input[name="mapping_draft_id"]');
+        var statusEl = document.getElementById('map-draft-status');
+        var metaTok = document.querySelector('meta[name="csrf-token"]');
+        var token = metaTok ? metaTok.getAttribute('content') : '';
+        var flipped = false;
+
+        function setStatus(msg, isErr) {
+            if (!statusEl) return;
+            statusEl.innerHTML = '';
+            statusEl.appendChild(document.createTextNode(msg)); // sin innerHTML de datos
+            statusEl.className = 'form-text mt-1 ' + (isErr ? 'text-danger' : 'cc-muted');
+        }
+
+        btn.addEventListener('click', function () {
+            var loc = form.querySelector('[name="location_name"]');
+            if (loc && String(loc.value).trim() === '') {
+                setStatus('Escribe primero la locación para poder mapearla.', true);
+                if (loc.focus) { try { loc.focus(); } catch (e) {} }
+                return;
+            }
+            btn.disabled = true;
+            setStatus('Preparando el mapeo…', false);
+
+            var fd = new FormData(form);
+            // Al borrador NO le mandamos archivos (las imágenes se guardan al Guardar el scouting).
+            fd.delete('main_image');
+            fd.delete('additional_images[]');
+            fd.set('mapping_draft_id', draftInput ? draftInput.value : '');
+
+            fetch(url, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                body: fd,
+                credentials: 'same-origin'
+            }).then(function (r) {
+                if (!r.ok) { throw new Error('HTTP ' + r.status); }
+                return r.json();
+            }).then(function (data) {
+                if (!data || !data.id) { throw new Error('sin id'); }
+                if (draftInput) { draftInput.value = data.id; }
+                // Ligar el form a ESE borrador una sola vez → al Guardar se ACTUALIZA (no duplica).
+                if (!flipped && data.update_url) {
+                    form.setAttribute('action', data.update_url);
+                    var m = document.createElement('input');
+                    m.type = 'hidden'; m.name = '_method'; m.value = 'PUT';
+                    form.appendChild(m);
+                    flipped = true;
+                }
+                setStatus('Borrador listo. El mapeo abre en otra pestaña.', false);
+                window.open(data.mapping_url, '_blank', 'noopener');
+            }).catch(function () {
+                setStatus('No se pudo preparar el mapeo. Revisa la locación e inténtalo de nuevo.', true);
+            }).then(function () {
+                btn.disabled = false;
+            });
+        });
+    })();
 
     // (2026-07-15) Tras un error de validación: lleva al primer campo marcado y enfócalo,
     // para no dejar al usuario adivinando dónde está el problema en un form largo.

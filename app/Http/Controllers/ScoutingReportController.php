@@ -322,6 +322,58 @@ class ScoutingReportController extends Controller
     }
 
     /**
+     * (2026-08-01 · captura fluida, Paso 8) BORRADOR AUTOMÁTICO para mapear en CAPTURA.
+     *
+     * El mapeo de la locación necesita un scouting con id: los lienzos cuelgan de él y los
+     * pines de peligro referencian peligros YA evaluados en su risk_assessment. En creación
+     * aún no hay id, así que "guarda primero" cortaba la captura. Aquí se persiste un BORRADOR
+     * con el estado ACTUAL del formulario (incluidos los peligros ya agregados) y se devuelve
+     * su id + las URLs (mapeo y update) en JSON. El formulario, ya en el cliente, se liga a ESE
+     * borrador (pasa a modo edición) para que al Guardar se ACTUALICE y no se duplique.
+     *
+     * Idempotente por 'mapping_draft_id': si esta captura ya tiene borrador, se ACTUALIZA. Sólo
+     * se puede reusar un registro en estado 'draft' (nunca uno final → no se secuestran reportes
+     * sellados). NUNCA sella (es borrador). Validación mínima: sólo la locación.
+     */
+    public function draftForMapping(Request $request)
+    {
+        $request->validate(
+            ['location_name' => 'required|string|max:255'],
+            ['location_name.required' => 'Escribe la locación antes de mapearla.']
+        );
+
+        // Mismo ensamblado que store()/update() (corre buildHazards → llena hazardStandardIds).
+        $reportData = $this->assembleReportData($request);
+        $reportData['status'] = 'draft'; // el borrador de mapeo nunca nace final ni se sella.
+
+        // ¿Actualizar el borrador de ESTA captura, o crear uno nuevo?
+        $draftId = $request->input('mapping_draft_id');
+        $report  = !empty($draftId)
+            ? ScoutingReport::where('status', 'draft')->find($draftId)
+            : null;
+
+        if ($report) {
+            // La AUTOFIRMA original (make_by/created_by_id/make_date) NO se toca al actualizar.
+            $report->update($reportData);
+        } else {
+            // Nuevo borrador: autofirma de autoría, igual que store() en creación.
+            $reportData['make_by']       = auth()->user()->name;
+            $reportData['created_by_id'] = auth()->id();
+            $reportData['make_date']     = now()->toDateString();
+            $report = ScoutingReport::create($reportData);
+        }
+
+        // Pobla el pivote de normas con la unión de los eventos elegidos (defensivo).
+        $report->syncStandards(array_values($this->hazardStandardIds));
+
+        return response()->json([
+            'id'          => $report->id,
+            'mapping_url' => route('scoutings.mapping', $report->id),
+            'update_url'  => route('scoutings.update', $report->id),
+        ]);
+    }
+
+    /**
      * Mostrar un reporte de scouting (vista homologada al Daily Safety Report).
      */
     public function show($id)
