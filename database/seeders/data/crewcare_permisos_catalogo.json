@@ -1,0 +1,2070 @@
+{
+ "meta": {
+  "catalogo": "CrewCare - Permisos de actividad de riesgo amplificado",
+  "capa": "C - Permisos",
+  "version": "1.0",
+  "fecha_generacion": "2026-07-26",
+  "contexto": "El checklist GENERA el permiso. No es un documento aparte que alguien llena: es la salida de haber cerrado la verificación. No se entrega en papel — queda en base de datos, se consulta en línea y se exporta a PDF, con el mismo verificador y el mismo sellado que los demás reportes.",
+  "principio_de_los_dos_ejes": {
+   "enunciado": "El peligro del EQUIPO es que falle. El peligro de la ACTIVIDAD AMPLIFICADA es que funcione.",
+   "explicacion": "Un mortero que detona exactamente como fue diseñado sigue poniendo a una persona cerca de una detonación. Un tripié solo es peligroso el día que se rompe. No son grados del mismo problema y por eso no comparten instrumento: el equipo se inspecciona, la actividad se autoriza.",
+   "son_ejes_no_cajas": "Un objeto puede estar en uno, en el otro o en los dos. El soplete es equipo inspeccionable Y dispara permiso de trabajo en caliente. El mortero es solo eje 2 y por eso salió del catálogo de equipo."
+  },
+  "regla_de_emision": {
+   "principio": "No hay permiso sin checklist cerrado. Si falla un punto de compuerta, no hay permiso.",
+   "relacion_con_la_calculadora": "Es el mismo motor de la calculadora de inoperatividad leído en positivo: ACTIVIDAD NO EJECUTABLE es la cara negativa, ACTIVIDAD AUTORIZADA la positiva.",
+   "snapshot": "El permiso guarda el texto literal de los puntos al momento de emitir. Sin eso, un permiso firmado en julio apunta a un checklist que puede cambiar en agosto."
+  },
+  "revocacion": {
+   "quien": "Solo el Safety. Nadie más, ni con contraseña.",
+   "line_producer": "Puede pedirla, pero la línea pasa por el Safety. No se modela repartiendo la facultad: se registra el ORIGEN de la revocación y el Safety queda como único ejecutor. Se capturan hechos, no se reparten conclusiones.",
+   "por_que_importa": "La revocación es la orden de paro aplicada a actividad, y es lo que impide que el permiso sea papel."
+  },
+  "alcance_de_sitio": {
+   "principio": "El sitio importa donde importa, y eso son actividades específicas, no una generalidad.",
+   "mecanicas": {
+    "indiferente": "El permiso viaja con la actividad. Mover la unidad no cambia nada.",
+    "reverificacion": "El permiso sigue vivo, pero se abre un re-check corto de los puntos sensibles al sitio antes de reanudar.",
+    "ligado_al_sitio": "El permiso no cubre el sitio nuevo. No hay revocación: hay que emitir otro.",
+    "por_definir": "Abierto. Ver pendientes."
+   },
+   "distincion_importante": "Un permiso que no cubre un sitio nuevo NO está revocado: simplemente no alcanza. Son mecánicas distintas."
+  },
+  "autorizaciones_externas": {
+   "advertencia": "⚠ El permiso de CrewCare NO sustituye ninguna autorización de autoridad. Pirotecnia y armas son SEDENA bajo la Ley Federal de Armas de Fuego y Explosivos; drones son AFAC; hay autorizaciones municipales de filmación y de flama. El permiso interno REGISTRA que la autorización existe y está vigente, y no se emite sin ella.",
+   "texto_obligatorio_en_pdf": "Este permiso es un control interno de la producción. No sustituye las autorizaciones de la autoridad competente.",
+   "por_que": "Si no queda explícito, el producto puede leerse como que otorga algo que no le corresponde. Es riesgo de reputación del mismo tipo que una norma inventada."
+  },
+  "ejecutor_de_cada_punto": {
+   "safety": "Lo verifica el Safety, sin tocar el equipo del especialista.",
+   "especialista": "Lo responde quien arma o opera la actividad. Marca requiere_contacto: por diseño, el Safety no lo ejecuta.",
+   "por_que": "El Safety que abre un mortero cargado o ajusta un air ram crea riesgo, no lo reduce. Su capa es perimetral y documental."
+  },
+  "esquema_relacion": {
+   "permiso_a_punto": "puntos_ref.",
+   "permiso_a_herramienta": "herramientas_que_lo_disparan, tomado de la capa B.",
+   "herramienta_a_permiso": "En la capa B cada herramienta declara permiso_que_dispara.",
+   "capas": {
+    "A": "SPFX — efectos e insumos",
+    "B": "Herramienta y equipo",
+    "C": "Permisos de actividad"
+   }
+  },
+  "leyenda_verificacion": {
+   "verificado_true": "Texto normativo abierto y confirmado.",
+   "verificado_false": "Redactado desde conocimiento de oficio y de los boletines; no auditado contra el texto ni contra campo.",
+   "nota": "Ningún permiso está marcado verificado. La validación la dan un coordinador de SPFX, uno de stunts y el asesor legal para lo de SEDENA y AFAC."
+  },
+  "estado": {
+   "permisos": 15,
+   "puntos": 103,
+   "con_autorizacion_externa_obligatoria": 3,
+   "disparados_por_herramienta": 5,
+   "por_mecanica_de_sitio": {
+    "indiferente": 3,
+    "reverificacion": 2,
+    "ligado_al_sitio": 7,
+    "por_definir": 3
+   }
+  },
+  "changelog": [
+   {
+    "version": "1.0",
+    "fecha": "2026-07-26",
+    "cambio": "Primera unificación de la capa C. 15 permisos, 103 puntos. Se agregó PER-07 Izaje, que no estaba en la lista original de 14 y entra por el criterio del eje 2."
+   }
+  ]
+ },
+ "permisos": [
+  {
+   "id": "PER-01",
+   "clave": "trabajo_caliente",
+   "familia": "1. Calor y fuego",
+   "nombre": "Trabajo en caliente",
+   "definicion": "Soldadura, corte con disco, esmerilado y uso de soplete: cualquier trabajo que genere chispa, arco o flama sobre material de set.",
+   "cubre": [
+    "Soldar con arco o MIG",
+    "Cortar con disco abrasivo",
+    "Esmerilar",
+    "Soplete de gas LP",
+    "Oxicorte"
+   ],
+   "cuando_se_emite": "Antes de iniciar, en el punto donde se va a trabajar.",
+   "emite": "Safety, como persona competente designada",
+   "acepta": "HOD de construcción o responsable del trabajo",
+   "firmas": [
+    "Autógrafa del Safety como emisor",
+    "Autógrafa de: HOD de construcción o responsable del trabajo — como aceptante",
+    "SHA256 sobre el dato, no sobre el render"
+   ],
+   "vigencia": "La jornada. Se ata al shoot_day, no a la fecha de calendario: los llamados cruzan la medianoche.",
+   "alcance": "Producción + jornada + unidad + actividad.",
+   "alcance_sitio": "reverificacion",
+   "alcance_sitio_nota": "La misma soldadura en una casona de madera y en una bodega de concreto tiene carga de fuego distinta. El permiso sigue vivo al mover la unidad, pero se abre un re-check corto antes de reanudar.",
+   "reverificacion_al_mover": [
+    "¿El área está despejada de material combustible en un radio de 10 m, o protegida con mampara?",
+    "¿Hay extintor apropiado a la vista y asignado a una persona?",
+    "¿Está designada por nombre la vigilancia de fuego posterior, y sabe cuánto tiempo se queda?",
+    "¿Se revisó qué hay del otro lado del muro, piso o techo donde se va a trabajar?",
+    "¿El detector de humo del inmueble está aislado, con aviso al responsable del edificio?"
+   ],
+   "autorizacion_externa": null,
+   "herramientas_que_lo_disparan": [
+    {
+     "id": "HER-004",
+     "nombre": "Cortadora de disco para metal"
+    },
+    {
+     "id": "HER-005",
+     "nombre": "Esmeriladora angular"
+    },
+    {
+     "id": "HER-013",
+     "nombre": "Soldadora de arco"
+    },
+    {
+     "id": "HER-014",
+     "nombre": "Equipo de oxiacetileno"
+    }
+   ],
+   "puntos_ref": [
+    "PT-HW-01",
+    "PT-HW-02",
+    "PT-HW-03",
+    "PT-HW-04",
+    "PT-HW-05",
+    "PT-HW-06",
+    "PT-HW-07",
+    "PT-HW-08"
+   ],
+   "presupuesto": {
+    "puntos": 8,
+    "del_safety": 8,
+    "del_especialista": 0
+   },
+   "normas": {
+    "csatf": [
+     "#19 Open Flame on Production",
+     "#13 Combustible & Flammable Fuels"
+    ],
+    "eeuu_ca": [
+     "29 CFR 1926.350",
+     "29 CFR 1926.352"
+    ],
+    "mexico": [
+     "NOM-027-STPS-2008 (soldadura y corte)",
+     "NOM-002-STPS-2010 (incendios)"
+    ]
+   },
+   "verificado": false,
+   "notas": "Numerales exactos de NOM-027 sobre autorización de trabajos por verificar."
+  },
+  {
+   "id": "PER-02",
+   "clave": "flama_abierta",
+   "familia": "1. Calor y fuego",
+   "nombre": "Flama abierta en escena",
+   "definicion": "Fuego visible en cuadro: velas, antorchas, chimeneas, charcos y quemadores de efecto.",
+   "cubre": [
+    "Velas y candelabros",
+    "Antorchas",
+    "Chimeneas y fogatas de set",
+    "Quemador de gas para fuego"
+   ],
+   "cuando_se_emite": "Antes del ensayo, y otra vez antes de la primera toma.",
+   "emite": "Safety, como persona competente designada",
+   "acepta": "Coordinador de SPFX o responsable del efecto",
+   "firmas": [
+    "Autógrafa del Safety como emisor",
+    "Autógrafa de: Coordinador de SPFX o responsable del efecto — como aceptante",
+    "SHA256 sobre el dato, no sobre el render"
+   ],
+   "vigencia": "La jornada. Se ata al shoot_day, no a la fecha de calendario: los llamados cruzan la medianoche.",
+   "alcance": "Producción + jornada + unidad + actividad.",
+   "alcance_sitio": "reverificacion",
+   "alcance_sitio_nota": "Igual que trabajo en caliente: la carga de fuego del lugar cambia el control.",
+   "reverificacion_al_mover": [
+    "¿La extinción corresponde al combustible y está a la mano?",
+    "¿Vestuario y escenografía en el área están tratados o son de material no propagante?",
+    "¿El talento cercano tiene ruta de salida despejada?",
+    "¿Está designada la vigilancia de fuego posterior?"
+   ],
+   "autorizacion_externa": {
+    "autoridad": "municipal",
+    "que": "Permiso de quema o aviso a Protección Civil estatal o municipal, según la plaza.",
+    "obligatorio": false
+   },
+   "herramientas_que_lo_disparan": [
+    {
+     "id": "HER-015",
+     "nombre": "Soplete de gas LP"
+    },
+    {
+     "id": "HER-030",
+     "nombre": "Cortador de hilo caliente"
+    },
+    {
+     "id": "HER-062",
+     "nombre": "Quemador de gas para fuego"
+    }
+   ],
+   "puntos_ref": [
+    "PT-FA-01",
+    "PT-FA-02",
+    "PT-FA-03",
+    "PT-FA-04",
+    "PT-FA-05",
+    "PT-FA-06",
+    "PT-FA-07",
+    "PT-FA-08"
+   ],
+   "presupuesto": {
+    "puntos": 8,
+    "del_safety": 7,
+    "del_especialista": 1
+   },
+   "normas": {
+    "csatf": [
+     "#19 Open Flame on Production",
+     "#13 Combustible & Flammable Fuels"
+    ],
+    "eeuu_ca": [
+     "29 CFR 1910.106 (líquidos inflamables)"
+    ],
+    "mexico": [
+     "NOM-002-STPS-2010 (incendios)",
+     "NOM-005-STPS-1998 (químicos inflamables)"
+    ]
+   },
+   "verificado": false,
+   "notas": "Cruza con la capa A de SPFX: FX-01 y FX-02."
+  },
+  {
+   "id": "PER-03",
+   "clave": "pirotecnia",
+   "familia": "1. Calor y fuego",
+   "nombre": "Pirotecnia y SFX explosivo",
+   "definicion": "Morteros, gerbs, squibs, cargas y cualquier artificio con pólvora o fulminante.",
+   "cubre": [
+    "Morteros y panel de disparo",
+    "Gerbs y chispa",
+    "Squibs y cargas de impacto",
+    "Detonaciones de escena"
+   ],
+   "cuando_se_emite": "Antes del ensayo en frío, y de nuevo antes de cada toma.",
+   "emite": "Safety, como persona competente designada",
+   "acepta": "Técnico SPFX responsable, titular del permiso",
+   "firmas": [
+    "Autógrafa del Safety como emisor",
+    "Autógrafa de: Técnico SPFX responsable, titular del permiso — como aceptante",
+    "SHA256 sobre el dato, no sobre el render"
+   ],
+   "vigencia": "La jornada. Se ata al shoot_day, no a la fecha de calendario: los llamados cruzan la medianoche.",
+   "alcance": "Producción + jornada + unidad + actividad.",
+   "alcance_sitio": "ligado_al_sitio",
+   "alcance_sitio_nota": "El permiso es del emplazamiento: distancias, superficie y confinamiento cambian todo. Mover la actividad exige permiso nuevo, no es una revocación.",
+   "reverificacion_al_mover": [],
+   "autorizacion_externa": {
+    "autoridad": "SEDENA",
+    "que": "Permiso general o extraordinario bajo la Ley Federal de Armas de Fuego y Explosivos. Todo lo que tenga pólvora o fulminante. Un insumo legal en California puede constituir delito federal en México sin ese permiso.",
+    "obligatorio": true
+   },
+   "herramientas_que_lo_disparan": [],
+   "puntos_ref": [
+    "PT-PI-01",
+    "PT-PI-02",
+    "PT-PI-03",
+    "PT-PI-04",
+    "PT-PI-05",
+    "PT-PI-06",
+    "PT-PI-07",
+    "PT-PI-08"
+   ],
+   "presupuesto": {
+    "puntos": 8,
+    "del_safety": 7,
+    "del_especialista": 1
+   },
+   "normas": {
+    "csatf": [
+     "#16 Pyrotechnics",
+     "#13 Combustible & Flammable Fuels"
+    ],
+    "eeuu_ca": [
+     "California Fire Code Cap. 56",
+     "Permiso de efectos especiales del fire department local"
+    ],
+    "mexico": [
+     "Ley Federal de Armas de Fuego y Explosivos (SEDENA)",
+     "NOM-002-STPS-2010"
+    ]
+   },
+   "verificado": false,
+   "notas": "⚠ El safety NO abre ni manipula un mortero cargado: hacerlo crea riesgo. Su capa es documental y perimetral. La parte técnica es del especialista."
+  },
+  {
+   "id": "PER-04",
+   "clave": "fuego_sobre_persona",
+   "familia": "1. Calor y fuego",
+   "nombre": "Fuego sobre persona",
+   "definicion": "Full burn o burn parcial sobre un doble, con gel protector y equipo de extinción dedicado.",
+   "cubre": [
+    "Full body burn",
+    "Burn parcial de extremidad o vestuario",
+    "Fuego sobre doble en movimiento"
+   ],
+   "cuando_se_emite": "Antes del ensayo en frío y antes de la toma. Sin excepción.",
+   "emite": "Safety, como persona competente designada",
+   "acepta": "Coordinador de stunts y coordinador de SPFX",
+   "firmas": [
+    "Autógrafa del Safety como emisor",
+    "Autógrafa de: Coordinador de stunts y coordinador de SPFX — como aceptante",
+    "SHA256 sobre el dato, no sobre el render"
+   ],
+   "vigencia": "La jornada. Se ata al shoot_day, no a la fecha de calendario: los llamados cruzan la medianoche.",
+   "alcance": "Producción + jornada + unidad + actividad.",
+   "alcance_sitio": "ligado_al_sitio",
+   "alcance_sitio_nota": "El emplazamiento define rutas de salida, superficie y posición del equipo de extinción.",
+   "reverificacion_al_mover": [],
+   "autorizacion_externa": null,
+   "herramientas_que_lo_disparan": [],
+   "puntos_ref": [
+    "PT-FP-01",
+    "PT-FP-02",
+    "PT-FP-03",
+    "PT-FP-04",
+    "PT-FP-05",
+    "PT-FP-06",
+    "PT-FP-07"
+   ],
+   "presupuesto": {
+    "puntos": 7,
+    "del_safety": 6,
+    "del_especialista": 1
+   },
+   "normas": {
+    "csatf": [
+     "#4 Stunts",
+     "#19 Open Flame on Production"
+    ],
+    "eeuu_ca": [
+     "Cal/OSHA T8 §3203 (IIPP)"
+    ],
+    "mexico": [
+     "NOM-002-STPS-2010",
+     "NOM-018-STPS-2015 (HazCom)"
+    ]
+   },
+   "verificado": false,
+   "notas": "CSATF no tiene boletín fino de fuego sobre persona: el ancla es #4 más las de fuego."
+  },
+  {
+   "id": "PER-05",
+   "clave": "altura",
+   "familia": "2. Altura y suspensión",
+   "nombre": "Trabajo en altura y caída controlada",
+   "definicion": "Trabajo o actuación por arriba de la altura de riesgo, incluida la caída controlada a colchón o descensor.",
+   "cubre": [
+    "Montaje y trabajo sobre andamio o plataforma",
+    "High fall a colchón",
+    "Descenso controlado",
+    "Trabajo en parrilla"
+   ],
+   "cuando_se_emite": "Antes de subir.",
+   "emite": "Safety, como persona competente designada",
+   "acepta": "Coordinador de rigging, de stunts, o HOD responsable",
+   "firmas": [
+    "Autógrafa del Safety como emisor",
+    "Autógrafa de: Coordinador de rigging, de stunts, o HOD responsable — como aceptante",
+    "SHA256 sobre el dato, no sobre el render"
+   ],
+   "vigencia": "La jornada. Se ata al shoot_day, no a la fecha de calendario: los llamados cruzan la medianoche.",
+   "alcance": "Producción + jornada + unidad + actividad.",
+   "alcance_sitio": "por_definir",
+   "alcance_sitio_nota": "ABIERTO: el anclaje es del lugar, pero el rig viaja. No está claro si es reverificación o ligado al sitio. Es la misma duda que wire work e izaje.",
+   "reverificacion_al_mover": [],
+   "autorizacion_externa": null,
+   "herramientas_que_lo_disparan": [
+    {
+     "id": "HER-029",
+     "nombre": "Andamio de marco y crucetas"
+    },
+    {
+     "id": "HER-051",
+     "nombre": "Plataforma de tijera"
+    },
+    {
+     "id": "HER-052",
+     "nombre": "Plataforma de brazo"
+    },
+    {
+     "id": "HER-067",
+     "nombre": "Grúa de cámara"
+    }
+   ],
+   "puntos_ref": [
+    "PT-AL-01",
+    "PT-AL-02",
+    "PT-AL-03",
+    "PT-AL-04",
+    "PT-AL-05",
+    "PT-AL-06",
+    "PT-AL-07"
+   ],
+   "presupuesto": {
+    "puntos": 7,
+    "del_safety": 6,
+    "del_especialista": 1
+   },
+   "normas": {
+    "csatf": [
+     "#22 Elevating Work Platforms",
+     "#4 Stunts"
+    ],
+    "eeuu_ca": [
+     "29 CFR 1926 Subpart M",
+     "29 CFR 1926.451",
+     "29 CFR 1926.1053"
+    ],
+    "mexico": [
+     "NOM-009-STPS-2011 (trabajos en altura)"
+    ]
+   },
+   "verificado": false,
+   "notas": ""
+  },
+  {
+   "id": "PER-06",
+   "clave": "wire_work",
+   "familia": "2. Altura y suspensión",
+   "nombre": "Wire work y vuelo",
+   "definicion": "Suspensión y desplazamiento de una persona por cable, arnés y sistema de contrapeso o motor.",
+   "cubre": [
+    "Vuelo de personaje",
+    "Jerk back y ratchet",
+    "Descenso o ascenso rápido"
+   ],
+   "cuando_se_emite": "Antes del ensayo con el performer puesto, y antes de cada toma.",
+   "emite": "Safety, como persona competente designada",
+   "acepta": "Coordinador de stunts o rigger de vuelo",
+   "firmas": [
+    "Autógrafa del Safety como emisor",
+    "Autógrafa de: Coordinador de stunts o rigger de vuelo — como aceptante",
+    "SHA256 sobre el dato, no sobre el render"
+   ],
+   "vigencia": "La jornada. Se ata al shoot_day, no a la fecha de calendario: los llamados cruzan la medianoche.",
+   "alcance": "Producción + jornada + unidad + actividad.",
+   "alcance_sitio": "por_definir",
+   "alcance_sitio_nota": "Misma duda que altura: el punto de suspensión es del lugar, el rig viaja.",
+   "reverificacion_al_mover": [],
+   "autorizacion_externa": null,
+   "herramientas_que_lo_disparan": [],
+   "puntos_ref": [
+    "PT-WW-01",
+    "PT-WW-02",
+    "PT-WW-03",
+    "PT-WW-04",
+    "PT-WW-05",
+    "PT-WW-06"
+   ],
+   "presupuesto": {
+    "puntos": 6,
+    "del_safety": 5,
+    "del_especialista": 1
+   },
+   "normas": {
+    "csatf": [
+     "#4 Stunts",
+     "#4A Specialized Activities"
+    ],
+    "eeuu_ca": [
+     "29 CFR 1926 Subpart M"
+    ],
+    "mexico": [
+     "NOM-009-STPS-2011"
+    ]
+   },
+   "verificado": false,
+   "notas": "El safety verifica perímetro, comunicación y quién puede detener. El rig lo revisa el rigger."
+  },
+  {
+   "id": "PER-07",
+   "clave": "izaje",
+   "familia": "2. Altura y suspensión",
+   "nombre": "Izaje de carga sobre personas",
+   "definicion": "Elevación o suspensión de carga con polipasto, motor de cadena, malacate o grúa, donde alguien puede quedar bajo la trayectoria.",
+   "cubre": [
+    "Truss y luminarias suspendidas",
+    "Elementos de escenografía izados",
+    "Carga con grúa o hiab"
+   ],
+   "cuando_se_emite": "Antes del primer izaje del día en ese punto.",
+   "emite": "Safety, como persona competente designada",
+   "acepta": "Coordinador de rigging",
+   "firmas": [
+    "Autógrafa del Safety como emisor",
+    "Autógrafa de: Coordinador de rigging — como aceptante",
+    "SHA256 sobre el dato, no sobre el render"
+   ],
+   "vigencia": "La jornada. Se ata al shoot_day, no a la fecha de calendario: los llamados cruzan la medianoche.",
+   "alcance": "Producción + jornada + unidad + actividad.",
+   "alcance_sitio": "por_definir",
+   "alcance_sitio_nota": "Misma duda que altura y wire work.",
+   "reverificacion_al_mover": [],
+   "autorizacion_externa": null,
+   "herramientas_que_lo_disparan": [
+    {
+     "id": "HER-053",
+     "nombre": "Polipasto de cadena"
+    },
+    {
+     "id": "HER-054",
+     "nombre": "Motor de cadena eléctrico"
+    },
+    {
+     "id": "HER-055",
+     "nombre": "Malacate"
+    },
+    {
+     "id": "HER-065",
+     "nombre": "Grúa o camión grúa"
+    }
+   ],
+   "puntos_ref": [
+    "PT-IZ-01",
+    "PT-IZ-02",
+    "PT-IZ-03",
+    "PT-IZ-04",
+    "PT-IZ-05",
+    "PT-IZ-06"
+   ],
+   "presupuesto": {
+    "puntos": 6,
+    "del_safety": 5,
+    "del_especialista": 1
+   },
+   "normas": {
+    "csatf": [
+     "#22 Elevating Work Platforms"
+    ],
+    "eeuu_ca": [
+     "29 CFR 1926.251",
+     "29 CFR 1910.184"
+    ],
+    "mexico": [
+     "NOM-006-STPS-2023 (manejo de materiales con maquinaria)",
+     "NOM-009-STPS-2011"
+    ]
+   },
+   "verificado": false,
+   "notas": "⚠ Permiso AGREGADO al escribir la capa B: no estaba en la lista original de 14. Entra por el criterio del eje 2 — el riesgo está puesto a propósito y hay personas debajo. Confirmar si se adopta."
+  },
+  {
+   "id": "PER-08",
+   "clave": "espacio_confinado",
+   "familia": "3. Entornos",
+   "nombre": "Espacio confinado",
+   "definicion": "Entrada a espacio con acceso restringido y ventilación natural deficiente: tanques, sótanos, ductos de foro, cisternas.",
+   "cubre": [
+    "Entrada a tanque o cisterna",
+    "Sótano sin ventilación",
+    "Ducto o pleno de foro"
+   ],
+   "cuando_se_emite": "Antes de que alguien entre.",
+   "emite": "Safety, como persona competente designada",
+   "acepta": "Responsable de la entrada",
+   "firmas": [
+    "Autógrafa del Safety como emisor",
+    "Autógrafa de: Responsable de la entrada — como aceptante",
+    "SHA256 sobre el dato, no sobre el render"
+   ],
+   "vigencia": "La jornada. Se ata al shoot_day, no a la fecha de calendario: los llamados cruzan la medianoche.",
+   "alcance": "Producción + jornada + unidad + actividad.",
+   "alcance_sitio": "ligado_al_sitio",
+   "alcance_sitio_nota": "El permiso ES del espacio. Otro espacio exige otro permiso; no hay revocación de por medio.",
+   "reverificacion_al_mover": [],
+   "autorizacion_externa": null,
+   "herramientas_que_lo_disparan": [],
+   "puntos_ref": [
+    "PT-EC-01",
+    "PT-EC-02",
+    "PT-EC-03",
+    "PT-EC-04",
+    "PT-EC-05",
+    "PT-EC-06"
+   ],
+   "presupuesto": {
+    "puntos": 6,
+    "del_safety": 5,
+    "del_especialista": 1
+   },
+   "normas": {
+    "eeuu_ca": [
+     "29 CFR 1910.146"
+    ],
+    "mexico": [
+     "NOM-033-STPS-2015 (espacios confinados)"
+    ]
+   },
+   "verificado": false,
+   "notas": "Numerales exactos de NOM-033 sobre el permiso de entrada por verificar."
+  },
+  {
+   "id": "PER-09",
+   "clave": "agua",
+   "familia": "3. Entornos",
+   "nombre": "Trabajo en agua y sumersión",
+   "definicion": "Actividad con personas dentro del agua: tanque, alberca, cuerpo natural, sumersión o buceo.",
+   "cubre": [
+    "Tanque o alberca de rodaje",
+    "Cuerpo de agua natural",
+    "Sumersión prolongada",
+    "Buceo"
+   ],
+   "cuando_se_emite": "Antes de que alguien entre al agua.",
+   "emite": "Safety, como persona competente designada",
+   "acepta": "Coordinador de agua o buzo de seguridad",
+   "firmas": [
+    "Autógrafa del Safety como emisor",
+    "Autógrafa de: Coordinador de agua o buzo de seguridad — como aceptante",
+    "SHA256 sobre el dato, no sobre el render"
+   ],
+   "vigencia": "La jornada. Se ata al shoot_day, no a la fecha de calendario: los llamados cruzan la medianoche.",
+   "alcance": "Producción + jornada + unidad + actividad.",
+   "alcance_sitio": "ligado_al_sitio",
+   "alcance_sitio_nota": "El permiso es del cuerpo de agua: corriente, profundidad, temperatura y fondo cambian por completo.",
+   "reverificacion_al_mover": [],
+   "autorizacion_externa": null,
+   "herramientas_que_lo_disparan": [],
+   "puntos_ref": [
+    "PT-AG-01",
+    "PT-AG-02",
+    "PT-AG-03",
+    "PT-AG-04",
+    "PT-AG-05",
+    "PT-AG-06",
+    "PT-AG-07"
+   ],
+   "presupuesto": {
+    "puntos": 7,
+    "del_safety": 6,
+    "del_especialista": 1
+   },
+   "normas": {
+    "csatf": [
+     "#17 Water Hazards",
+     "#15 Boating",
+     "#7 Diving"
+    ],
+    "eeuu_ca": [
+     "29 CFR 1910 Subpart T (buceo comercial)"
+    ],
+    "mexico": [
+     "NOM-009-STPS-2011"
+    ]
+   },
+   "verificado": false,
+   "notas": ""
+  },
+  {
+   "id": "PER-10",
+   "clave": "armas_salvas",
+   "familia": "4. Armas y vehículos",
+   "nombre": "Armas de fuego y salvas",
+   "definicion": "Uso de arma de fuego real, réplica o de utilería, con o sin salvas.",
+   "cubre": [
+    "Arma con salvas",
+    "Arma sin carga",
+    "Réplica de utilería"
+   ],
+   "cuando_se_emite": "Antes del ensayo, y de nuevo antes de cada toma en que se manipule el arma.",
+   "emite": "Safety, como persona competente designada",
+   "acepta": "Armero responsable",
+   "firmas": [
+    "Autógrafa del Safety como emisor",
+    "Autógrafa de: Armero responsable — como aceptante",
+    "SHA256 sobre el dato, no sobre el render"
+   ],
+   "vigencia": "La jornada. Se ata al shoot_day, no a la fecha de calendario: los llamados cruzan la medianoche.",
+   "alcance": "Producción + jornada + unidad + actividad.",
+   "alcance_sitio": "indiferente",
+   "alcance_sitio_nota": "El control es el arma, el procedimiento y el perímetro, no el inmueble.",
+   "reverificacion_al_mover": [],
+   "autorizacion_externa": {
+    "autoridad": "SEDENA",
+    "que": "Permiso bajo la Ley Federal de Armas de Fuego y Explosivos para armas y para salvas importadas.",
+    "obligatorio": true
+   },
+   "herramientas_que_lo_disparan": [],
+   "puntos_ref": [
+    "PT-AR-01",
+    "PT-AR-02",
+    "PT-AR-03",
+    "PT-AR-04",
+    "PT-AR-05",
+    "PT-AR-06",
+    "PT-AR-07",
+    "PT-AR-08"
+   ],
+   "presupuesto": {
+    "puntos": 8,
+    "del_safety": 7,
+    "del_especialista": 1
+   },
+   "normas": {
+    "csatf": [
+     "#1 Firearms",
+     "#2 Blank Ammunition"
+    ],
+    "eeuu_ca": [
+     "CA Labor Code §§9150-9161 (SB 132, 2023)"
+    ],
+    "mexico": [
+     "Ley Federal de Armas de Fuego y Explosivos (SEDENA)"
+    ]
+   },
+   "verificado": false,
+   "notas": "SB 132 exige evaluación de riesgo escrita y prohíbe munición real."
+  },
+  {
+   "id": "PER-11",
+   "clave": "vehiculo_escena",
+   "familia": "4. Armas y vehículos",
+   "nombre": "Vehículo en escena, camera car y free driving",
+   "definicion": "Vehículo en movimiento dentro del cuadro, con cámara montada, remolcado o conducido por talento.",
+   "cubre": [
+    "Camera car y process trailer",
+    "Free driving con talento",
+    "Persecución o maniobra coreografiada",
+    "Car mount"
+   ],
+   "cuando_se_emite": "Antes del primer pase, y otra vez si cambia la maniobra.",
+   "emite": "Safety, como persona competente designada",
+   "acepta": "Coordinador de stunts o de transportación",
+   "firmas": [
+    "Autógrafa del Safety como emisor",
+    "Autógrafa de: Coordinador de stunts o de transportación — como aceptante",
+    "SHA256 sobre el dato, no sobre el render"
+   ],
+   "vigencia": "La jornada. Se ata al shoot_day, no a la fecha de calendario: los llamados cruzan la medianoche.",
+   "alcance": "Producción + jornada + unidad + actividad.",
+   "alcance_sitio": "ligado_al_sitio",
+   "alcance_sitio_nota": "El recorrido ES el sitio: superficie, visibilidad y cierre de vía definen la maniobra.",
+   "reverificacion_al_mover": [],
+   "autorizacion_externa": {
+    "autoridad": "municipal",
+    "que": "Cierre de vía o permiso de filmación en vía pública.",
+    "obligatorio": false
+   },
+   "herramientas_que_lo_disparan": [
+    {
+     "id": "HER-069",
+     "nombre": "Car mount y ventosas"
+    }
+   ],
+   "puntos_ref": [
+    "PT-VE-01",
+    "PT-VE-02",
+    "PT-VE-03",
+    "PT-VE-04",
+    "PT-VE-05",
+    "PT-VE-06",
+    "PT-VE-07"
+   ],
+   "presupuesto": {
+    "puntos": 7,
+    "del_safety": 7,
+    "del_especialista": 0
+   },
+   "normas": {
+    "csatf": [
+     "#8 Camera Cars",
+     "#8A Process Trailers",
+     "#21 Vehicles"
+    ],
+    "eeuu_ca": [
+     "Cal/OSHA T8 §3203"
+    ],
+    "mexico": [
+     "Reglamentos de tránsito estatales y municipales"
+    ]
+   },
+   "verificado": false,
+   "notas": ""
+  },
+  {
+   "id": "PER-12",
+   "clave": "animales",
+   "familia": "5. Personas y seres vivos",
+   "nombre": "Animales en escena",
+   "definicion": "Presencia de animal en el set, con su wrangler.",
+   "cubre": [
+    "Animal doméstico",
+    "Animal de trabajo o exótico",
+    "Reptil venenoso"
+   ],
+   "cuando_se_emite": "Al llegar el animal a locación.",
+   "emite": "Safety, como persona competente designada",
+   "acepta": "Wrangler responsable",
+   "firmas": [
+    "Autógrafa del Safety como emisor",
+    "Autógrafa de: Wrangler responsable — como aceptante",
+    "SHA256 sobre el dato, no sobre el render"
+   ],
+   "vigencia": "La jornada. Se ata al shoot_day, no a la fecha de calendario: los llamados cruzan la medianoche.",
+   "alcance": "Producción + jornada + unidad + actividad.",
+   "alcance_sitio": "indiferente",
+   "alcance_sitio_nota": "El control es el manejo y la contención, no el inmueble.",
+   "reverificacion_al_mover": [],
+   "autorizacion_externa": null,
+   "herramientas_que_lo_disparan": [],
+   "puntos_ref": [
+    "PT-AN-01",
+    "PT-AN-02",
+    "PT-AN-03",
+    "PT-AN-04",
+    "PT-AN-05",
+    "PT-AN-06"
+   ],
+   "presupuesto": {
+    "puntos": 6,
+    "del_safety": 6,
+    "del_especialista": 0
+   },
+   "normas": {
+    "csatf": [
+     "#6 Animal Handling",
+     "#12 Venomous Reptiles"
+    ],
+    "mexico": [
+     "Normatividad estatal de protección animal"
+    ]
+   },
+   "verificado": false,
+   "notas": ""
+  },
+  {
+   "id": "PER-13",
+   "clave": "drone",
+   "familia": "5. Personas y seres vivos",
+   "nombre": "Drone / UAS",
+   "definicion": "Operación de aeronave pilotada a distancia sobre o cerca del set.",
+   "cubre": [
+    "Vuelo sobre set",
+    "Vuelo sobre personas",
+    "Vuelo nocturno"
+   ],
+   "cuando_se_emite": "Antes de cada bloque de vuelo.",
+   "emite": "Safety, como persona competente designada",
+   "acepta": "Piloto responsable",
+   "firmas": [
+    "Autógrafa del Safety como emisor",
+    "Autógrafa de: Piloto responsable — como aceptante",
+    "SHA256 sobre el dato, no sobre el render"
+   ],
+   "vigencia": "La jornada. Se ata al shoot_day, no a la fecha de calendario: los llamados cruzan la medianoche.",
+   "alcance": "Producción + jornada + unidad + actividad.",
+   "alcance_sitio": "ligado_al_sitio",
+   "alcance_sitio_nota": "El espacio aéreo autorizado es del sitio y lo otorga la autoridad, no nosotros.",
+   "reverificacion_al_mover": [],
+   "autorizacion_externa": {
+    "autoridad": "AFAC",
+    "que": "Registro y autorización de operación de RPAS en México.",
+    "obligatorio": true
+   },
+   "herramientas_que_lo_disparan": [],
+   "puntos_ref": [
+    "PT-DR-01",
+    "PT-DR-02",
+    "PT-DR-03",
+    "PT-DR-04",
+    "PT-DR-05",
+    "PT-DR-06"
+   ],
+   "presupuesto": {
+    "puntos": 6,
+    "del_safety": 5,
+    "del_especialista": 1
+   },
+   "normas": {
+    "csatf": [
+     "#36 Unmanned Aircraft Systems",
+     "#36A FAA Regulations"
+    ],
+    "eeuu_ca": [
+     "FAA Part 107"
+    ],
+    "mexico": [
+     "Regulación AFAC de RPAS"
+    ]
+   },
+   "verificado": false,
+   "notas": "Número y vigencia de la norma AFAC por verificar."
+  },
+  {
+   "id": "PER-14",
+   "clave": "multitudes",
+   "familia": "5. Personas y seres vivos",
+   "nombre": "Multitudes y figuración de acción",
+   "definicion": "Escena con gran número de extras en movimiento coreografiado: estampida, disturbio, evacuación.",
+   "cubre": [
+    "Estampida coreografiada",
+    "Disturbio o motín de escena",
+    "Evacuación masiva en cuadro"
+   ],
+   "cuando_se_emite": "Antes del ensayo con el grupo completo.",
+   "emite": "Safety, como persona competente designada",
+   "acepta": "1er AD y coordinador de stunts",
+   "firmas": [
+    "Autógrafa del Safety como emisor",
+    "Autógrafa de: 1er AD y coordinador de stunts — como aceptante",
+    "SHA256 sobre el dato, no sobre el render"
+   ],
+   "vigencia": "La jornada. Se ata al shoot_day, no a la fecha de calendario: los llamados cruzan la medianoche.",
+   "alcance": "Producción + jornada + unidad + actividad.",
+   "alcance_sitio": "ligado_al_sitio",
+   "alcance_sitio_nota": "Las rutas de salida y la capacidad del espacio son del sitio.",
+   "reverificacion_al_mover": [],
+   "autorizacion_externa": null,
+   "herramientas_que_lo_disparan": [],
+   "puntos_ref": [
+    "PT-MU-01",
+    "PT-MU-02",
+    "PT-MU-03",
+    "PT-MU-04",
+    "PT-MU-05",
+    "PT-MU-06",
+    "PT-MU-07"
+   ],
+   "presupuesto": {
+    "puntos": 7,
+    "del_safety": 7,
+    "del_especialista": 0
+   },
+   "normas": {
+    "csatf": [
+     "#5 Safety Awareness",
+     "#26 Urban Exterior Locations"
+    ],
+    "eeuu_ca": [
+     "Cal/OSHA T8 §3203"
+    ],
+    "mexico": [
+     "NOM-002-STPS-2010 (rutas de evacuación)"
+    ]
+   },
+   "verificado": false,
+   "notas": ""
+  },
+  {
+   "id": "PER-15",
+   "clave": "menor_actividad_fisica",
+   "familia": "5. Personas y seres vivos",
+   "nombre": "Menor en actividad física",
+   "definicion": "Participación de una persona menor de edad en stunt, esfuerzo físico, agua, altura o cualquier actividad de riesgo amplificado.",
+   "cubre": [
+    "Menor en stunt o caída",
+    "Menor en agua",
+    "Menor en altura",
+    "Menor en escena con efecto"
+   ],
+   "cuando_se_emite": "Antes del ensayo con el menor presente.",
+   "emite": "Safety, como persona competente designada",
+   "acepta": "Tutor o responsable legal presente y coordinador de stunts",
+   "firmas": [
+    "Autógrafa del Safety como emisor",
+    "Autógrafa de: Tutor o responsable legal presente y coordinador de stunts — como aceptante",
+    "SHA256 sobre el dato, no sobre el render"
+   ],
+   "vigencia": "La jornada. Se ata al shoot_day, no a la fecha de calendario: los llamados cruzan la medianoche.",
+   "alcance": "Producción + jornada + unidad + actividad.",
+   "alcance_sitio": "indiferente",
+   "alcance_sitio_nota": "El control es la persona y la actividad, no el inmueble.",
+   "reverificacion_al_mover": [],
+   "autorizacion_externa": null,
+   "herramientas_que_lo_disparan": [],
+   "puntos_ref": [
+    "PT-ME-01",
+    "PT-ME-02",
+    "PT-ME-03",
+    "PT-ME-04",
+    "PT-ME-05",
+    "PT-ME-06"
+   ],
+   "presupuesto": {
+    "puntos": 6,
+    "del_safety": 6,
+    "del_especialista": 0
+   },
+   "normas": {
+    "csatf": [
+     "Guía de Procedimiento #1 (Menores)",
+     "#4 Stunts"
+    ],
+    "eeuu_ca": [
+     "CA Labor Code (trabajo de menores en producción)"
+    ],
+    "mexico": [
+     "Ley Federal del Trabajo (trabajo de menores)"
+    ]
+   },
+   "verificado": false,
+   "notas": "Verificar los artículos aplicables de la LFT antes de citarlos con precisión."
+  }
+ ],
+ "puntos_de_permiso": [
+  {
+   "id": "PT-HW-01",
+   "permiso_ref": "PER-01",
+   "permiso_clave": "trabajo_caliente",
+   "texto": "¿El área está despejada de material combustible en un radio de 10 m, o protegida con mampara?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-HW-02",
+   "permiso_ref": "PER-01",
+   "permiso_clave": "trabajo_caliente",
+   "texto": "¿Hay extintor apropiado a la vista y asignado a una persona?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-HW-03",
+   "permiso_ref": "PER-01",
+   "permiso_clave": "trabajo_caliente",
+   "texto": "¿Está designada por nombre la vigilancia de fuego posterior, y sabe cuánto tiempo se queda?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-HW-04",
+   "permiso_ref": "PER-01",
+   "permiso_clave": "trabajo_caliente",
+   "texto": "¿Se revisó qué hay del otro lado del muro, piso o techo donde se va a trabajar?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-HW-05",
+   "permiso_ref": "PER-01",
+   "permiso_clave": "trabajo_caliente",
+   "texto": "¿El detector de humo del inmueble está aislado, con aviso al responsable del edificio?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-HW-06",
+   "permiso_ref": "PER-01",
+   "permiso_clave": "trabajo_caliente",
+   "texto": "¿El operador trae careta, guantes de carnaza y manga de algodón, sin sintéticos?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-HW-07",
+   "permiso_ref": "PER-01",
+   "permiso_clave": "trabajo_caliente",
+   "texto": "¿El equipo pasó su inspección de herramienta hoy?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-HW-08",
+   "permiso_ref": "PER-01",
+   "permiso_clave": "trabajo_caliente",
+   "texto": "¿Está acordado quién grita alto y por qué canal?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-FA-01",
+   "permiso_ref": "PER-02",
+   "permiso_clave": "flama_abierta",
+   "texto": "¿Se hizo ensayo en frío, sin fuego?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-FA-02",
+   "permiso_ref": "PER-02",
+   "permiso_clave": "flama_abierta",
+   "texto": "¿El combustible declarado es el que está en set, y no hay mezcla de combustibles?",
+   "ejecutor": "especialista",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": true
+  },
+  {
+   "id": "PT-FA-03",
+   "permiso_ref": "PER-02",
+   "permiso_clave": "flama_abierta",
+   "texto": "¿La extinción corresponde al combustible y está a la mano?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-FA-04",
+   "permiso_ref": "PER-02",
+   "permiso_clave": "flama_abierta",
+   "texto": "¿Vestuario y escenografía en el área están tratados o son de material no propagante?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-FA-05",
+   "permiso_ref": "PER-02",
+   "permiso_clave": "flama_abierta",
+   "texto": "¿Hay plan de aborto y todos saben la palabra de corte?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-FA-06",
+   "permiso_ref": "PER-02",
+   "permiso_clave": "flama_abierta",
+   "texto": "¿Se avisó en el call sheet y en la junta de seguridad?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-FA-07",
+   "permiso_ref": "PER-02",
+   "permiso_clave": "flama_abierta",
+   "texto": "¿El talento cercano tiene ruta de salida despejada?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-FA-08",
+   "permiso_ref": "PER-02",
+   "permiso_clave": "flama_abierta",
+   "texto": "¿Está designada la vigilancia de fuego posterior?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-PI-01",
+   "permiso_ref": "PER-03",
+   "permiso_clave": "pirotecnia",
+   "texto": "¿El permiso SEDENA está vigente y el responsable en sitio es el titular o su autorizado?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-PI-02",
+   "permiso_ref": "PER-03",
+   "permiso_clave": "pirotecnia",
+   "texto": "¿El material que está en set coincide con el declarado en el permiso?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-PI-03",
+   "permiso_ref": "PER-03",
+   "permiso_clave": "pirotecnia",
+   "texto": "¿El perímetro está marcado y despejado, con las distancias que declaró el especialista?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-PI-04",
+   "permiso_ref": "PER-03",
+   "permiso_clave": "pirotecnia",
+   "texto": "¿Se hizo ensayo en frío con todos los que entran al cuadro?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-PI-05",
+   "permiso_ref": "PER-03",
+   "permiso_clave": "pirotecnia",
+   "texto": "¿El panel de disparo está bajo control exclusivo del especialista y desconectado hasta la toma?",
+   "ejecutor": "especialista",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": true
+  },
+  {
+   "id": "PT-PI-06",
+   "permiso_ref": "PER-03",
+   "permiso_clave": "pirotecnia",
+   "texto": "¿Hay extinción y atención médica en sitio, asignadas por nombre?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-PI-07",
+   "permiso_ref": "PER-03",
+   "permiso_clave": "pirotecnia",
+   "texto": "¿Está acordado quién aborta y por qué canal?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-PI-08",
+   "permiso_ref": "PER-03",
+   "permiso_clave": "pirotecnia",
+   "texto": "¿El material sobrante tiene resguardo asignado al término?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-FP-01",
+   "permiso_ref": "PER-04",
+   "permiso_clave": "fuego_sobre_persona",
+   "texto": "¿El doble está informado, ensayó en frío y conoce la señal de aborto?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-FP-02",
+   "permiso_ref": "PER-04",
+   "permiso_clave": "fuego_sobre_persona",
+   "texto": "¿Hay dos personas con extinción dedicadas solo a él, sin otra tarea?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-FP-03",
+   "permiso_ref": "PER-04",
+   "permiso_clave": "fuego_sobre_persona",
+   "texto": "¿La ruta de salida del doble está despejada y alguien la vigila?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-FP-04",
+   "permiso_ref": "PER-04",
+   "permiso_clave": "fuego_sobre_persona",
+   "texto": "¿Hay atención médica en sitio, presente y avisada?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-FP-05",
+   "permiso_ref": "PER-04",
+   "permiso_clave": "fuego_sobre_persona",
+   "texto": "¿El gel y la protección los aplicó y verificó el especialista?",
+   "ejecutor": "especialista",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": true
+  },
+  {
+   "id": "PT-FP-06",
+   "permiso_ref": "PER-04",
+   "permiso_clave": "fuego_sobre_persona",
+   "texto": "¿El tiempo máximo de la toma está acordado y alguien lo cronometra?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-FP-07",
+   "permiso_ref": "PER-04",
+   "permiso_clave": "fuego_sobre_persona",
+   "texto": "¿Nadie que no sea necesario está dentro del perímetro?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AL-01",
+   "permiso_ref": "PER-05",
+   "permiso_clave": "altura",
+   "texto": "¿El punto de anclaje está declarado y alguien responde por él?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AL-02",
+   "permiso_ref": "PER-05",
+   "permiso_clave": "altura",
+   "texto": "¿El arnés pasó su inspección y el conector es el correcto para el anclaje?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AL-03",
+   "permiso_ref": "PER-05",
+   "permiso_clave": "altura",
+   "texto": "¿La distancia de caída libre y el espacio bajo el trabajador están calculados?",
+   "ejecutor": "especialista",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": true
+  },
+  {
+   "id": "PT-AL-04",
+   "permiso_ref": "PER-05",
+   "permiso_clave": "altura",
+   "texto": "¿La zona debajo está acordonada y sin personas?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AL-05",
+   "permiso_ref": "PER-05",
+   "permiso_clave": "altura",
+   "texto": "¿Hay plan de rescate, no solo de detención de caída?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AL-06",
+   "permiso_ref": "PER-05",
+   "permiso_clave": "altura",
+   "texto": "¿Las herramientas que suben están amarradas?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AL-07",
+   "permiso_ref": "PER-05",
+   "permiso_clave": "altura",
+   "texto": "¿El clima permite el trabajo — sin viento fuerte, sin lluvia, sin descarga eléctrica?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-WW-01",
+   "permiso_ref": "PER-06",
+   "permiso_clave": "wire_work",
+   "texto": "¿El rig lo revisó y lo firma el rigger de vuelo?",
+   "ejecutor": "especialista",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": true
+  },
+  {
+   "id": "PT-WW-02",
+   "permiso_ref": "PER-06",
+   "permiso_clave": "wire_work",
+   "texto": "¿El performer ensayó en seco y conoce la señal de aborto?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-WW-03",
+   "permiso_ref": "PER-06",
+   "permiso_clave": "wire_work",
+   "texto": "¿La trayectoria completa está despejada, incluida la de aborto?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-WW-04",
+   "permiso_ref": "PER-06",
+   "permiso_clave": "wire_work",
+   "texto": "¿Hay colchoneta o protección bajo el recorrido donde aplica?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-WW-05",
+   "permiso_ref": "PER-06",
+   "permiso_clave": "wire_work",
+   "texto": "¿Está acordado quién detiene y por qué canal?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-WW-06",
+   "permiso_ref": "PER-06",
+   "permiso_clave": "wire_work",
+   "texto": "¿Hay atención médica en sitio?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-IZ-01",
+   "permiso_ref": "PER-07",
+   "permiso_clave": "izaje",
+   "texto": "¿El punto de suspensión está declarado y verificado por rigging?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-IZ-02",
+   "permiso_ref": "PER-07",
+   "permiso_clave": "izaje",
+   "texto": "¿Los elementos de izaje pasaron inspección hoy?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-IZ-03",
+   "permiso_ref": "PER-07",
+   "permiso_clave": "izaje",
+   "texto": "¿La carga está dentro de la capacidad declarada del punto y del aparejo?",
+   "ejecutor": "especialista",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": true
+  },
+  {
+   "id": "PT-IZ-04",
+   "permiso_ref": "PER-07",
+   "permiso_clave": "izaje",
+   "texto": "¿La zona bajo la carga y su trayectoria están acordonadas y sin gente?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-IZ-05",
+   "permiso_ref": "PER-07",
+   "permiso_clave": "izaje",
+   "texto": "¿Hay señalero designado y con contacto visual?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-IZ-06",
+   "permiso_ref": "PER-07",
+   "permiso_clave": "izaje",
+   "texto": "¿Se declaró si la carga queda suspendida sobre el set y con qué redundancia?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-EC-01",
+   "permiso_ref": "PER-08",
+   "permiso_clave": "espacio_confinado",
+   "texto": "¿Se midió la atmósfera antes de entrar y el resultado está registrado?",
+   "ejecutor": "especialista",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": true
+  },
+  {
+   "id": "PT-EC-02",
+   "permiso_ref": "PER-08",
+   "permiso_clave": "espacio_confinado",
+   "texto": "¿Hay ventilación forzada durante toda la permanencia?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-EC-03",
+   "permiso_ref": "PER-08",
+   "permiso_clave": "espacio_confinado",
+   "texto": "¿Hay vigía afuera, con contacto continuo y sin otra tarea?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-EC-04",
+   "permiso_ref": "PER-08",
+   "permiso_clave": "espacio_confinado",
+   "texto": "¿Está definido el rescate sin que el vigía entre?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-EC-05",
+   "permiso_ref": "PER-08",
+   "permiso_clave": "espacio_confinado",
+   "texto": "¿Las fuentes de energía del espacio están bloqueadas?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-EC-06",
+   "permiso_ref": "PER-08",
+   "permiso_clave": "espacio_confinado",
+   "texto": "¿Está registrado quién entra, a qué hora, y quién salió?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AG-01",
+   "permiso_ref": "PER-09",
+   "permiso_clave": "agua",
+   "texto": "¿Hay rescatista dedicado, sin otra tarea, y con contacto visual continuo?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AG-02",
+   "permiso_ref": "PER-09",
+   "permiso_clave": "agua",
+   "texto": "¿Se verificó profundidad, fondo, corriente y temperatura?",
+   "ejecutor": "especialista",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": true
+  },
+  {
+   "id": "PT-AG-03",
+   "permiso_ref": "PER-09",
+   "permiso_clave": "agua",
+   "texto": "¿El talento sabe nadar, o trae flotación oculta, según lo declarado?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AG-04",
+   "permiso_ref": "PER-09",
+   "permiso_clave": "agua",
+   "texto": "¿Hay señal de aborto acordada y visible desde el agua?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AG-05",
+   "permiso_ref": "PER-09",
+   "permiso_clave": "agua",
+   "texto": "¿El equipo eléctrico cerca del agua pasa por GFCI probado?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AG-06",
+   "permiso_ref": "PER-09",
+   "permiso_clave": "agua",
+   "texto": "¿Hay atención médica en sitio y ruta de evacuación desde el agua?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AG-07",
+   "permiso_ref": "PER-09",
+   "permiso_clave": "agua",
+   "texto": "¿Está limitado el tiempo de permanencia y alguien lo cronometra?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AR-01",
+   "permiso_ref": "PER-10",
+   "permiso_clave": "armas_salvas",
+   "texto": "¿El permiso SEDENA está vigente y el armero en sitio es el titular o su autorizado?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AR-02",
+   "permiso_ref": "PER-10",
+   "permiso_clave": "armas_salvas",
+   "texto": "¿El armero verificó el arma delante de quien la va a usar?",
+   "ejecutor": "especialista",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": true
+  },
+  {
+   "id": "PT-AR-03",
+   "permiso_ref": "PER-10",
+   "permiso_clave": "armas_salvas",
+   "texto": "¿Se confirmó que no hay munición real en set, en ningún lado?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AR-04",
+   "permiso_ref": "PER-10",
+   "permiso_clave": "armas_salvas",
+   "texto": "¿La línea de disparo y el fondo están despejados, sin superficie de rebote?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AR-05",
+   "permiso_ref": "PER-10",
+   "permiso_clave": "armas_salvas",
+   "texto": "¿Nadie apunta a persona, y las distancias mínimas están marcadas?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AR-06",
+   "permiso_ref": "PER-10",
+   "permiso_clave": "armas_salvas",
+   "texto": "¿El talento recibió instrucción del armero y la firmó o la registró?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AR-07",
+   "permiso_ref": "PER-10",
+   "permiso_clave": "armas_salvas",
+   "texto": "¿El arma se resguarda con el armero entre tomas, no en utilería?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AR-08",
+   "permiso_ref": "PER-10",
+   "permiso_clave": "armas_salvas",
+   "texto": "¿Hay protección auditiva para quien está cerca?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-VE-01",
+   "permiso_ref": "PER-11",
+   "permiso_clave": "vehiculo_escena",
+   "texto": "¿El recorrido está cerrado o controlado, con banderas en los accesos?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-VE-02",
+   "permiso_ref": "PER-11",
+   "permiso_clave": "vehiculo_escena",
+   "texto": "¿El conductor es quien se declaró, y está habilitado para esa maniobra?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-VE-03",
+   "permiso_ref": "PER-11",
+   "permiso_clave": "vehiculo_escena",
+   "texto": "¿Las sujeciones de cámara y equipo tienen redundancia mecánica?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-VE-04",
+   "permiso_ref": "PER-11",
+   "permiso_clave": "vehiculo_escena",
+   "texto": "¿La velocidad máxima está acordada y alguien la vigila?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-VE-05",
+   "permiso_ref": "PER-11",
+   "permiso_clave": "vehiculo_escena",
+   "texto": "¿Hay ruta de escape y punto de detención acordados?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-VE-06",
+   "permiso_ref": "PER-11",
+   "permiso_clave": "vehiculo_escena",
+   "texto": "¿Nadie está dentro del área de barrido del vehículo sin necesidad?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-VE-07",
+   "permiso_ref": "PER-11",
+   "permiso_clave": "vehiculo_escena",
+   "texto": "¿Hay atención médica y extinción en sitio?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AN-01",
+   "permiso_ref": "PER-12",
+   "permiso_clave": "animales",
+   "texto": "¿El wrangler está presente y es quien responde por el animal?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AN-02",
+   "permiso_ref": "PER-12",
+   "permiso_clave": "animales",
+   "texto": "¿La contención está montada y probada antes de traer al animal?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AN-03",
+   "permiso_ref": "PER-12",
+   "permiso_clave": "animales",
+   "texto": "¿El crew recibió la instrucción de acercamiento y sabe qué no hacer?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AN-04",
+   "permiso_ref": "PER-12",
+   "permiso_clave": "animales",
+   "texto": "¿Hay ruta de salida para el animal y para las personas?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AN-05",
+   "permiso_ref": "PER-12",
+   "permiso_clave": "animales",
+   "texto": "¿Se limitó el número de personas en el área durante la toma?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-AN-06",
+   "permiso_ref": "PER-12",
+   "permiso_clave": "animales",
+   "texto": "¿Hay atención veterinaria disponible y médica para personas?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-DR-01",
+   "permiso_ref": "PER-13",
+   "permiso_clave": "drone",
+   "texto": "¿El piloto y la aeronave están registrados y con autorización vigente?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-DR-02",
+   "permiso_ref": "PER-13",
+   "permiso_clave": "drone",
+   "texto": "¿El área de vuelo y la de despegue están delimitadas y sin gente?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-DR-03",
+   "permiso_ref": "PER-13",
+   "permiso_clave": "drone",
+   "texto": "¿Está declarado si se vuela sobre personas y con qué protección?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-DR-04",
+   "permiso_ref": "PER-13",
+   "permiso_clave": "drone",
+   "texto": "¿Hay observador visual dedicado además del piloto?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-DR-05",
+   "permiso_ref": "PER-13",
+   "permiso_clave": "drone",
+   "texto": "¿Se verificaron viento, batería y punto de retorno?",
+   "ejecutor": "especialista",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": true
+  },
+  {
+   "id": "PT-DR-06",
+   "permiso_ref": "PER-13",
+   "permiso_clave": "drone",
+   "texto": "¿Está acordado quién aborta el vuelo y por qué canal?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-MU-01",
+   "permiso_ref": "PER-14",
+   "permiso_clave": "multitudes",
+   "texto": "¿Las rutas de salida están despejadas, señaladas y son suficientes para el número de personas?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-MU-02",
+   "permiso_ref": "PER-14",
+   "permiso_clave": "multitudes",
+   "texto": "¿Se hizo ensayo a velocidad reducida antes del ensayo real?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-MU-03",
+   "permiso_ref": "PER-14",
+   "permiso_clave": "multitudes",
+   "texto": "¿Hay marshals distribuidos, identificables, con instrucción de detener?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-MU-04",
+   "permiso_ref": "PER-14",
+   "permiso_clave": "multitudes",
+   "texto": "¿El piso está libre de cable, desnivel y objeto suelto en toda el área de movimiento?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-MU-05",
+   "permiso_ref": "PER-14",
+   "permiso_clave": "multitudes",
+   "texto": "¿Todos los extras recibieron la instrucción y la señal de alto?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-MU-06",
+   "permiso_ref": "PER-14",
+   "permiso_clave": "multitudes",
+   "texto": "¿Hay atención médica en sitio, dimensionada al número de personas?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-MU-07",
+   "permiso_ref": "PER-14",
+   "permiso_clave": "multitudes",
+   "texto": "¿Se identificó a quien no deba correr, y se le dio otra posición?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-ME-01",
+   "permiso_ref": "PER-15",
+   "permiso_clave": "menor_actividad_fisica",
+   "texto": "¿El tutor o responsable legal está presente en el set, a la vista?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-ME-02",
+   "permiso_ref": "PER-15",
+   "permiso_clave": "menor_actividad_fisica",
+   "texto": "¿La actividad está dentro de lo autorizado por escrito para ese menor?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-ME-03",
+   "permiso_ref": "PER-15",
+   "permiso_clave": "menor_actividad_fisica",
+   "texto": "¿Se ensayó con el doble adulto antes de que participe el menor?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-ME-04",
+   "permiso_ref": "PER-15",
+   "permiso_clave": "menor_actividad_fisica",
+   "texto": "¿El tiempo de la actividad y los descansos están acordados y se cronometran?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-ME-05",
+   "permiso_ref": "PER-15",
+   "permiso_clave": "menor_actividad_fisica",
+   "texto": "¿Hay atención médica en sitio?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": true,
+   "requiere_contacto": false
+  },
+  {
+   "id": "PT-ME-06",
+   "permiso_ref": "PER-15",
+   "permiso_clave": "menor_actividad_fisica",
+   "texto": "¿El menor entendió la señal de alto y sabe que puede usarla?",
+   "ejecutor": "safety",
+   "es_compuerta": true,
+   "sensible_al_sitio": false,
+   "requiere_contacto": false
+  }
+ ],
+ "pendientes_verificacion": {
+  "nota_lectura": "Igual que en las otras capas: la mayoría no es deuda del catálogo sino decisión pendiente o dato de instancia.",
+  "deuda_resoluble_en_catalogo": [
+   "PER-05 altura, PER-06 wire work y PER-07 izaje quedaron en alcance_sitio 'por_definir'. Es la misma pregunta en los tres: el anclaje es del lugar, pero el rig viaja.",
+   "PER-07 Izaje es un permiso AGREGADO al escribir la capa B. Falta confirmar si se adopta como el permiso número 15.",
+   "Numerales exactos de NOM-027 (autorización de trabajos en caliente) y NOM-033 (permiso de entrada a espacio confinado) sin verificar.",
+   "Número y vigencia de la norma AFAC de RPAS sin verificar.",
+   "Artículos aplicables de la Ley Federal del Trabajo sobre menores en producción sin verificar.",
+   "Ningún permiso está marcado verificado.",
+   "Falta confirmar los disparadores de revocación que NO son de sitio: cambio en la actividad, condición ambiental, cambio del responsable designado, sustitución del equipo, vencimiento de la autorización externa."
+  ],
+  "dato_de_instancia_por_diseno": [
+   "Número y vigencia del permiso SEDENA o AFAC: se captura al recibir el documento, por producción.",
+   "Distancias de seguridad de pirotecnia: las declara el especialista por efecto, no el catálogo.",
+   "Quién es el responsable que acepta: cambia por jornada y por unidad.",
+   "Los puntos marcados ejecutor=especialista los responde quien arma la actividad; el catálogo entrega el enunciado, no el criterio técnico."
+  ],
+  "expansion_opcional": [
+   "Permisos de baja frecuencia que hoy no existen como ficha: helicóptero y ala fija, paracaidismo, embarcaciones, trenes y vías férreas. Todos tienen boletín CSATF y evento en el catálogo maestro.",
+   "Plantilla de PDF del permiso con el verificador QR y el texto obligatorio del pie.",
+   "Vinculación de cada punto con el evento del catálogo maestro, para que el hallazgo herede la escala A–E / 1–5."
+  ]
+ }
+}

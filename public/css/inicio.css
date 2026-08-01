@@ -1,0 +1,199 @@
+/* =============================================================================
+   inicio.css — Home view (CrewCare)
+   Extracted from the two inline <style> blocks that used to live in
+   resources/views/inicio.blade.php. Visual behavior preserved 1:1.
+
+   Two groups:
+     1. Cropper modal / preview (crew branch)  — .imgs, .preview, .modal-lg
+     2. Admin dashboard cards + trend chart     — .metric-card, .dashboard-*, etc.
+   Dead/commented rules from the original (the commented-out .dashboard-card-b
+   block) were dropped. Nothing visual changed.
+   ============================================================================= */
+
+/* -------------- Cropper modal / preview (crew branch) -------------- */
+.imgs {
+  display: block;
+  max-width: 100%;
+}
+
+.preview {
+  overflow: hidden;
+  width: 160px;
+  height: 160px;
+  margin: 10px;
+  border: 1px solid red;
+}
+
+.modal-lg {
+  max-width: 1000px !important;
+}
+
+/* -------------- Dashboard layout (admin branch) -------------- */
+.dashboard-wrapper {
+  padding-top: 4rem;
+  padding-bottom: 2rem;
+}
+
+.chart-containeredit {
+  max-width: 900px;
+  margin: auto;
+}
+
+.container.mt-4 {
+  margin-top: 1.5rem !important;
+}
+
+/* -------------- Metric cards (admin branch) -------------- */
+.metric-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #fff;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  /* Hover transition intentionally disabled (overridden below in the original). */
+  transition: none !important;
+}
+
+.metric-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.metric-title {
+  font-size: 0.65rem;
+  color: #6c757d !important;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+  z-index: 1; /* keep text above the decorative SVG */
+  position: relative; /* required for z-index */
+  margin-bottom: 0.4rem;
+}
+
+.metric-value {
+  font-size: 1rem;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700 !important;
+  color: #343a40;
+}
+
+/* -------------- Decorative corner SVG backgrounds -------------- */
+.fondo-svg {
+  position: absolute;
+  top: 12px;
+  left: -70px;
+  width: 250%;
+  height: 350%;
+  z-index: 0; /* behind the text */
+}
+
+.fondo-svg-loc {
+  position: absolute;
+  top: 10px;
+  left: -75px;
+  width: 100%;
+  height: 180%;
+  z-index: 0;
+}
+
+.fondo-svg-shoot {
+  position: absolute;
+  top: -7px;
+  left: -70px;
+  width: 400%;
+  height: 650%;
+  z-index: 0;
+}
+
+.fondo-svg-medic {
+  position: absolute;
+  top: 10px;
+  left: -65px;
+  width: 150%;
+  height: 300%;
+  z-index: 0;
+}
+
+.hide-icon {
+  overflow: hidden;
+}
+
+.icono-esquina {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  font-size: 1.2em;
+  color: rgba(40, 167, 69, 0.8);
+  z-index: 1; /* above the SVG */
+}
+
+/* -------------- Dashboard cards -------------- */
+.dashboard-card {
+  background-color: #fff;
+  height: 8em;
+  border-radius: 8px;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.content-wr {
+  font-size: 0.9rem;
+  color: #343a40;
+  margin-bottom: 0;
+}
+
+.dashboard-card h2.h6 {
+  font-size: 0.75rem;
+  color: #6c757d !important;
+  font-weight: 500;
+  margin-bottom: 0.8rem !important;
+  text-align: left !important;
+  padding-left: 10px;
+}
+
+.dashboard-card-b h2.h6 {
+  font-size: 0.75rem;
+  color: #6c757d !important;
+  font-weight: 500;
+  margin-bottom: 0.8rem !important;
+  text-align: left !important;
+  padding-left: 10px;
+}
+
+/* -------------- Trend chart container -------------- */
+.grafica-contenedor {
+  width: 100%;
+  height: 18em;
+  position: relative;
+  overflow: hidden;
+}
+
+.grafica-contenedor canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: calc(100% - 20px) !important; /* leave room at the bottom */
+}
+
+.grafica-contenedor h2 {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.8em;
+  color: #6c757d;
+  margin-bottom: 5px;
+}
+
+.grafica-contenedor p {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.8em;
+  color: #6c757d;
+  margin-bottom: 5px;
+}

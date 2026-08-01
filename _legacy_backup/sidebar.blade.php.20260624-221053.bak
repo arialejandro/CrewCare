@@ -1,0 +1,317 @@
+{{-- Botón flotante solo visible en móviles --}}
+
+
+{{-- Botón de menú flotante en la parte superior para móviles --}}
+<button
+    class="btn btn-dark d-md-none position-fixed top-0 start-0 mt-2 ms-2 z-1030 no-print d-flex justify-content-center align-items-center rounded-circle shadow menu-toggle-mobile"
+    style="width: 44px; height: 44px;"
+    data-bs-toggle="offcanvas"
+    data-bs-target="#mobileSidebar"
+    aria-controls="mobileSidebar"
+    aria-label="Abrir menú">
+    <i class="fa-solid fa-bars"></i>
+</button>
+
+
+{{-- Sidebar fijo para escritorio --}}
+<div class="col-md-2 d-none d-md-block bg-light no-print sidebar-expanded" style="padding:0 !important; position: relative;">
+    <div class="sidebar-content">
+        <a href="/" class="sidebar-brand link-dark text-decoration-none">
+            <span class="lead text-muted fw-bold mb-0">Hola {{ \Auth::user()->name }}</span> 
+        </a>
+        <hr class="sidebar-divider my-2">
+        
+        {{-- RBAC transition (ADDITIVE) — desktop sidebar.
+             Old `daytest` branches kept; each OR'd with the mirroring permission so the menu is
+             ALSO permission-expressible without changing what any current user sees:
+               · daytest != 1 && != 2  (admin/coord full menu)   -> users.view
+               · daytest == 1          (supervisor: DSR + H&S)    -> dsr.view
+               · daytest == 2          (médico)                   -> medical.view
+             The @elseif order is preserved, so for any current user the first matching branch is
+             identical to before. Old conditions removed only after per-vertical verification. --}}
+        <ul class="nav nav-pills flex-column">
+            @if((auth()->user()->daytest != 1 && auth()->user()->daytest != 2) || auth()->user()->can('users.view'))
+                <li class="nav-item">
+                    <a href="/adduser" class="nav-link link-dark">
+                        <i class="fa-solid fa-user-plus"></i> <span>Nuevo Miembro</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('usuarioscrud') }}" class="nav-link link-dark">
+                        <i class="fa-solid fa-users"></i> <span>Ver Crew List</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('medicocrud') }}" class="nav-link link-dark">
+                        <i class="fa-solid fa-user-md"></i> <span>Consultas Médicas</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/locationcrud" class="nav-link link-dark">
+                        <i class="fas fa-map-marker-alt"></i> <strong><span>Scoutings</span></strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/location" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> <span>Scouting</span>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="{{ route('daily_reports.index') }}" class="nav-link link-dark">
+                        <i class="fas fa-clipboard-check"></i> <strong><span>Daily Reports</span></strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('daily_reports.create') }}" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> <span>Nuevo Daily</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/unsafeconds" class="nav-link link-dark">
+                        <i class="fas fa-exclamation-circle"></i> <strong><span>Cond. Inseguras</span></strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/unsafenotifications/create" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> <span>Cond. Insegura</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/unsafeacts" class="nav-link link-dark">
+                        <i class="fas fa-exclamation-triangle"></i> <strong><span>Acc. Inseguras</span></strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/hazardnotification" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> <span>Acc. Insegura</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/accidents" class="nav-link link-dark">
+                        <i class="fas fa-ambulance"></i> <strong><span>Accidentes</span></strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/accident" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> <span>Accidente</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/idcardscrud" class="nav-link link-dark">
+                        <i class="fa-solid fa-id-badge"></i> <span>Lista gafetes</span>
+                    </a>
+                </li>
+            @elseif(auth()->user()->daytest == 1 || auth()->user()->can('dsr.view'))
+
+                <li class="nav-item">
+                    <a href="{{ route('daily_reports.index') }}" class="nav-link link-dark">
+                        <i class="fas fa-clipboard-check"></i> <strong><span>Daily Reports</span></strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('daily_reports.create') }}" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> <span>Nuevo Daily</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link link-dark">
+                        <i class="fas fa-exclamation-circle"></i> <strong><span>Cond. Inseguras</span></strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/unsafenotifications/create" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> <span>Cond. Insegura</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link link-dark">
+                        <i class="fas fa-exclamation-triangle"></i> <strong><span>Acc. Inseguras</span></strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/hazardnotification" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> <span>Acc. Insegura</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link link-dark">
+                        <i class="fas fa-ambulance"></i> <strong><span>Accidentes</span></strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/accident" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> <span>Accidente</span>
+                    </a>
+                </li>
+            @elseif(auth()->user()->daytest == 2 || auth()->user()->can('medical.view'))
+                <li class="nav-item">
+                    <a href="{{ route('medicocrud') }}" class="nav-link link-dark">
+                        <i class="fa-solid fa-user-md"></i> <span>Consultas Médicas</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/accidents" class="nav-link link-dark">
+                        <i class="fas fa-ambulance"></i> <strong><span>Accidentes</span></strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/accident" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> <span>Accidente</span>
+                    </a>
+                </li>
+            @endif
+        </ul>
+        <hr class="sidebar-divider d-none d-md-block">
+    </div>
+   </div>
+
+{{-- Sidebar offcanvas para móviles --}}
+<div class="offcanvas offcanvas-start d-md-none" tabindex="-1" id="mobileSidebar" aria-labelledby="mobileSidebarLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title fw-bold" id="mobileSidebarLabel">Menú</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
+    </div>
+    <div class="offcanvas-body">
+        <a href="/" class="link-dark text-decoration-none mb-3">
+            <p class="lead fw-bold mb-0">Hola {{ \Auth::user()->name }}</p>
+        </a>
+        <hr class="my-2">
+        {{-- RBAC transition (ADDITIVE) — mobile offcanvas sidebar (mirror of desktop above).
+             Same old-flag || @can mapping: users.view / dsr.view / medical.view. --}}
+        <ul class="nav nav-pills flex-column">
+            @if((auth()->user()->daytest != 1 && auth()->user()->daytest != 2) || auth()->user()->can('users.view'))
+                <li class="nav-item">
+                    <a href="/adduser" class="nav-link link-dark">
+                        <i class="fa-solid fa-user-plus"></i> Nuevo Miembro
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('usuarioscrud') }}" class="nav-link link-dark">
+                        <i class="fa-solid fa-users"></i> Ver Crew List
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('medicocrud') }}" class="nav-link link-dark">
+                        <i class="fa-solid fa-user-md"></i> Consultas Médicas
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/locationcrud" class="nav-link link-dark">
+                        <i class="fas fa-map-marker-alt"></i> <strong>Scoutings</strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/location" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> Scouting
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="{{ route('daily_reports.index') }}" class="nav-link link-dark">
+                        <i class="fas fa-clipboard-check"></i> <strong>Daily Reports</strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('daily_reports.create') }}" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> Nuevo Daily
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/unsafeconds" class="nav-link link-dark">
+                        <i class="fas fa-exclamation-circle"></i> <strong>Cond. Inseguras</strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/unsafenotifications/create" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> Cond. Insegura
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/unsafeacts" class="nav-link link-dark">
+                        <i class="fas fa-exclamation-triangle"></i> <strong>Acc. Inseguras</strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/hazardnotification" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> Acc. Insegura
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/accidents" class="nav-link link-dark">
+                        <i class="fas fa-ambulance"></i> <strong>Accidentes</strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/accident" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> Accidente
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/idcardscrud" class="nav-link link-dark">
+                        <i class="fa-solid fa-id-badge"></i> Lista gafetes
+                    </a>
+                </li>
+            @elseif(auth()->user()->daytest == 1 || auth()->user()->can('dsr.view'))
+
+                <li class="nav-item">
+                    <a href="{{ route('daily_reports.index') }}" class="nav-link link-dark">
+                        <i class="fas fa-clipboard-check"></i> <strong>Daily Reports</strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('daily_reports.create') }}" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> Nuevo Daily
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link link-dark">
+                        <i class="fas fa-exclamation-circle"></i> <strong>Cond. Inseguras</strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/unsafenotifications/create" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> Cond. Insegura
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link link-dark">
+                        <i class="fas fa-exclamation-triangle"></i> <strong>Acc. Inseguras</strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/hazardnotification" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> Acc. Insegura
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link link-dark">
+                        <i class="fas fa-ambulance"></i> <strong>Accidentes</strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/accident" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> Accidente
+                    </a>
+                </li>
+            @elseif(auth()->user()->daytest == 2 || auth()->user()->can('medical.view'))
+                <li class="nav-item">
+                    <a href="{{ route('medicocrud') }}" class="nav-link link-dark">
+                        <i class="fa-solid fa-user-md"></i> Consultas Médicas
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/accidents" class="nav-link link-dark">
+                        <i class="fas fa-ambulance"></i> <strong>Accidentes</strong>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/accident" class="nav-link link-dark">
+                        <i class="fas fa-plus"></i> Accidente
+                    </a>
+                </li>
+            @endif
+        </ul>
+        <hr>
+    </div>
+</div>

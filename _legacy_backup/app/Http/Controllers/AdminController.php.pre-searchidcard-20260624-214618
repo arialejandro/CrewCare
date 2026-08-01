@@ -1,0 +1,892 @@
+<?php
+
+namespace App\Http\Controllers;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use App\Models\departamento;
+use App\Models\puesto;
+use App\Models\userpuesto;
+use App\Models\usuariopcr;
+use App\Models\prueba;
+use Carbon\Carbon;
+use App\Models\User;
+use App\Models\pcr;
+use App\Models\cmedic;
+use App\Models\usuariosnotificacione;
+use Illuminate\Support\Facades\Hash;
+use Mail;
+use Dompdf\Dompdf;
+use ZipArchive;
+
+
+class AdminController extends Controller
+{
+    public function __construct(){
+        $this->middleware('admin');
+    }
+    public function usuarioscrud()
+    {
+        $usuarios = DB::table('users')->where('activo','=',1)->orderBy('users.id', 'desc')->paginate(50);
+        return view ('admin/usuarioscrud', compact('usuarios'));
+    }
+
+    public function comcrud()
+    {
+        $usuarios = DB::table('users')->where('activo','=',1)->orderBy('users.id', 'desc')->paginate(50);
+        return view ('admin/comcrud', compact('usuarios'));
+    }
+
+    public function medicocrud()
+    {
+        $usuarios = DB::table('users')->where('activo','=',1)->orderBy('users.id', 'desc')->paginate(50);
+        return view ('admin/medicocrud', compact('usuarios'));
+    }
+
+    public function idcardscrud()
+    {
+        $usuarios = DB::table('users')->where('activo','=',1)->orderBy('users.id', 'desc')->paginate(50);
+        return view ('admin/idcardscrud', compact('usuarios'));
+    }
+    public function checkgft($id)
+    {
+        $producto = User::findOrFail($id);
+        $producto->age=1;
+        $producto->update();
+        return back();
+    }
+
+    public function uncheckgft($id)
+    {
+        $producto = User::findOrFail($id);
+        $producto->age=0;
+        $producto->update();
+        return back();
+    }
+
+    public function checkpoint()
+    {
+        $usuarios = DB::table('users')->where('activo','=',1)->orderBy('users.id', 'desc')->paginate(50);
+        return view ('admin/checkpoint', compact('usuarios'));
+    }
+
+    public function activarusuario($id)
+    {
+        $producto = User::findOrFail($id);
+        $producto->activo=1;
+        $producto->update();
+        return redirect('/usuarioscrud');
+    }
+    public function activarencuesta($id)
+    {
+        $producto = User::findOrFail($id);
+        $producto->encuestadiaria=0;
+        $producto->update();
+        return redirect('/usuarioscrud');
+    }
+    public function activaradmin($id)
+    {
+        $producto = User::findOrFail($id);
+        $producto->admin=1;
+        $producto->update();
+        return redirect('/usuarioscrud');
+    }
+    public function desactivaradmin($id)
+    {
+        $producto = User::findOrFail($id);
+        $producto->admin=0;
+        $producto->update();
+        return redirect('/usuarioscrud');
+    }
+
+    public function desactivarusuario($id)
+    {
+        $producto = User::findOrFail($id);
+        $producto->activo=0;
+        $producto->update();
+        return redirect('/usuarioscrud');
+    }
+
+    public function putga($id)
+    {
+        $producto = User::findOrFail($id);
+        $producto->daytest=0;
+        $producto->update();
+        return redirect('/usuarioscrud');
+    }
+    public function putgb($id)
+    {
+        $producto = User::findOrFail($id);
+        $producto->daytest=2;
+        $producto->update();
+        return redirect('/usuarioscrud');
+    }
+    public function putgg($id)
+    {
+        $producto = User::findOrFail($id);
+        $producto->daytest=1;
+        $producto->update();
+        return redirect('/usuarioscrud');
+    }
+
+    public function notsick($id)
+    {
+        $producto = User::findOrFail($id);
+        $producto->enfermo=0;
+        $producto->update();
+        return redirect('/usuarioscrud');
+    }
+
+
+     public function creardepartamento(Request $request)
+    {
+        $datos = $request->all();
+        departamento::create($datos);
+        return redirect('/departamentocrud');
+    }
+    public function departamentocrud()
+    {
+        $departamentos = DB::table('departamentos')->paginate(7);
+        return view ('admin/departamentocrud', compact('departamentos'));
+    }
+    public function activardepartamento($id)
+    {
+        $departamentos = departamento::find($id);
+        $departamentos->activo=1;
+        $departamentos->update();
+        return redirect('/departamentocrud');
+    }
+    public function desactivardepartamento($id)
+    {
+        $departamentos = departamento::find($id);
+        $departamentos->activo=0;
+        $departamentos->update();
+        return redirect('/departamentocrud');
+    }
+    public function editardepartamento($id)
+    {
+        $item = departamento::find($id);
+        /* dd($productos, $categorias, $subcategorias); */
+        return view("admin/editardepartamento")->with('item', $item);
+    }
+    public function savedepartamento(Request $request, $id)
+    {
+        $datos = request()->except('_token');
+        departamento::where('id_departamentos', "=" , $id)->update($datos);
+        return redirect('/departamentocrud');
+        //return redirect()->action('AdminController@editardepartamento',$id);
+    }
+     //notificaciones
+    public function crearnotificacion(Request $request)
+    {
+        $datos = $request->all();
+        usuariosnotificacione::create($datos);
+        return redirect('/notificacioncrud');
+    }
+    public function notificacioncrud()
+    {
+        $notificaciones = DB::table('usuariosnotificaciones')->paginate(7);
+        return view ('admin/notificacioncrud', compact('notificaciones'));
+    }
+    public function activarnotificacion($id)
+    {
+        $notificaciones = usuariosnotificacione::find($id);
+        $notificaciones->activo=1;
+        $notificaciones->update();
+        return redirect('/notificacioncrud');
+    }
+    public function desactivarnotificacion($id)
+    {
+        $notificaciones = usuariosnotificacione::find($id);
+        $notificaciones->activo=0;
+        $notificaciones->update();
+        return redirect('/notificacioncrud');
+    }
+    public function editarnotificacion($id)
+    {
+        $item = usuariosnotificacione::find($id);
+        return view("admin/editarnotificacion",compact('item'));
+    }
+    public function savenotificacion(Request $request, $id){
+        $datos = request()->except('_token');
+        usuariosnotificacione::where('id_usernotificacion', "=" , $id)->update($datos);
+        return redirect('/notificacioncrud');
+    }
+
+    public function useredit($id){
+        $users = User::find($id);
+        
+        
+        return view("admin/useredit",compact('users'));
+    }
+
+    public function idcard($id){
+        $users = User::find($id);
+        $puestos  = puesto::all();
+        $puestoactual = userpuesto::where('id','=',$id)->first();
+        
+        
+        return view("admin/idcard",compact('users','puestos','puestoactual'));
+    }
+
+    public function acountupdate(Request $request, $id)
+    {
+        $user = User::find($id);
+        $input = $request->except('password');
+        if (! $request->filled('password')) {
+            $user->fill($input)->save();
+            return redirect('/usuarioscrud');
+        }else{
+            $user->password = Hash::make($request->password);
+            $user->fill($input)->save();
+            return redirect('/usuarioscrud'); 
+        }
+    
+    }
+
+    public function positionscrud()
+    {
+        $puestos = DB::table('puestos')->paginate(7);
+        $departamentos  = departamento::all();
+
+        return view ('admin/positionscrud', compact('puestos','departamentos'));
+    }
+    public function crearpositions(Request $request)
+    {
+        $datos = $request->all();
+        puesto::create(['name' => $request->name,'id_departamento' => $request->id_departamento]);
+        return redirect('/positionscrud');
+    }
+    public function editpositions($id)
+    {
+        $item = puesto::find($id);
+        $departamentos  = departamento::all();
+        /* dd($productos, $categorias, $subcategorias); */
+        return view("admin/editarposition",compact('item','departamentos'));
+    }
+    public function saveposition(Request $request, $id)
+    {
+        $datos = request()->except('_token');
+        puesto::where('id_puestos', "=" , $id)->update($datos);
+        return redirect('/positionscrud');
+    }
+    public function selectpuesto(Request $request, $id)
+    {
+        $datos = $request->all();
+        $puesto = puesto::find($request->id_puesto);
+        $namedepto = departamento::find($puesto->id_departamento);
+        userpuesto::create(['name' => $namedepto->departamento."-".$puesto->name,
+        'id_puesto' => $request->id_puesto,
+        'id' => $id]);
+        $usuario = user::find($id);
+        $usuario->puestodepartamento = $namedepto->departamento."-".$puesto->name;
+        $usuario->update();
+        return redirect('/usuarioscrud'); 
+
+    }
+    public function newuser(Request $request)
+    {
+        User::create([
+            'name' => $request->name,
+            'lname' => $request->lname,
+            'lname2'=> $request->lname2,
+            'email' => $request->email,
+            'phone' => $request->phone,
+            'sex' => $request->sex,
+            'labn' => $request->labn,
+            'zone' => $request->zone,
+            'ncreditos' => $request->ncreditos,
+            'borndate' => $request->borndate,
+            'lastpcr' => Carbon::now(),
+            'lastwr'  => Carbon::now(),
+            'puestodepartamento' => $request->puestodepartamento,
+            'enfermo' => 0,
+            'inline' => 0,
+            'tested' => 0,
+            'resultpcr' => 0,
+            'password' => Hash::make($request->password)
+        ]);
+         $subject = "Bienvenido a CrewCare";
+        $data = [
+            'nombre' => $request->name,
+            'email' => $request->email, 
+            'password' => $request->password
+        ];
+        $for = $request->email;
+        Mail::send('correos.welcomeuser',$data, function($msj) use($subject,$for){
+            $msj->from("noreply@crewcare.mx","CrewCare");
+            $msj->subject($subject);
+            $msj->to($for);
+           // $msj->attach('https://crewcare.tech/img/PP_ProtocoloCOVID_V3_010223_CC.pdf'); // se debe proporcionar la ruta al archivo PDF
+
+        });
+        return view('admin.newuser'); 
+    }
+    public function adduser(){
+        return view('admin.newuser'); 
+    }
+    public function historial($id)
+    {
+        $usuarios = DB::table('usuariopcr') 
+        ->join('prueba', 'prueba.id_prueba', '=', 'usuariopcr.id_prueba')
+        ->where('usuariopcr.id_usrio','=',$id)
+        ->whereDate('usuariopcr.created_at', '>', Carbon::now()->subDays(90)->format('Y-m-d'))
+        ->orderBy('usuariopcr.id_prueba', 'desc')
+        ->paginate(20);
+        return view("componentes.historia",compact('usuarios'));
+    }
+
+    public function historialWR($id)
+    {
+        // Obtener un solo registro del formulario del usuario
+        $datos = DB::table('formularios')
+            ->join('users', 'formularios.id_user', '=', 'users.id')
+            ->where('formularios.id_user', '=', $id)
+            ->first();
+    
+        // Obtener todos los formularios del usuario
+        $usuario = DB::table('formularios')
+            ->where('formularios.id_user', '=', $id)
+            ->get();
+    
+        // Obtener las consultas médicas solo del usuario actual
+        $consultas = DB::table('cmedic')
+            ->join('users', 'cmedic.id_user', '=', 'users.id')
+            ->where('cmedic.id_user', '=', $id)
+            ->orderBy('cmedic.created_at', 'desc')
+            ->select('cmedic.*') // 👈 importante: evita conflictos de campos
+            ->get()
+            ->map(function ($consulta) {
+                $consulta->created_at = Carbon::parse($consulta->created_at); // 👈 para poder usar ->format() en Blade
+                return $consulta;
+            });
+    
+        return view("componentes.historiamr", compact('usuario', 'datos', 'consultas'));
+    }
+
+    public function searchusers($valor)
+    {
+        if ($valor === "vacio") {
+            $usuarios = DB::table('users')
+            ->orderBy('users.id', 'desc')->paginate(50);
+
+        }else{
+            $usuarios = DB::table('users')
+            ->where('users.name','LIKE','%' . $valor . '%')
+            ->Orwhere('users.lname','LIKE','%' . $valor . '%')
+            ->Orwhere('users.lname2','LIKE','%' . $valor . '%')
+            ->Orwhere('users.email','LIKE','%' . $valor . '%')
+            ->orderBy('id', 'desc')
+            ->paginate(50); 
+        }
+
+        return view("componentes.searchusers",compact('usuarios'));
+
+    }
+
+    public function searchcom($valor)
+    {
+        if ($valor === "vacio") {
+            $usuarios = DB::table('users')
+            ->orderBy('users.id', 'desc')->paginate(50);
+
+        }else{
+            $usuarios = DB::table('users')
+            ->where('users.name','LIKE','%' . $valor . '%')
+            ->Orwhere('users.lname','LIKE','%' . $valor . '%')
+            ->Orwhere('users.lname2','LIKE','%' . $valor . '%')
+            ->Orwhere('users.email','LIKE','%' . $valor . '%')
+            ->orderBy('id', 'desc')
+            ->paginate(50); 
+        }
+
+        return view("componentes.searchusers",compact('usuarios'));
+
+    }
+
+    public function searchdoctor($valor)
+    {
+        if ($valor === "vacio") {
+            $usuarios = DB::table('users')
+            ->orderBy('users.id', 'desc')->paginate(50);
+
+        }else{
+            $usuarios = DB::table('users')
+            ->where('users.name','LIKE','%' . $valor . '%')
+            ->Orwhere('users.lname','LIKE','%' . $valor . '%')
+            ->Orwhere('users.lname2','LIKE','%' . $valor . '%')
+            ->orderBy('id', 'desc')
+            ->paginate(50); 
+        }
+
+        return view("componentes.searchdoctor",compact('usuarios'));
+
+    }
+
+    public function searcheckpoint($valor)
+    {
+        if ($valor === "vacio") {
+            $usuarios = DB::table('users')
+            ->orderBy('users.id', 'desc')->paginate(50);
+
+        }else{
+            $usuarios = DB::table('users')
+            ->where('users.name','LIKE','%' . $valor . '%')
+            ->Orwhere('users.lname','LIKE','%' . $valor . '%')
+            ->Orwhere('users.labn','LIKE','%' . $valor . '%')
+            ->orderBy('id', 'desc')
+            ->paginate(50); 
+        }
+
+        return view("componentes.searcheckpoint",compact('usuarios'));
+
+    }
+
+    public function searchidcard($valor)
+    {
+        if ($valor === "vacio") {
+            $usuarios = DB::table('users')
+            ->orderBy('users.id', 'desc')->paginate(50);
+
+        }else{
+            $usuarios = DB::table('users')
+            ->where('users.name','LIKE','%' . $valor . '%')
+            ->Orwhere('users.lname','LIKE','%' . $valor . '%')
+            ->Orwhere('users.labn','LIKE','%' . $valor . '%')
+            ->orderBy('id', 'desc')
+            ->paginate(50); 
+        }
+
+        return view("componentes.searchidcard",compact('usuarios'));
+
+    }
+
+    public function searchlab($valor)
+    {
+        $diatest = DB::table('testqueue')->find(1);
+        switch ($diatest->mainday) {
+            
+            case ("3"):
+                if ($valor === "vacio") {
+                    $usuarios = DB::table('users')->where('activo','=',1)->where('daytest','=',3)->where('inline','=',0)->where('tested','=',1)->where('resultpcr','=',0)
+                            ->orderBy('users.id', 'desc')->paginate(50);
+
+                }else{
+                    $usuarios = DB::table('users')
+                    ->where('users.name','LIKE','%' . $valor . '%')->where('activo','=',1)->where('daytest','=',3)->where('inline','=',0)->where('tested','=',1)->where('resultpcr','=',0)
+                    ->Orwhere('users.lname','LIKE','%' . $valor . '%')->where('activo','=',1)->where('daytest','=',3)->where('inline','=',0)->where('tested','=',1)->where('resultpcr','=',0)
+                    ->Orwhere('users.labn','LIKE','%' . $valor . '%')->where('activo','=',1)->where('daytest','=',3)->where('inline','=',0)->where('tested','=',1)->where('resultpcr','=',0)
+                    ->orderBy('id', 'desc')
+                    ->paginate(50); 
+                }
+
+                return view("componentes.searchlab",compact('usuarios'));
+                break;
+            case ("2"):
+            if ($valor === "vacio") {
+                $usuarios = DB::table('users')->where('activo','=',1)->where('daytest','=',2)->where('inline','=',0)->where('tested','=',1)->where('resultpcr','=',0)
+                        ->orderBy('users.id', 'desc')->paginate(50);
+
+            }else{
+                $usuarios = DB::table('users')
+                ->where('users.name','LIKE','%' . $valor . '%')->where('activo','=',1)->where('daytest','=',2)->where('inline','=',0)->where('tested','=',1)->where('resultpcr','=',0)
+                ->Orwhere('users.lname','LIKE','%' . $valor . '%')->where('activo','=',1)->where('daytest','=',2)->where('inline','=',0)->where('tested','=',1)->where('resultpcr','=',0)
+                ->Orwhere('users.labn','LIKE','%' . $valor . '%')->where('activo','=',1)->where('daytest','=',2)->where('inline','=',0)->where('tested','=',1)->where('resultpcr','=',0)
+                ->orderBy('id', 'desc')
+                ->paginate(50); 
+            }
+
+            return view("componentes.searchlab",compact('usuarios'));
+            break;
+        default:
+        if ($valor === "vacio") {
+            $usuarios = DB::table('users')->where('activo','=',1)->where('inline','=',0)->where('tested','=',1)->where('resultpcr','=',0)
+                    ->orderBy('users.id', 'desc')->paginate(50);
+
+        }else{
+            $usuarios = DB::table('users')
+            ->where('users.name','LIKE','%' . $valor . '%')->where('activo','=',1)->where('inline','=',0)->where('tested','=',1)->where('resultpcr','=',0)
+            ->Orwhere('users.lname','LIKE','%' . $valor . '%')->where('activo','=',1)->where('inline','=',0)->where('tested','=',1)->where('resultpcr','=',0)
+            ->Orwhere('users.labn','LIKE','%' . $valor . '%')->where('activo','=',1)->where('inline','=',0)->where('tested','=',1)->where('resultpcr','=',0)
+            ->orderBy('id', 'desc')
+            ->paginate(50); 
+        }
+
+        return view("componentes.searchlab",compact('usuarios'));
+
+        }
+    }
+
+    public function temperature(Request $request,$id)
+    {
+        $usuario = user::find($id);
+        $usuario->ultimatemperatura = $request->ultimatemperatura;
+        $usuario->update();
+        return redirect('/usuarioscrud'); 
+    }
+
+    public function testpcrcrud()
+    {
+        $diatest = DB::table('testqueue')->find(1);
+        switch ($diatest->mainday) {
+            
+            case ("3"):
+                $usuarios = DB::table('users')->where('activo','=',1)->where('tested','=',1)->where('resultpcr','=',0)->where('daytest','=',3)->orderBy('users.id', 'desc')->paginate(50);
+                return view ('pcrtest/listcrew', compact('usuarios'));
+                break;
+            case ("2"):
+                $usuarios = DB::table('users')->where('activo','=',1)->where('tested','=',1)->where('resultpcr','=',0)->where('daytest','=',2)->orderBy('users.id', 'desc')->paginate(50);
+                return view ('pcrtest/listcrew', compact('usuarios'));
+                break;
+            default:
+            $usuarios = DB::table('users')->where('activo','=',1)->where('tested','=',1)->where('resultpcr','=',0)->orderBy('users.id', 'desc')->paginate(50);
+            return view ('pcrtest/listcrew', compact('usuarios'));
+        }
+    }
+
+    public function mainlab()
+    {
+        return view ('pcrtest/mainlab');
+    }
+    public function positivepcrO($id)
+    {
+        $producto = User::findOrFail($id);
+        $producto->resultpcr=1;
+        $producto->update();
+        return redirect('/listcrew');
+        //positivo
+        
+    }
+
+//positive new
+public function notodays($id)
+{
+    $producto = User::findOrFail($id);
+    $producto->inline=0;
+    $producto->tested=0;
+    $producto->update();
+    return redirect('/antigentest');
+}
+
+public function notoday($id)
+{
+    $producto = User::findOrFail($id);
+    $producto->inline=0;
+    $producto->tested=0;
+    $producto->update();
+    return redirect('/listcrew');
+}
+
+    public function positivepcr($id)
+    {
+        
+        $producto = User::findOrFail($id);
+            $notificaciones = usuariosnotificacione::where('activo','=', 1)->get();
+            $subject = "Crew member positive";
+            foreach ($notificaciones as $value) {
+                $puesto=userpuesto::where('id','=',auth()->user()->id)->first();
+                $data = [
+                    'nombre' => $value->nombre,
+                    'usuario' => $producto->name,
+                    'correo' => auth()->user()->email,
+                ];
+                $for = $value->correo;
+                Mail::send('correos.notifypositive',$data, function($msj) use($subject,$for){
+                    $msj->from("noreply@crewcare.mx","CrewCare");
+                    $msj->subject($subject);
+                    $msj->to($for);
+                });
+            }
+
+            $subject = "TEST RESULT"." ".$producto->name;
+        $data = [
+            'nombre' => $producto->name,
+        ];
+        $for = $producto->email;
+        Mail::send('correos.positive',$data, function($msj) use($subject,$for){
+            $msj->from("noreply@crewcare.mx","CrewCare");
+            $msj->subject($subject);
+            $msj->to($for);
+        });
+        $prueba = prueba::create([
+            'resultado' => 1
+        ]);
+        $pruebaform = usuariopcr::create([
+            'id_usrio' => $producto->id,
+            'id_prueba' => $prueba->id_prueba
+        ]);
+        
+            $producto = User::findOrFail($id);
+            $producto->enfermo = 1;
+            $producto->resultpcr = 1;
+            $producto->inline=0;
+            $producto->tested=0;
+            $producto->lastpcr = Carbon::now();
+            $producto->update();
+            
+            return redirect('/listcrew');
+        }
+//positivo end
+
+//welcomemail
+public function welcomeresend($id)
+    {
+        $producto = User::findOrFail($id);
+        $subject = "WELCOME AP S2"." ".$producto->name;
+        $data = [
+            'nombre' => $producto->name,
+            'password' => $producto->password
+        ];
+        $for = $producto->email;
+        Mail::send('correos.welcomeuser',$data, function($msj) use($subject,$for){
+            $msj->from("noreply@crewcare.mx","CrewCare");
+            $msj->subject($subject);
+            $msj->to($for);
+        });
+        return redirect('/home');
+    }
+//endwelcomemail
+
+public function negativepcr()
+    {
+                    
+        $notificaciones = User::where('activo','=',1)->where('tested','=',1)->where('resultpcr','=',0)->get();
+        $subject = "TEST RESULT";
+        foreach ($notificaciones as $value) {
+            $data = [
+                'nombre' => $value->name,
+            ];
+            $for = $value->email;
+            Mail::send('correos.negative',$data, function($msj) use($subject,$for){
+                $msj->from("noreply@crewcare.mx","CrewCare");
+                $msj->subject($subject);
+                $msj->to($for);
+            });
+        }
+        
+        $users = DB::table('users')->where('activo','=',1)->where('resultpcr','=',0)->where('tested','=',1)->get();
+        foreach ($users as $user) {
+            $producto = user::find($user->id);
+            $producto->enfermo=0;
+            $producto->resultpcr=1;
+            $producto->inline=0;
+            $producto->tested=0;
+            $producto->lastpcr = Carbon::now();
+            $producto->update();
+            
+            $prueba = prueba::create([
+                'resultado' => 0
+            ]);
+            $pruebaform = usuariopcr::create([
+                'id_usrio' => $producto->id,
+                'id_prueba' => $prueba->id_prueba
+            ]);
+
+        }
+            return redirect('/lab');
+    }
+    
+//negativo end
+
+
+public function negativeantg()
+    {
+        $notificaciones = User::where('activo','=',1)->where('tested','=',1)->where('resultpcr','=',0)->get();
+        $subject = "TEST RESULT";
+        foreach ($notificaciones as $value) {
+           $data = [
+                'nombre' => $value->name,
+            ];
+            $for = $value->email;
+            Mail::send('correos.negative',$data, function($msj) use($subject,$for){
+                $msj->from("noreply@crewcare.mx","CrewCare");
+                $msj->subject($subject);
+                $msj->to($for);
+            });
+        }
+
+        $public_folder = public_path().'/results/';
+        $date = date('d-m-Y');
+        
+        $users = DB::table('users')->where('activo','=',1)->where('resultpcr','=',0)->where('tested','=',1)->get();
+        foreach ($users as $user) {
+            $nombre = $user->name;
+        $producto = user::find($user->id);
+            $pdf_name = $user->name.'_'.$date.'.pdf';
+            $pdf = new Dompdf();
+            $pdf->loadHtml(view('correos/negativean', compact('nombre'))->render());
+            $pdf->render();
+            $pdf->save($public_folder.$pdf_name);
+        }
+
+        
+        $users = DB::table('users')->where('activo','=',1)->where('resultpcr','=',0)->where('tested','=',1)->get();
+        foreach ($users as $user) {
+            $producto = user::find($user->id);
+            $producto->enfermo=0;
+            $producto->resultpcr=1;
+            $producto->inline=0;
+            $producto->tested=0;
+            $producto->lastpcr = Carbon::now();
+            $producto->update();
+            
+            $prueba = prueba::create([
+                'resultado' => 0
+            ]);
+            $pruebaform = usuariopcr::create([
+                'id_usrio' => $producto->id,
+                'id_prueba' => $prueba->id_prueba
+            ]);
+        }
+       
+        return redirect('/lab');
+    }
+    
+//negativo antigenos end
+
+
+    public function pcrcrud($id)
+    {
+        $userpcr = DB::table('pcr')
+        ->where('id','=',$id)
+        ->orderBy('id_pcr', 'desc')
+        ->paginate(12);
+        return view("admin.pcrcrud",compact('userpcr','id'));
+    }
+    public function crearpcr(Request $request,$id)
+    {
+        $pcr = pcr::create([
+            'estado' => $request->estado,
+            'id' => $id
+        ]);
+        $user = user::find($id);
+        $user->lastpcr = $pcr->created_at;
+        if ($request->estado) {
+            $user->enfermo = 0;
+        }else{
+            $user->enfermo = 1;
+        }
+        $user->update();
+        return redirect('/usuarioscrud'); 
+    }
+    public function editarpcr($id)
+    {
+        $userpcr = pcr::find($id);
+        return view("admin.pcredit",compact('userpcr'));
+    }
+    public function savepcr(Request $request,$id)
+    {
+        $pcr = pcr::find($id);
+        $pcr->estado = $request->estado;
+        $pcr->update();
+        $user = user::find($pcr->id);
+        $user->lastpcr = $pcr->created_at;
+        if ($request->estado) {
+            $user->enfermo = 0;
+        }else{
+            $user->enfermo = 1;
+        }
+        $user->update();
+        return redirect('/usuarioscrud');
+    }
+    public function eliminarpcr(Request $request,$id)
+    {
+        $pcr = pcr::find($id);
+        pcr::where('id_pcr',$id)->delete();
+        $user = User::find($pcr->id);
+        return redirect()->route('pcrcrud', ['id' => $user->id]);
+    }
+    public function sendreminder()
+    {
+        $notificaciones = User::where('activo','=', 1)->where('encuestadiaria','=',0)->get();
+        $subject = "DAILY REPORT";
+        foreach ($notificaciones as $value) {
+            $data = [
+                'nombre' => $value->name,
+            ];
+            $for = $value->email;
+            Mail::send('correos.recordatorio',$data, function($msj) use($subject,$for){
+                $msj->from("noreply@crewcare.mx","DAILY REPORT");
+                $msj->subject($subject);
+                $msj->to($for);
+            });
+        }
+        return redirect('/home');
+    }
+
+
+   
+
+    public function exportCsv()
+    {
+       
+        $dia = Carbon::now()->subDays(45)->format('Y-m-d');
+        $tasks = DB::table('userform')
+        ->join('users','users.id','userform.id_usuario')
+        ->whereDate('userform.created_at', '=', $dia)->get();
+        $fileName = 'tasks.csv';
+        $headers = array(
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$fileName",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        );
+
+        $columns = array('USUARIO', 'FECHA');
+
+        $callback = function() use($tasks, $columns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+
+            foreach ($tasks as $task) {
+                $row['USUARIO']  = $task->name;
+                $row['FECHA']    = $task->lastwr;
+                    
+
+                fputcsv($file, array($row['USUARIO'], $row['FECHA']));
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    public function expCsv()
+    {
+       
+        $dias = Carbon::now()->subDays(0)->format('Y-m-d');
+        $nowr = DB::table('userform')
+        ->join('users','users.id','userform.id_usuario')
+        ->whereDate('userform.created_at', '=', $dias)->get();
+        $fileName = 'tasks.csv';
+        $headers = array(
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$fileName",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        );
+
+        $columns = array('USUARIO', 'FECHA');
+
+        $callback = function() use($nowr, $columns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+
+            foreach ($nowr as $nowr) {
+                $row['USUARIO']  = $nowr->name;
+                $row['FECHA']    = $nowr->lastwr;
+                $row['EMAIL']    = $nowr->email;
+                    
+
+                fputcsv($file, array($row['USUARIO'], $row['FECHA'], $row['EMAIL']));
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+}

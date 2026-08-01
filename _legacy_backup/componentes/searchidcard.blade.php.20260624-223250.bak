@@ -1,0 +1,65 @@
+<div id="usertable" class="table-responsive">
+            <table class="table table-hover table-nowrap">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col">Zone</th>
+                        <th scope="col">Photo</th>
+                        <th scope="col">F.Name</th>
+                        <th scope="col">L. Name</th>
+                        <th scope="col">L. Name2</th>
+                        <th scope="col">View</th>
+                        <th scope="col">Printed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($usuarios as $user)
+                        @if($user->age == 1)
+                            <tr class="table-success">
+                        @else
+                            <tr>
+                        @endif
+
+                        <th>
+                            @switch ($user->zone)
+                                @case ('1A')
+                                    <span class="badge bg-success">{{$user->zone}}</span>
+                                @break
+                                @case ('1B')
+                                    <span class="badge bg-danger">{{$user->zone}}</span>
+                                @break
+                                @case ('2')
+                                    <span class="badge bg-warning">{{$user->zone}}</span>
+                                @break
+                                @case ('3')
+                                    <span class="badge bg-dark">{{$user->zone}}</span>
+                                @break
+                                    @default
+                                    <span class="badge bg-secondary">No Zone</span>
+                                @endswitch
+                        </th>
+                        <td><img src="imagesprf/usrs/{{$user->imgperfil}}" class="circle-crud-gft" style></td>
+                        <td>{{$user->name}}</td>
+                        <td>{{$user->lname}}</td>
+                        <td>{{$user->lname2}}</td>
+                        <td>
+                            <a title="config" class="dropdown-item" href="{{url('/idcard/'.$user->id)}}">
+                            <i class="fa-solid fa-id-badge"></i>&nbsp ID Card
+                            </a>
+                        </td>
+                        <td>
+                            <a title="config" class="text-success" style="text-decoration:none;" href="{{url('/checkgft/'.$user->id)}}">
+                        <i class="fa-solid fa-circle-check"></i>
+                            </a>
+                            <a title="config" class="text-danger" style="text-decoration:none;" href="{{url('/uncheckgft/'.$user->id)}}">
+                            <i class="fa-solid fa-circle-xmark"></i>
+                            </a>
+                        </td>
+                        
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+            <div>
+                {!! $usuarios->links() !!} 
+            </div>
+        </div>

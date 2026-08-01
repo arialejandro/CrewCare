@@ -1,0 +1,44 @@
+# Graphify knowledge-graph output (generated, not source)
+graphify-out/
+
+# =============================================================================
+# (2026-07-24) Añadidos parciales.
+#
+# ⚠ ESTO NO DESRASTREA NADA. Git ignora lo que NO conoce; los archivos que ya
+#   están en el índice siguen versionándose aunque aparezcan aquí. Estas reglas
+#   surten efecto el día que se reinicialice el repo, que es cuando se resuelve
+#   completo el tema del .env (ver `pendientes-prod` en la memoria del proyecto).
+#
+#   Falta todavía: .env, /vendor, /node_modules, /storage/framework, logs y
+#   caché. Van en la misma pasada.
+# =============================================================================
+
+# Respaldos comprimidos sueltos en la raíz: no son fuente.
+*.rar
+*.zip
+*.7z
+
+# SUBIDAS DE USUARIO. Son datos de la instancia, no del producto, y las fotos de
+# perfil son PII: caras de personas reales identificables. `nophoto.png` SÍ va,
+# porque es la silueta genérica del proyecto (App\Support\Avatar la usa como
+# respaldo y sin ella la app se queda sin imagen por omisión).
+/public/imagesprf/usrs/*
+!/public/imagesprf/usrs/nophoto.png
+/storage/app/public/*
+!/storage/app/public/.gitignore
+
+# =============================================================================
+# (2026-08-01) Repo REINICIALIZADO en historial limpio → estas reglas YA surten
+# efecto. El .env (con secretos) queda FUERA; .env.example (placeholders) SÍ va.
+# =============================================================================
+/.env
+/.env.backup
+/vendor/
+/node_modules/
+/storage/*.key
+/public/hot
+/public/storage
+.phpunit.result.cache
+auth.json
+npm-debug.log
+yarn-error.log

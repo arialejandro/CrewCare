@@ -1,0 +1,58 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use Mail;
+
+/**
+ * CrewMailController — CORTE #7 del God Object AdminController (strangler, 2026-06-28).
+ *
+ * Correos disparados manualmente por un admin sobre el crew. Movimiento PURO desde
+ * AdminController (misma lógica, mismas plantillas, mismos nombres de ruta). Siguen gateados
+ * bajo el grupo `admin` en routes/web.php.
+ *
+ * NOTA (deferred): ambas rutas son GET con efecto colateral (envían correo) y hoy NO tienen
+ * UI que las dispare. El recordatorio diario "de verdad" es el comando programado
+ * `encuestas:task`; `sendreminder` es la variante manual/sincrónica. Convertir a POST+CSRF o
+ * a comandos Artisan queda como pendiente menor (no hay formulario que migrar y el acceso ya
+ * está restringido a admin). Ver [[security-and-adminctrl-carve-state]].
+ */
+class CrewMailController extends Controller
+{
+    public function welcomeresend($id)
+    {
+        $producto = User::findOrFail($id);
+        $subject = "WELCOME AP S2"." ".$producto->name;
+        $data = [
+            'nombre' => $producto->name,
+            'password' => $producto->password
+        ];
+        $for = $producto->email;
+        Mail::send('correos.welcomeuser',$data, function($msj) use($subject,$for){
+            $msj->from("noreply@crewcare.mx","CrewCare");
+            $msj->subject($subject);
+            $msj->to($for);
+        });
+        return redirect('/home');
+    }
+
+    public function sendreminder()
+    {
+        $notificaciones = User::where('activo','=', 1)->where('encuestadiaria','=',0)->get();
+        $subject = "DAILY REPORT";
+        foreach ($notificaciones as $value) {
+            $data = [
+                'nombre' => $value->name,
+            ];
+            $for = $value->email;
+            Mail::send('correos.recordatorio',$data, function($msj) use($subject,$for){
+                $msj->from("noreply@crewcare.mx","DAILY REPORT");
+                $msj->subject($subject);
+                $msj->to($for);
+            });
+        }
+        return redirect('/home');
+    }
+}

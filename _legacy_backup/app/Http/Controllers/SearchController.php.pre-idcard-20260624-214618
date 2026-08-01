@@ -1,0 +1,132 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use Illuminate\Http\Request;
+
+/**
+ * SearchController — CrewCare's unified, secure, role-aware crew search.
+ *
+ * STRANGLER replacement for AdminController@searchusers (legacy left in place).
+ * Hardening over the legacy method:
+ *  - Eloquent User (NOT DB::table) so $hidden applies and the password hash never
+ *    serializes; plus an EXPLICIT ->select([...]) — never SELECT *.
+ *  - OR search terms grouped inside a closure (fixes the OR-precedence bug so the
+ *    term filter can't leak past sibling/scope filters).
+ *  - Permission-gated (crew.view) + role-aware field visibility + department scope.
+ *  - COVID leftover columns (labn/resultpcr/temperatura) dropped from the projection.
+ *
+ * The AJAX contract is preserved: same URI /searchusers/{valor}/?page=1, same "vacio"
+ * empty-sentinel, same paginate(50), returns an HTML partial for $('#usertable').html().
+ */
+class SearchController extends Controller
+{
+    /**
+     * Columns the partial actually renders. EXPLICIT projection — never SELECT *.
+     * Identity/action columns the dropdown needs (id, admin, daytest, enfermo,
+     * encuestadiaria, activo) are included so the legacy action menu still works.
+     * Contact (phone/email) and personal (borndate/sex) are also selected here but
+     * only RENDERED when the searcher holds the matching permission (see partial).
+     * No COVID columns (labn / resultpcr / temperatura) are selected.
+     */
+    private const COLUMNS = [
+        'id',
+        'name',
+        'lname',
+        'lname2',
+        'puestodepartamento',
+        'zone',
+        'imgperfil',
+        'borndate',   // personal  (rendered @if($canPersonal))
+        'sex',        // personal  (rendered @if($canPersonal))
+        'phone',      // contact   (rendered @if($canContact))
+        'email',      // contact   (rendered @if($canContact))
+        'admin',
+        'daytest',
+        'enfermo',
+        'encuestadiaria',
+        'activo',
+    ];
+
+    /**
+     * Human columns searched with LIKE — same set the legacy searchusers used.
+     * Grouped inside a closure by the caller so the OR group can't break sibling
+     * filters (scope / fixed filters).
+     */
+    private const SEARCHABLE = ['name', 'lname', 'lname2', 'email'];
+
+    public function users(Request $request, $valor)
+    {
+        $user = $request->user();
+
+        // ---- Authorize: crew.view is the gate to search at all. ----
+        abort_unless($user->can('crew.view'), 403);
+
+        // ---- Field-visibility flags passed to the view. ----
+        $canContact  = $user->can('crew.view.contact');   // phone / email
+        $canPersonal = $user->can('crew.view.personal');   // birthdate / sex
+        $canMedical  = $user->can('medical.view');         // clinical (none rendered yet)
+
+        $query = User::query()->select(self::COLUMNS);
+
+        // ---- Department scope for restricted roles. ----
+        // If the searcher CANNOT see all departments, restrict results to the
+        // departments the searcher belongs to.
+        //
+        // Department source: the `production_user` pivot `department_id` (the backfill
+        // we populated) — the most reliable normalized source. The legacy string
+        // `users.puestodepartamento` is a denormalized "Depto-Puesto" label and is NOT
+        // a stable key, so the pivot wins.
+        //
+        // TODO/FLAG: this scope's accuracy depends on the department backfill being
+        // complete. As of 2026-06-24 only 75 of 88 users have a pivot department_id.
+        // A user without a pivot department (searcher OR target) is treated as
+        // out-of-scope. We ERR RESTRICTIVE: if the searcher's own department cannot be
+        // determined we return an empty result rather than leak other departments.
+        if (! $user->can('crew.view.all-departments')) {
+            $ownDeptIds = $user->productions()
+                ->wherePivotNotNull('department_id')
+                ->pluck('production_user.department_id')
+                ->unique()
+                ->filter()
+                ->values();
+
+            if ($ownDeptIds->isEmpty()) {
+                // Cannot determine searcher's department -> leak nothing.
+                $usuarios = $query->whereRaw('1 = 0')->paginate(50);
+
+                return view('componentes.search-results', compact(
+                    'usuarios', 'canContact', 'canPersonal', 'canMedical'
+                ));
+            }
+
+            // Restrict targets to users sharing any of the searcher's departments.
+            $query->whereExists(function ($sub) use ($ownDeptIds) {
+                $sub->select(\Illuminate\Support\Facades\DB::raw(1))
+                    ->from('production_user')
+                    ->whereColumn('production_user.user_id', 'users.id')
+                    ->whereIn('production_user.department_id', $ownDeptIds->all());
+            });
+        }
+
+        // ---- Search term filter (grouped OR closure) or "vacio" sentinel. ----
+        if ($valor !== 'vacio') {
+            $query->where(function ($q) use ($valor) {
+                foreach (self::SEARCHABLE as $i => $col) {
+                    $like = '%' . $valor . '%';
+                    $i === 0
+                        ? $q->where($col, 'LIKE', $like)
+                        : $q->orWhere($col, 'LIKE', $like);
+                }
+            });
+        }
+
+        $usuarios = $query->orderBy('id', 'desc')->paginate(50);
+
+        return view('componentes.search-results', compact(
+            'usuarios', 'canContact', 'canPersonal', 'canMedical'
+        ));
+    }
+}

@@ -1,0 +1,46 @@
+<?php
+
+namespace App\Console\Commands;
+
+use Illuminate\Console\Command;
+use App\Models\User;
+use Mail;
+
+/**
+ * crew:daily-reminder
+ *
+ * Reenvía el recordatorio "DAILY REPORT" a los usuarios activos con el cuestionario diario
+ * pendiente (`encuestadiaria = 0`). Reemplaza la antigua ruta web GET /sendreminder (efecto
+ * colateral por GET, sin UI) — extraída del God Object AdminController y convertida a comando
+ * Artisan (2026-06-28).
+ *
+ * Es la variante MANUAL/"re-nudge" del comando programado `encuestas:task` (Kernel dailyAt 04:00),
+ * que además RESETEA el flag a 0. Este solo notifica a los que siguen pendientes; útil para un
+ * segundo aviso a media jornada. Puede agendarse en Kernel@schedule si se quiere recurrente.
+ */
+class CrewDailyReminder extends Command
+{
+    protected $signature = 'crew:daily-reminder';
+
+    protected $description = 'Reenvía el recordatorio "DAILY REPORT" a usuarios activos con el cuestionario pendiente.';
+
+    public function handle()
+    {
+        $notificaciones = User::where('activo', '=', 1)->where('encuestadiaria', '=', 0)->get();
+        $subject = "DAILY REPORT";
+        foreach ($notificaciones as $value) {
+            $data = [
+                'nombre' => $value->name,
+            ];
+            $for = $value->email;
+            Mail::send('correos.recordatorio', $data, function ($msj) use ($subject, $for) {
+                $msj->from("noreply@crewcare.mx", "DAILY REPORT");
+                $msj->subject($subject);
+                $msj->to($for);
+            });
+        }
+
+        $this->info('Recordatorio "DAILY REPORT" enviado a '.count($notificaciones).' usuario(s) pendientes.');
+        return 0;
+    }
+}

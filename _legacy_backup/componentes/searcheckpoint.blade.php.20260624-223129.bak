@@ -1,0 +1,58 @@
+<div>
+    
+   
+    <div class="p-10 bg-surface-secondary">
+    
+        <div id="usertable" class="table-responsive">
+            <table class="table table-hover table-nowrap">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col">Zone</th>
+                        <th scope="col">F.Name</th>
+                        <th scope="col">L. Name</th>
+                        <th scope="col">L. Name2</th>
+                        <th scope="col">Auth</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($usuarios as $user)
+                        
+
+                        <th>
+                            @switch ($user->zone)
+                                @case ('1A')
+                                    <span class="badge bg-success">{{$user->zone}}</span>
+                                @break
+                                @case ('1B')
+                                    <span class="badge bg-danger">{{$user->zone}}</span>
+                                @break
+                                @case ('2')
+                                    <span class="badge bg-warning">{{$user->zone}}</span>
+                                @break
+                                @case ('3')
+                                    <span class="badge bg-dark">{{$user->zone}}</span>
+                                @break
+                                    @default
+                                    <span class="badge bg-secondary">No Zone</span>
+                                @endswitch
+                                
+                                    
+                        </th>
+                        <td>{{$user->name}}</td>
+                        <td>{{$user->lname}}</td>
+                        <td>{{$user->lname2}}</td>
+                        <td>@if($user->encuestadiaria == 1)
+                                        <span class="badge bg-success"><i class="fa-solid fa-circle-check"></i></span>
+                                        @else
+                                        <span class="badge bg-danger"><i class="fa-solid fa-circle-xmark"></i></span><tr class="table-warning">
+                                    @endif</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+            <div>
+                {!! $usuarios->links() !!} 
+            </div>
+        </div>
+    </div>
+</div>

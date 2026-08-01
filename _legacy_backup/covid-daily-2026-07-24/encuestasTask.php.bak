@@ -1,0 +1,63 @@
+<?php
+
+namespace App\Console\Commands;
+
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use App\Models\User;
+use App\Models\usuariosnotificacione;
+use Mail;
+class encuestasTask extends Command
+{
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'encuestas:task';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Command description';
+
+    /**
+     * Create a new command instance.
+     *
+     * @return void
+     */
+    public function __construct()
+    {
+        parent::__construct();
+    }
+
+    /**
+     * Execute the console command. u896-kgd2gjx10j2g
+     *
+     * @return int
+     */
+    public function handle()
+    {
+        $users = DB::table('users')->where('activo','=',1)->get();
+        foreach ($users as $user) {
+            $producto = user::find($user->id);
+            $producto->encuestadiaria=0;
+            $producto->update();
+        }
+        $notificaciones = User::where('activo','=', 1)->where('encuestadiaria','=',0)->get();
+        $subject = "DAILY REPORT";
+        foreach ($notificaciones as $value) {
+            $data = [
+                'nombre' => $value->name,
+            ];
+            $for = $value->email;
+            Mail::send('correos.recordatorio',$data, function($msj) use($subject,$for){
+                // from() centralizado en config/mail.php (antes: Gmail personal hardcodeado)
+                $msj->subject($subject);
+                $msj->to($for);
+            });
+        }
+    }
+}

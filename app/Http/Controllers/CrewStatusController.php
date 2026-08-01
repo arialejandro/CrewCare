@@ -1,0 +1,124 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use App\Models\User;
+use App\Models\BadgePrint;
+
+/**
+ * CrewStatusController — CORTE #5 + #6 del God Object AdminController (strangler, 2026-06-28).
+ *
+ * Acciones de MUTACIÓN puntual sobre UN miembro de crew (un solo {id}): toggles de estatus
+ * (activo, gafete impreso → tabla badge_prints, reset de cuestionario `encuestadiaria`), rol legacy `admin`,
+ * grupo legacy `daytest`, y asignación de puesto/departamento. Todas comparten la misma forma:
+ * `findOrFail($id)` → guarda de scope → muta un campo → guarda.
+ *
+ * ENDURECIMIENTO al mover (cierra H2 — IDOR de scope en acciones sobre {id}):
+ * cada acción ahora exige `auth()->user()->canManageCrewMember($target)` (mismo criterio que
+ * los listados vía applyDepartmentScope). Para los roles actuales con `users.assign-role`/
+ * `assign-department` la guarda es un no-op (todos tienen `crew.view.all-departments`), pero
+ * blinda contra {id} manipulados a mano y contra futuros roles acotados. La autorización por
+ * permiso (`users.update` / `users.deactivate` / `users.assign-role` / `users.assign-department`)
+ * sigue viviendo en routes/web.php; esto es la capa de scope por departamento encima.
+ *
+ * Las vistas solo enlazan a usuarios visibles (listas ya acotadas), así que un operador
+ * legítimo nunca topa con el 403; solo lo recibe una petición fuera de scope.
+ */
+class CrewStatusController extends Controller
+{
+    /**
+     * Helper DEDUP (2026-07-06): forma común de los ~11 toggles → findOrFail + guarda de scope
+     * (canManageCrewMember, 403) + set de UNA columna + update(). Cada método público delega aquí
+     * conservando su nombre, ruta, columna y valor exactos (las vistas postean a esos contratos).
+     */
+    private function setFlag($id, $column, $value)
+    {
+        $producto = User::findOrFail($id);
+        abort_unless(auth()->user()->canManageCrewMember($producto), 403);
+        $producto->{$column} = $value;
+        $producto->update();
+    }
+
+    // ---- #5: estatus / gafete / cuestionario ------------------------------------------
+
+    /**
+     * Marca el gafete como IMPRESO → crea/actualiza la fila en badge_prints (auditable:
+     * cuándo + quién). Reemplaza el viejo setFlag('age', 1). Mismo guard de scope.
+     */
+    public function checkgft($id)
+    {
+        $user = User::findOrFail($id);
+        abort_unless(auth()->user()->canManageCrewMember($user), 403);
+        BadgePrint::updateOrCreate(
+            ['user_id' => $user->id],
+            ['printed_at' => now(), 'printed_by_id' => auth()->id()]
+        );
+
+        return back();
+    }
+
+    /** Desmarca el gafete impreso → borra la fila en badge_prints. */
+    public function uncheckgft($id)
+    {
+        $user = User::findOrFail($id);
+        abort_unless(auth()->user()->canManageCrewMember($user), 403);
+        BadgePrint::where('user_id', $user->id)->delete();
+
+        return back();
+    }
+
+    public function activarusuario($id)
+    {
+        $this->setFlag($id, 'activo', 1);
+        return redirect('/usuarioscrud');
+    }
+
+    public function activarencuesta($id)
+    {
+        $this->setFlag($id, 'encuestadiaria', 0);
+        return redirect('/usuarioscrud');
+    }
+
+    public function desactivarusuario($id)
+    {
+        $this->setFlag($id, 'activo', 0);
+        return redirect('/usuarioscrud');
+    }
+
+    // ---- #6: rol legacy `admin` / grupos legacy `daytest` ------------------------------
+
+    public function activaradmin($id)
+    {
+        $this->setFlag($id, 'admin', 1);
+        return redirect('/usuarioscrud');
+    }
+
+    public function desactivaradmin($id)
+    {
+        $this->setFlag($id, 'admin', 0);
+        return redirect('/usuarioscrud');
+    }
+
+    public function putga($id)
+    {
+        $this->setFlag($id, 'daytest', 0);
+        return redirect('/usuarioscrud');
+    }
+
+    // PASO A (2026-07-19): ELIMINADO putgb() — escribía daytest = 2 ("Convertir a Médico").
+    // Era un falso marcador: los 13 usuarios que lo tuvieron eran de producción/coordinación
+    // y los médicos reales tenían NULL. La identidad médica es ahora el rol Spatie `medic`
+    // (User::isMedic()), que se asigna desde /rolescrud → RoleAssignmentController.
+    // Se eliminaron a la vez la ruta POST /putmed/{id} y los 2 botones de
+    // resources/views/componentes/_group-toggles.blade.php (únicos usuarios de route('putgb')).
+    // setFlag() NO se toca: lo comparten activarusuario/activarencuesta/desactivarusuario/
+    // activaradmin/desactivaradmin/putga/putgg y es donde vive la guarda canManageCrewMember.
+
+    public function putgg($id)
+    {
+        $this->setFlag($id, 'daytest', 1);
+        return redirect('/usuarioscrud');
+    }
+}

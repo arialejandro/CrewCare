@@ -1,0 +1,288 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\WrapReport;
+use App\Support\CurrentProduction;
+use App\Support\WrapReportBuilder;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+
+/**
+ * WrapReportController — REPORTE FINAL DE WRAP (2026-07-24).
+ *
+ * Cuatro acciones y una idea: el wrap se PREVISUALIZA vivo mientras se decide, y se EMITE una vez.
+ * Emitir = congelar el cálculo en `wrap_reports.payload` y sellarlo. Después ya no se recalcula.
+ *
+ * ── POR QUÉ HAY BORRADOR Y EMISIÓN, Y NO SÓLO UNA PANTALLA ─────────────────────────────────
+ * El wrap se entrega a un tercero. Si fuera una vista viva, cada visita daría cifras distintas
+ * conforme alguien corrigiera un DSR, y nadie —ni la casa productora ni el estudio— podría citar
+ * "el reporte" porque no habría tal cosa. El borrador sirve para revisar antes de comprometerse;
+ * la emisión produce EL documento, con su folio, su hash y su QR.
+ *
+ * El borrador se pinta con la MISMA vista, marcado como tal y sin sello. Eso es deliberado: lo que
+ * se revisa tiene que ser exactamente lo que se va a emitir, no una aproximación.
+ *
+ * ── SÓLO LEE LOS 5 REPORTES ────────────────────────────────────────────────────────────────
+ * Ni una escritura fuera de `wrap_reports` y su firma. Los DSR, scoutings, gemelos, accidentes y
+ * consultas se leen y se sueltan.
+ */
+class WrapReportController extends Controller
+{
+    /** Motivo del sello. Queda en `role_at_signing` y la vista lo lee para explicarlo. */
+    const MOTIVO_SELLO = 'sistema:wrap';
+
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+
+    /**
+     * Listado de documentos de cierre emitidos para la producción vigente.
+     */
+    public function index()
+    {
+        abort_unless(WrapReport::supported(), 404);
+
+        $produccion = CurrentProduction::get();
+        $reportes = WrapReport::when($produccion, function ($q) use ($produccion) {
+                $q->where('production_id', $produccion->id);
+            })
+            ->where('kind', WrapReport::KIND_FINAL)
+            ->with('addendums')
+            ->orderByDesc('id')->get();
+
+        return view('admin.wrap.index', [
+            'produccion' => $produccion,
+            'reportes'   => $reportes,
+        ]);
+    }
+
+    /**
+     * BORRADOR: calcula en vivo y pinta el documento sin sellar.
+     *
+     * Acepta ?desde= y ?hasta= para que el usuario vea el efecto del rango ANTES de emitir. Sin
+     * ellos, el rango lo deduce el builder desde `productions`.
+     */
+    public function preview(Request $request)
+    {
+        abort_unless(WrapReport::supported(), 404);
+
+        $produccion = CurrentProduction::get();
+        abort_unless($produccion, 404, 'No hay producción vigente que cerrar.');
+
+        // QUIÉN: generar el borrador ya es parte del proceso del wrap y queda para el safety. El
+        // borrador NO congela nada, así que no lleva guarda de fecha — el safety puede ver la forma
+        // del documento en cualquier momento. La fecha sólo bloquea la EMISIÓN (el botón de abajo).
+        abort_unless(WrapReport::issuableBy(auth()->user(), $produccion), 403,
+            'Sólo el safety manager o el safety asignado a la producción puede generar el reporte de wrap.');
+
+        list($desde, $hasta) = $this->rango($request, $produccion);
+
+        $payload = WrapReportBuilder::build($produccion, $desde, $hasta);
+        $periodo = $this->periodoDe($payload, $desde, $hasta);
+
+        // Modelo EN MEMORIA, jamás guardado: la vista es la misma para borrador y documento, así
+        // que necesita un objeto con la misma forma. Sin `exists`, verifyLatestSignature() no
+        // encuentra firma y el documento se pinta sin sello, que es exactamente lo correcto para
+        // un borrador. No hay ruta por la que este objeto llegue a save().
+        $borrador = new WrapReport([
+            'production_id' => $produccion->id,
+            'kind'          => WrapReport::KIND_FINAL,
+            'period_start'  => $periodo[0],
+            'period_end'    => $periodo[1],
+            'payload'       => $payload,
+        ]);
+
+        return view('admin.wrap.show', [
+            'wrap'       => $borrador,
+            'payload'    => $payload,
+            'produccion' => $produccion,
+            'borrador'   => true,
+            // Motivo por el que el botón "Emitir" NO debe aparecer todavía (null = ventana abierta).
+            // Se calcula contra end_date de la producción, que es lo que store() va a exigir.
+            'emitBloqueado' => WrapReport::windowBlockedReason($produccion->end_date),
+        ]);
+    }
+
+    /**
+     * EMITE el documento de cierre: congela el cálculo y lo sella.
+     */
+    public function store(Request $request)
+    {
+        abort_unless(WrapReport::supported(), 404);
+
+        $produccion = CurrentProduction::get();
+        abort_unless($produccion, 404, 'No hay producción vigente que cerrar.');
+
+        // QUIÉN: sólo el safety manager o el safety asignado a la producción emite. Server-side, no
+        // sólo el botón oculto: un POST directo también choca aquí.
+        abort_unless(WrapReport::issuableBy(auth()->user(), $produccion), 403,
+            'Sólo el safety manager o el safety asignado a la producción puede emitir el reporte de wrap.');
+
+        // CUÁNDO: no antes de la fecha de finalización. ABSOLUTO — ningún rol lo salta. Es la
+        // protección contra el clic accidental que congelaría la producción antes de tiempo.
+        $bloqueo = WrapReport::windowBlockedReason($produccion->end_date);
+        if ($bloqueo !== null) {
+            return redirect()->route('wrap.index')->with('error', $bloqueo);
+        }
+
+        list($desde, $hasta) = $this->rango($request, $produccion);
+
+        $payload = WrapReportBuilder::build($produccion, $desde, $hasta);
+        $periodo = $this->periodoDe($payload, $desde, $hasta);
+
+        $wrap = WrapReport::create([
+            'production_id' => $produccion->id,
+            'kind'          => WrapReport::KIND_FINAL,
+            'period_start'  => $periodo[0],
+            'period_end'    => $periodo[1],
+            'payload'       => $payload,
+            'issued_at'     => Carbon::now(),
+            'issued_by_id'  => auth()->id(),
+        ]);
+
+        $this->sellar($wrap);
+
+        return redirect()->route('wrap.show', $wrap->id)
+            ->with('status', 'Reporte de wrap ' . $wrap->folio() . ' emitido y sellado.');
+    }
+
+    /**
+     * ANEXO por regrabaciones posteriores (SB 132).
+     *
+     * NO reescribe el documento original: crea uno nuevo que lo referencia y cubre SÓLO los días
+     * de la regrabación. El original conserva su folio, su hash y su QR — reescribirlo rompería su
+     * sello, que es la única prueba de que existió antes tal como se entregó.
+     */
+    public function storeAddendum(Request $request, $id)
+    {
+        abort_unless(WrapReport::supported(), 404);
+
+        $padre = WrapReport::where('kind', WrapReport::KIND_FINAL)->findOrFail($id);
+
+        $produccion = $padre->production ?: CurrentProduction::get();
+
+        // QUIÉN: mismo candado que el cierre. El anexo también se sella y va a un tercero.
+        abort_unless(WrapReport::issuableBy(auth()->user(), $produccion), 403,
+            'Sólo el safety manager o el safety asignado a la producción puede emitir un anexo de wrap.');
+
+        $datos = $request->validate([
+            'desde'  => 'required|date',
+            'hasta'  => 'required|date|after_or_equal:desde',
+            'reason' => 'nullable|string|max:255',
+        ], [], [
+            'desde' => 'fecha inicial de la regrabación',
+            'hasta' => 'fecha final de la regrabación',
+        ]);
+
+        // CUÁNDO: un anexo documenta una regrabación YA OCURRIDA. La ventana se mide contra su
+        // fecha FINAL (la "finalización" del anexo), no contra la de la producción original —esa ya
+        // pasó por definición—. No se puede sellar un reshoot que todavía no termina.
+        $bloqueo = WrapReport::windowBlockedReason($datos['hasta']);
+        if ($bloqueo !== null) {
+            return redirect()->route('wrap.show', $padre->id)->with('error', $bloqueo);
+        }
+
+        $payload = WrapReportBuilder::build($produccion, $datos['desde'], $datos['hasta']);
+        // El folio del documento al que complementa viaja DENTRO del payload, no sólo en la FK: el
+        // anexo se imprime y se entrega en papel, y ahí no hay base de datos que consultar para
+        // saber a qué cierre pertenece.
+        $payload['anexo_de'] = ['folio' => $padre->folio(), 'uuid' => (string) $padre->uuid];
+
+        $anexo = WrapReport::create([
+            'production_id' => $padre->production_id,
+            'kind'          => WrapReport::KIND_ADDENDUM,
+            'parent_id'     => $padre->id,
+            'period_start'  => $datos['desde'],
+            'period_end'    => $datos['hasta'],
+            'reason'        => isset($datos['reason']) ? $datos['reason'] : null,
+            'payload'       => $payload,
+            'issued_at'     => Carbon::now(),
+            'issued_by_id'  => auth()->id(),
+        ]);
+
+        $this->sellar($anexo);
+
+        return redirect()->route('wrap.show', $anexo->id)
+            ->with('status', 'Anexo ' . $anexo->folio() . ' emitido y sellado. El documento ' . $padre->folio() . ' no se modificó.');
+    }
+
+    /**
+     * Muestra un documento emitido, tal como se congeló.
+     */
+    public function show($id)
+    {
+        abort_unless(WrapReport::supported(), 404);
+
+        $wrap = WrapReport::with(['production', 'parent', 'addendums'])->findOrFail($id);
+
+        return view('admin.wrap.show', [
+            'wrap'       => $wrap,
+            'payload'    => is_array($wrap->payload) ? $wrap->payload : [],
+            'produccion' => $wrap->production,
+            'borrador'   => false,
+        ]);
+    }
+
+    // -------------------------------------------------------------------------------------
+
+    /**
+     * Sella el documento recién creado.
+     *
+     * ⚠ REFRESH ANTES DE SELLAR. El hash se calcula sobre attributesToArray(), y tras create() los
+     * atributos en memoria no coinciden con los de la base (el JSON del payload viene ya
+     * serializado por el driver, los timestamps traen la precisión del motor). Sellar sin releer
+     * produce un hash que NUNCA vuelve a coincidir y el documento nace acusándose de ALTERADO.
+     * Es el mismo tropiezo que ya se corrigió en el Scouting y en los gemelos.
+     *
+     * Se sella COMO SISTEMA (user_id NULL) a propósito: ver el comentario de App\Models\WrapReport.
+     */
+    private function sellar(WrapReport $wrap)
+    {
+        $wrap->refresh();
+        $wrap->signDocumentAsSystem(self::MOTIVO_SELLO);
+    }
+
+    /**
+     * Rango cubierto. Sin parámetros, lo deduce el builder desde `productions`; se devuelve null
+     * para no fijar aquí una fecha que el builder sabe calcular mejor (incluye la prep).
+     *
+     * @return array [desde|null, hasta|null]
+     */
+    private function rango(Request $request, $produccion)
+    {
+        $desde = $request->input('desde');
+        $hasta = $request->input('hasta');
+
+        $desde = $desde ? Carbon::parse($desde)->toDateString() : null;
+        $hasta = $hasta ? Carbon::parse($hasta)->toDateString() : null;
+
+        // Rango invertido: se ignora en vez de producir un reporte vacío que se leería como
+        // "no pasó nada en toda la producción".
+        if ($desde && $hasta && $desde > $hasta) {
+            return [null, null];
+        }
+
+        return [$desde, $hasta];
+    }
+
+    /**
+     * Periodo REAL que quedó cubierto, leído del payload.
+     *
+     * Cuando no se pide rango, el builder lo deduce —y lo abre hacia atrás hasta la prep, que
+     * empieza antes de `productions.start_date`. Guardar aquí los nulos que entraron dejaría la
+     * fila diciendo "sin periodo" mientras el documento impreso declara uno: dos verdades para el
+     * mismo papel. El payload manda.
+     *
+     * @return array [desde, hasta]
+     */
+    private function periodoDe(array $payload, $desde, $hasta)
+    {
+        $p = isset($payload['meta']['periodo']) ? $payload['meta']['periodo'] : [];
+        return [
+            isset($p['desde']) ? $p['desde'] : $desde,
+            isset($p['hasta']) ? $p['hasta'] : $hasta,
+        ];
+    }
+}

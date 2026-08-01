@@ -1,0 +1,56 @@
+<div id="usertable" class="table-responsive">
+            <table class="table table-hover table-nowrap">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col">Zone</th>
+                        <th scope="col">F.Name</th>
+                        <th scope="col">L. Name</th>
+                        <th scope="col">L. Name 2</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($usuarios as $user)
+                        @if($user->enfermo == 0)
+                            <tr>
+                        @else
+                            <tr>
+                        @endif
+
+                        <th>
+                            @switch ($user->zone)
+                                @case ('1A')
+                                    <span class="badge bg-success">{{$user->zone}}</span>
+                                @break
+                                @case ('1B')
+                                    <span class="badge bg-danger">{{$user->zone}}</span>
+                                @break
+                                @case ('2')
+                                    <span class="badge bg-warning">{{$user->zone}}</span>
+                                @break
+                                @case ('3')
+                                    <span class="badge bg-dark">{{$user->zone}}</span>
+                                @break
+                                    @default
+                                    <span class="badge bg-secondary">No Zone</span>
+                                @endswitch
+                        </th>
+                        <td>{{$user->name}}</td>
+                        <td>{{$user->lname}}</td>
+                        <td>{{$user->puestodepartamento}}</td>
+                        <td>
+                        <form class="dropdown-item" title="Positive" method="post" action="{{url('/positivepcr/'.$user->id)}}">
+                                {{ csrf_field() }}
+                                <button type="submit" class="btn btn-danger" onclick="return confirm('¿Really is a positive test?');">
+                                <i class="fa-solid fa-virus-covid"></i> &nbsp Report Positive
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+            <div>
+                {!! $usuarios->links() !!} 
+            </div>
+        </div>

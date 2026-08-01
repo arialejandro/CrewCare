@@ -1,0 +1,26 @@
+/* =============================================================================
+   profile.css — Profile view (CrewCare): /profile -> PerfilController@indexb.
+
+   Extracted verbatim from the inline <style> block that used to live at the top
+   of resources/views/profile.blade.php (the filtered <head> that caused Quirks
+   mode). Visual behavior preserved 1:1 — these rules style the profile-photo
+   cropper modal and its preview box.
+   ============================================================================= */
+
+/* -------------- Cropper modal / preview -------------- */
+.imgs {
+  display: block;
+  max-width: 100%;
+}
+
+.preview {
+  overflow: hidden;
+  width: 160px;
+  height: 160px;
+  margin: 10px;
+  border: 1px solid red;
+}
+
+.modal-lg {
+  max-width: 1000px !important;
+}

@@ -1,0 +1,48 @@
+
+        <div id="usertable" class="table-responsive">
+            <table class="table table-hover table-nowrap">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col">Nombre</th>
+                        <th scope="col">Apellido</th>
+                        <th scope="col">Apellido2</th>
+                        <th scope="col">Departamento</th>
+                        <th scope="col">F.Nac</th>
+                        <th scope="col">Teléfono</th>
+                        <th scope="col">Email</th>
+                        <th scope="col">Historial</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($usuarios as $user)
+                        @if($user->enfermo == 0)
+                            <tr>
+                        @else
+                            <tr class="table-warning">
+                        @endif
+
+                        <th>
+                        {{$user->name}}
+                        </th>
+                        <td>{{$user->lname}}</td>
+                        <td>{{$user->lname2}}</td>
+                        <td>{{$user->puestodepartamento}}</td>
+                        <td>{{$user->borndate}}</td>
+                        <td>{{$user->phone}}</td>
+                        <td>{{$user->email}}</td>
+                        
+                        <td>
+                        <a title="History" class="dropdown-item" href="{{url('/historialWR/'.$user->id)}}">
+                            <i class="fa-solid fa-book"></i>&nbsp Historial
+                            </a>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+            <div>
+                {!! $usuarios->links() !!} 
+            </div>
+        </div>
+    </div>
+</div>

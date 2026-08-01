@@ -1,0 +1,27 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+
+class ReminderMailController extends Controller
+{
+    
+
+    public function ReminderMail(Request $request)
+    {
+        $mail_data = [
+            'subject' => 'REMINDER DAILY REPORT'
+        ];
+        
+        $job = (new \App\Jobs\ReminderEmail($mail_data))
+                ->delay(now()->addSeconds(2));
+
+        dispatch($job);
+
+        // SEGURIDAD/UX (2026-06-27): antes terminaba en dd("Job dispatched.") — abortaba la respuesta
+        // con un volcado. Ahora regresa con un estado. La ruta /reminder-mail se gateó con `admin`;
+        // antes era GET sin auth → cualquiera encolaba correo masivo a todos.
+        return redirect('/home')->with('success', 'Recordatorio diario encolado para los usuarios activos.');
+    }
+}

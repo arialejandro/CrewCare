@@ -1,0 +1,145 @@
+<div>
+    
+   
+<table id="usertable" class="table table-hover table-nowrap">
+                <thead class="table-light">
+                    <tr>
+                        
+                        <th scope="col">Nombre</th>
+                        <th scope="col">Apellido</th>
+                        <th scope="col">Depto.</th>
+                        <th scope="col">F.Nac.</th>
+                        <th scope="col">Teléfono</th>
+                        <th scope="col">Sexo</th>
+                        <th scope="col">Email</th>
+                        <th scope="col">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($usuarios as $user)
+                        
+                        <td>{{$user->name}}</td>
+                        <td>{{$user->lname}}</td>
+                        <td>{{$user->puestodepartamento}}</td>
+                        <td>{{$user->borndate}}</td>
+                        <td>{{$user->phone}}</td>
+                        <td>{{$user->sex}}</td>
+                        <td>{{$user->email}}</td>
+                        
+                        <td>
+                        <div class="dropdown"> <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false"> Acciones </button>
+                        <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                            
+                            <li>
+							@if($user->enfermo === 1)
+                            <form class="dropdown-item" title="NotSick" method="post" action="{{url('/notsick/'.$user->id)}}">
+                            {{ csrf_field() }}
+                            <button type="submit" class="btn btn-outline-dark" onclick="return confirm('Are you sure about this action??');">
+                                <i class="fa-solid fa-virus-slash"></i> &nbsp Not Sick
+                                
+                             @endif
+                             </button>
+                            </form>
+							</li>
+                            <li>
+							<a title="ID Card" class="dropdown-item" href="{{url('/idcard/'.$user->id)}}">
+                            <i class="fa-solid fa-address-card"></i>&nbsp Credencial
+                            </a>
+							</li>
+                            <li>
+							<a title="Edit" class="dropdown-item" href="{{url('/useredit/'.$user->id)}}">
+                            <i class="fa-solid fa-user-pen"></i>&nbsp Editar
+                            </a>
+							</li>
+                            
+                            <li>
+                            <a title="History" class="dropdown-item" href="{{url('/historialWR/'.$user->id)}}">
+                            <i class="fa-solid fa-book"></i>&nbsp Historial Médico
+                            </a>
+                            </li>
+                            <li>
+							 @if($user->admin === 0)
+                                <a title="Activar encuesta" class="dropdown-item" href="{{url('/activaradmin/'.$user->id)}}">
+                                <i class="fa-solid fa-lock-open"></i>&nbsp Convertir Admin
+                                </a>
+                            @else
+                                <a title="Quit admin" class="dropdown-item" href="{{url('/desactivaradmin/'.$user->id)}}">
+                                <i class="fa-solid fa-lock"></i>&nbsp Quitar Admin
+                                </a>
+                            @endif
+							</li>
+                            <li>
+                                @if(is_null($user->daytest) || ($user->daytest != 1 && $user->daytest != 2))
+                                    <form action="{{ route('putgg', $user->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" title="Convertir a Supervisor" class="dropdown-item">
+                                            <i class="fa-solid fa-hard-hat"></i>&nbsp Supervisor
+                                        </button>
+                                    </form>
+                                    <form action="{{ route('putgb', $user->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" title="Convertir a Médico" class="dropdown-item">
+                                            <i class="fa-solid fa-kit-medical"></i>&nbsp Médico
+                                        </button>
+                                    </form>
+                                @elseif($user->daytest === 1)
+                                    <form action="{{ route('putga', $user->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" title="Convertir a Admin" class="dropdown-item">
+                                            <i class="fa-solid fa-gear"></i>&nbsp Admin
+                                        </button>
+                                    </form>
+                                    <form action="{{ route('putgb', $user->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" title="Convertir a Médico" class="dropdown-item">
+                                            <i class="fa-solid fa-kit-medical"></i>&nbsp Médico
+                                        </button>
+                                    </form>
+                                @elseif($user->daytest === 2)
+                                    <form action="{{ route('putga', $user->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" title="Convertir a Admin" class="dropdown-item">
+                                            <i class="fa-solid fa-gear"></i>&nbsp Admin
+                                        </button>
+                                    </form>
+                                    <form action="{{ route('putgg', $user->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" title="Convertir a Supervisor" class="dropdown-item">
+                                            <i class="fa-solid fa-hard-hat"></i>&nbsp Supervisor
+                                        </button>
+                                    </form>
+                                @endif
+                            </li>
+                            <li>
+							@if($user->encuestadiaria === 1)
+                                <a title="Activate WR" class="dropdown-item" href="{{url('/activarencuesta/'.$user->id)}}">
+                                <i class="fa-solid fa-file-invoice"></i> &nbsp Activate WR
+                                </a>
+                             @endif
+							</li>
+                            <li>
+                            @if($user->activo === 1)
+                            <form class="dropdown-item" title="Deactivate" method="post" action="{{url('/desactivarusuario/'.$user->id)}}">
+                                {{ csrf_field() }}
+                                <button type="submit" class="btn btn-danger" onclick="return confirm('¿Desea desactivar el usuario?');">
+                                <i class="fa-solid fas fa-user-slash"></i> &nbsp &nbsp Desactivar &nbsp &nbsp
+                                </button>
+                            </form>      
+                            @else
+                            <a title="Activate" class="btn btn-success dropdown-item" href="{{url('/activarusuario/'.$user->id)}}">
+                            <i class="fa-solid fa-plane-arrival"></i>&nbsp Activar
+                                </a>
+                                @endif
+                            </li>
+                        </ul>
+		
+                    </div>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+            <div>
+                {!! $usuarios->links() !!} 
+            </div>
+    </div>

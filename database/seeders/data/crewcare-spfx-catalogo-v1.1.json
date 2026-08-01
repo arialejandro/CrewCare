@@ -1,0 +1,3102 @@
+{
+  "meta": {
+    "catalogo": "CrewCare - SPFX (Efectos Especiales de Producción)",
+    "capa": "A - Efectos",
+    "version": "1.1",
+    "fecha_generacion": "2026-07-16",
+    "contexto": "Catálogo organizado por FAMILIA GENÉRICA de efecto e insumo, no por marca. La marca es dato de instancia que se adjunta en set. Clientes: productoras mexicanas que trabajan para estudios de EEUU.",
+    "marco_jurisdiccional": {
+      "principio": "En México NO existe una regulación de SPFX de cine equivalente a la de California. El efecto se gobierna por un mosaico. En la práctica las producciones que trabajan para estudios de EEUU adoptan los boletines CSATF por CONTRATO como estándar operativo, aunque legalmente estén bajo jurisdicción mexicana.",
+      "dos_columnas": {
+        "estandar_referencia_contractual": "Boletines CSATF (Industry-Wide Labor-Management Safety Committee). Rigen la industria en California y suelen exigirse por contrato de estudio.",
+        "cumplimiento_legal_local_mx": "NOMs de la STPS (seguridad laboral y químicos), SEDENA (todo lo que tenga pólvora, fulminante o sea arma), y Protección Civil estatal/municipal (permisos de quema, perímetros)."
+      },
+      "alerta_importacion": "Blanks, squibs, gerbs, pólvora, mechas y cualquier artificio pirotécnico que cruce la frontera desde California requieren permiso SEDENA (general o extraordinario de importación). Un insumo 'legal en CA' puede constituir delito federal en México sin ese permiso (Ley Federal de Armas de Fuego y Explosivos y su Reglamento)."
+    },
+    "estandares_transversales": [
+      {
+        "id": "TX-SB132",
+        "nombre": "SB 132 / Safety on Production Pilot Program (California, 2023; vigente 2025)",
+        "que_exige": "Programa piloto a 5 años para producciones con crédito fiscal de California. Exige un 'Safety Advisor' y evaluaciones de riesgo ESCRITAS específicas para: armas de fuego, pirotecnia y explosivos mayores, stunts mayores, aeronaves o trenes, vehículos fuera de camino, embarcaciones en aguas abiertas, personal bajo el agua por periodos prolongados, movimientos de process shot y semanas >60 horas. Informe final de evaluación de seguridad al Industry-Wide Labor-Management Safety Committee y a la California Film Commission.",
+        "aplica_a": "Producciones con tax credit de California (post-Rust). Enforcement: Cal/OSHA.",
+        "verificado": true,
+        "fuente": "https://www.dir.ca.gov/dosh/Motion-Picture-Safety-FAQ.html"
+      },
+      {
+        "id": "TX-HAZCOM",
+        "nombre": "Comunicación de peligros / SGA-GHS (HDS y pictogramas)",
+        "que_exige": "Toda sustancia química peligrosa en set debe tener HDS accesible y etiqueta con pictogramas GHS y palabra de advertencia (Peligro/Atención).",
+        "normas": {
+          "eeuu_fed": "OSHA 29 CFR 1910.1200 (Hazard Communication)",
+          "eeuu_ca": "Cal-OSHA Título 8 §5194",
+          "mexico": "NOM-018-STPS-2015 (SGA); transición obligatoria al SGA desde enero 2025"
+        },
+        "verificado": true,
+        "fuente": "NOM-018-STPS-2015 (STPS); NOM-005 PDF STPS https://asinom.stps.gob.mx/upload/noms/Nom-005.pdf"
+      },
+      {
+        "id": "TX-EPP",
+        "nombre": "Equipo de Protección Personal (base)",
+        "normas": {
+          "eeuu_fed": "OSHA 29 CFR 1910.132",
+          "eeuu_ca": "Cal-OSHA Título 8 §3380 y ss.",
+          "mexico": "NOM-017-STPS-2008 (confirmar vigencia/número)",
+          "csatf": "Boletín #21 (Appropriate Clothing and PPE); Boletín #5 (Safety Awareness)"
+        },
+        "verificado": false,
+        "nota": "CSATF #21 y #5 verificados en índice oficial; NOM-017 por confirmar."
+      }
+    ],
+    "esquema_relacion": "Relación N:M efecto-insumo. La Capa B ESTÁ POBLADA (ver 'insumos'). Cada efecto lleva 'insumos_ref' (IDs de insumo) y cada insumo 'efectos_ref' (IDs de efecto). Los efectos puramente mecánicos/físicos no tienen insumo químico y así se indican en sus notas.",
+    "leyenda_verificacion": {
+      "verificado_true": "Dato confirmado contra fuente en la sesión del 2026-07-16.",
+      "verificado_false": "Cita probable/estándar pero NO confirmada esta sesión; revisar antes de fijar."
+    },
+    "fuentes_verificadas": [
+      {
+        "que_soporta": "Índice y numeración vigente de boletines CSATF (rev. 4-mar-2026)",
+        "url": "https://www.csatf.org/all_safety_bulletins-procedural_guidelines-info_fact_sheets/",
+        "fecha": "2026-07-16"
+      },
+      {
+        "que_soporta": "SB 132 / Safety on Production Pilot Program; risk assessments",
+        "url": "https://www.dir.ca.gov/dosh/Motion-Picture-Safety-FAQ.html",
+        "fecha": "2026-07-16"
+      },
+      {
+        "que_soporta": "CA Título 19 Tabla 14A - materiales de efectos especiales regulados como pirotecnia",
+        "url": "https://regulations.justia.com/states/california/title-19/division-1/chapter-6/article-14/table-14a",
+        "fecha": "2026-07-16"
+      },
+      {
+        "que_soporta": "Permiso de Efectos Especiales (pirotecnia, llama abierta, líquidos/gases inflamables, soldadura)",
+        "url": "https://fire.lacounty.gov/wp-content/uploads/2019/08/SpecialEffectsPermitApplication396A.pdf",
+        "fecha": "2026-07-16"
+      },
+      {
+        "que_soporta": "SEDENA - permisos de armas, cartuchos y explosivos/artificios pirotécnicos",
+        "url": "https://transparencia.sedena.gob.mx/armas-cartuchos-explosivos.html",
+        "fecha": "2026-07-16"
+      },
+      {
+        "que_soporta": "SEDENA - trámites de explosivos y pirotecnia",
+        "url": "https://www.gob.mx/defensa/acciones-y-programas/explosivos-y-pirotecnia",
+        "fecha": "2026-07-16"
+      },
+      {
+        "que_soporta": "Reglamento de la Ley Federal de Armas de Fuego y Explosivos",
+        "url": "https://www.economia.gob.mx/files/comunidad_negocios/informacion_sectorial/reglamento_ley_explosivos.pdf",
+        "fecha": "2026-07-16"
+      },
+      {
+        "que_soporta": "NOM-005-STPS-1998 vigente (manejo/transporte/almacenamiento de sustancias químicas peligrosas)",
+        "url": "https://asinom.stps.gob.mx/upload/noms/Nom-005.pdf",
+        "fecha": "2026-07-16"
+      },
+      {
+        "que_soporta": "Cold spark = Equipo de Simulación Pirotécnica (NFPA, TIA dic-2018; aval APA)",
+        "url": "https://www.americanpyro.com/assets/docs/Guidance/1.6FinalClarification%20on%20the%20use%20of%20Pyrotechnic%20Simulation%20Equipment.pdf",
+        "fecha": "2026-07-16"
+      },
+      {
+        "que_soporta": "Diésel: clasificación GHS/UN 1202 (H304/H351/inflamable)",
+        "url": "https://www.exxon.com/-/media/project/wep/exxon/exxon-retail-us/us-fuel-delivery/pdf/no-2-diesel-fuel-safety-data-sheet.pdf",
+        "fecha": "2026-07-16"
+      },
+      {
+        "que_soporta": "Guayule (Parthenium argentatum) = arbusto mexicano productor de hule/látex natural",
+        "url": "https://www.britannica.com/plant/guayule",
+        "fecha": "2026-07-16"
+      },
+      {
+        "que_soporta": "NOM-002-SCT/2011 transporte de materiales peligrosos (clasificación 9 clases UN)",
+        "url": "https://www.gob.mx/cms/uploads/attachment/file/680140/NOM-002-SCT-2011.pdf",
+        "fecha": "2026-07-16"
+      },
+      {
+        "que_soporta": "NOM-009-SCT2/2009 transporte/almacenamiento de Clase 1 explosivos",
+        "url": "https://platiica.economia.gob.mx/normalizacion/nom-002-sct-2011/",
+        "fecha": "2026-07-16"
+      }
+    ],
+    "nota_energeticos": "Para materiales energéticos controlados (pólvora, composición de destello, estopines, salvas, fulminantes) el catálogo incluye SOLO la capa protectora y regulatoria: clase de peligro, número UN, almacenamiento, permiso SEDENA, EPP, primeros auxilios, extinción y transporte. NO incluye formulaciones, proporciones ni procedimientos de fabricación o iniciación: esa información es propietaria del fabricante, viaja en la HDS del embarque con permiso SEDENA y no se cataloga.",
+    "banderas_rojas_combustibles": {
+      "proposito": "Categoría de RECONOCIMIENTO Y MITIGACIÓN. Documenta combustibles improvisados/caseros que llegan a sets en México para que Safety los identifique y RECHACE o sustituya. CrewCare caracteriza el peligro y la respuesta; NO proporciona proporciones ni métodos de preparación de mezclas incendiarias.",
+      "señales_de_alerta": [
+        "Combustible sin envase original ni HDS (bidón, garrafa, mezcla 'de la casa').",
+        "Gasolina espesada con hule/látex (guayule), unicel/poliestireno, jabón o celulosa para que 'se pegue' y arda más tiempo (napalm improvisado).",
+        "Petición de MEZCLAR combustibles (p.ej. diésel + gasolina) para 'ajustar' la flama.",
+        "Uso de gasolina pura para efectos donde debería usarse un combustible de mayor punto de inflamación."
+      ],
+      "regla_de_mezcla": "PROHIBIDO mezclar combustibles en set. Añadir un líquido volátil de bajo punto de inflamación (gasolina) a uno más pesado (diésel/parafina) BAJA el punto de inflamación efectivo de forma impredecible: el resultado se enciende mucho más fácil y con comportamiento de flama incontrolable. Por eso se rechaza. Regla operativa: un solo combustible, caracterizado, con punto de inflamación conocido en su HDS.",
+      "respuesta_de_seguridad": [
+        "Exigir HDS y envase original; sin eso, no entra al set.",
+        "Sustituir por combustible SFX caracterizado o efecto pirotécnico bajo operador/permiso.",
+        "Documentar por escrito el rechazo (respalda al Safety ante presión de producción/dirección).",
+        "Escalar a SFX Coordinator licenciado; en México, Protección Civil / permiso correspondiente."
+      ],
+      "caso_de_referencia": "Reportado por Safety CrewCare: dirección solicitó mezclar diésel y gasolina para fuego; se rechazó y se sustituyó. Es una variable recurrente a mitigar, no una práctica a habilitar."
+    },
+    "nom_referencia_verificada": {
+      "fuente": "Lista oficial STPS (asinom.stps.gob.mx) cotejada con sepresst.com.mx y legalmex.com, 2026-07-16",
+      "normas": [
+        [
+          "NOM-001-STPS-2008",
+          "Edificios, locales, instalaciones y áreas — condiciones de seguridad",
+          "vigente"
+        ],
+        [
+          "NOM-002-STPS-2010",
+          "Prevención y protección contra incendios",
+          "vigente"
+        ],
+        [
+          "NOM-004-STPS-1999",
+          "Protección y dispositivos de seguridad en maquinaria y equipo",
+          "vigente (proyecto 2020 no vigente)"
+        ],
+        [
+          "NOM-005-STPS-1998",
+          "Manejo, transporte y almacenamiento de sustancias químicas peligrosas",
+          "vigente"
+        ],
+        [
+          "NOM-006-STPS-2023",
+          "Manejo y almacenamiento de materiales",
+          "vigente (reemplazó a 2014)"
+        ],
+        [
+          "NOM-009-STPS-2011",
+          "Trabajos en altura",
+          "vigente"
+        ],
+        [
+          "NOM-010-STPS-2014",
+          "Agentes químicos contaminantes del ambiente laboral (VLE)",
+          "vigente"
+        ],
+        [
+          "NOM-011-STPS-2001",
+          "Ruido",
+          "vigente"
+        ],
+        [
+          "NOM-017-STPS-2008",
+          "Equipo de protección personal (EPP)",
+          "vigente"
+        ],
+        [
+          "NOM-018-STPS-2015",
+          "Sistema armonizado (SGA) — HDS y etiquetado",
+          "vigente"
+        ],
+        [
+          "NOM-020-STPS-2011",
+          "Recipientes a presión, recipientes criogénicos y generadores de vapor/calderas",
+          "vigente"
+        ],
+        [
+          "NOM-022-STPS-2015",
+          "Electricidad estática",
+          "vigente (aclaración 2016)"
+        ],
+        [
+          "NOM-025-STPS-2008",
+          "Iluminación",
+          "vigente"
+        ],
+        [
+          "NOM-026-STPS-2008",
+          "Colores y señales de seguridad",
+          "vigente"
+        ],
+        [
+          "NOM-027-STPS-2008",
+          "Actividades de soldadura y corte",
+          "vigente"
+        ],
+        [
+          "NOM-029-STPS-2011",
+          "Mantenimiento de instalaciones eléctricas",
+          "vigente"
+        ],
+        [
+          "NOM-033-STPS-2015",
+          "Trabajos en espacios confinados",
+          "vigente"
+        ]
+      ],
+      "nota_transporte": "Transporte terrestre MX bajo el Reglamento para el Transporte Terrestre de Materiales y Residuos Peligrosos (SICT, antes SCT): clasificación por NOM-002-SCT/2011 (alineada con las 9 clases UN); explosivos (pirotecnia/salvas/fulminantes) por NOM-009-SCT2/2009 más permiso SEDENA. El número UN de instancia se toma del producto real.",
+      "transporte_verificado": [
+        [
+          "NOM-002-SCT/2011",
+          "Listado de substancias y materiales peligrosos más usualmente transportados (9 clases UN)",
+          "vigente (DOF 27-ene-2012)"
+        ],
+        [
+          "NOM-009-SCT2/2009",
+          "Almacenamiento y transporte de Clase 1 EXPLOSIVOS — especificaciones y compatibilidad",
+          "vigente"
+        ],
+        [
+          "NOM-011-SCT2/2012",
+          "Transporte de materiales peligrosos en cantidades limitadas",
+          "vigente"
+        ],
+        [
+          "NOM-003-SCT/2000",
+          "Etiquetas de envases y embalajes para transporte",
+          "vigente"
+        ]
+      ]
+    },
+    "estado": "Release candidate. Columna química (CAS/UN/GHS/punto de inflamación/primeros auxilios) verificada contra HDS reales. NOMs mexicanas verificadas vigentes contra STPS (ver nom_referencia_verificada). Pendiente inherente: la HDS específica por MARCA/producto que llega a set (dato de instancia) y los números UN exactos por producto en energéticos/salvas — se confirman contra la hoja del embarque.",
+    "changelog": [
+      "v1.0-rc: NOMs pendientes → verificadas vigentes (STPS). Meta sincronizado (insumos poblados). Insumos nuevos: resinas/isocianatos, epóxico, silicona, espuma/burbujas, nieve, polvo/Fuller's earth, retardante de fuego, humos de soldadura, gránulos de titanio (chispa fría), batería Li-ion. Efectos mecánicos (viento, vapor, arcos, agua) marcados sin insumo químico.",
+      "v1.0: cerrada la NOM de transporte (NOM-002-SCT/2011 + NOM-009-SCT2/2009 para Clase 1); añadida a fichas de energéticos. Añadida leyenda_verificado (aclara que 'false' = genérico a la espera del producto, no deuda). Pendientes reestructurados en deuda_resoluble vs dato_de_instancia_por_diseño vs expansión_opcional.",
+      "v1.1: AUDITORÍA DE HDS. Corregidos los enlaces cruzados (gasolina/parafina→propano, tierra de batán→isocianato, 5 insumos compartiendo el fluido Rosco, 10 energéticos→página SEDENA). Cada insumo ahora apunta a su HDS real: 27/41 con enlace verificado; materiales inertes/controlados sin enlace declarado en lugar de uno incorrecto."
+    ],
+    "leyenda_verificado": {
+      "true": "Datos cotejados contra una HDS/fuente real en la sesión de verificación (columna dura confirmada).",
+      "false": "Insumo caracterizado como GENÉRICO (perfil de peligro correcto para la familia), a la espera del dato duro del PRODUCTO real. No es un error ni un hueco: es dato de instancia que se cierra con la HDS de marca al recibir el material.",
+      "sds_nivel": "1=HDS oficial del fabricante en español · 2=fuente en inglés + traducción de referencia CrewCare · 3=genérico con HDS de proveedor reconocido."
+    },
+    "auditoria_hds": {
+      "fecha": "2026-07-16",
+      "resumen": "Auditoría de enlaces HDS uno por uno. De 41 insumos: 27 con enlace verificado que resuelve a la HDS de la sustancia correcta; el resto son enlaces representativos/de biblioteca (confirmar producto) o SIN enlace declarado (materiales inertes/alimenticios y energéticos controlados). 9 insumos no llevan enlace a propósito: un enlace equivocado es peor que ninguno.",
+      "regla": "sds_url_verificada=true significa que el enlace se abrió/confirmó como la HDS de ESA sustancia el 2026-07-16.",
+      "sin_enlace_por_diseno": "Inertes/alimenticios (vidrio de azúcar, dummy) y energéticos controlados (flash, estopín, mecha, humo, squib): la HDS real acompaña el material; no hay genérico público que enlazar.",
+      "pendiente_real": "Retardante de fuego (INS-RET-01): enlace por confirmar con el producto; enlace previo incorrecto retirado."
+    }
+  },
+  "efectos": [
+    {
+      "id": "FX-01",
+      "familia": "1. Fuego y llama",
+      "nombre": "Llama abierta / fuego controlado",
+      "definicion": "Fuego pequeño y controlado: velas, antorchas, chimeneas, charcos de fuego, mecheros escénicos.",
+      "variantes": [
+        "Velas y candelabros",
+        "Antorchas de mano",
+        "Chimeneas y fogatas de set",
+        "Charcos/regueros de fuego pequeños"
+      ],
+      "riesgo_principal": "Ignición no deseada de vestuario/escenografía; el combustible determina el medio de extinción.",
+      "control_base": "Zona despejada de combustibles; extinción a la mano (extintor + manta + agua/CO2 según combustible); ensayo en frío; plan de aborto; aviso en call sheet; permiso de fuego local.",
+      "epp_minimo": [
+        "Ropa de algodón/Nomex sin sintéticos",
+        "Guantes resistentes al calor",
+        "Extintor asignado por operador"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Special Effects Coordinator/Technician licenciado",
+          "Permiso de efectos especiales del fire department local (p.ej. LA County Fire)"
+        ],
+        "mexico": [
+          "Técnico SPFX responsable",
+          "Aviso/permiso a Protección Civil estatal/municipal"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#19 Open Flame on Production",
+          "#13 Combustible & Flammable Fuels"
+        ],
+        "eeuu_ca": [
+          "California Fire Code Cap. 56",
+          "Permiso de Efectos Especiales (fire dept local)",
+          "OSHA 29 CFR 1910.106 (líquidos inflamables)"
+        ],
+        "mexico": [
+          "NOM-002-STPS-2010 (incendios) ✔",
+          "NOM-005-STPS-1998 (químicos inflamables) [verificado]"
+        ]
+      },
+      "insumos_ref": [
+        "INS-FIRE-01",
+        "INS-FIRE-02",
+        "INS-FIRE-03",
+        "INS-FIRE-04",
+        "INS-FIRE-05",
+        "INS-FIRE-06",
+        "INS-FIRE-07",
+        "INS-FIRE-08",
+        "INS-FIRE-10"
+      ],
+      "verificado": true,
+      "notas": "CSATF #19/#13 verificados en índice oficial. NOM-002 por confirmar vigencia. Ver banderas rojas de combustibles (diésel, parafina y gasolina espesada casera 'guayul'): nunca mezclar combustibles en set."
+    },
+    {
+      "id": "FX-02",
+      "familia": "1. Fuego y llama",
+      "nombre": "Efectos de fuego a gran escala / burn gags",
+      "definicion": "Flame bars, bolas de fuego, dusters/lanzallamas de gas, y quemado sobre persona (burn gag / full burn).",
+      "variantes": [
+        "Flame bars y barras de gas",
+        "Bolas de fuego (fireballs)",
+        "Lanzallamas / flame throwers (flamethrowing devices)",
+        "Burn gag sobre persona / full body burn"
+      ],
+      "riesgo_principal": "Quemaduras graves; control de gas a presión; persona en fuego requiere buzo ignífugo y safety dedicado.",
+      "control_base": "Control de gas (propano/LP) con válvulas de corte accesibles; distancias mínimas; medic en set; en burn gag: gel retardante + traje ignífugo + un safety con extintor por cada persona en fuego; process de aborto y 'all clear'.",
+      "epp_minimo": [
+        "Traje/buzo ignífugo",
+        "Capucha ignífuga",
+        "Gel retardante en piel expuesta",
+        "Protección respiratoria si hay humo"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "SFX Coordinator licenciado",
+          "State Fire Marshal Pyrotechnic Operator (Special Effects) para lanzallamas (Título 19 Cap. 6.5)",
+          "Stunt Coordinator si hay persona en fuego"
+        ],
+        "mexico": [
+          "Técnico SPFX responsable",
+          "SEDENA si el sistema de ignición/combustible es regulado",
+          "Protección Civil"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#16 Pyrotechnic Special Effects",
+          "#13 Combustible & Flammable Fuels",
+          "#4 / #4A Stunts (si hay persona)"
+        ],
+        "eeuu_ca": [
+          "California Fire Code Cap. 56",
+          "CA Título 19 Cap. 6.5 (flamethrowing devices)",
+          "SB 132 (risk assessment de pirotecnia/fuego mayor)"
+        ],
+        "mexico": [
+          "Ley Federal de Armas de Fuego y Explosivos (SEDENA) si hay explosivo/ignición regulada",
+          "NOM-002-STPS-2010 (incendios) ✔"
+        ]
+      },
+      "insumos_ref": [
+        "INS-FIRE-01",
+        "INS-FIRE-02",
+        "INS-FIRE-03",
+        "INS-FIRE-05",
+        "INS-FIRE-08",
+        "INS-FIRE-09",
+        "INS-FIRE-10",
+        "INS-FIRE-11"
+      ],
+      "verificado": true,
+      "notas": "Lanzallamas escénicos en CA quedan cubiertos por licencia SFM Special Effects como permiso de flamethrowing device (Título 19). Ver banderas rojas de combustibles (diésel, parafina y gasolina espesada casera 'guayul'): nunca mezclar combustibles en set."
+    },
+    {
+      "id": "FX-03",
+      "familia": "2. Atmósfera",
+      "nombre": "Humo / neblina atmosférica (haze & fog)",
+      "definicion": "Ambientación con máquinas de humo/neblina: fluidos de glicol/glicerina/agua, aceite mineral (hazers), fog fluid.",
+      "variantes": [
+        "Fog de glicol/agua",
+        "Haze de aceite mineral",
+        "Fog de glicerina",
+        "Crackers/hazers de partícula fina"
+      ],
+      "riesgo_principal": "Irritación respiratoria/ocular por exposición acumulada a glicoles/aceite; NO confundir con humo de combustión.",
+      "control_base": "Ventilación y monitoreo de densidad; límites de exposición (VLE); aviso a talento con condiciones respiratorias; rotar/ventilar entre tomas.",
+      "epp_minimo": [
+        "Normalmente ninguno a densidades normales",
+        "Respirador si se excede VLE o hay sensibilidad"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Técnico SPFX de atmósferas"
+        ],
+        "mexico": [
+          "Técnico SPFX de atmósferas"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#10 Artificially Created Atmospheric Fog & Haze + Addendum A"
+        ],
+        "eeuu_ca": [
+          "OSHA HazCom 1910.1200",
+          "Guía ACGIH / estudios de glicoles de la industria [confirmar referencia exacta]"
+        ],
+        "mexico": [
+          "NOM-010-STPS-2014 (agentes químicos/VLE) [verificado]",
+          "NOM-018-STPS-2015 (HDS del fluido)"
+        ]
+      },
+      "insumos_ref": [
+        "INS-ATM-01",
+        "INS-ATM-02"
+      ],
+      "verificado": true,
+      "notas": "CSATF #10 verificado. Distinguir claramente de humo de combustión (FX-05) por perfil toxicológico distinto."
+    },
+    {
+      "id": "FX-04",
+      "familia": "2. Atmósfera",
+      "nombre": "Niebla baja / criogénica",
+      "definicion": "Neblina que se arrastra al ras de piso: hielo seco (CO2 sólido), CO2 líquido, nitrógeno líquido (LN2), chillers de bajo nivel.",
+      "variantes": [
+        "Hielo seco (CO2 sólido)",
+        "CO2 líquido",
+        "Nitrógeno líquido (LN2)",
+        "Low-fog chiller (fog + hielo)"
+      ],
+      "riesgo_principal": "ASFIXIA por desplazamiento de oxígeno en zonas bajas/cerradas y QUEMADURAS CRIOGÉNICAS. El riesgo real no es 'el humito'.",
+      "control_base": "Monitor de O2 en espacios bajos/confinados; ventilación forzada; manejo con guantes criogénicos; nunca en fosos/sótanos sin monitoreo; capacitación en gases asfixiantes simples.",
+      "epp_minimo": [
+        "Guantes criogénicos",
+        "Careta/gafas de seguridad",
+        "Calzado cerrado",
+        "Monitor personal de O2 en confinados"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Técnico SPFX con manejo de criogénicos/gases"
+        ],
+        "mexico": [
+          "Técnico con manejo de criogénicos/gases comprimidos"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#10 Atmospheric Fog & Haze"
+        ],
+        "eeuu_ca": [
+          "OSHA 1910.146 (espacios confinados)",
+          "Cal-OSHA §5157 (confinados) (§ indicativa, EEUU)"
+        ],
+        "mexico": [
+          "NOM-010-STPS-2014 [verificado]",
+          "NOM-005-STPS-1998 (gases/almacenamiento) [verificado]",
+          "NOM-033-STPS-2015 (espacios confinados) ✔"
+        ]
+      },
+      "insumos_ref": [
+        "INS-ATM-03",
+        "INS-ATM-04",
+        "INS-ATM-05"
+      ],
+      "verificado": true,
+      "notas": "Reforzar en la app la advertencia de asfixia: es la causa de muerte real subestimada en este efecto."
+    },
+    {
+      "id": "FX-05",
+      "familia": "3. Pirotecnia y explosión",
+      "nombre": "Pirotecnia",
+      "definicion": "Efectos con material pirotécnico: squibs, bullet hits, flash pots, maroons, gerbs, comets, líneas de detonación, humo pirotécnico.",
+      "variantes": [
+        "Squibs / bullet hits",
+        "Flash pots / flash powder",
+        "Maroons (detonación sonora)",
+        "Gerbs / comets",
+        "Humo pirotécnico (smoke pots)"
+      ],
+      "riesgo_principal": "Detonación/quemadura; requiere cálculo de carga y operador licenciado; control estricto de conteo de cargas.",
+      "control_base": "Cálculo y prueba de carga; perímetros; conteo de cargas cargadas vs. disparadas; no-fire hasta 'roll'; medic; notificación regulatoria y a Sonido; almacenamiento y transporte controlados.",
+      "epp_minimo": [
+        "Protección ocular",
+        "Protección auditiva",
+        "Guantes",
+        "Protección facial para quien coloca cargas en talento"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "State Fire Marshal Pyrotechnic Operator - Special Effects (1ª/2ª/3ª clase, Título 19)",
+          "Permiso de efectos especiales del fire dept local"
+        ],
+        "mexico": [
+          "Permisionario de artificios pirotécnicos ante SEDENA",
+          "Protección Civil (perímetros/quema)"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#16 Pyrotechnic Special Effects (rev. 2009 - el más antiguo de los relevantes)"
+        ],
+        "eeuu_ca": [
+          "CA Título 19 Cap. 6 Art. 14 Tabla 14A (materiales)",
+          "California Fire Code Cap. 56",
+          "ATF (explosivos federal)",
+          "SB 132 (risk assessment)"
+        ],
+        "mexico": [
+          "Ley Federal de Armas de Fuego y Explosivos + Reglamento (SEDENA)",
+          "Permiso general/extraordinario de artificios pirotécnicos",
+          "NOM-005-STPS-1998 (almacenamiento de explosivos) [verificado]"
+        ]
+      },
+      "insumos_ref": [
+        "INS-PYR-01",
+        "INS-PYR-02",
+        "INS-PYR-03",
+        "INS-PYR-04",
+        "INS-PYR-05",
+        "INS-PYR-06",
+        "INS-PYR-07"
+      ],
+      "verificado": true,
+      "notas": "La Tabla 14A de CA (verificada) es base directa para los insumos de Capa B: black/smokeless powder, flash, squibs, bullet hits, quick match, cannon fuse, etc."
+    },
+    {
+      "id": "FX-06",
+      "familia": "3. Pirotecnia y explosión",
+      "nombre": "Explosión",
+      "definicion": "Explosiones de set: morteros de aire / air cannons (neumáticos) vs. carga negra/explosiva; debris/atrezo lanzado; efecto de concusión.",
+      "variantes": [
+        "Mortero neumático / air cannon (aire comprimido)",
+        "Carga negra (black powder) / mortero explosivo",
+        "Debris launcher (lanzado de escombros)",
+        "Concussion / detonación de presión"
+      ],
+      "riesgo_principal": "Proyección de debris y sobrepresión; distinguir neumático (sin pólvora) de carga explosiva cambia todo el perfil de riesgo y permisos.",
+      "control_base": "Preferir sistema neumático cuando sea viable (evita pólvora, tendencia post-Rust); cálculo de debris y jaulas; perímetro ampliado; plan médico reforzado; prueba previa.",
+      "epp_minimo": [
+        "Protección ocular",
+        "Protección auditiva",
+        "Casco/escudo según debris"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "SFX Coordinator licenciado / SFM Pyrotechnic Operator si hay carga",
+          "Safety Advisor (SB 132) para explosivos mayores"
+        ],
+        "mexico": [
+          "Permisionario SEDENA si hay explosivo",
+          "Técnico SPFX para sistema neumático"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#16 Pyrotechnic Special Effects",
+          "#4/#4A Stunts si integra stunt"
+        ],
+        "eeuu_ca": [
+          "CA Título 19 (si pirotécnico)",
+          "SB 132 (risk assessment obligatorio para explosivos mayores)"
+        ],
+        "mexico": [
+          "SEDENA (si explosivo)",
+          "NOM-020-STPS-2011 (recipientes a presión) si es solo aire comprimido ✔"
+        ]
+      },
+      "insumos_ref": [
+        "INS-PYR-01",
+        "INS-PYR-02",
+        "INS-PYR-04"
+      ],
+      "verificado": true,
+      "notas": "Modelar en el catálogo la bifurcación neumático vs. explosivo: distinto insumo, distinta autoridad (SEDENA vs. no)."
+    },
+    {
+      "id": "FX-07",
+      "familia": "4. Chispas",
+      "nombre": "Chispas pirotécnicas",
+      "definicion": "Chispas producidas por material pirotécnico: gerbs, spark hits, sparkle pots. Son ignición real.",
+      "variantes": [
+        "Gerbs",
+        "Spark hits / electric match",
+        "Sparkle pots"
+      ],
+      "riesgo_principal": "Ignición real; mismo perfil que pirotecnia.",
+      "control_base": "Igual que FX-05 (pirotecnia): cálculo, perímetros, operador licenciado, extinción a la mano.",
+      "epp_minimo": [
+        "Protección ocular",
+        "Protección auditiva",
+        "Guantes"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "SFM Pyrotechnic Operator - Special Effects"
+        ],
+        "mexico": [
+          "Permisionario SEDENA",
+          "Protección Civil"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#16 Pyrotechnic Special Effects"
+        ],
+        "eeuu_ca": [
+          "CA Título 19 Tabla 14A (incluye 'Sparking Granules')",
+          "California Fire Code Cap. 56"
+        ],
+        "mexico": [
+          "SEDENA",
+          "NOM-005-STPS-1998 [verificado]"
+        ]
+      },
+      "insumos_ref": [
+        "INS-PYR-03",
+        "INS-PYR-04"
+      ],
+      "verificado": true,
+      "notas": ""
+    },
+    {
+      "id": "FX-08",
+      "familia": "4. Chispas",
+      "nombre": "Chispas frías / Equipo de Simulación Pirotécnica (Sparkular)",
+      "definicion": "Máquinas que producen chispas calentando gránulos metálicos (titanio y otros) con un elemento a ~500-600°C, soplados por ventilador. Se venden como 'no pirotécnicas'.",
+      "variantes": [
+        "Cold spark fountain (Sparkular y similares)",
+        "Unidades handheld",
+        "Unidades móviles/giratorias"
+      ],
+      "riesgo_principal": "NO son realmente 'frías' (elemento interno a 500-600°C); pueden incendiarse y generar fallout que quema/incendia. Han ocurrido incendios reales.",
+      "control_base": "Tratar como efecto pirotécnico REGULADO hasta que la autoridad (AHJ/fire marshal) confirme lo contrario por escrito; distancias 3-4.5 m (10-15 ft) a público y combustibles; usar solo gránulo recomendado por el fabricante; ventilación (generan polvo fino).",
+      "epp_minimo": [
+        "Protección ocular",
+        "Guantes al recargar gránulo",
+        "Ventilación del recinto"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Operador certificado según AHJ; muchos fire marshals exigen operador pirotécnico licenciado"
+        ],
+        "mexico": [
+          "Sin figura formal; probablemente Protección Civil/STPS. Confirmar caso por caso con AHJ local"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#16 por analogía (a confirmar como práctica de casa)"
+        ],
+        "eeuu_ca": [
+          "NFPA: clasificadas como Equipo de Simulación Pirotécnica (TIA dic-2018, aval APA)",
+          "NFPA 1126 / NFPA 160",
+          "CA Título 19 Tabla 14A lista 'Sparking Granules' como material pirotécnico"
+        ],
+        "mexico": [
+          "Zona gris: probablemente NO SEDENA (sin pólvora), sí Protección Civil/STPS. Documentar decisión de la producción"
+        ]
+      },
+      "insumos_ref": [
+        "INS-SPARK-01"
+      ],
+      "verificado": true,
+      "notas": "CORRECCIÓN vs. borrador previo: NO catalogar como 'no pirotécnico'. La NFPA las clasifica como equipo de simulación pirotécnica. La APA pide dejar de llamarlas 'cold spark'."
+    },
+    {
+      "id": "FX-09",
+      "familia": "5. Agua y clima",
+      "nombre": "Lluvia / agua",
+      "definicion": "Efectos de agua: rain bars, torres de lluvia, mojado de set (wet down), inmersión y tanques.",
+      "variantes": [
+        "Rain bars / barras de lluvia",
+        "Torres y grúas de lluvia",
+        "Wet down de calles",
+        "Inmersión / tanques / profundidad"
+      ],
+      "riesgo_principal": "Riesgo eléctrico (agua + iluminación/cableado), hipotermia, resbalones; con profundidad, ahogamiento.",
+      "control_base": "GFCI y separación de cableado; superficies antiderrapantes; control térmico del talento; si hay profundidad, protocolo de buceo/rescate y safety diver.",
+      "epp_minimo": [
+        "Impermeables",
+        "Calzado antiderrapante",
+        "Trajes térmicos según temperatura del agua"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Técnico SPFX de agua",
+          "Dive Coordinator (DOC) si hay profundidad/buceo"
+        ],
+        "mexico": [
+          "Técnico SPFX de agua",
+          "Coordinador de buceo si aplica"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#17 Water Hazards",
+          "#7 Diving Operations (si hay buceo)",
+          "#23 Electrical Equipment (agua+electricidad)"
+        ],
+        "eeuu_ca": [
+          "Cal-OSHA (eléctrico, GFCI) (§ indicativa, EEUU)"
+        ],
+        "mexico": [
+          "NOM-029-STPS-2011 (mantenimiento de instalaciones eléctricas) ✔",
+          "NOM-022-STPS-2015 (electricidad estática) ✔"
+        ]
+      },
+      "insumos_ref": [],
+      "verificado": true,
+      "notas": "CSATF #17/#7/#23 verificados en índice oficial. [MECÁNICO/FÍSICO] Efecto físico (agua): sin insumo químico caracterizado; el riesgo es eléctrico/térmico/ahogamiento. Insumos solo si se usa agua tratada o anticongelante (verificar HDS del aditivo)."
+    },
+    {
+      "id": "FX-10",
+      "familia": "5. Agua y clima",
+      "nombre": "Viento",
+      "definicion": "Viento escénico con wind machines, ventiladores de gran aspa (Ritter fans), sopladores.",
+      "variantes": [
+        "Ritter fans / ventiladores de aspa grande",
+        "Wind machines eléctricos",
+        "Sopladores de aire"
+      ],
+      "riesgo_principal": "Proyección de debris/polvo a alta velocidad hacia ojos; atrapamiento en aspas; vuelco del equipo.",
+      "control_base": "Jaulas/guardas en aspas; anclaje del equipo; protección del talento y crew de la línea de proyección; control del material que se dispersa.",
+      "epp_minimo": [
+        "Gafas selladas",
+        "Protección auditiva"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Técnico SPFX / grip especializado"
+        ],
+        "mexico": [
+          "Técnico SPFX / grip especializado"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "Sin boletín dedicado; aplica #5 Safety Awareness y #21 PPE"
+        ],
+        "eeuu_ca": [
+          "OSHA 1910.212 (guardas de maquinaria)"
+        ],
+        "mexico": [
+          "NOM-004-STPS-1999 (protecciones de maquinaria) ✔ (proyecto PROY-NOM-004-2020 aún no vigente)"
+        ]
+      },
+      "insumos_ref": [],
+      "verificado": false,
+      "notas": "No hay boletín CSATF específico; cuelga de #5/#21. Efecto añadido a propuesta. [MECÁNICO/FÍSICO] Efecto mecánico (viento): SIN insumo químico. El riesgo es de maquinaria/proyección; no hay consumible que catalogar."
+    },
+    {
+      "id": "FX-11",
+      "familia": "5. Agua y clima",
+      "nombre": "Nieve",
+      "definicion": "Nieve escénica: espuma (foam snow), celulosa (SnowCel/paper snow), plástico, papel, y nieve/hielo criogénico real.",
+      "variantes": [
+        "Foam snow (fluido de espuma)",
+        "Celulosa / SnowCel",
+        "Plástico o papel",
+        "Nieve criogénica / hielo real"
+      ],
+      "riesgo_principal": "El riesgo es el MATERIAL, no el frío: resbalones e inhalación de partículas de celulosa/plástico; el fluido de espuma tiene HDS.",
+      "control_base": "Ventilación y control de partícula fina; pisos antiderrapantes; HDS del fluido; retiro de residuo; en nieve/hielo real, protocolo de frío.",
+      "epp_minimo": [
+        "Respirador si hay partícula fina",
+        "Calzado antiderrapante"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Técnico SPFX de atmósferas/nieve"
+        ],
+        "mexico": [
+          "Técnico SPFX de atmósferas/nieve"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#34 Extreme Cold (solo si es nieve/hielo real)",
+          "#10 por analogía (partículas suspendidas)"
+        ],
+        "eeuu_ca": [
+          "OSHA HazCom 1910.1200 (HDS del fluido)"
+        ],
+        "mexico": [
+          "NOM-010-STPS-2014 (partículas) [verificado]",
+          "NOM-018-STPS-2015 (HDS del fluido)"
+        ]
+      },
+      "insumos_ref": [
+        "INS-SNOW-01"
+      ],
+      "verificado": true,
+      "notas": ""
+    },
+    {
+      "id": "FX-12",
+      "familia": "6. Sangre y maquillaje",
+      "nombre": "Sangre falsa y efectos de maquillaje / prostéticos",
+      "definicion": "Sangre de utilería, adhesivos prostéticos, solventes/removedores, siliconas, alginatos, foam latex, sangre en boca/ojos.",
+      "variantes": [
+        "Sangre falsa (externa / comestible / de boca)",
+        "Adhesivos prostéticos y removedores",
+        "Siliconas, alginatos, foam latex",
+        "Efectos con material biológico real (raro)"
+      ],
+      "riesgo_principal": "Distinguir sangre falsa (química: irritación ocular/dérmica, manchado) de material biológico real (patógenos). Reacciones alérgicas a adhesivos/solventes.",
+      "control_base": "Prueba de parche por alergias; ventilación para solventes; cuidado con adhesivos cerca de ojos/vías respiratorias; HDS de cada producto; si hay material biológico real, protocolo de patógenos.",
+      "epp_minimo": [
+        "Guantes de nitrilo",
+        "Protección ocular",
+        "Ventilación para solventes"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Key Makeup Artist / artista de prostéticos"
+        ],
+        "mexico": [
+          "Maquillista / artista de prostéticos"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#24 Cal-OSHA Blood and Other Potentially Infectious Materials (SOLO si hay material biológico real)"
+        ],
+        "eeuu_ca": [
+          "OSHA Bloodborne 1910.1030 / Cal-OSHA §5193 (biológico)",
+          "HazCom 1910.1200 (químico)"
+        ],
+        "mexico": [
+          "NOM-018-STPS-2015 (HDS de cada producto)",
+          "NOM-010-STPS-2014 (exposición a químicos) [verificado]"
+        ]
+      },
+      "insumos_ref": [
+        "INS-BLOOD-01",
+        "INS-BLOOD-02",
+        "INS-BLOOD-03"
+      ],
+      "verificado": true,
+      "notas": "CSATF #24 verificado. La mayoría de casos son químicos (HazCom), no biológicos: no sobre-aplicar la norma de patógenos."
+    },
+    {
+      "id": "FX-13",
+      "familia": "7. Impacto y rotura",
+      "nombre": "Breakaways",
+      "definicion": "Objetos que se rompen de forma segura: vidrio de azúcar (sugar glass), vidrio de resina (breakaway), muebles de balsa, botellas y ventanas.",
+      "variantes": [
+        "Sugar glass / vidrio de azúcar",
+        "Vidrio de resina (breakaway)",
+        "Muebles de balsa",
+        "Botellas y ventanas breakaway"
+      ],
+      "riesgo_principal": "Corte con bordes/fragmentos; algunas resinas tienen HDS (vapores al fabricar/calentar).",
+      "control_base": "Seleccionar material correcto según impacto sobre persona; inspección de bordes; retiro de fragmentos; HDS de resinas.",
+      "epp_minimo": [
+        "Guantes al manipular",
+        "Protección ocular según acción"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Props / SFX Technician"
+        ],
+        "mexico": [
+          "Utilero / Técnico SPFX"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#39 Foam(ed) Plastics in Set and Prop Construction (si aplica al material)"
+        ],
+        "eeuu_ca": [
+          "OSHA HazCom 1910.1200 (HDS de resinas)"
+        ],
+        "mexico": [
+          "NOM-018-STPS-2015 (HDS de resinas)"
+        ]
+      },
+      "insumos_ref": [
+        "INS-BRK-01",
+        "INS-BRK-02",
+        "INS-MOLD-01",
+        "INS-MOLD-02"
+      ],
+      "verificado": true,
+      "notas": "CSATF #39 verificado. La relevancia de #39 depende de si el breakaway es de espuma/plástico."
+    },
+    {
+      "id": "FX-14",
+      "familia": "7. Impacto y rotura",
+      "nombre": "Props punzocortantes y proyectiles",
+      "definicion": "Cuchillos retráctiles, flechas, ballestas de efecto, y dispositivos de bullet-hit no basados en munición (air/gas capsule guns, squib-fired trunnion guns).",
+      "variantes": [
+        "Cuchillos/hachas retráctiles",
+        "Flechas y ballestas de efecto",
+        "Capsule guns / air-gas guns de bullet-hit",
+        "Slingshots / blowguns de efecto"
+      ],
+      "riesgo_principal": "Penetración/impacto; los proyectiles de bullet-hit se operan bajo dirección de técnico SPFX licenciado.",
+      "control_base": "Todos los proyectiles de no-munición se supervisan y operan bajo el Special Effects Technician licenciado; perímetros; protección del blanco/talento; ensayo.",
+      "epp_minimo": [
+        "Protección ocular",
+        "Blindaje/escudo según dispositivo"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Special Effects Technician licenciado (dirige los proyectiles de no-munición)",
+          "Property Master si son props de escena"
+        ],
+        "mexico": [
+          "Técnico SPFX; SEDENA si el dispositivo propulsa proyectil de forma regulada"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#30 Edged, Piercing, and Projectile Props",
+          "#1 (define 'no-munición' y remite a #30)"
+        ],
+        "eeuu_ca": [
+          "AHJ / permisos locales según dispositivo"
+        ],
+        "mexico": [
+          "SEDENA si hay propulsión de proyectil regulada"
+        ]
+      },
+      "insumos_ref": [],
+      "verificado": true,
+      "notas": "CSATF #30 verificado. El Boletín #1 excluye estos proyectiles de 'munición' y los remite a #30."
+    },
+    {
+      "id": "FX-15",
+      "familia": "8. Armas",
+      "nombre": "Salvas / armas de fuego",
+      "definicion": "Armas reales o de utilería cargadas con blanks o dummy rounds; incluye 'non-guns' (réplicas que descargan carga explosiva por impulso eléctrico).",
+      "variantes": [
+        "Arma real con blanks",
+        "Dummy rounds (inertes, con BB audible)",
+        "Non-gun (carga explosiva por impulso eléctrico)",
+        "Réplicas con recoil simulator"
+      ],
+      "riesgo_principal": "Un arma con blanks puede causar daño grave o muerte a corta distancia (gas caliente, taco). Munición real casi siempre prohibida.",
+      "control_base": "Custodia y control por Property Master/Armero; carga inmediata antes de la toma; nunca apuntar a persona; 'all clear'; almacenamiento de armas separado de blanks; verificación por talento del tipo de carga.",
+      "epp_minimo": [
+        "Protección ocular",
+        "Protección auditiva",
+        "Escudos",
+        "Lock-off de cámara"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Property Master / Armorer licenciado",
+          "Safety Advisor (SB 132) para risk assessment de armas"
+        ],
+        "mexico": [
+          "SEDENA: armas y cartuchos son control federal; posesión/importación muy restringida y requiere permiso"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#1 Firearms, Blanks, and Dummy Rounds",
+          "#2 Prohibitions on Live Ammunition (uso casi siempre prohibido)"
+        ],
+        "eeuu_ca": [
+          "SB 735 / normativa post-Rust de armas en set [confirmar cita exacta]",
+          "SB 132 (risk assessment de armas)",
+          "Leyes estatales/locales de armas"
+        ],
+        "mexico": [
+          "Ley Federal de Armas de Fuego y Explosivos (SEDENA)",
+          "Importar blanks/armas requiere permiso; alto riesgo legal"
+        ]
+      },
+      "insumos_ref": [
+        "INS-ARM-01",
+        "INS-ARM-02",
+        "INS-ARM-03"
+      ],
+      "verificado": true,
+      "notas": "CSATF #1/#2 verificados. En México el control federal SEDENA de armas/cartuchos es el punto crítico para producciones que importan de CA."
+    },
+    {
+      "id": "FX-16",
+      "familia": "8. Armas",
+      "nombre": "Armas de utilería que NO disparan (categoría propia, tendencia post-Rust)",
+      "definicion": "Réplicas que simulan el arma (y a veces el fogonazo) SIN blanks ni fuego real. Espectro de 3 subtipos con perfiles de riesgo distintos.",
+      "subtipos": [
+        {
+          "nombre": "Réplica inerte",
+          "materiales": "Caucho, resina, plástico, metal, impresión 3D",
+          "fogonazo": "Ninguno; se agrega en post (CGI/IA)",
+          "riesgo": "Casi nulo salvo confusión con arma real"
+        },
+        {
+          "nombre": "Réplica con fogonazo electrónico / eSquib",
+          "materiales": "Impulso eléctrico + gránulo/LED de alta intensidad; sin pólvora",
+          "fogonazo": "Simulado, reutilizable, sin carga explosiva",
+          "riesgo": "Eléctrico/batería (incendio Li-ion), calor puntual, destello ocular intenso"
+        },
+        {
+          "nombre": "Réplica de gas/aire (airsoft alta gama con eyección de casquillo)",
+          "materiales": "Aire comprimido / CO2",
+          "fogonazo": "Recoil y eyección visual; SIN balín para cine",
+          "riesgo": "Proyección de balín (usar sin BB), gas a presión"
+        }
+      ],
+      "distincion_critica": "El 'non-gun' que define el propio Boletín CSATF #1 SÍ usa pequeñas cargas explosivas por impulso eléctrico: NO pertenece a esta categoría. La categoría 'no dispara' reemplaza esa carga por luz/vapor/electrónica SIN pólvora. Catalogarlos lado a lado para evitar confusión.",
+      "riesgo_principal": "Eléctrico/térmico y batería Li-ion; destello ocular; y el riesgo transversal de que se maneje como arma real de todos modos (recomendado por CSATF).",
+      "control_base": "Tratar toda réplica con protocolo de prop firearm (CSATF #1); gestión de baterías Li-ion; protección ocular ante destello; verificar sin balín en réplicas de gas.",
+      "epp_minimo": [
+        "Protección ocular ante destello",
+        "Manejo seguro de baterías"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Property Master (aplica protocolo de prop firearm)"
+        ],
+        "mexico": [
+          "Utilero/Property Master; SEDENA probablemente NO aplica si no hay pólvora/propulsión regulada - confirmar caso por caso"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#1 (protocolo de prop firearm y definición de non-gun)",
+          "Fact Sheet: Lithium-Ion Battery Safety (2024)"
+        ],
+        "eeuu_ca": [
+          "AHJ / política de estudio"
+        ],
+        "mexico": [
+          "Confirmar con SEDENA caso por caso: sin pólvora/propulsión probablemente fuera de su control, pero documentarlo"
+        ]
+      },
+      "insumos_ref": [
+        "INS-BATT-01"
+      ],
+      "verificado": true,
+      "notas": "Categoría marcada como propia dentro de 'salvas/armas' por solicitud. Fact sheet Li-ion CSATF (2024) verificado en índice oficial."
+    },
+    {
+      "id": "FX-17",
+      "familia": "9. Eléctricos y partículas",
+      "nombre": "Arcos y descargas eléctricas (Jacob's ladder, Tesla, chispa eléctrica)",
+      "definicion": "Efectos de arco/descarga visible: escalera de Jacob, bobinas Tesla, chisporroteo eléctrico controlado.",
+      "variantes": [
+        "Jacob's ladder",
+        "Bobina Tesla",
+        "Chispa eléctrica de bajo amperaje controlada"
+      ],
+      "riesgo_principal": "Choque eléctrico y ozono/UV; ignición de atmósferas; interferencia con equipo.",
+      "control_base": "Diseño y operación por técnico eléctrico calificado; barreras/aislamiento; distancia; sin atmósferas inflamables cerca.",
+      "epp_minimo": [
+        "Guantes dieléctricos según voltaje",
+        "Protección ocular"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Técnico eléctrico calificado / SFX eléctrico"
+        ],
+        "mexico": [
+          "Técnico eléctrico calificado"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#23 Portable Power Distribution and Other Electrical Equipment (+ addenda)"
+        ],
+        "eeuu_ca": [
+          "OSHA subparte S (eléctrico)",
+          "Cal-OSHA eléctrico (§ indicativa, EEUU)"
+        ],
+        "mexico": [
+          "NOM-029-STPS-2011 (mantenimiento de instalaciones eléctricas) ✔",
+          "NOM-022-STPS-2015 (electricidad estática) ✔"
+        ]
+      },
+      "insumos_ref": [],
+      "verificado": false,
+      "notas": "Añadido por amplitud. Confirmar si entra en alcance. No hay boletín CSATF dedicado; cuelga de #23. [MECÁNICO/FÍSICO] Efecto eléctrico (arcos): SIN insumo químico. Subproducto: ozono/UV. Riesgo eléctrico, no de insumo."
+    },
+    {
+      "id": "FX-18",
+      "familia": "9. Eléctricos y partículas",
+      "nombre": "Polvo fotográfico y efectos de partículas",
+      "definicion": "Polvo escénico (photographic dust), tierra de batán (Fuller's earth), telaraña (cobweb), y partículas soplables para ambientación/impactos.",
+      "variantes": [
+        "Photographic dust",
+        "Fuller's earth",
+        "Cobweb / telaraña (adhesivo soplado)",
+        "Partículas de impacto (dirt hits)"
+      ],
+      "riesgo_principal": "Inhalación de polvo fino (posible sílice en algunas tierras); irritación ocular/respiratoria; el fluido de telaraña tiene HDS.",
+      "control_base": "HDS de cada material; verificar contenido de sílice; respirador cuando haya polvo fino; ventilación; limitar exposición del talento.",
+      "epp_minimo": [
+        "Respirador N95/superior según polvo",
+        "Protección ocular"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Técnico SPFX de atmósferas/partículas"
+        ],
+        "mexico": [
+          "Técnico SPFX de atmósferas/partículas"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "Fact Sheet: Photographic Dust Effects (2005)"
+        ],
+        "eeuu_ca": [
+          "OSHA HazCom 1910.1200",
+          "OSHA sílice 1910.1053 (si aplica)"
+        ],
+        "mexico": [
+          "NOM-010-STPS-2014 (partículas/VLE) [verificado]",
+          "NOM-018-STPS-2015 (HDS)"
+        ]
+      },
+      "insumos_ref": [
+        "INS-DUST-01"
+      ],
+      "verificado": true,
+      "notas": "Añadido por amplitud. Fact Sheet CSATF de Photographic Dust Effects verificado en índice oficial (2005). Vigilar sílice en tierras."
+    },
+    {
+      "id": "FX-19",
+      "familia": "2. Atmósfera",
+      "nombre": "Vapor / steam",
+      "definicion": "Vapor de agua caliente para ambientación (calles humeantes, alcantarillas, baños, cocinas).",
+      "variantes": [
+        "Steam de caldera/generador",
+        "Vapor seco",
+        "Ultrasonido/fog frío mal llamado 'vapor'"
+      ],
+      "riesgo_principal": "Quemadura por escaldadura (el vapor a >100°C quema más que el agua); reduce visibilidad.",
+      "control_base": "Distancia y dirección del chorro lejos del talento; control de temperatura; señalización de línea caliente; nunca en espacios donde se pierda visibilidad de rutas.",
+      "epp_minimo": [
+        "Guantes térmicos para operadores",
+        "Protección facial cerca de la fuente"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Técnico SPFX de atmósferas"
+        ],
+        "mexico": [
+          "Técnico SPFX de atmósferas"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "Sin boletín dedicado; aplica #5 Safety Awareness y #21 PPE"
+        ],
+        "eeuu_ca": [
+          "OSHA general duty; equipo a presión si hay caldera"
+        ],
+        "mexico": [
+          "NOM-020-STPS-2011 (recipientes a presión, criogénicos y generadores de vapor/calderas) ✔"
+        ]
+      },
+      "insumos_ref": [],
+      "verificado": false,
+      "notas": "Añadido por amplitud. Distinto de niebla criogénica (FX-04): aquí el riesgo es calor, no asfixia. [MECÁNICO/FÍSICO] Efecto térmico (vapor): SIN insumo químico (agua/vapor). Riesgo de escaldadura; si hay caldera aplica NOM-020-STPS-2011 ✔."
+    },
+    {
+      "id": "FX-20",
+      "familia": "2. Atmósfera",
+      "nombre": "Humo por combustión real",
+      "definicion": "Humo generado por combustión real (bee smoker, incienso, madera, materiales) para ambientar, distinto del haze de glicol.",
+      "variantes": [
+        "Bee smoker / ahumador",
+        "Incienso y conos",
+        "Humo de madera/material",
+        "Cigarro escénico"
+      ],
+      "riesgo_principal": "Toxicología distinta al glicol: monóxido de carbono, partículas de combustión, irritantes; puede activar detectores/alarmas.",
+      "control_base": "Ventilación real y monitoreo de CO; limitar exposición y duración; aviso a talento sensible; distinguir en el catálogo del haze de glicol (FX-03).",
+      "epp_minimo": [
+        "Respirador según densidad/CO",
+        "Monitoreo de CO en cerrados"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Técnico SPFX de atmósferas"
+        ],
+        "mexico": [
+          "Técnico SPFX de atmósferas"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#10 por analogía; Fact Sheet 'Protection from Wildfire Smoke' por analogía de humo de combustión"
+        ],
+        "eeuu_ca": [
+          "OSHA HazCom 1910.1200; CO 1910.1000"
+        ],
+        "mexico": [
+          "NOM-010-STPS-2014 (agentes/CO) [verificado]"
+        ]
+      },
+      "insumos_ref": [
+        "INS-PYR-06"
+      ],
+      "verificado": false,
+      "notas": "Añadido por amplitud. Perfil de CO/partículas ≠ glicol; no mezclar fichas."
+    },
+    {
+      "id": "FX-21",
+      "familia": "10. Espuma, burbujas y confeti",
+      "nombre": "Espuma y burbujas",
+      "definicion": "Espuma escénica (foam party), burbujas de máquina, para ambientación o comedia.",
+      "variantes": [
+        "Máquina de espuma (foam)",
+        "Máquina de burbujas",
+        "Espuma de fiesta"
+      ],
+      "riesgo_principal": "Resbalones (piso jabonoso) e irritación ocular/dérmica por tensoactivos; ingestión accidental.",
+      "control_base": "Control de piso resbaloso y drenaje; HDS del fluido; protección ocular del talento; enjuague disponible.",
+      "epp_minimo": [
+        "Calzado antiderrapante",
+        "Protección ocular en inmersión"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Técnico SPFX"
+        ],
+        "mexico": [
+          "Técnico SPFX"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "Sin boletín dedicado; #5/#21"
+        ],
+        "eeuu_ca": [
+          "OSHA HazCom 1910.1200",
+          "OSHA walking-working surfaces 1910.22 (resbalones)"
+        ],
+        "mexico": [
+          "NOM-018-STPS-2015 (HDS del fluido)",
+          "NOM-001-STPS-2008 (edificios, locales e instalaciones — pisos) ✔"
+        ]
+      },
+      "insumos_ref": [
+        "INS-FOAM-01"
+      ],
+      "verificado": false,
+      "notas": "Añadido por amplitud."
+    },
+    {
+      "id": "FX-22",
+      "familia": "10. Espuma, burbujas y confeti",
+      "nombre": "Confeti / serpentinas por cañón",
+      "definicion": "Lanzamiento de confeti/serpentinas con cañón de CO2 o aire comprimido (a veces pirotécnico).",
+      "variantes": [
+        "Cañón de CO2/aire comprimido",
+        "Lanzador eléctrico",
+        "Lanzador pirotécnico (poco común)"
+      ],
+      "riesgo_principal": "Proyección a alta velocidad (impacto ocular/piel a corta distancia); gas a presión; resbalón por papel; carga pirotécnica si aplica.",
+      "control_base": "Distancia y ángulo lejos de ojos; control del recipiente a presión (CO2); limpieza de piso; si es pirotécnico, tratar como pirotecnia (FX-05).",
+      "epp_minimo": [
+        "Protección ocular en zona de disparo",
+        "Guantes al manejar CO2"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Técnico SPFX; SFM Pyro si hay carga pirotécnica"
+        ],
+        "mexico": [
+          "Técnico SPFX; SEDENA si pirotécnico"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#16 por analogía si es pirotécnico; si no, #5/#21"
+        ],
+        "eeuu_ca": [
+          "OSHA gases comprimidos 1910.101"
+        ],
+        "mexico": [
+          "NOM-020-STPS-2011 (recipientes a presión/criogénicos, CO2) ✔",
+          "SEDENA si pirotécnico"
+        ]
+      },
+      "insumos_ref": [
+        "INS-ATM-05"
+      ],
+      "verificado": false,
+      "notas": "Añadido por amplitud. Bifurcación neumático vs. pirotécnico igual que en explosión (FX-06)."
+    },
+    {
+      "id": "FX-23",
+      "familia": "11. Tratamientos y materiales SPFX",
+      "nombre": "Ignifugación / tratamiento retardante de fuego",
+      "definicion": "Aplicación de retardantes de fuego a escenografía, vestuario y follaje para reducir su inflamabilidad.",
+      "variantes": [
+        "Retardante en spray/inmersión",
+        "Tratamiento de follaje/telas",
+        "Intumescentes"
+      ],
+      "riesgo_principal": "Irritación dérmica/respiratoria por el químico aplicado; sobreexposición del aplicador; falso sentido de seguridad si mal aplicado.",
+      "control_base": "HDS del retardante; ventilación y EPP en aplicación; prueba de eficacia; documentar certificado de tratamiento (a menudo exigido por fire marshal).",
+      "epp_minimo": [
+        "Respirador para nieblas",
+        "Guantes químicos",
+        "Protección ocular"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Aplicador según fabricante; certificado de tratamiento para el fire marshal"
+        ],
+        "mexico": [
+          "Aplicador capacitado; Protección Civil puede requerir constancia"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#19/#13 (contexto de fuego); Fact Sheet de backdrops recién pintados por analogía de recubrimientos"
+        ],
+        "eeuu_ca": [
+          "OSHA HazCom 1910.1200; California Fire Code (exige materiales tratados)"
+        ],
+        "mexico": [
+          "NOM-018-STPS-2015 (HDS)",
+          "NOM-002-STPS-2010 (incendios) ✔"
+        ]
+      },
+      "insumos_ref": [
+        "INS-RET-01"
+      ],
+      "verificado": false,
+      "notas": "Añadido por amplitud. El certificado de ignifugación suele ser requisito de permiso, no solo higiene."
+    },
+    {
+      "id": "FX-24",
+      "familia": "11. Tratamientos y materiales SPFX",
+      "nombre": "Moldeo y colado (resinas, uretanos, siliconas)",
+      "definicion": "Fabricación de props/prostéticos por moldeo/colado: resinas epóxicas, poliuretanos (isocianatos), siliconas, alginatos, espuma expandida.",
+      "variantes": [
+        "Poliuretano / espuma expandida (isocianatos)",
+        "Resina epóxica",
+        "Silicona de moldeo (RTV)",
+        "Alginato / yeso"
+      ],
+      "riesgo_principal": "Los ISOCIANATOS (uretanos) son sensibilizantes respiratorios: pueden causar asma ocupacional; epóxicos sensibilizan la piel; polvo/exotermia.",
+      "control_base": "Ventilación local (LEV) y respirador con cartucho adecuado para isocianatos; guantes químicos; evitar sensibilización; HDS de cada componente; control de exotermia.",
+      "epp_minimo": [
+        "Respirador con cartucho para vapores orgánicos/isocianatos",
+        "Guantes nitrilo/butilo",
+        "Protección ocular",
+        "Bata"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Artista de props/prostéticos capacitado; programa de protección respiratoria"
+        ],
+        "mexico": [
+          "Artista de props/prostéticos capacitado"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "#39 Foam(ed) Plastics in Set and Prop Construction"
+        ],
+        "eeuu_ca": [
+          "OSHA Respiratory 1910.134; isocianatos (National/Regional Emphasis Program)"
+        ],
+        "mexico": [
+          "NOM-010-STPS-2014 (agentes químicos/VLE) [verificado]",
+          "NOM-018-STPS-2015 (HDS)",
+          "NOM-017-STPS-2008 (EPP) ✔"
+        ]
+      },
+      "insumos_ref": [
+        "INS-MOLD-01",
+        "INS-MOLD-02",
+        "INS-MOLD-03"
+      ],
+      "verificado": true,
+      "notas": "Añadido por amplitud. CSATF #39 verificado. Isocianatos = sensibilizante respiratorio: punto de salud ocupacional serio, no obvio."
+    },
+    {
+      "id": "FX-25",
+      "familia": "11. Tratamientos y materiales SPFX",
+      "nombre": "Trabajo en caliente / soldadura para rigs SFX",
+      "definicion": "Soldadura, corte y esmerilado para fabricar/rigar estructuras de efectos (morteros, flame bars, rigs).",
+      "variantes": [
+        "Soldadura por arco/gas",
+        "Corte con oxicorte/plasma",
+        "Esmerilado"
+      ],
+      "riesgo_principal": "Humos metálicos, radiación UV/IR, chispas que inician incendio (crítico junto a combustibles/pirotecnia), gases comprimidos.",
+      "control_base": "Permiso de trabajo en caliente; vigía de fuego; extinción a la mano; ventilación de humos; separación de combustibles y material pirotécnico; mamparas UV.",
+      "epp_minimo": [
+        "Careta de soldar",
+        "Guantes y mandil de cuero",
+        "Respirador para humos metálicos",
+        "Protección auditiva"
+      ],
+      "personal_certificado": {
+        "eeuu_ca": [
+          "Soldador calificado; hot work permit"
+        ],
+        "mexico": [
+          "Soldador calificado"
+        ]
+      },
+      "normas": {
+        "csatf": [
+          "Incluido en permisos de efectos especiales (p.ej. LA County Fire agrupa soldadura)"
+        ],
+        "eeuu_ca": [
+          "OSHA Welding/Cutting 1910.252"
+        ],
+        "mexico": [
+          "NOM-027-STPS-2008 (soldadura y corte) ✔",
+          "NOM-010-STPS-2014 (humos) [verificado]"
+        ]
+      },
+      "insumos_ref": [
+        "INS-WELD-01"
+      ],
+      "verificado": false,
+      "notas": "Añadido por amplitud. Riesgo crítico de ignición cuando coexiste con combustibles/pirotecnia en el mismo set."
+    }
+  ],
+  "insumos": [
+    {
+      "id": "INS-FIRE-01",
+      "familia_insumo": "Combustibles - gas licuado",
+      "nombre": "Gas propano / GLP (LP)",
+      "sinonimos": [
+        "Propano",
+        "n-propano",
+        "GLP",
+        "Gas LP",
+        "Dimetilmetano"
+      ],
+      "efectos_ref": [
+        "FX-01",
+        "FX-02"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://gasinnovations.com/wp-content/uploads/Gas_Innovations_Propane_SDS-Revision-07-30-2024.pdf",
+      "sds_fuente_nota": "Gas Innovations — Propane SDS (UN 1978).",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — no sustituye la HDS oficial del proveedor que llegue a set.",
+      "hds": {
+        "1_identificacion": "Propano / GLP. CAS 74-98-6. Uso: combustible para efectos de fuego y flama. En set llega en cilindros a presión.",
+        "2_peligros": "PELIGRO. Pictogramas GHS02 (llama) y GHS04 (cilindro de gas). H220 Gas extremadamente inflamable; H280 Contiene gas a presión, puede explotar si se calienta. Asfixiante simple: desplaza el oxígeno y puede causar asfixia rápida. Vapores más pesados que el aire: se acumulan a ras de piso y viajan a la fuente de ignición (retroceso de flama).",
+        "3_composicion": "Sustancia: propano (con odorizante/etil mercaptano añadido para detección). Puede contener trazas de propileno/butano según grado comercial.",
+        "4_primeros_auxilios": "Inhalación: llevar a aire fresco; si no respira, dar respiración asistida y atención médica. Piel/ojos: el líquido a presión causa quemadura por frío (criogénica) — tratar como congelamiento. Congelación: no frotar, agua tibia y atención médica.",
+        "5_incendios": "Medios: polvo químico seco, CO2, espuma o el adecuado al entorno (Clase B). NO extinguir un fuego de gas con fuga salvo que se pueda cortar el flujo con seguridad; primero cerrar la válvula/fuente y dejar consumir el gas. Enfriar cilindros expuestos con agua. Cilindro calentado = riesgo de proyectil/BLEVE.",
+        "6_derrames": "Cortar la fuente si es seguro; eliminar ignición; ventilar; evacuar zonas bajas donde el gas se acumule. No usar herramientas que generen chispa.",
+        "7_manejo_almacenamiento": "Cilindros de pie y asegurados, válvula cerrada con capuchón; lugar ventilado, lejos de calor/ignición y oxidantes; nunca en sótanos/fosos (acumulación); abrir válvula solo lo necesario.",
+        "8_controles_epp_vle": "Asfixiante simple: mantener O2 >19.5% y ventilación; ACGIH lo trata como asfixiante simple (referencia histórica ~1000 ppm). EPP: guantes contra frío, protección ocular; ropa retardante de flama en efectos. Detección de fuga con odorizante (puede desvanecerse en cilindros nuevos/oxidados).",
+        "9_propiedades_fisicoquimicas": "Gas licuado incoloro; olor a mercaptano añadido. Punto de inflamación aprox. -104°C (gas inflamable). LEL ~2.1% / UEL ~9.5%. Más pesado que el aire. NÚMERO UN: 1978 (propano); GLP puede ir como UN 1075. Clase 2.1.",
+        "10_estabilidad_reactividad": "Estable. Evitar calor, chispa, llama, superficies calientes y oxidantes fuertes. No perforar, cortar ni soldar cilindros.",
+        "11_toxicologica": "Efecto principal: asfixia por desplazamiento de O2 a altas concentraciones (mareo, pérdida de conciencia). Baja toxicidad intrínseca. Contacto con líquido: quemadura por frío.",
+        "12_ecologica": "Se evapora rápido; no se espera efecto significativo en ambiente acuático.",
+        "13_eliminacion": "Devolver cilindros al proveedor; no descargar en zonas donde forme mezcla explosiva; residuos según normativa local.",
+        "14_transporte": "UN 1978 Propano, Clase 2.1 (gas inflamable). GLP: UN 1075. Transporte de mercancía peligrosa (DOT/ADR/IMDG/IATA).",
+        "15_reglamentaria": "EEUU: OSHA HazCom 1910.1200; almacenamiento NFPA 58. México: SEDENA no aplica (no es explosivo/arma); STPS NOM-005-STPS-1998 (almacenamiento) y regulación de Gas LP (importación/transporte por autoridades de energía).",
+        "16_otra": "El odorizante puede perder intensidad. Nunca confiar en el color del cilindro para identificar el contenido."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-FIRE-02",
+      "familia_insumo": "Combustibles - alcoholes",
+      "nombre": "Etanol (alcohol etílico)",
+      "sinonimos": [
+        "Etanol",
+        "Alcohol etílico",
+        "Alcohol de cereales",
+        "Etanol desnaturalizado"
+      ],
+      "efectos_ref": [
+        "FX-01",
+        "FX-02"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://diquimex.mx/wp-content/uploads/2018/04/HDS-0214-ETANOL.pdf",
+      "sds_fuente_nota": "Diquimex (MX) — HDS Etanol en español (UN 1170).",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "HDS de referencia en español verificada; aun así, adjuntar la HDS del proveedor real que llegue a set.",
+      "hds": {
+        "1_identificacion": "Etanol / alcohol etílico. CAS 64-17-5. Uso: combustible de flama y efectos de fuego (arde limpio).",
+        "2_peligros": "PELIGRO. Pictogramas GHS02 (llama) y GHS07 (signo de exclamación). H225 Líquido y vapores muy inflamables; H319 Provoca irritación ocular grave. RIESGO OPERATIVO CLAVE: arde con una LLAMA AZUL PÁLIDA casi invisible con luz normal — el personal siente el calor pero puede no ver la flama. Vapores más pesados que el aire, viajan a la ignición (retroceso).",
+        "3_composicion": "Etanol (a menudo desnaturalizado con un agente que impide su consumo). Concentración típica industrial 96-99.5%.",
+        "4_primeros_auxilios": "Ojos: enjuagar con abundante agua varios minutos, quitar lentes de contacto, atención médica si persiste. Piel: lavar con agua y jabón. Inhalación: aire fresco. Ingestión: no inducir vómito en inconscientes; atención médica.",
+        "5_incendios": "Medios: polvo químico ABC, CO2, espuma resistente al alcohol; agua pulverizada para enfriar. Recordar la flama casi invisible al aproximarse. Vapores forman mezcla explosiva.",
+        "6_derrames": "Eliminar ignición; ventilar; contener y absorber con material inerte; evitar drenajes/alcantarillas/sótanos (los vapores se acumulan).",
+        "7_manejo_almacenamiento": "Recipiente cerrado, lugar ventilado, lejos de calor/chispa/llama; puesta a tierra al trasvasar (electricidad estática); envases metálicos adecuados.",
+        "8_controles_epp_vle": "Ventilación adecuada. VLE: OSHA PEL 1000 ppm (TWA); consultar tablas de NOM-010-STPS-2014 para límites en México. EPP: guantes de nitrilo/neopreno, protección ocular si hay salpicadura/mala ventilación.",
+        "9_propiedades_fisicoquimicas": "Líquido incoloro, olor característico. PUNTO DE INFLAMACIÓN 13-16°C (copa cerrada, ASTM D56). Ebullición 78°C. Autoignición ~363°C. Miscible en agua. NÚMERO UN: 1170, Clase 3, GE II.",
+        "10_estabilidad_reactividad": "Estable. Incompatible con oxidantes fuertes (ácido nítrico, peróxidos, percloratos), metales alcalinos. Evitar calor e ignición.",
+        "11_toxicologica": "Irritación ocular grave. Carcinogenicidad/efectos reproductivos: asociados al consumo de bebidas, no al uso industrial normal. Inhalación de vapores altos: irritación, somnolencia.",
+        "12_ecologica": "No se clasifica como peligroso para el ambiente acuático; biodegradable.",
+        "13_eliminacion": "Recoger en recipientes etiquetados; disposición vía gestor autorizado; no verter a drenaje.",
+        "14_transporte": "UN 1170 Etanol, Clase 3 (líquido inflamable), GE II.",
+        "15_reglamentaria": "EEUU: OSHA HazCom 1910.1200. México: NOM-018-STPS-2015 (HDS/etiqueta), NOM-005-STPS-1998 (manejo inflamables). SEDENA no aplica.",
+        "16_otra": "La invisibilidad de la flama de alcohol es la causa frecuente de quemaduras en set: reforzar en la app como advertencia destacada."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-FIRE-03",
+      "familia_insumo": "Combustibles - alcoholes",
+      "nombre": "Alcohol isopropílico (IPA / isopropanol)",
+      "sinonimos": [
+        "Isopropanol",
+        "2-propanol",
+        "IPA",
+        "Alcohol isopropílico"
+      ],
+      "efectos_ref": [
+        "FX-01",
+        "FX-02"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://fortequim.com/wp-content/uploads/2021/09/ALCOHOL-ISOPROPILICO-GHS-1.pdf",
+      "sds_fuente_nota": "Fortequim (MX) — HDS Alcohol Isopropílico (UN 1219).",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "HDS de referencia en español verificada; adjuntar la HDS del proveedor real que llegue a set.",
+      "hds": {
+        "1_identificacion": "Alcohol isopropílico / 2-propanol. CAS 67-63-0. Uso: combustible de flama; también solvente/limpiador en set.",
+        "2_peligros": "PELIGRO. Pictogramas GHS02 (llama) y GHS07. H225 Líquido y vapores muy inflamables; H319 Provoca irritación ocular grave; H336 Puede provocar somnolencia o vértigo. Vapor más denso que el aire, se extiende a ras de piso e ignición a distancia; genera cargas estáticas.",
+        "3_composicion": "2-propanol, típicamente 99% (o grados 70%). Sin impurezas que cambien la clasificación.",
+        "4_primeros_auxilios": "Ojos: enjuagar con agua 15 min, quitar lentes; atención si persiste. Piel: lavar con agua y jabón. Inhalación: aire fresco; RCP si procede. Ingestión: no inducir vómito; atención médica.",
+        "5_incendios": "Medios: polvo químico seco, CO2, espuma resistente al alcohol, agua pulverizada. Agua puede ser poco eficaz salvo para enfriar. SCBA para bomberos. Descomposición: óxidos de carbono.",
+        "6_derrames": "Eliminar ignición; ventilar; evitar acumulación de vapores en zonas bajas; contener con diques; absorbente inerte; evitar drenaje.",
+        "7_manejo_almacenamiento": "Recipiente cerrado, ventilado, lejos de calor/ignición; puesta a tierra al trasvasar; evitar descarga estática.",
+        "8_controles_epp_vle": "Ventilación adecuada. VLE (ACGIH): TWA 200 ppm, STEL 400 ppm; en México consultar NOM-010-STPS-2014 (OEL nacional reportado TWA 400 / STEL 500 ppm). Índice biológico: acetona en orina. EPP: guantes, protección ocular/facial.",
+        "9_propiedades_fisicoquimicas": "Líquido incoloro, olor a alcohol. PUNTO DE INFLAMACIÓN 12°C (copa cerrada). Ebullición 81-83°C. Autoignición ~399-425°C. LEL 2% / UEL 12%. Miscible en agua. NÚMERO UN: 1219, Clase 3, GE II.",
+        "10_estabilidad_reactividad": "Estable. Reacciona violentamente con oxidantes fuertes (riesgo de incendio/explosión); ataca algunos plásticos/caucho; se descompone por calentamiento intenso.",
+        "11_toxicologica": "Irritación ocular grave; SNC por inhalación (somnolencia/vértigo). Exposición repetida: efectos neurológicos. No sensibilizante cutáneo.",
+        "12_ecologica": "CL50 en peces reportada; manejar para evitar vertidos a cuerpos de agua.",
+        "13_eliminacion": "Recoger en recipientes etiquetados; gestor autorizado; no verter a drenaje.",
+        "14_transporte": "UN 1219 Isopropanol, Clase 3 (líquido inflamable), GE II.",
+        "15_reglamentaria": "EEUU: OSHA HazCom 1910.1200 (listado SARA 313). México: NOM-018-STPS-2015, NOM-005-STPS-1998, NOM-010-STPS-2014. SEDENA no aplica.",
+        "16_otra": "Punto de inflamación aún más bajo que el etanol: igual o mayor cuidado con ignición y flama tenue."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-FIRE-04",
+      "familia_insumo": "Combustibles - parafínicos líquidos",
+      "nombre": "Líquido de antorcha / aceite de lámpara (parafina líquida / isoparafina)",
+      "sinonimos": [
+        "Lamp oil",
+        "Torch fuel",
+        "Parafina líquida",
+        "Aceite para lámparas",
+        "Isoparafina"
+      ],
+      "efectos_ref": [
+        "FX-01"
+      ],
+      "sds_nivel": 2,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://fireflyfuel.com/files/pdfs/paraffin-lamp-oil.pdf",
+      "sds_fuente_nota": "Firefly Fuels — Paraffin Lamp Oil SDS (aspiración H304).",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Traducción de referencia CrewCare — no sustituye la HDS oficial del proveedor. La clasificación de aspiración (H304) es común a los aceites de lámpara/antorcha parafínicos.",
+      "hds": {
+        "1_identificacion": "Aceite de lámpara / líquido de antorcha (mezcla parafínica/isoparafínica, hidrocarburos). Uso: combustible para antorchas y lámparas escénicas.",
+        "2_peligros": "PELIGRO. Pictogramas GHS08 (peligro para la salud) y, según grado, GHS02. Clasificación típica: Asp. Tox. 1 — H304 'Puede ser mortal en caso de ingestión y penetración en las vías respiratorias' (ASPIRACIÓN → neumonitis química). Combustible (H227) o Flam. Liq. 3 (H226); algunos grados Skin Irrit. 2 (H315) y STOT SE 3 (H336). CONTRASTE con alcoholes: alto punto de inflamación (difícil de encender) PERO peligro de aspiración.",
+        "3_composicion": "Hidrocarburos parafínicos/isoparafínicos; contenido aromático típicamente <0.5%.",
+        "4_primeros_auxilios": "Ingestión: NO inducir vómito (riesgo de aspiración a pulmón); enjuagar boca; atención médica inmediata; observación por edema pulmonar (síntomas pueden retrasarse). Piel: lavar; puede resecar/irritar. Ojos: enjuagar. Inhalación: aire fresco.",
+        "5_incendios": "Medios: espuma, agua pulverizada/niebla, polvo químico seco, CO2, arena. NO usar chorro directo de agua. Arde con dificultad (necesita precalentarse/mecha) pero los vapores forman mezcla explosiva.",
+        "6_derrames": "Contener y absorber (arena, tierra de diatomeas); riesgo de RESBALÓN por derrame; evitar drenajes/aguas.",
+        "7_manejo_almacenamiento": "Recipiente cerrado; lejos de ignición; fuera del alcance de niños (advertencia legal por aspiración); no reutilizar envases de derrame.",
+        "8_controles_epp_vle": "Ventilación general suele bastar. Referencia de neblina de aceite mineral ~5 mg/m³ (ACGIH) [confirmar aplicabilidad]. En México, NOM-010-STPS-2014. EPP: guantes, protección ocular; respirador si hay neblina.",
+        "9_propiedades_fisicoquimicas": "Líquido oleoso, casi inodoro. PUNTO DE INFLAMACIÓN alto (combustible; grados >60°C, algunos ~higher). No aspiración = no; SÍ aspiración por baja viscosidad. UN: variable — muchos grados de alto punto de inflamación NO son mercancía peligrosa de transporte; algunos van como UN 1223 (queroseno) según flash. [Verificar por producto real; no se asume UN único].",
+        "10_estabilidad_reactividad": "Estable. Incompatible con oxidantes fuertes. Evitar calor extremo.",
+        "11_toxicologica": "Peligro principal: aspiración a pulmón (neumonitis química, potencialmente mortal). Contacto dérmico prolongado: resequedad/dermatitis. Baja toxicidad aguda por otras vías.",
+        "12_ecologica": "Algunos grados: tóxico para la vida acuática con efectos duraderos (H411). Biodegradable (parafinas normales).",
+        "13_eliminacion": "Gestor autorizado; no verter a drenaje; envases con residuo tratados como el producto.",
+        "14_transporte": "Según punto de inflamación: muchos grados no regulados en transporte; otros UN 1223 Clase 3. Verificar por producto.",
+        "15_reglamentaria": "EEUU: OSHA HazCom 1910.1200; advertencias de aspiración para público (mantener fuera del alcance de niños). México: NOM-018-STPS-2015. SEDENA no aplica.",
+        "16_otra": "El riesgo NO es que se encienda fácil (no lo hace), sino la aspiración si se ingiere/salpica a boca. Perfil inverso al alcohol: catalogarlos como par de contraste."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-FIRE-05",
+      "familia_insumo": "Combustibles - gelificados / espesados",
+      "nombre": "Gel de fuego / combustible gelificado (3 quimiotipos)",
+      "sinonimos": [
+        "Fire gel",
+        "Chafing fuel gel",
+        "Combustible espesado",
+        "Gel de metanol/etanol",
+        "Gel de dietilenglicol (DEG)"
+      ],
+      "efectos_ref": [
+        "FX-01",
+        "FX-02"
+      ],
+      "sds_nivel": 2,
+      "sds_estado": "Enlace de referencia (quimiotipo DEG); confirmar el del producto que llega a set.",
+      "sds_fuente_url": "https://sds.chemtel.net/webclients/cheneybrothers/709858SDS.pdf",
+      "sds_fuente_nota": "Wik Chafing Fuel (gel dietilenglicol) SDS. Otros quimiotipos (metanol/etanol): verificar HDS del producto real.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Traducción/resumen de referencia CrewCare — no sustituye la HDS oficial. La clasificación DEPENDE del quimiotipo del gel que llegue a set; verificar cuál es.",
+      "hds": {
+        "1_identificacion": "Combustible gelificado (espesado con sílice pirogénica u otro agente). TRES quimiotipos: (a) metanol, (b) etanol, (c) dietilenglicol (DEG). Uso: flama de mano/efecto, 'cold fire' gel, calentadores.",
+        "2_peligros": "PELIGRO según quimiotipo. (a) METANOL: H225 muy inflamable + H301+H311+H331 tóxico por ingestión/piel/inhalación + H370 daña órganos (metanol causa ceguera); flama azul casi invisible. (b) ETANOL: H225 muy inflamable, flama tenue, baja toxicidad. (c) DEG: ALTO punto de inflamación (~154°C), el derrame no se enciende sin mecha; pero TÓXICO por ingestión (dosis letal adulto ~2 oz). Pictogramas GHS02 y, según tipo, GHS06/GHS08/GHS07.",
+        "3_composicion": "Gel = combustible base (metanol/etanol/DEG) + agente gelificante (p.ej. sílice pirogénica). El color suele indicar el tipo (azul=metanol, rosa=etanol) pero NO es garantía entre marcas.",
+        "4_primeros_auxilios": "Ingestión: no inducir vómito; atención médica inmediata (metanol/DEG requieren antídoto/observación). Ojos/piel: enjuagar con agua. Inhalación: aire fresco. Metanol: buscar atención urgente (riesgo visual).",
+        "5_incendios": "Medios: polvo químico ABC, CO2, espuma resistente al alcohol; agua para enfriar. Metanol/etanol: flama tenue. DEG: no arde salvo precalentado/con mecha. No entrar a espacio con incendio sin SCBA.",
+        "6_derrames": "Cerrar recipiente; absorber; evitar ignición; ventilar; DEG resbaladizo al derramar.",
+        "7_manejo_almacenamiento": "Recipiente cerrado, ventilado, lejos de calor/ignición; separar por quimiotipo; fuera del alcance de niños.",
+        "8_controles_epp_vle": "Ventilación. VLE: metanol ACGIH TWA 200 ppm (piel); etanol OSHA 1000 ppm; DEG sin VLE amplio (control por ingestión). México: NOM-010-STPS-2014. EPP: guantes, protección ocular.",
+        "9_propiedades_fisicoquimicas": "Gel viscoso. Punto de inflamación: metanol/etanol 11-17°C (muy inflamable); DEG ~154°C (combustible, no inflamable). Miscible en agua. UN: metanol UN 1230; etanol UN 1170; mezclas gelificadas pueden ir como Flam. Liq. o Flam. Solid 4.1 según formulación. [Verificar por producto].",
+        "10_estabilidad_reactividad": "Estable. Incompatible con oxidantes fuertes. Evitar ignición.",
+        "11_toxicologica": "Metanol: tóxico sistémico (SNC, nervio óptico → ceguera). DEG: tóxico renal/SNC por ingestión. Etanol: bajo. Todos: irritación ocular.",
+        "12_ecologica": "Metanol/etanol biodegradables; DEG persistencia moderada. Evitar vertidos.",
+        "13_eliminacion": "Gestor autorizado; no verter a drenaje.",
+        "14_transporte": "Según quimiotipo: metanol UN 1230 Clase 3; etanol UN 1170 Clase 3; DEG usualmente no regulado en transporte por alto flash. Verificar.",
+        "15_reglamentaria": "EEUU: OSHA HazCom 1910.1200. México: NOM-018-STPS-2015, NOM-005-STPS-1998. SEDENA no aplica.",
+        "16_otra": "Advertencia de catálogo: NO tratar 'gel de fuego' como una sola cosa. Metanol es el más peligroso (tóxico + flama invisible); DEG el más benigno al derrame pero tóxico si se ingiere. Confirmar quimiotipo del producto real."
+      },
+      "verificado": true,
+      "sds_url_verificada": false
+    },
+    {
+      "id": "INS-FIRE-06",
+      "familia_insumo": "Combustibles - parafínicos sólidos",
+      "nombre": "Parafina sólida / cera",
+      "sinonimos": [
+        "Parafina",
+        "Cera de parafina",
+        "Paraffin wax"
+      ],
+      "efectos_ref": [
+        "FX-01"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://archpdfs.lps.org/Chemicals/Paraffin%20Wax.pdf",
+      "sds_fuente_nota": "Flinn Scientific — Paraffin Wax SDS (punto de inflamación 199°C; no peligrosa GHS).",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — no sustituye la HDS del proveedor.",
+      "hds": {
+        "1_identificacion": "Cera de parafina (hidrocarburos sólidos). Uso: efectos de flama, goteo, moldes.",
+        "2_peligros": "ATENCIÓN o sin clasificar GHS. Principal riesgo: QUEMADURA por cera fundida caliente (se adhiere a la piel). Combustible cuando se funde/mecha.",
+        "3_composicion": "Mezcla de hidrocarburos parafínicos sólidos.",
+        "4_primeros_auxilios": "Quemadura por cera caliente: enfriar con agua, no arrancar la cera adherida, atención médica.",
+        "5_incendios": "Medios: polvo, CO2, espuma. La cera fundida arde como combustible; no usar chorro de agua sobre cera ardiendo.",
+        "6_derrames": "Recoger sólido; la fundida solidifica al enfriar.",
+        "7_manejo_almacenamiento": "Lugar fresco, lejos de ignición; controlar temperatura al fundir (evitar autoignición por sobrecalentamiento).",
+        "8_controles_epp_vle": "Ventilación al fundir (humos). Sin VLE relevante en sólido; humos de cera caliente pueden irritar.",
+        "9_propiedades_fisicoquimicas": "Sólido ceroso. Punto de fusión ~50-70°C; punto de inflamación ~200°C+; autoignición ~245-330°C. Insoluble en agua. UN: no regulado (sólido).",
+        "10_estabilidad_reactividad": "Estable. Incompatible con oxidantes fuertes.",
+        "11_toxicologica": "Baja toxicidad. Riesgo real = quemadura térmica.",
+        "12_ecologica": "No peligroso para el ambiente.",
+        "13_eliminacion": "Residuo sólido según normativa local.",
+        "14_transporte": "No regulado en transporte como sólido.",
+        "15_reglamentaria": "OSHA HazCom; México NOM-018. SEDENA no aplica.",
+        "16_otra": "Sobrecalentar cera para efectos es causa de incendios: controlar temperatura y nunca desatender."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-FIRE-07",
+      "familia_insumo": "Combustibles - líquidos volátiles",
+      "nombre": "Nafta / líquido para encendedor (destilados de petróleo)",
+      "sinonimos": [
+        "Naphtha",
+        "Lighter fluid",
+        "Bencina",
+        "White gas",
+        "Destilado de petróleo ligero"
+      ],
+      "efectos_ref": [
+        "FX-01"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "http://media.laballey.com/sds/VMP-Naphtha-Safety-Data-Sheet-SDS.pdf",
+      "sds_fuente_nota": "Laballey — VM&P Naphtha SDS (UN 1268; aspiración H304).",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — no sustituye la HDS del proveedor.",
+      "hds": {
+        "1_identificacion": "Nafta / líquido para encendedor (destilados de petróleo ligeros). Uso: encendido y efectos de flama rápida.",
+        "2_peligros": "PELIGRO. GHS02, GHS08. H225/H226 muy inflamable; H304 puede ser mortal por aspiración; H336 somnolencia/vértigo; H315 irritación. Vapores pesados, retroceso de flama.",
+        "3_composicion": "Mezcla de hidrocarburos alifáticos ligeros (destilados de petróleo).",
+        "4_primeros_auxilios": "Ingestión: NO inducir vómito (aspiración); atención médica. Piel/ojos: lavar. Inhalación: aire fresco.",
+        "5_incendios": "Medios: espuma, CO2, polvo seco. No usar chorro directo de agua. Vapores forman mezcla explosiva.",
+        "6_derrames": "Eliminar ignición; ventilar; absorber; evitar drenajes.",
+        "7_manejo_almacenamiento": "Recipiente cerrado, ventilado, lejos de ignición; puesta a tierra al trasvasar.",
+        "8_controles_epp_vle": "Ventilación. VLE tipo hidrocarburos (consultar NOM-010-STPS-2014). EPP: guantes, protección ocular; respirador si hay neblina.",
+        "9_propiedades_fisicoquimicas": "Líquido volátil. Punto de inflamación típico -18 a 4°C (muy bajo). Ebullición amplia. UN 1256 (nafta) o UN 1268 (destilados de petróleo N.O.S.), Clase 3. Verificar por producto.",
+        "10_estabilidad_reactividad": "Estable. Incompatible con oxidantes fuertes.",
+        "11_toxicologica": "Aspiración (neumonitis); SNC (mareo); desengrasa piel.",
+        "12_ecologica": "Tóxico para vida acuática (algunos).",
+        "13_eliminacion": "Gestor autorizado; no a drenaje.",
+        "14_transporte": "UN 1256/1268, Clase 3, GE II/III.",
+        "15_reglamentaria": "OSHA HazCom; México NOM-018/NOM-005. SEDENA no aplica.",
+        "16_otra": "Combina lo peor de dos mundos: muy inflamable (bajo flash) Y aspiración. Máxima precaución de ignición."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-FIRE-08",
+      "familia_insumo": "Combustibles - gas licuado",
+      "nombre": "Butano / MAPP (antorchas)",
+      "sinonimos": [
+        "Butano",
+        "n-butano",
+        "MAPP gas",
+        "Gas para antorcha"
+      ],
+      "efectos_ref": [
+        "FX-01",
+        "FX-02"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://gasinnovations.com/wp-content/uploads/Gas_Innovations_Butane_SDS-Revision-08-22-2024.pdf",
+      "sds_fuente_nota": "Gas Innovations — Butane SDS (UN 1011).",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — no sustituye la HDS del proveedor.",
+      "hds": {
+        "1_identificacion": "Butano / mezcla MAPP. Uso: antorchas y flama puntual. Cilindros a presión.",
+        "2_peligros": "PELIGRO. GHS02, GHS04. H220 gas extremadamente inflamable; H280 gas a presión. Asfixiante simple. Vapores pesados, retroceso.",
+        "3_composicion": "Butano (y mezclas de propileno/propano en MAPP).",
+        "4_primeros_auxilios": "Inhalación: aire fresco. Contacto con líquido a presión: quemadura por frío.",
+        "5_incendios": "Medios: cortar fuente; polvo/CO2. No extinguir fuga en llamas sin cortar el gas.",
+        "6_derrames": "Cortar fuente; ventilar; evacuar zonas bajas.",
+        "7_manejo_almacenamiento": "Cilindros de pie, ventilado, lejos de calor/ignición; no en fosos.",
+        "8_controles_epp_vle": "Asfixiante simple; mantener O2 >19.5%. EPP: guantes contra frío, protección ocular.",
+        "9_propiedades_fisicoquimicas": "Gas licuado. Butano UN 1011; punto de inflamación ~-60°C. LEL ~1.8%. Más pesado que el aire.",
+        "10_estabilidad_reactividad": "Estable. Evitar calor, chispa, oxidantes.",
+        "11_toxicologica": "Asfixia a alta concentración; baja toxicidad intrínseca.",
+        "12_ecologica": "Se evapora; sin efecto acuático significativo.",
+        "13_eliminacion": "Devolver cilindro al proveedor.",
+        "14_transporte": "Butano UN 1011, Clase 2.1.",
+        "15_reglamentaria": "OSHA HazCom; NFPA 58. México NOM-005; regulación de Gas LP. SEDENA no aplica.",
+        "16_otra": "Igual que propano: el peligro subestimado en cerrados es la asfixia."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-FIRE-09",
+      "familia_insumo": "Combustibles - gelificados / espesados",
+      "nombre": "Gasolina gelificada (efectos de fuego mayores)",
+      "sinonimos": [
+        "Gasolina espesada",
+        "Gelled gasoline",
+        "'Napalm' de efectos"
+      ],
+      "efectos_ref": [
+        "FX-02"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://voltaoil.com/wp-content/uploads/2019/03/Exxon-Unleaded-Gasoline-1.25.19.pdf",
+      "sds_fuente_nota": "ExxonMobil — Unleaded Gasoline SDS (UN 1203, H224/H304/H350). Base de la gasolina gelificada; el espesante no se cataloga.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — no sustituye la HDS del proveedor. Insumo de alto riesgo, solo bajo SFX Coordinator licenciado.",
+      "hds": {
+        "1_identificacion": "Gasolina espesada para efectos de fuego de gran escala (bolas de fuego, regueros). Base: gasolina + agente gelificante propietario (no se detalla).",
+        "2_peligros": "PELIGRO. GHS02, GHS08, GHS07, GHS09. H224/H225 extremadamente/muy inflamable; H304 aspiración; H350 puede provocar cáncer (benceno); H361; H411. Espesada = arde adherida y prolongada (mayor severidad de quemadura).",
+        "3_composicion": "Gasolina (mezcla de hidrocarburos, contiene benceno) + espesante propietario. Composición del espesante NO catalogada.",
+        "4_primeros_auxilios": "Ingestión: no inducir vómito. Piel/quemadura: enfriar, atención médica urgente (la gasolina gelificada se adhiere).",
+        "5_incendios": "Medios: espuma AFFF, polvo seco, CO2. No chorro de agua. Riesgo de reignición.",
+        "6_derrames": "Eliminar ignición; contener; alto riesgo — perímetro amplio.",
+        "7_manejo_almacenamiento": "Almacenamiento mínimo, controlado, lejos de ignición; solo lo necesario para la toma.",
+        "8_controles_epp_vle": "Benceno cancerígeno: minimizar exposición; VLE benceno muy bajo (ver NOM-010). EPP: ignífugo, respirador, guantes.",
+        "9_propiedades_fisicoquimicas": "Líquido gelificado. Punto de inflamación de la gasolina ~-43°C. UN 1203 (gasolina), Clase 3.",
+        "10_estabilidad_reactividad": "Estable si se controla ignición. Incompatible con oxidantes.",
+        "11_toxicologica": "Aspiración; cáncer (benceno); SNC.",
+        "12_ecologica": "Tóxico acuático.",
+        "13_eliminacion": "Gestor autorizado; alto riesgo.",
+        "14_transporte": "UN 1203 Gasolina, Clase 3, GE II.",
+        "15_reglamentaria": "OSHA HazCom; benceno regulado. México NOM-018/NOM-005/NOM-010. SEDENA no aplica (no es explosivo), pero es efecto de alto riesgo.",
+        "16_otra": "Insumo más peligroso de la familia fuego: severidad de quemadura por adherencia + benceno. Solo SFX licenciado, jamás improvisado."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-ATM-01",
+      "familia_insumo": "Atmósfera - fluidos base agua",
+      "nombre": "Fluido de niebla/haze base agua (glicoles/glicerina)",
+      "sinonimos": [
+        "Fog fluid",
+        "Haze juice",
+        "Fluido de niebla",
+        "Glicol/agua"
+      ],
+      "efectos_ref": [
+        "FX-03"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://www.rosco.com/sites/default/files/content/resource/2016-08/s_sfluid.pdf",
+      "sds_fuente_nota": "Rosco — Fog/Haze Fluid SDS (base propilenglicol).",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — no sustituye la HDS del fluido específico que llegue a set.",
+      "hds": {
+        "1_identificacion": "Fluido de niebla/haze base agua: mezcla de glicoles (trietilenglicol, propilenglicol, dipropilenglicol, poli/butilenglicol) y/o glicerina en agua desionizada. Estándar ANSI E1.5.",
+        "2_peligros": "Normalmente NO CLASIFICADO en GHS. Advertencia de salud: la niebla puede irritar o causar síntomas alérgicos/asmáticos en personas sensibles; asmáticos deben limitar exposición. EVITAR glicoles etilenglicol, dietilenglicol y 1,4-butilenglicol (tóxicos).",
+        "3_composicion": "Uno o más glicoles aceptados + agua desionizada. La formulación exacta suele ser secreto de mezcla.",
+        "4_primeros_auxilios": "Ojos/piel: enjuagar. Inhalación: aire fresco; reducir densidad. Ingestión: enjuagar boca.",
+        "5_incendios": "No inflamable en uso normal; usar el medio del entorno.",
+        "6_derrames": "Resbaladizo: limpiar; el residuo puede volverse pegajoso.",
+        "7_manejo_almacenamiento": "Recipiente cerrado; usar solo en máquina apropiada; no mezclar tipos incompatibles.",
+        "8_controles_epp_vle": "Sin PEL de OSHA. GUÍA DE INDUSTRIA (CSATF/ESTA/ACGIH): glicoles pico ≤40 mg/m³ para talento; monitoreo si alta densidad. EPP normalmente no requerido; ventilar.",
+        "9_propiedades_fisicoquimicas": "Líquido claro, olor leve. No inflamable (base agua). Sin número UN (no peligroso en transporte).",
+        "10_estabilidad_reactividad": "Estable. Incompatible con oxidantes fuertes.",
+        "11_toxicologica": "Baja toxicidad; irritación de vías respiratorias a alta densidad; efecto acumulativo.",
+        "12_ecologica": "Biodegradable; baja preocupación ambiental.",
+        "13_eliminacion": "Según normativa local; no peligroso.",
+        "14_transporte": "No regulado en transporte.",
+        "15_reglamentaria": "OSHA HazCom; ANSI E1.5; CSATF #10. México NOM-010/NOM-018. SEDENA no aplica.",
+        "16_otra": "Distinguir de aceite mineral (INS-ATM-02) y de humo de combustión (FX-20): perfiles distintos. No intercambiar fluidos entre máquinas."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-ATM-02",
+      "familia_insumo": "Atmósfera - fluidos base aceite",
+      "nombre": "Fluido de haze base aceite mineral",
+      "sinonimos": [
+        "Mineral oil haze",
+        "Aceite mineral (hazer)"
+      ],
+      "efectos_ref": [
+        "FX-03"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://www.jmfx.net/sites/default/files/mineral_oil_fluid_sds.pdf",
+      "sds_fuente_nota": "CITC — Special Effects Haze Fluid (aceite mineral altamente refinado) SDS.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — no sustituye la HDS del producto.",
+      "hds": {
+        "1_identificacion": "Haze base aceite mineral altamente refinado (grado alimenticio/farmacéutico), dispersado mecánicamente ('cracking') por aire comprimido.",
+        "2_peligros": "Normalmente no clasificado; neblina puede irritar vías respiratorias con exposición alta/prolongada.",
+        "3_composicion": "Aceite mineral blanco altamente refinado.",
+        "4_primeros_auxilios": "Ojos/piel: limpiar. Inhalación: aire fresco.",
+        "5_incendios": "No inflamable en uso normal; el aceite es combustible a alta temperatura.",
+        "6_derrames": "Resbaladizo; limpiar residuo oleoso.",
+        "7_manejo_almacenamiento": "Recipiente cerrado; usar solo en hazer de aceite (no mezclar con base agua).",
+        "8_controles_epp_vle": "VLE: neblina de aceite mineral TLV ACGIH 5 mg/m³ (TWA); pico ≤25 mg/m³ (guía industria). Reducir en turnos largos.",
+        "9_propiedades_fisicoquimicas": "Líquido oleoso. Alto punto de inflamación. Sin UN (no peligroso en transporte).",
+        "10_estabilidad_reactividad": "Estable. Incompatible con oxidantes fuertes.",
+        "11_toxicologica": "Baja toxicidad; neblina puede afectar vías respiratorias.",
+        "12_ecologica": "Baja preocupación.",
+        "13_eliminacion": "Según normativa local.",
+        "14_transporte": "No regulado en transporte.",
+        "15_reglamentaria": "OSHA HazCom; CSATF #10; ACGIH. México NOM-010/NOM-018.",
+        "16_otra": "El límite de aceite (5 mg/m³) es más estricto que el de glicoles: monitorear en cuelgues largos de haze."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-ATM-03",
+      "familia_insumo": "Atmósfera - criogénicos",
+      "nombre": "Hielo seco (CO2 sólido)",
+      "sinonimos": [
+        "Dry ice",
+        "CO2 sólido",
+        "Nieve carbónica"
+      ],
+      "efectos_ref": [
+        "FX-04"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16) (CO2; hielo seco = CO2 sólido)",
+      "sds_fuente_url": "https://www.airgas.com/msds/001013.pdf",
+      "sds_fuente_nota": "Airgas — Carbon Dioxide SDS. El hielo seco es CO2 SÓLIDO: misma sustancia, esta HDS de CO2 aplica (UN 1845 en transporte como sólido).",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — no sustituye la HDS del proveedor.",
+      "hds": {
+        "1_identificacion": "Hielo seco = CO2 en estado sólido. Sublima a -78°C. Uso: niebla baja, enfriamiento.",
+        "2_peligros": "No clasificado como sustancia en GHS, PERO: ASFIXIANTE SIMPLE (el gas desplaza O2, expansión ~760:1 → sofocación rápida en cerrados) y QUEMADURA CRIOGÉNICA/congelación al tacto. Riesgo de explosión si se sella en recipiente hermético.",
+        "3_composicion": "Dióxido de carbono sólido (CO2), sin aditivos.",
+        "4_primeros_auxilios": "Contacto: tratar como congelación (no frotar, agua tibia, médico). Inhalación/asfixia: aire fresco, O2, RCP si procede, médico urgente.",
+        "5_incendios": "No combustible. Usar medio del entorno.",
+        "6_derrames": "Ventilar; dejar sublimar en área abierta; monitor de O2/CO2 en cerrados.",
+        "7_manejo_almacenamiento": "NUNCA manejar con manos desnudas (usar guantes crio/pinzas); NUNCA en recipiente hermético o vehículo cerrado sin ventilación; no en fosos/sótanos.",
+        "8_controles_epp_vle": "CO2 OSHA PEL 5000 ppm; O2 mínimo 19.5%. EPP: guantes criogénicos, careta/gafas; monitor de O2 en confinados.",
+        "9_propiedades_fisicoquimicas": "Sólido blanco. Sublima -78°C. Más pesado que el aire. UN 1845 (Dióxido de carbono sólido/Hielo seco), Clase 9. Envíos pequeños marcados 'Dry Ice' + peso.",
+        "10_estabilidad_reactividad": "Estable. Incompatible con recipientes sellados (presión).",
+        "11_toxicologica": "Asfixia por desplazamiento de O2; quemadura criogénica. Se han registrado muertes en cuartos fríos sin ventilar.",
+        "12_ecologica": "No peligroso ambientalmente.",
+        "13_eliminacion": "Dejar sublimar en área ventilada.",
+        "14_transporte": "UN 1845, Clase 9.",
+        "15_reglamentaria": "OSHA/Cal-OSHA confinados; CSATF #10. México NOM-010; NOM-033-STPS-2015 (espacios confinados) ✔. SEDENA no aplica.",
+        "16_otra": "Riesgo real subestimado = ASFIXIA. Reforzar monitoreo de O2 y prohibición de transporte en cabina cerrada."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-ATM-04",
+      "familia_insumo": "Atmósfera - criogénicos",
+      "nombre": "Nitrógeno líquido (LN2)",
+      "sinonimos": [
+        "Liquid nitrogen",
+        "LN2",
+        "Nitrógeno criogénico"
+      ],
+      "efectos_ref": [
+        "FX-04"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://www.airgas.com/msds/001188.pdf",
+      "sds_fuente_nota": "Airgas — Nitrogen, Refrigerated Liquid SDS (UN 1977, H281 criogénico).",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — no sustituye la HDS del proveedor.",
+      "hds": {
+        "1_identificacion": "Nitrógeno líquido (-196°C). Uso: niebla baja intensa, enfriamiento, humo criogénico.",
+        "2_peligros": "No clasificado como sustancia, PERO: ASFIXIANTE SIMPLE (desplaza O2, expansión ~700:1) y QUEMADURA CRIOGÉNICA severa. Riesgo de sobrepresión en recipiente sellado.",
+        "3_composicion": "Nitrógeno (N2) líquido, inerte.",
+        "4_primeros_auxilios": "Contacto criogénico: tratar como congelación, no frotar, médico. Asfixia: aire fresco, O2, médico urgente.",
+        "5_incendios": "No combustible.",
+        "6_derrames": "Ventilar; evacuar y sellar área si hay sobrepresión; monitor de O2.",
+        "7_manejo_almacenamiento": "Solo en recipientes Dewar ventilados; nunca sellado; nunca en cerrados/elevadores; usar EPP criogénico.",
+        "8_controles_epp_vle": "O2 mínimo 19.5%; monitor de O2 obligatorio en cerrados. EPP: guantes crio, careta, mandil, calzado cerrado.",
+        "9_propiedades_fisicoquimicas": "Líquido incoloro. Ebullición -196°C. UN 1977 (Nitrógeno líquido refrigerado), Clase 2.2 (gas no inflamable, asfixiante).",
+        "10_estabilidad_reactividad": "Estable, inerte. Fragiliza metales/plásticos a baja temperatura.",
+        "11_toxicologica": "Asfixia; quemadura criogénica. Sin advertencia sensorial de O2 bajo.",
+        "12_ecologica": "Inerte, sin efecto ambiental.",
+        "13_eliminacion": "Dejar evaporar en área ventilada.",
+        "14_transporte": "UN 1977, Clase 2.2.",
+        "15_reglamentaria": "OSHA/Cal-OSHA confinados; CSATF #10. México NOM-010; NOM-033-STPS-2015 (espacios confinados) ✔.",
+        "16_otra": "Dos alientos en atmósfera sin O2 pueden causar inconsciencia: el monitor de O2 no es opcional."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-ATM-05",
+      "familia_insumo": "Atmósfera - gases comprimidos",
+      "nombre": "Dióxido de carbono (CO2) comprimido/líquido",
+      "sinonimos": [
+        "CO2",
+        "Bióxido de carbono",
+        "CO2 líquido"
+      ],
+      "efectos_ref": [
+        "FX-04",
+        "FX-22"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://www.airgas.com/msds/001013.pdf",
+      "sds_fuente_nota": "Airgas — Carbon Dioxide SDS (UN 1013).",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — no sustituye la HDS del proveedor.",
+      "hds": {
+        "1_identificacion": "CO2 comprimido/líquido en cilindro. Uso: chorros de niebla, jets, cañones de confeti, enfriamiento.",
+        "2_peligros": "ATENCIÓN. GHS04 (gas a presión). Asfixiante simple; el chorro líquido causa quemadura por frío; cilindro a presión (proyectil si se daña).",
+        "3_composicion": "Dióxido de carbono (CO2).",
+        "4_primeros_auxilios": "Asfixia: aire fresco, O2, médico. Quemadura por frío: tratar como congelación.",
+        "5_incendios": "No combustible; se usa como agente extintor.",
+        "6_derrames": "Ventilar; cerrar válvula; asegurar cilindro.",
+        "7_manejo_almacenamiento": "Cilindros asegurados de pie, válvula con capuchón; ventilado; no en fosos; abrir válvula controladamente.",
+        "8_controles_epp_vle": "OSHA PEL 5000 ppm; O2 >19.5%. EPP: guantes contra frío, protección ocular.",
+        "9_propiedades_fisicoquimicas": "Gas incoloro/inodoro, más pesado que el aire. UN 1013 (CO2 gas); refrigerado líquido UN 2187.",
+        "10_estabilidad_reactividad": "Estable. Recipientes a presión: no calentar.",
+        "11_toxicologica": "Asfixia a alta concentración; quemadura por frío del líquido.",
+        "12_ecologica": "No peligroso ambientalmente.",
+        "13_eliminacion": "Ventilar.",
+        "14_transporte": "UN 1013 (gas) / UN 2187 (líquido refrigerado), Clase 2.2.",
+        "15_reglamentaria": "OSHA HazCom; recipientes a presión. México NOM-020-STPS-2011 (recipientes a presión/criogénicos/calderas) ✔; NOM-010.",
+        "16_otra": "Comparte riesgo de asfixia con hielo seco/LN2; en cañones de confeti además hay proyección."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-BLOOD-01",
+      "familia_insumo": "Sangre y maquillaje",
+      "nombre": "Sangre falsa (base glicerina)",
+      "sinonimos": [
+        "Stage blood",
+        "Sangre escénica",
+        "Sangre de utilería"
+      ],
+      "efectos_ref": [
+        "FX-12"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "Enlace de la base (glicerina) verificado; colorantes/conservadores según producto.",
+      "sds_fuente_url": "https://hvchemical.com/wp-content/uploads/2018/10/Glycerin-SDS.pdf",
+      "sds_fuente_nota": "HDS de GLICERINA (componente base, no peligrosa GHS). Adjuntar la HDS del producto de sangre real por sus colorantes/conservadores.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — no sustituye la HDS del producto de sangre específico.",
+      "hds": {
+        "1_identificacion": "Sangre falsa: base de glicerina/agua/jarabe + colorantes (rojo) y espesantes/conservadores. Variantes: externa, comestible, de boca.",
+        "2_peligros": "Base glicerina NO clasificada en GHS. Riesgos reales: irritación ocular leve, MANCHADO, posible reacción alérgica a colorantes/conservadores (parabenos). Confirmar si la variante es 'para boca/ojos'.",
+        "3_composicion": "Glicerina (CAS 56-81-5) + agua + colorantes alimentarios + espesante + conservador. Sin componentes peligrosos reportables en la base.",
+        "4_primeros_auxilios": "Ojos: enjuagar con agua. Piel: lavar (puede manchar). Ingestión (variante comestible): baja preocupación; consultar si hay malestar.",
+        "5_incendios": "No inflamable.",
+        "6_derrames": "Resbaladizo/manchado: limpiar con agua.",
+        "7_manejo_almacenamiento": "Cerrado, fresco; algunas variantes se refrigeran.",
+        "8_controles_epp_vle": "Sin VLE. EPP: guantes de nitrilo para evitar manchado; protección ocular en salpicaduras.",
+        "9_propiedades_fisicoquimicas": "Líquido rojo viscoso. No inflamable. Sin UN.",
+        "10_estabilidad_reactividad": "Estable. Glicerina reacciona con oxidantes fuertes.",
+        "11_toxicologica": "Irritación ocular leve; alergia a aditivos posible.",
+        "12_ecologica": "Baja preocupación.",
+        "13_eliminacion": "Drenaje según normativa local (puede manchar).",
+        "14_transporte": "No regulado en transporte.",
+        "15_reglamentaria": "OSHA HazCom; México NOM-018. Distinguir de material biológico real (CSATF #24 solo si hay sangre/fluido real).",
+        "16_otra": "Prueba de parche por alergias. La mayoría de casos son químicos benignos, no biológicos."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-BLOOD-02",
+      "familia_insumo": "Sangre y maquillaje",
+      "nombre": "Adhesivo prostético (spirit gum / silicona)",
+      "sinonimos": [
+        "Spirit gum",
+        "Goma laca escénica",
+        "Adhesivo prostético",
+        "Pros-Aide"
+      ],
+      "efectos_ref": [
+        "FX-12"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://www.dick-blick.com/msds/DBH_SDS_007851002.pdf",
+      "sds_fuente_nota": "Graftobian — Spirit Gum SDS (base alcohol + resina; H226/H320/H336).",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — no sustituye la HDS del adhesivo específico.",
+      "hds": {
+        "1_identificacion": "Adhesivo para prostéticos/postizos: spirit gum (base alcohol + resina de almáciga) o adhesivos de silicona/acrílicos (Pros-Aide).",
+        "2_peligros": "PELIGRO (spirit gum). GHS02, GHS07. H226 líquido y vapores inflamables; H320 irritación ocular; H336 somnolencia/vértigo. Cerca de ojos/vías respiratorias con cuidado; posible sensibilización.",
+        "3_composicion": "Spirit gum: SD Alcohol 35-A (etanol) + resina. Silicona/acrílicos: polímeros + solventes.",
+        "4_primeros_auxilios": "Ojos: enjuagar; no frotar. Piel: usar removedor adecuado, no arrancar. Inhalación: aire fresco.",
+        "5_incendios": "Medios: polvo/CO2 (inflamable como el etanol).",
+        "6_derrames": "Eliminar ignición; ventilar; absorber.",
+        "7_manejo_almacenamiento": "Cerrado, lejos de ignición; ventilar la zona de aplicación.",
+        "8_controles_epp_vle": "Ventilación local. VLE tipo etanol. EPP: ventilación, protección ocular; prueba de parche.",
+        "9_propiedades_fisicoquimicas": "Líquido pegajoso. Punto de inflamación bajo (base alcohol). Sin UN relevante en envases pequeños de consumo.",
+        "10_estabilidad_reactividad": "Estable. Incompatible con oxidantes.",
+        "11_toxicologica": "Irritación ocular; sensibilización dérmica posible; vapores (mareo).",
+        "12_ecologica": "Baja preocupación.",
+        "13_eliminacion": "Según normativa local.",
+        "14_transporte": "Cantidades pequeñas usualmente no reguladas.",
+        "15_reglamentaria": "OSHA HazCom; México NOM-018.",
+        "16_otra": "Prueba de parche obligatoria. Evitar aplicación cerca de ojos con producto inflamable."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-BLOOD-03",
+      "familia_insumo": "Sangre y maquillaje",
+      "nombre": "Removedor de adhesivo",
+      "sinonimos": [
+        "Adhesive remover",
+        "Removedor de spirit gum"
+      ],
+      "efectos_ref": [
+        "FX-12"
+      ],
+      "sds_nivel": 2,
+      "sds_estado": "Enlace de la línea spirit gum/remover; confirmar la base del removedor real.",
+      "sds_fuente_url": "https://www.dick-blick.com/msds/DBH_SDS_007851002.pdf",
+      "sds_fuente_nota": "Graftobian Spirit Gum & Remover (HDS combinada). Si el removedor es de otra base (aceite/destilado), usar su HDS específica.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Traducción de referencia CrewCare — no sustituye la HDS oficial del proveedor.",
+      "hds": {
+        "1_identificacion": "Removedor de adhesivos prostéticos: base alcohol, aceites (miristato de isopropilo) o destilados de petróleo suaves.",
+        "2_peligros": "ATENCIÓN/PELIGRO según base. Frecuente: H226 inflamable, H320 irritación ocular, H336 somnolencia. Algunos son oleosos (no inflamables) pero pueden dar aspiración si base destilado.",
+        "3_composicion": "Base solvente (alcohol/aceite/destilado) + emolientes.",
+        "4_primeros_auxilios": "Ojos: enjuagar. Piel: uso normal; lavar tras retirar. Inhalación: aire fresco.",
+        "5_incendios": "Medios según base (polvo/CO2 si inflamable).",
+        "6_derrames": "Ventilar; absorber.",
+        "7_manejo_almacenamiento": "Cerrado, lejos de ignición si es inflamable.",
+        "8_controles_epp_vle": "Ventilación. EPP: guantes, protección ocular.",
+        "9_propiedades_fisicoquimicas": "Líquido. Punto de inflamación según base. UN según base (a menudo no regulado en envase pequeño).",
+        "10_estabilidad_reactividad": "Estable.",
+        "11_toxicologica": "Irritación ocular/dérmica; vapores.",
+        "12_ecologica": "Baja preocupación.",
+        "13_eliminacion": "Normativa local.",
+        "14_transporte": "Según base/tamaño.",
+        "15_reglamentaria": "OSHA HazCom; México NOM-018.",
+        "16_otra": "Verificar la base del removedor específico: cambia inflamabilidad y aspiración."
+      },
+      "verificado": true,
+      "sds_url_verificada": false
+    },
+    {
+      "id": "INS-BRK-01",
+      "familia_insumo": "Breakaway",
+      "nombre": "Vidrio de azúcar / isomalt (sugar glass)",
+      "sinonimos": [
+        "Sugar glass",
+        "Vidrio de azúcar",
+        "Isomalt",
+        "Candy glass"
+      ],
+      "efectos_ref": [
+        "FX-13"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "Sin HDS de peligro: material inerte/alimenticio; el riesgo es térmico/físico, no químico. No aplica enlace de HDS.",
+      "sds_fuente_url": "",
+      "sds_fuente_nota": "Vidrio de azúcar/isomalt grado alimenticio. Sin HDS de peligro: material inerte/alimenticio; el riesgo es térmico/físico, no químico. No aplica enlace de HDS.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — material de bajo riesgo químico; verificar producto real.",
+      "hds": {
+        "1_identificacion": "Vidrio de azúcar: sacarosa/jarabe de maíz o ISOMALT fundido y moldeado en 'vidrio' rompible (botellas, ventanas).",
+        "2_peligros": "Producto terminado NO clasificado en GHS. Riesgo REAL: (1) QUEMADURA por azúcar fundida caliente (~150-170°C, se adhiere a la piel) al fabricar; (2) cortes con fragmentos rígidos.",
+        "3_composicion": "Sacarosa/jarabe de maíz o isomalt; agua; a veces colorante. Grado alimenticio.",
+        "4_primeros_auxilios": "Quemadura por azúcar caliente: enfriar con agua, no arrancar, médico. Corte: limpiar y curar.",
+        "5_incendios": "Combustible como azúcar (poco probable en set).",
+        "6_derrames": "Sólido: recoger fragmentos.",
+        "7_manejo_almacenamiento": "Fresco y seco (higroscópico; el isomalt absorbe humedad).",
+        "8_controles_epp_vle": "Sin VLE. EPP al fabricar: guantes térmicos, protección ocular; al romper: retirar fragmentos.",
+        "9_propiedades_fisicoquimicas": "Sólido vítreo transparente. Se ablanda con calor. Sin UN.",
+        "10_estabilidad_reactividad": "Estable; higroscópico.",
+        "11_toxicologica": "Baja toxicidad. Riesgo = quemadura térmica y cortes.",
+        "12_ecologica": "No peligroso.",
+        "13_eliminacion": "Residuo sólido común.",
+        "14_transporte": "No regulado.",
+        "15_reglamentaria": "OSHA HazCom (no aplica realmente); México NOM-018 (sin peligro relevante).",
+        "16_otra": "El peligro no está en el 'vidrio' terminado sino en fabricarlo (azúcar fundida) y en los fragmentos."
+      },
+      "verificado": false,
+      "sds_url_verificada": false
+    },
+    {
+      "id": "INS-BRK-02",
+      "familia_insumo": "Breakaway",
+      "nombre": "Resina breakaway (vidrio/objetos de resina)",
+      "sinonimos": [
+        "Breakaway resin",
+        "Vidrio de resina",
+        "Smashables"
+      ],
+      "efectos_ref": [
+        "FX-13"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "Enlace representativo (epóxico); la HDS real depende del sistema del producto.",
+      "sds_fuente_url": "https://usa.sika.com/content/dam/media/us/industry/resins/advanced-resins-sds-tds/SDS_EL315_Resin_-_US4EN.pdf",
+      "sds_fuente_nota": "Depende del sistema (poliéster/epóxico/uretano). Enlace representativo: resina epóxica (Sika). Para uretano ver INS-MOLD-01; para epóxico INS-MOLD-02.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — verificar HDS del sistema de resina específico.",
+      "hds": {
+        "1_identificacion": "Objetos breakaway de resina (más resistentes/realistas que el azúcar): poliéster (estireno), acrílico o uretano moldeados.",
+        "2_peligros": "PELIGRO variable según sistema: poliéster/estireno (H226 inflamable, H319/H335 irritante, sospechoso); uretano (isocianatos = sensibilizante respiratorio); acrílico (irritante). El PRODUCTO CURADO suele ser inerte; el riesgo es al FABRICAR.",
+        "3_composicion": "Depende del sistema (ver HDS del producto). Componentes reactivos peligrosos durante el mezclado/curado.",
+        "4_primeros_auxilios": "Durante fabricación: seguir HDS del sistema. Producto curado: riesgo de corte.",
+        "5_incendios": "Según resina (muchas inflamables sin curar).",
+        "6_derrames": "Producto curado: recoger fragmentos.",
+        "7_manejo_almacenamiento": "Componentes sin curar: cerrados, ventilados.",
+        "8_controles_epp_vle": "Ventilación local al fabricar; respirador para vapores/isocianatos. EPP: guantes químicos, protección ocular.",
+        "9_propiedades_fisicoquimicas": "Sólido curado (rígido/quebradizo). Propiedades según sistema. UN según componente sin curar.",
+        "10_estabilidad_reactividad": "Reactivo al curar (exotermia); curado estable.",
+        "11_toxicologica": "Sensibilización (uretanos/epóxicos) al fabricar; producto curado inerte.",
+        "12_ecologica": "Según sistema.",
+        "13_eliminacion": "Residuo curado sólido; componentes sin curar como peligroso.",
+        "14_transporte": "Según componente.",
+        "15_reglamentaria": "OSHA HazCom/Respiratory; CSATF #39. México NOM-010/NOM-018.",
+        "16_otra": "Riesgo real en la fabricación (comparte HDS con moldeo FX-24), no en el objeto terminado."
+      },
+      "verificado": false,
+      "sds_url_verificada": false
+    },
+    {
+      "id": "INS-PYR-01",
+      "familia_insumo": "Pirotecnia - material energético controlado",
+      "nombre": "Pólvora negra (gunpowder)",
+      "sinonimos": [
+        "Black powder",
+        "Pólvora negra",
+        "Gunpowder"
+      ],
+      "efectos_ref": [
+        "FX-05",
+        "FX-06"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://goexpowder.com/wp-content/uploads/2018/05/sds-sheets-goex-black-powder.pdf",
+      "sds_fuente_nota": "GOEX — Black Powder SDS (UN 0027, 1.1D). HDS pública del fabricante.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "CrewCare NO reproduce formulaciones ni procedimientos de fabricación/iniciación de materiales energéticos. Solo capa protectora y regulatoria.",
+      "hds": {
+        "1_identificacion": "Pólvora negra (gunpowder). Material energético para efectos pirotécnicos. Llega a set como producto terminado bajo permiso SEDENA.",
+        "2_peligros": "PELIGRO. Pictograma GHS01 (bomba explotando). H that: explosivo de riesgo de explosión en masa. Muy sensible a chispa/fricción/estática. Clasificación de transporte: UN 0027, Clase 1.1D (riesgo de explosión en masa).",
+        "3_composicion": "COMPOSICIÓN CONTROLADA — propietaria del fabricante; no se cataloga. Ver HDS del embarque autorizado.",
+        "4_primeros_auxilios": "Quemadura/lesión por deflagración: enfriar quemadura, atención médica urgente; lesión por proyección: trauma.",
+        "5_incendios": "NO combatir fuego de explosivos: EVACUAR y dejar arder desde distancia segura; enfriar contenedores adyacentes si es seguro. Perímetro amplio.",
+        "6_derrames": "No manipular sin operador certificado; asegurar y aislar; reportar a la autoridad. ",
+        "7_manejo_almacenamiento": "Almacenar en polvorín/magazine autorizado por SEDENA; separar de fuentes de ignición, calor, fricción, estática; control de inventario (cargas cargadas vs. disparadas).",
+        "8_controles_epp_vle": "EPP: protección ocular, auditiva, guantes, protección facial para quien coloca cargas. Distancias y perímetros por cálculo del operador.",
+        "9_propiedades_fisicoquimicas": "Producto energético. Sensible a calor/chispa/fricción/impacto. UN 0027, Clase 1.1D (riesgo de explosión en masa). Punto de inflamación no aplica (material energético).",
+        "10_estabilidad_reactividad": "Puede deflagrar/detonar por calor, chispa, fricción, impacto o estática. Incompatible con toda fuente de ignición y oxidantes/reductores según tipo.",
+        "11_toxicologica": "Toxicidad por productos de combustión (humos); riesgo primario es físico (deflagración/detonación).",
+        "12_ecologica": "Residuos energéticos: manejo especializado.",
+        "13_eliminacion": "Destrucción/eliminación por personal autorizado (SEDENA); nunca a basura común.",
+        "14_transporte": "UN 0027, Clase 1.1D (riesgo de explosión en masa). Transporte de explosivos: permiso y condiciones especiales (SEDENA + NOM-009-SCT2/2009 en México; DOT-ATF en EEUU).",
+        "15_reglamentaria": "MÉXICO: Ley Federal de Armas de Fuego y Explosivos + Reglamento (SEDENA) — permiso obligatorio para compra/importación/almacenamiento/uso; Protección Civil para perímetros. EEUU: ATF (explosivos) + State Fire Marshal (Título 19) + CSATF #16.",
+        "16_otra": "Importar desde California requiere permiso SEDENA: sin él es delito federal en México. Documentar cadena de custodia."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-PYR-02",
+      "familia_insumo": "Pirotecnia - material energético controlado",
+      "nombre": "Pólvora sin humo (smokeless)",
+      "sinonimos": [
+        "Smokeless powder",
+        "Pólvora sin humo"
+      ],
+      "efectos_ref": [
+        "FX-05",
+        "FX-06"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "Enlace a la biblioteca HDS del fabricante (UN 0509).",
+      "sds_fuente_url": "https://hodgdonpowderco.com/safety-data-sheets/",
+      "sds_fuente_nota": "Hodgdon Powder — biblioteca de HDS de pólvora sin humo (UN 0509 1.4C). Seleccionar el producto.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "CrewCare NO reproduce formulaciones ni procedimientos de fabricación/iniciación de materiales energéticos. Solo capa protectora y regulatoria.",
+      "hds": {
+        "1_identificacion": "Pólvora sin humo (smokeless). Material energético para efectos pirotécnicos. Llega a set como producto terminado bajo permiso SEDENA.",
+        "2_peligros": "PELIGRO. Pictograma GHS01 (bomba explotando). Propelente; deflagra rápidamente. Sensible a calor/chispa. Clasificación de transporte: UN 0509 (1.4C) / UN 0160 (1.1C) / UN 0161 (1.3C) según tipo.",
+        "3_composicion": "COMPOSICIÓN CONTROLADA — propietaria del fabricante; no se cataloga. Ver HDS del embarque autorizado.",
+        "4_primeros_auxilios": "Quemadura/lesión por deflagración: enfriar quemadura, atención médica urgente; lesión por proyección: trauma.",
+        "5_incendios": "NO combatir fuego de explosivos: EVACUAR y dejar arder desde distancia segura; enfriar contenedores adyacentes si es seguro. Perímetro amplio.",
+        "6_derrames": "No manipular sin operador certificado; asegurar y aislar; reportar a la autoridad. ",
+        "7_manejo_almacenamiento": "Almacenar en polvorín/magazine autorizado por SEDENA; separar de fuentes de ignición, calor, fricción, estática; control de inventario (cargas cargadas vs. disparadas).",
+        "8_controles_epp_vle": "EPP: protección ocular, auditiva, guantes, protección facial para quien coloca cargas. Distancias y perímetros por cálculo del operador.",
+        "9_propiedades_fisicoquimicas": "Producto energético. Sensible a calor/chispa/fricción/impacto. UN 0509 (1.4C) / UN 0160 (1.1C) / UN 0161 (1.3C) según tipo. Punto de inflamación no aplica (material energético).",
+        "10_estabilidad_reactividad": "Puede deflagrar/detonar por calor, chispa, fricción, impacto o estática. Incompatible con toda fuente de ignición y oxidantes/reductores según tipo.",
+        "11_toxicologica": "Toxicidad por productos de combustión (humos); riesgo primario es físico (deflagración/detonación).",
+        "12_ecologica": "Residuos energéticos: manejo especializado.",
+        "13_eliminacion": "Destrucción/eliminación por personal autorizado (SEDENA); nunca a basura común.",
+        "14_transporte": "UN 0509 (1.4C) / UN 0160 (1.1C) / UN 0161 (1.3C) según tipo. Transporte de explosivos: permiso y condiciones especiales (SEDENA + NOM-009-SCT2/2009 en México; DOT-ATF en EEUU).",
+        "15_reglamentaria": "MÉXICO: Ley Federal de Armas de Fuego y Explosivos + Reglamento (SEDENA) — permiso obligatorio para compra/importación/almacenamiento/uso; Protección Civil para perímetros. EEUU: ATF (explosivos) + State Fire Marshal (Título 19) + CSATF #16.",
+        "16_otra": "Importar desde California requiere permiso SEDENA: sin él es delito federal en México. Documentar cadena de custodia."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-PYR-03",
+      "familia_insumo": "Pirotecnia - material energético controlado",
+      "nombre": "Composición de destello (flash)",
+      "sinonimos": [
+        "Flash powder",
+        "Composición de destello",
+        "Flash composition"
+      ],
+      "efectos_ref": [
+        "FX-05",
+        "FX-07"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "Controlado — sin enlace público apropiado; HDS con embarque SEDENA.",
+      "sds_fuente_url": "",
+      "sds_fuente_nota": "Material energético CONTROLADO (UN 0305, 1.3G). La HDS del producto acompaña el embarque con permiso SEDENA; no existe HDS genérica pública apropiada para enlazar. No se pone enlace en vez de uno incorrecto.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "CrewCare NO reproduce formulaciones ni procedimientos de fabricación/iniciación de materiales energéticos. Solo capa protectora y regulatoria.",
+      "hds": {
+        "1_identificacion": "Composición de destello (flash). Material energético para efectos pirotécnicos. Llega a set como producto terminado bajo permiso SEDENA.",
+        "2_peligros": "PELIGRO. Pictograma GHS01 (bomba explotando). MUY sensible; alta energía. Manejo solo por pirotécnico licenciado; cantidades mínimas. Clasificación de transporte: UN 0305, Clase 1.3G (destello) — algunas mezclas son 1.1.",
+        "3_composicion": "COMPOSICIÓN CONTROLADA — propietaria del fabricante; no se cataloga. Ver HDS del embarque autorizado.",
+        "4_primeros_auxilios": "Quemadura/lesión por deflagración: enfriar quemadura, atención médica urgente; lesión por proyección: trauma.",
+        "5_incendios": "NO combatir fuego de explosivos: EVACUAR y dejar arder desde distancia segura; enfriar contenedores adyacentes si es seguro. Perímetro amplio.",
+        "6_derrames": "No manipular sin operador certificado; asegurar y aislar; reportar a la autoridad. Material de alta sensibilidad: no acumular; jamás fabricar o mezclar en set.",
+        "7_manejo_almacenamiento": "Almacenar en polvorín/magazine autorizado por SEDENA; separar de fuentes de ignición, calor, fricción, estática; control de inventario (cargas cargadas vs. disparadas).",
+        "8_controles_epp_vle": "EPP: protección ocular, auditiva, guantes, protección facial para quien coloca cargas. Distancias y perímetros por cálculo del operador.",
+        "9_propiedades_fisicoquimicas": "Producto energético. Sensible a calor/chispa/fricción/impacto. UN 0305, Clase 1.3G (destello) — algunas mezclas son 1.1. Punto de inflamación no aplica (material energético).",
+        "10_estabilidad_reactividad": "Puede deflagrar/detonar por calor, chispa, fricción, impacto o estática. Incompatible con toda fuente de ignición y oxidantes/reductores según tipo.",
+        "11_toxicologica": "Toxicidad por productos de combustión (humos); riesgo primario es físico (deflagración/detonación).",
+        "12_ecologica": "Residuos energéticos: manejo especializado.",
+        "13_eliminacion": "Destrucción/eliminación por personal autorizado (SEDENA); nunca a basura común.",
+        "14_transporte": "UN 0305, Clase 1.3G (destello) — algunas mezclas son 1.1. Transporte de explosivos: permiso y condiciones especiales (SEDENA + NOM-009-SCT2/2009 en México; DOT-ATF en EEUU).",
+        "15_reglamentaria": "MÉXICO: Ley Federal de Armas de Fuego y Explosivos + Reglamento (SEDENA) — permiso obligatorio para compra/importación/almacenamiento/uso; Protección Civil para perímetros. EEUU: ATF (explosivos) + State Fire Marshal (Título 19) + CSATF #16.",
+        "16_otra": "Importar desde California requiere permiso SEDENA: sin él es delito federal en México. Documentar cadena de custodia."
+      },
+      "verificado": false,
+      "sds_url_verificada": false
+    },
+    {
+      "id": "INS-PYR-04",
+      "familia_insumo": "Pirotecnia - material energético controlado",
+      "nombre": "Estopín / igniter eléctrico (electric match)",
+      "sinonimos": [
+        "Estopín",
+        "Igniter",
+        "Electric match",
+        "Espoleta eléctrica"
+      ],
+      "efectos_ref": [
+        "FX-05",
+        "FX-06",
+        "FX-07"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "Controlado — sin enlace público apropiado; HDS con embarque SEDENA.",
+      "sds_fuente_url": "",
+      "sds_fuente_nota": "Material energético CONTROLADO (UN 0454 / 0314 / 0315 / 0325). La HDS del producto acompaña el embarque con permiso SEDENA; no existe HDS genérica pública apropiada para enlazar. No se pone enlace en vez de uno incorrecto.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "CrewCare NO reproduce formulaciones ni procedimientos de fabricación/iniciación de materiales energéticos. Solo capa protectora y regulatoria.",
+      "hds": {
+        "1_identificacion": "Estopín / igniter eléctrico (electric match). Material energético para efectos pirotécnicos. Llega a set como producto terminado bajo permiso SEDENA.",
+        "2_peligros": "PELIGRO. Pictograma GHS01 (bomba explotando). Dispositivo de iniciación. Riesgo de disparo por CORRIENTE PARÁSITA/RF/estática. Clasificación de transporte: UN 0454 (1.4S) / UN 0314/0315/0325 según tipo.",
+        "3_composicion": "COMPOSICIÓN CONTROLADA — propietaria del fabricante; no se cataloga. Ver HDS del embarque autorizado.",
+        "4_primeros_auxilios": "Quemadura/lesión por deflagración: enfriar quemadura, atención médica urgente; lesión por proyección: trauma.",
+        "5_incendios": "NO combatir fuego de explosivos: EVACUAR y dejar arder desde distancia segura; enfriar contenedores adyacentes si es seguro. Perímetro amplio.",
+        "6_derrames": "No manipular sin operador certificado; asegurar y aislar; reportar a la autoridad. Mantener cortocircuitado (shunted) hasta el disparo; sin radios/RF ni estática cerca; seguir instrucciones de disparo del fabricante. No se catalogan parámetros de iniciación.",
+        "7_manejo_almacenamiento": "Almacenar en polvorín/magazine autorizado por SEDENA; separar de fuentes de ignición, calor, fricción, estática; control de inventario (cargas cargadas vs. disparadas).",
+        "8_controles_epp_vle": "EPP: protección ocular, auditiva, guantes, protección facial para quien coloca cargas. Distancias y perímetros por cálculo del operador.",
+        "9_propiedades_fisicoquimicas": "Producto energético. Sensible a calor/chispa/fricción/impacto. UN 0454 (1.4S) / UN 0314/0315/0325 según tipo. Punto de inflamación no aplica (material energético).",
+        "10_estabilidad_reactividad": "Puede deflagrar/detonar por calor, chispa, fricción, impacto o estática. Incompatible con toda fuente de ignición y oxidantes/reductores según tipo.",
+        "11_toxicologica": "Toxicidad por productos de combustión (humos); riesgo primario es físico (deflagración/detonación).",
+        "12_ecologica": "Residuos energéticos: manejo especializado.",
+        "13_eliminacion": "Destrucción/eliminación por personal autorizado (SEDENA); nunca a basura común.",
+        "14_transporte": "UN 0454 (1.4S) / UN 0314/0315/0325 según tipo. Transporte de explosivos: permiso y condiciones especiales (SEDENA + NOM-009-SCT2/2009 en México; DOT-ATF en EEUU).",
+        "15_reglamentaria": "MÉXICO: Ley Federal de Armas de Fuego y Explosivos + Reglamento (SEDENA) — permiso obligatorio para compra/importación/almacenamiento/uso; Protección Civil para perímetros. EEUU: ATF (explosivos) + State Fire Marshal (Título 19) + CSATF #16.",
+        "16_otra": "Importar desde California requiere permiso SEDENA: sin él es delito federal en México. Documentar cadena de custodia."
+      },
+      "verificado": false,
+      "sds_url_verificada": false
+    },
+    {
+      "id": "INS-PYR-05",
+      "familia_insumo": "Pirotecnia - material energético controlado",
+      "nombre": "Mecha de seguridad / quickmatch",
+      "sinonimos": [
+        "Safety fuse",
+        "Mecha de seguridad",
+        "Quickmatch",
+        "Cannon fuse"
+      ],
+      "efectos_ref": [
+        "FX-05"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "Controlado — sin enlace público apropiado; HDS con embarque SEDENA.",
+      "sds_fuente_url": "",
+      "sds_fuente_nota": "Material energético CONTROLADO (UN 0105 (mecha seguridad) / 0101 (mecha rápida)). La HDS del producto acompaña el embarque con permiso SEDENA; no existe HDS genérica pública apropiada para enlazar. No se pone enlace en vez de uno incorrecto.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "CrewCare NO reproduce formulaciones ni procedimientos de fabricación/iniciación de materiales energéticos. Solo capa protectora y regulatoria.",
+      "hds": {
+        "1_identificacion": "Mecha de seguridad / quickmatch. Material energético para efectos pirotécnicos. Llega a set como producto terminado bajo permiso SEDENA.",
+        "2_peligros": "PELIGRO. Pictograma GHS01 (bomba explotando). Tren de fuego; controla el tiempo de ignición. Clasificación de transporte: Mecha de seguridad UN 0105 (1.4S); quickmatch/mecha rápida no detonante UN 0101 (1.3G).",
+        "3_composicion": "COMPOSICIÓN CONTROLADA — propietaria del fabricante; no se cataloga. Ver HDS del embarque autorizado.",
+        "4_primeros_auxilios": "Quemadura/lesión por deflagración: enfriar quemadura, atención médica urgente; lesión por proyección: trauma.",
+        "5_incendios": "NO combatir fuego de explosivos: EVACUAR y dejar arder desde distancia segura; enfriar contenedores adyacentes si es seguro. Perímetro amplio.",
+        "6_derrames": "No manipular sin operador certificado; asegurar y aislar; reportar a la autoridad. ",
+        "7_manejo_almacenamiento": "Almacenar en polvorín/magazine autorizado por SEDENA; separar de fuentes de ignición, calor, fricción, estática; control de inventario (cargas cargadas vs. disparadas).",
+        "8_controles_epp_vle": "EPP: protección ocular, auditiva, guantes, protección facial para quien coloca cargas. Distancias y perímetros por cálculo del operador.",
+        "9_propiedades_fisicoquimicas": "Producto energético. Sensible a calor/chispa/fricción/impacto. Mecha de seguridad UN 0105 (1.4S); quickmatch/mecha rápida no detonante UN 0101 (1.3G). Punto de inflamación no aplica (material energético).",
+        "10_estabilidad_reactividad": "Puede deflagrar/detonar por calor, chispa, fricción, impacto o estática. Incompatible con toda fuente de ignición y oxidantes/reductores según tipo.",
+        "11_toxicologica": "Toxicidad por productos de combustión (humos); riesgo primario es físico (deflagración/detonación).",
+        "12_ecologica": "Residuos energéticos: manejo especializado.",
+        "13_eliminacion": "Destrucción/eliminación por personal autorizado (SEDENA); nunca a basura común.",
+        "14_transporte": "Mecha de seguridad UN 0105 (1.4S); quickmatch/mecha rápida no detonante UN 0101 (1.3G). Transporte de explosivos: permiso y condiciones especiales (SEDENA + NOM-009-SCT2/2009 en México; DOT-ATF en EEUU).",
+        "15_reglamentaria": "MÉXICO: Ley Federal de Armas de Fuego y Explosivos + Reglamento (SEDENA) — permiso obligatorio para compra/importación/almacenamiento/uso; Protección Civil para perímetros. EEUU: ATF (explosivos) + State Fire Marshal (Título 19) + CSATF #16.",
+        "16_otra": "Importar desde California requiere permiso SEDENA: sin él es delito federal en México. Documentar cadena de custodia."
+      },
+      "verificado": false,
+      "sds_url_verificada": false
+    },
+    {
+      "id": "INS-PYR-06",
+      "familia_insumo": "Pirotecnia - material energético controlado",
+      "nombre": "Composición de humo pirotécnico",
+      "sinonimos": [
+        "Smoke composition",
+        "Humo pirotécnico",
+        "Smoke pot"
+      ],
+      "efectos_ref": [
+        "FX-05",
+        "FX-20"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "Controlado — sin enlace público apropiado; HDS con embarque SEDENA.",
+      "sds_fuente_url": "",
+      "sds_fuente_nota": "Material energético CONTROLADO (UN 0507 (1.4S) / 0313 (1.2G)). La HDS del producto acompaña el embarque con permiso SEDENA; no existe HDS genérica pública apropiada para enlazar. No se pone enlace en vez de uno incorrecto.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "CrewCare NO reproduce formulaciones ni procedimientos de fabricación/iniciación de materiales energéticos. Solo capa protectora y regulatoria.",
+      "hds": {
+        "1_identificacion": "Composición de humo pirotécnico. Material energético para efectos pirotécnicos. Llega a set como producto terminado bajo permiso SEDENA.",
+        "2_peligros": "PELIGRO. Pictograma GHS01 (bomba explotando). Genera humo denso por combustión; riesgo térmico y de inhalación de humo. Clasificación de transporte: Señales de humo/dispositivos: p.ej. UN 0507 (1.4S) / UN 0313 (1.2G) según artículo.",
+        "3_composicion": "COMPOSICIÓN CONTROLADA — propietaria del fabricante; no se cataloga. Ver HDS del embarque autorizado.",
+        "4_primeros_auxilios": "Quemadura/lesión por deflagración: enfriar quemadura, atención médica urgente; lesión por proyección: trauma.",
+        "5_incendios": "NO combatir fuego de explosivos: EVACUAR y dejar arder desde distancia segura; enfriar contenedores adyacentes si es seguro. Perímetro amplio.",
+        "6_derrames": "No manipular sin operador certificado; asegurar y aislar; reportar a la autoridad. Ventilar; el humo de combustión tiene toxicología distinta al haze de glicol (ver FX-20).",
+        "7_manejo_almacenamiento": "Almacenar en polvorín/magazine autorizado por SEDENA; separar de fuentes de ignición, calor, fricción, estática; control de inventario (cargas cargadas vs. disparadas).",
+        "8_controles_epp_vle": "EPP: protección ocular, auditiva, guantes, protección facial para quien coloca cargas. Distancias y perímetros por cálculo del operador.",
+        "9_propiedades_fisicoquimicas": "Producto energético. Sensible a calor/chispa/fricción/impacto. Señales de humo/dispositivos: p.ej. UN 0507 (1.4S) / UN 0313 (1.2G) según artículo. Punto de inflamación no aplica (material energético).",
+        "10_estabilidad_reactividad": "Puede deflagrar/detonar por calor, chispa, fricción, impacto o estática. Incompatible con toda fuente de ignición y oxidantes/reductores según tipo.",
+        "11_toxicologica": "Toxicidad por productos de combustión (humos); riesgo primario es físico (deflagración/detonación).",
+        "12_ecologica": "Residuos energéticos: manejo especializado.",
+        "13_eliminacion": "Destrucción/eliminación por personal autorizado (SEDENA); nunca a basura común.",
+        "14_transporte": "Señales de humo/dispositivos: p.ej. UN 0507 (1.4S) / UN 0313 (1.2G) según artículo. Transporte de explosivos: permiso y condiciones especiales (SEDENA + NOM-009-SCT2/2009 en México; DOT-ATF en EEUU).",
+        "15_reglamentaria": "MÉXICO: Ley Federal de Armas de Fuego y Explosivos + Reglamento (SEDENA) — permiso obligatorio para compra/importación/almacenamiento/uso; Protección Civil para perímetros. EEUU: ATF (explosivos) + State Fire Marshal (Título 19) + CSATF #16.",
+        "16_otra": "Importar desde California requiere permiso SEDENA: sin él es delito federal en México. Documentar cadena de custodia."
+      },
+      "verificado": false,
+      "sds_url_verificada": false
+    },
+    {
+      "id": "INS-PYR-07",
+      "familia_insumo": "Pirotecnia - material energético controlado",
+      "nombre": "Squib / bullet hit (impacto de bala)",
+      "sinonimos": [
+        "Squib",
+        "Bullet hit",
+        "Impacto de bala"
+      ],
+      "efectos_ref": [
+        "FX-05"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "Controlado — sin enlace público apropiado; HDS con embarque SEDENA.",
+      "sds_fuente_url": "",
+      "sds_fuente_nota": "Material energético CONTROLADO (artículo pirotécnico 1.3G/1.4G/1.4S según dispositivo). La HDS del producto acompaña el embarque con permiso SEDENA; no existe HDS genérica pública apropiada para enlazar. No se pone enlace en vez de uno incorrecto.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "CrewCare NO reproduce formulaciones ni procedimientos de fabricación/iniciación de materiales energéticos. Solo capa protectora y regulatoria.",
+      "hds": {
+        "1_identificacion": "Squib / bullet hit (impacto de bala). Material energético para efectos pirotécnicos. Llega a set como producto terminado bajo permiso SEDENA.",
+        "2_peligros": "PELIGRO. Pictograma GHS01 (bomba explotando). Carga pequeña para simular impacto; se coloca sobre superficie o talento con blindaje. Clasificación de transporte: Artículos pirotécnicos para efectos: clase 1.3G/1.4G/1.4S según dispositivo.",
+        "3_composicion": "COMPOSICIÓN CONTROLADA — propietaria del fabricante; no se cataloga. Ver HDS del embarque autorizado.",
+        "4_primeros_auxilios": "Quemadura/lesión por deflagración: enfriar quemadura, atención médica urgente; lesión por proyección: trauma.",
+        "5_incendios": "NO combatir fuego de explosivos: EVACUAR y dejar arder desde distancia segura; enfriar contenedores adyacentes si es seguro. Perímetro amplio.",
+        "6_derrames": "No manipular sin operador certificado; asegurar y aislar; reportar a la autoridad. Colocación sobre talento solo con blindaje (bullet-hit plate) y por pirotécnico licenciado.",
+        "7_manejo_almacenamiento": "Almacenar en polvorín/magazine autorizado por SEDENA; separar de fuentes de ignición, calor, fricción, estática; control de inventario (cargas cargadas vs. disparadas).",
+        "8_controles_epp_vle": "EPP: protección ocular, auditiva, guantes, protección facial para quien coloca cargas. Distancias y perímetros por cálculo del operador.",
+        "9_propiedades_fisicoquimicas": "Producto energético. Sensible a calor/chispa/fricción/impacto. Artículos pirotécnicos para efectos: clase 1.3G/1.4G/1.4S según dispositivo. Punto de inflamación no aplica (material energético).",
+        "10_estabilidad_reactividad": "Puede deflagrar/detonar por calor, chispa, fricción, impacto o estática. Incompatible con toda fuente de ignición y oxidantes/reductores según tipo.",
+        "11_toxicologica": "Toxicidad por productos de combustión (humos); riesgo primario es físico (deflagración/detonación).",
+        "12_ecologica": "Residuos energéticos: manejo especializado.",
+        "13_eliminacion": "Destrucción/eliminación por personal autorizado (SEDENA); nunca a basura común.",
+        "14_transporte": "Artículos pirotécnicos para efectos: clase 1.3G/1.4G/1.4S según dispositivo. Transporte de explosivos: permiso y condiciones especiales (SEDENA + NOM-009-SCT2/2009 en México; DOT-ATF en EEUU).",
+        "15_reglamentaria": "MÉXICO: Ley Federal de Armas de Fuego y Explosivos + Reglamento (SEDENA) — permiso obligatorio para compra/importación/almacenamiento/uso; Protección Civil para perímetros. EEUU: ATF (explosivos) + State Fire Marshal (Título 19) + CSATF #16.",
+        "16_otra": "Importar desde California requiere permiso SEDENA: sin él es delito federal en México. Documentar cadena de custodia."
+      },
+      "verificado": false,
+      "sds_url_verificada": false
+    },
+    {
+      "id": "INS-ARM-01",
+      "familia_insumo": "Armas - munición de efecto controlada",
+      "nombre": "Cartucho de salva (blank)",
+      "sinonimos": [
+        "Blank",
+        "Salva",
+        "Cartucho de fogueo"
+      ],
+      "efectos_ref": [
+        "FX-15"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://winchester.com/-/media/PDFs/Safety-Data-Sheets/CARTRIDGES---RIMFIRE-BLANK.ashx",
+      "sds_fuente_nota": "Winchester — Cartridges, Rimfire Blank SDS (UN 0014). HDS pública del fabricante.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "CrewCare no describe recarga ni fabricación de munición. Solo capa protectora/regulatoria.",
+      "hds": {
+        "1_identificacion": "Cartucho de salva: estuche con fulminante y carga propelente, SIN proyectil. Produce fogonazo y ruido. Uso: armas de utilería.",
+        "2_peligros": "PELIGRO. GHS01. Puede causar LESIÓN GRAVE O MUERTE a corta distancia (gas caliente, taco, presión). Ruido de impulso (>140 dB). Riesgo de incendio por fogonazo.",
+        "3_composicion": "Munición controlada (fulminante + propelente). Composición no catalogada.",
+        "4_primeros_auxilios": "Lesión por disparo cercano: trauma/quemadura, atención urgente. Trauma acústico: evaluación.",
+        "5_incendios": "Fuego de munición: evacuar; no combatir; enfriar desde distancia.",
+        "6_derrames": "Custodia por Armero; recuento; no dejar sueltos.",
+        "7_manejo_almacenamiento": "Almacenar bajo llave, separado de las armas; control de inventario; permiso SEDENA.",
+        "8_controles_epp_vle": "EPP: protección ocular y auditiva; escudos; lock-off de cámara. Distancia mínima de seguridad; nunca apuntar a persona.",
+        "9_propiedades_fisicoquimicas": "Cartucho metálico. Sensible a calor/impacto/fricción. Blanks para armas: UN 0014 (1.4S), UN 0327 (1.3C), UN 0338 (1.4C) o UN 0326 (1.1C) según tipo.",
+        "10_estabilidad_reactividad": "Estable en manejo normal; sensible a calor/impacto.",
+        "11_toxicologica": "Riesgo físico (disparo/gas). Humos de disparo (plomo/CO) en cerrados.",
+        "12_ecologica": "Manejo de residuos de disparo.",
+        "13_eliminacion": "Casquillos/no disparados: gestión controlada.",
+        "14_transporte": "UN 0014/0326/0327/0338, Clase 1.",
+        "15_reglamentaria": "MÉXICO: SEDENA controla armas y cartuchos (Ley Federal de Armas de Fuego y Explosivos); posesión/importación muy restringida. EEUU: ATF + leyes estatales + CSATF #1/#2 + SB 132 (risk assessment de armas).",
+        "16_otra": "El error fatal típico: tratar un blank como inofensivo. A corta distancia es letal. Custodia y distancia son la barrera."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-ARM-02",
+      "familia_insumo": "Armas - inerte",
+      "nombre": "Cartucho dummy (inerte)",
+      "sinonimos": [
+        "Dummy round",
+        "Cartucho inerte",
+        "Manqués"
+      ],
+      "efectos_ref": [
+        "FX-15"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "Sin HDS de peligro: material inerte/alimenticio; el riesgo es térmico/físico, no químico. No aplica enlace de HDS.",
+      "sds_fuente_url": "",
+      "sds_fuente_nota": "Cartucho dummy inerte. Sin HDS de peligro: material inerte/alimenticio; el riesgo es térmico/físico, no químico. No aplica enlace de HDS.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Capa protectora/regulatoria; sin datos de manufactura.",
+      "hds": {
+        "1_identificacion": "Cartucho dummy: réplica inerte para primeros planos, SIN carga activa (a veces con balín suelto audible para verificar inertidad).",
+        "2_peligros": "ATENCIÓN. Riesgo principal: CONFUSIÓN con munición real. Sin peligro explosivo si es verdaderamente inerte.",
+        "3_composicion": "Componentes inertes; sin propelente ni fulminante activo.",
+        "4_primeros_auxilios": "N/A (inerte). Verificación visual/auditiva de inertidad por el Armero.",
+        "5_incendios": "No energético.",
+        "6_derrames": "Custodia y verificación por Armero; separar de blanks y de munición real.",
+        "7_manejo_almacenamiento": "Inventario y verificación; permiso SEDENA por ser componente de arma.",
+        "8_controles_epp_vle": "EPP: no específico; disciplina de manejo de armas.",
+        "9_propiedades_fisicoquimicas": "Cartucho inerte. Sin UN de explosivo si es 100% inerte.",
+        "10_estabilidad_reactividad": "Estable/inerte.",
+        "11_toxicologica": "Sin toxicidad relevante.",
+        "12_ecologica": "N/A.",
+        "13_eliminacion": "Común si es inerte.",
+        "14_transporte": "No regulado como explosivo si es inerte.",
+        "15_reglamentaria": "MÉXICO: SEDENA (control de componentes de arma). EEUU: CSATF #1 (verificación de dummies).",
+        "16_otra": "La regla de oro: el Armero verifica CADA cartucho. La tragedia de 'Rust' fue confusión de munición."
+      },
+      "verificado": false,
+      "sds_url_verificada": false
+    },
+    {
+      "id": "INS-ARM-03",
+      "familia_insumo": "Pirotecnia - material energético controlado",
+      "nombre": "Fulminante / primer",
+      "sinonimos": [
+        "Primer",
+        "Fulminante",
+        "Pistón"
+      ],
+      "efectos_ref": [
+        "FX-15"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://winchester.com/-/media/PDFs/Safety-Data-Sheets/PRIMERS--CENTERFIRE/PRIMERS--CENTERFIRE.ashx",
+      "sds_fuente_nota": "Winchester — Primers, Centerfire SDS (UN 0044/0378). HDS pública del fabricante.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "CrewCare NO reproduce formulaciones ni procedimientos de fabricación/iniciación de materiales energéticos. Solo capa protectora y regulatoria.",
+      "hds": {
+        "1_identificacion": "Fulminante / primer. Material energético para efectos pirotécnicos. Llega a set como producto terminado bajo permiso SEDENA.",
+        "2_peligros": "PELIGRO. Pictograma GHS01 (bomba explotando). Contiene explosivo primario sensible; inicia la carga. Muy sensible a impacto/fricción. Clasificación de transporte: Fulminantes tipo cápsula: UN 0044 (1.4S) / UN 0377 (1.1B) / UN 0378 (1.4B); tubulares UN 0319/0320.",
+        "3_composicion": "COMPOSICIÓN CONTROLADA — propietaria del fabricante; no se cataloga. Ver HDS del embarque autorizado.",
+        "4_primeros_auxilios": "Quemadura/lesión por deflagración: enfriar quemadura, atención médica urgente; lesión por proyección: trauma.",
+        "5_incendios": "NO combatir fuego de explosivos: EVACUAR y dejar arder desde distancia segura; enfriar contenedores adyacentes si es seguro. Perímetro amplio.",
+        "6_derrames": "No manipular sin operador certificado; asegurar y aislar; reportar a la autoridad. No se catalogan composición ni recarga. Manejo solo por Armero/pirotécnico bajo permiso SEDENA.",
+        "7_manejo_almacenamiento": "Almacenar en polvorín/magazine autorizado por SEDENA; separar de fuentes de ignición, calor, fricción, estática; control de inventario (cargas cargadas vs. disparadas).",
+        "8_controles_epp_vle": "EPP: protección ocular, auditiva, guantes, protección facial para quien coloca cargas. Distancias y perímetros por cálculo del operador.",
+        "9_propiedades_fisicoquimicas": "Producto energético. Sensible a calor/chispa/fricción/impacto. Fulminantes tipo cápsula: UN 0044 (1.4S) / UN 0377 (1.1B) / UN 0378 (1.4B); tubulares UN 0319/0320. Punto de inflamación no aplica (material energético).",
+        "10_estabilidad_reactividad": "Puede deflagrar/detonar por calor, chispa, fricción, impacto o estática. Incompatible con toda fuente de ignición y oxidantes/reductores según tipo.",
+        "11_toxicologica": "Toxicidad por productos de combustión (humos); riesgo primario es físico (deflagración/detonación).",
+        "12_ecologica": "Residuos energéticos: manejo especializado.",
+        "13_eliminacion": "Destrucción/eliminación por personal autorizado (SEDENA); nunca a basura común.",
+        "14_transporte": "Fulminantes tipo cápsula: UN 0044 (1.4S) / UN 0377 (1.1B) / UN 0378 (1.4B); tubulares UN 0319/0320. Transporte de explosivos: permiso y condiciones especiales (SEDENA + NOM-009-SCT2/2009 en México; DOT-ATF en EEUU).",
+        "15_reglamentaria": "MÉXICO: Ley Federal de Armas de Fuego y Explosivos + Reglamento (SEDENA) — permiso obligatorio para compra/importación/almacenamiento/uso; Protección Civil para perímetros. EEUU: ATF (explosivos) + State Fire Marshal (Título 19) + CSATF #16.",
+        "16_otra": "Importar desde California requiere permiso SEDENA: sin él es delito federal en México. Documentar cadena de custodia."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-FIRE-10",
+      "familia_insumo": "Combustibles - diésel/parafínicos pesados",
+      "nombre": "Diésel (gasóleo)",
+      "sinonimos": [
+        "Diésel",
+        "Gasóleo",
+        "Diesel fuel",
+        "ULSD"
+      ],
+      "efectos_ref": [
+        "FX-01",
+        "FX-02"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://www.exxon.com/-/media/project/wep/exxon/exxon-retail-us/us-fuel-delivery/pdf/no-2-diesel-fuel-safety-data-sheet.pdf",
+      "sds_fuente_nota": "ExxonMobil — No.2 Diesel SDS (UN 1202).",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — no sustituye la HDS del proveedor.",
+      "hds": {
+        "1_identificacion": "Diésel / gasóleo (destilado medio de petróleo). Uso en set: efectos de fuego de combustión más lenta que la gasolina.",
+        "2_peligros": "PELIGRO. GHS02, GHS07, GHS08, GHS09. H226/H227 inflamable/combustible; H304 puede ser mortal por aspiración; H315 irrita la piel; H332 nocivo por inhalación; H351 sospechoso de cáncer; H373 daño a órganos por exposición repetida; H411 tóxico acuático. Acumulador estático.",
+        "3_composicion": "Mezcla de hidrocarburos (destilado medio). Contiene hidrocarburos aromáticos policíclicos.",
+        "4_primeros_auxilios": "Ingestión: NO inducir vómito (aspiración → neumonitis química); atención médica. Piel: lavar 15 min, quitar ropa impregnada (riesgo de chispa estática/incendio); desechar calzado de cuero contaminado. Inhalación: aire fresco.",
+        "5_incendios": "Medios: espuma, agua pulverizada/niebla, polvo seco, CO2. No chorro directo. Evacuar; evitar escurrimiento a drenajes.",
+        "6_derrames": "Eliminar ignición; puesta a tierra; absorber; evitar drenajes/aguas (tóxico acuático).",
+        "7_manejo_almacenamiento": "Recipiente cerrado, ventilado, lejos de ignición; puesta a tierra al trasvasar (acumulador estático); herramientas antichispa.",
+        "8_controles_epp_vle": "Ventilación. VLE tipo hidrocarburos/neblina de aceite (consultar NOM-010-STPS-2014; ACGIH neblina 5 mg/m³ referencia). EPP: guantes, protección ocular, ropa; respirador si hay neblina.",
+        "9_propiedades_fisicoquimicas": "Líquido amarillento. PUNTO DE INFLAMACIÓN típico 52-96°C (combustible; más alto que gasolina y alcoholes → más difícil de encender, pero H304). UN 1202, Clase 3.",
+        "10_estabilidad_reactividad": "Estable. Incompatible con oxidantes fuertes (nítrico, sulfúrico). Evitar calor/chispa/soldadura.",
+        "11_toxicologica": "Aspiración (neumonitis); sospechoso de cáncer (repetida); irrita piel/ojos; SNC (mareo).",
+        "12_ecologica": "Tóxico para la vida acuática con efectos duraderos.",
+        "13_eliminacion": "Gestor autorizado; no a drenaje.",
+        "14_transporte": "UN 1202 Diésel/Gasóleo, Clase 3, GE III.",
+        "15_reglamentaria": "OSHA HazCom; Prop 65 (California). México NOM-018/NOM-005/NOM-010. SEDENA no aplica.",
+        "16_otra": "Más 'noble' que la gasolina para fuego (mayor punto de inflamación), pero mantiene aspiración y carga cancerígena. Nunca mezclar con gasolina (ver banderas rojas)."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-FIRE-11",
+      "familia_insumo": "Combustibles - improvisados / banderas rojas",
+      "nombre": "Gasolina espesada casera ('guayul' / gasolina + hule o celulosa)",
+      "sinonimos": [
+        "Guayul",
+        "Gasolina con guayule",
+        "Gasolina espesada casera",
+        "Napalm improvisado",
+        "Gasolina + hule/celulosa"
+      ],
+      "efectos_ref": [
+        "FX-02"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "Enlace de la GASOLINA base verificado; la mezcla improvisada no está caracterizada (por diseño).",
+      "sds_fuente_url": "https://voltaoil.com/wp-content/uploads/2019/03/Exxon-Unleaded-Gasoline-1.25.19.pdf",
+      "sds_fuente_nota": "Base gasolina: ExxonMobil Unleaded Gasoline SDS (UN 1203). Guayule (identidad del espesante de hule): Britannica https://www.britannica.com/plant/guayule. La mezcla casera no tiene HDS caracterizada — se rechaza, no se usa.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "CrewCare NO proporciona proporciones ni método de preparación. Documenta el peligro y la respuesta de seguridad (reconocer, rechazar, sustituir).",
+      "hds": {
+        "1_identificacion": "Gasolina espesada de fabricación casera: gasolina + un espesante (hule/látex de guayule, unicel/poliestireno, celulosa o jabón) para que la flama se ADHIERA y arda más tiempo. Es un napalm improvisado que aparece en sets de bajo presupuesto en México.",
+        "2_peligros": "PELIGRO EXTREMO e IMPREDECIBLE. Combina lo peor: extremadamente inflamable (gasolina, H224/H225), aspiración (H304), cáncer por benceno (H350) Y adherencia a la piel (quemaduras severas y prolongadas, difíciles de apagar). Sin caracterizar: punto de inflamación y comportamiento de flama DESCONOCIDOS.",
+        "3_composicion": "Gasolina (contiene benceno) + espesante variable. Composición NO catalogada. La variabilidad lote a lote es parte del peligro.",
+        "4_primeros_auxilios": "Quemadura adherida: enfriar con abundante agua, NO intentar retirar el material adherido, atención médica urgente (quemaduras profundas). Ingestión: no inducir vómito.",
+        "5_incendios": "Medios: espuma AFFF, polvo seco, CO2; NO chorro de agua (dispersa el fuego adherido). Reignición probable. Perímetro amplio.",
+        "6_derrames": "Alto riesgo: no manipular; aislar; el material adherido y los vapores son peligrosos.",
+        "7_manejo_almacenamiento": "NO debe almacenarse ni prepararse en set. Si se detecta, aislar y gestionar como residuo peligroso.",
+        "8_controles_epp_vle": "EPP no lo hace seguro: el control es NO USARLO. Si existiera exposición: ignífugo, respirador, guantes; pero la medida real es la sustitución.",
+        "9_propiedades_fisicoquimicas": "Líquido/gel improvisado. Punto de inflamación de la gasolina base ~-43°C; la mezcla es IMPREDECIBLE. Base gasolina UN 1203, Clase 3.",
+        "10_estabilidad_reactividad": "Inestable en comportamiento (no en química): ignición y adherencia impredecibles. Benceno cancerígeno.",
+        "11_toxicologica": "Aspiración; cáncer (benceno); quemaduras severas por adherencia; SNC.",
+        "12_ecologica": "Tóxico acuático.",
+        "13_eliminacion": "Gestionar como residuo peligroso; nunca a drenaje ni basura común.",
+        "14_transporte": "Base UN 1203 Gasolina, Clase 3, GE II. La mezcla improvisada no tiene clasificación válida de transporte.",
+        "15_reglamentaria": "MÉXICO: fuera de norma; su uso improvisado no está caracterizado ni permitido como efecto seguro. Sustituir por gel SFX caracterizado o pirotecnia con permiso SEDENA/Protección Civil. EEUU: jamás pasaría bajo CSATF #16/#13 / SFM.",
+        "16_otra": "RESPUESTA CREWCARE: reconocer → rechazar → sustituir → documentar el rechazo por escrito. Es el insumo de mayor riesgo del catálogo y el que más respaldo necesita el Safety para negarse."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-MOLD-01",
+      "familia_insumo": "Moldeo/colado - poliuretano",
+      "nombre": "Poliuretano / isocianato (MDI, TDI)",
+      "sinonimos": [
+        "Poliuretano",
+        "Isocianato",
+        "MDI",
+        "TDI",
+        "Componente B de espuma PU"
+      ],
+      "efectos_ref": [
+        "FX-24",
+        "FX-13"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://mpfs.io/assets/everchem/2023/01/Everchem-TDI-80-Type-2-Isocyanate_-SDS_-v2-2023.pdf",
+      "sds_fuente_nota": "Everchem — TDI-80 Isocyanate SDS (H334 sensibilizante respiratorio).",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Traducción de referencia CrewCare — no sustituye la HDS del sistema de resina específico.",
+      "hds": {
+        "1_identificacion": "Componente isocianato (MDI/TDI) de sistemas de poliuretano para prostéticos, moldes y espuma. Se mezcla con poliol.",
+        "2_peligros": "PELIGRO. GHS08, GHS07. H334 puede causar síntomas de alergia/asma o dificultad respiratoria si se inhala (SENSIBILIZANTE RESPIRATORIO); H317 sensibilización cutánea; H335 irritación respiratoria; H315/H319 irritación piel/ojos; H351 sospechoso de cáncer (TDI); H373 daño pulmonar por exposición repetida. Síntomas pueden APARECER HORAS DESPUÉS.",
+        "3_composicion": "Isocianato (difenilmetano-diisocianato MDI o toluendiisocianato TDI) + curativos. La mezcla poliol+isocianato es exotérmica.",
+        "4_primeros_auxilios": "Inhalación: retirar a aire fresco, reposo, atención médica (síntomas retardados). Piel: lavar con agua y jabón; ducha de seguridad. Ojos: enjuagar 15 min. Ingestión: no inducir vómito.",
+        "5_incendios": "Medios: CO2, espuma, polvo. EVACUAR a favor del viento: los humos contienen isocianatos, CO, óxidos de nitrógeno y trazas de HCN.",
+        "6_derrames": "Ventilar; contener; absorbente inerte; neutralizar con descontaminante recomendado; EPP respiratorio.",
+        "7_manejo_almacenamiento": "Recipiente cerrado, seco (reacciona con agua liberando CO2 → presión); ventilación local (LEV); lejos de aminas/agua.",
+        "8_controles_epp_vle": "VENTILACIÓN LOCAL obligatoria; respirador con cartucho para vapores orgánicos/isocianatos (o línea de aire). VLE muy bajo (ACGIH TLV MDI/TDI ~0.005 ppm). Vigilancia médica; una vez sensibilizado, CERO exposición. EPP: guantes butilo/nitrilo, gafas, bata.",
+        "9_propiedades_fisicoquimicas": "Líquido. Baja volatilidad (polímero) pero el monómero y los aerosoles son el riesgo. Punto de inflamación alto. Reacciona con agua.",
+        "10_estabilidad_reactividad": "Reacciona con agua (CO2/presión) y con materiales con hidrógeno activo (exotermia). Incompatible con aminas, bases, agua.",
+        "11_toxicologica": "Sensibilizante respiratorio (asma ocupacional — de las causas principales); sensibilizante cutáneo; irritante; TDI sospechoso de cáncer.",
+        "12_ecologica": "Tóxico acuático (algunos sistemas).",
+        "13_eliminacion": "Residuo peligroso; curar/neutralizar antes de disponer.",
+        "14_transporte": "MDI polimérico usualmente no regulado en transporte; TDI puede ir como UN 2078 (Toluendiisocianato), Clase 6.1. Verificar por producto.",
+        "15_reglamentaria": "OSHA Respiratory 1910.134 + énfasis en isocianatos; UE exige capacitación previa (EUH204). México NOM-010-STPS-2014 (VLE), NOM-018, NOM-017-STPS-2008 (EPP). CSATF #39.",
+        "16_otra": "El riesgo NO es obvio: sin olor de advertencia útil y con síntomas retardados. Una sola sobreexposición puede sensibilizar de por vida. Ventilación y respirador no son opcionales."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-MOLD-02",
+      "familia_insumo": "Moldeo/colado - epóxicos",
+      "nombre": "Resina epóxica",
+      "sinonimos": [
+        "Epoxi",
+        "Resina epóxica",
+        "Bisfenol A epóxido"
+      ],
+      "efectos_ref": [
+        "FX-24",
+        "FX-13"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://usa.sika.com/content/dam/media/us/industry/resins/advanced-resins-sds-tds/SDS_EL315_Resin_-_US4EN.pdf",
+      "sds_fuente_nota": "Sika — Epoxy Resin SDS (bisfenol A; H315/H317/H319).",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — verificar HDS del sistema epóxico específico.",
+      "hds": {
+        "1_identificacion": "Resina epóxica (base bisfenol A/F) + endurecedor (amina). Uso: moldes, props, laminados.",
+        "2_peligros": "ATENCIÓN/PELIGRO. GHS07, GHS09 (y GHS05 en endurecedores amínicos). H315/H319 irritación; H317 SENSIBILIZACIÓN CUTÁNEA (dermatitis alérgica común); endurecedores amínicos pueden ser corrosivos (H314); H411 tóxico acuático.",
+        "3_composicion": "Resina epóxica + endurecedor amínico (2 componentes). Exotérmica al mezclar.",
+        "4_primeros_auxilios": "Piel: lavar; no dejar curar sobre la piel. Ojos: enjuagar 15 min. Inhalación: aire fresco.",
+        "5_incendios": "Medios: polvo, CO2, espuma.",
+        "6_derrames": "Ventilar; absorber; el endurecedor amínico puede ser corrosivo.",
+        "7_manejo_almacenamiento": "Componentes separados, cerrados, ventilados.",
+        "8_controles_epp_vle": "Ventilación; guantes nitrilo (los epóxicos atraviesan látex), protección ocular; evitar contacto repetido (sensibilización).",
+        "9_propiedades_fisicoquimicas": "Líquido viscoso. Curado exotérmico. Punto de inflamación alto.",
+        "10_estabilidad_reactividad": "Reactivo al curar (exotermia); curado estable.",
+        "11_toxicologica": "Sensibilización cutánea (dermatitis); irritación; endurecedores corrosivos.",
+        "12_ecologica": "Tóxico acuático.",
+        "13_eliminacion": "Residuo; curar antes de disponer.",
+        "14_transporte": "Usualmente no regulado curado; endurecedores amínicos pueden ser corrosivos (Clase 8). Verificar.",
+        "15_reglamentaria": "OSHA HazCom; México NOM-010/NOM-018/NOM-017. CSATF #39.",
+        "16_otra": "La dermatitis por epóxicos es acumulativa: guantes de nitrilo (no látex) y evitar contacto piel."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-MOLD-03",
+      "familia_insumo": "Moldeo/colado - siliconas",
+      "nombre": "Silicona de moldeo (RTV)",
+      "sinonimos": [
+        "Silicona RTV",
+        "Caucho de silicona",
+        "Platinum/tin cure"
+      ],
+      "efectos_ref": [
+        "FX-24"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://www.siliconeab.com/d/file/downloads/platinum-cured-silicone-rubber-sds.pdf",
+      "sds_fuente_nota": "Silicona RTV de moldeo/SFX (platino) SDS. Para curado por condensación (estaño) verificar subproductos del producto real.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — verificar HDS de la silicona específica.",
+      "hds": {
+        "1_identificacion": "Silicona de moldeo RTV (curado platino o estaño). Uso: moldes y prostéticos.",
+        "2_peligros": "ATENCIÓN (baja). Generalmente no clasificada o irritante leve. Curado por condensación (estaño) libera subproductos (p.ej. ácido acético/oximas/metanol) irritantes; el catalizador puede sensibilizar.",
+        "3_composicion": "Base polidimetilsiloxano + catalizador (platino u estaño) + reticulante.",
+        "4_primeros_auxilios": "Ojos/piel: enjuagar. Inhalación de subproductos de curado: aire fresco.",
+        "5_incendios": "No inflamable en general.",
+        "6_derrames": "Recoger; poca reactividad.",
+        "7_manejo_almacenamiento": "Componentes cerrados; ventilar durante curado por condensación.",
+        "8_controles_epp_vle": "Ventilación durante curado; guantes; los sistemas de platino se inhiben por contaminantes (azufre/estaño/aminas).",
+        "9_propiedades_fisicoquimicas": "Líquido/pasta. No inflamable típicamente.",
+        "10_estabilidad_reactividad": "Estable; sistemas de platino sensibles a inhibición.",
+        "11_toxicologica": "Baja toxicidad; subproductos de curado irritantes.",
+        "12_ecologica": "Baja preocupación.",
+        "13_eliminacion": "Residuo curado común.",
+        "14_transporte": "No regulado usualmente.",
+        "15_reglamentaria": "OSHA HazCom; México NOM-018.",
+        "16_otra": "La silicona es la más benigna de las resinas de moldeo, pero ventilar el curado por condensación."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-FOAM-01",
+      "familia_insumo": "Espuma/burbujas - tensoactivos",
+      "nombre": "Fluido de espuma / burbujas (tensoactivo)",
+      "sinonimos": [
+        "Foam fluid",
+        "Bubble fluid",
+        "Concentrado de espuma",
+        "Tensoactivo"
+      ],
+      "efectos_ref": [
+        "FX-21"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "Enlace a la biblioteca HDS del fabricante; elegir el producto exacto.",
+      "sds_fuente_url": "https://www.froggysfog.com/sds-chemical-safety-information",
+      "sds_fuente_nota": "Froggy's Fog — biblioteca de HDS (Bubble/Foam Fluid). Seleccionar la HDS del fluido de espuma/burbujas específico.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — verificar HDS del fluido específico.",
+      "hds": {
+        "1_identificacion": "Concentrado tensoactivo para máquinas de espuma/burbujas (se diluye en agua).",
+        "2_peligros": "ATENCIÓN (baja). H319 puede causar irritación ocular; irritación cutánea leve. Riesgo físico principal: PISO RESBALOSO.",
+        "3_composicion": "Mezcla de tensoactivos (tipo lauril sulfato) + agua + humectantes.",
+        "4_primeros_auxilios": "Ojos: enjuagar. Piel: lavar. Ingestión: enjuagar boca; no inducir vómito.",
+        "5_incendios": "No inflamable.",
+        "6_derrames": "RESBALADIZO: limpiar de inmediato; señalizar.",
+        "7_manejo_almacenamiento": "Cerrado; diluir según fabricante.",
+        "8_controles_epp_vle": "EPP: protección ocular en inmersión; calzado antiderrapante para todos en la zona.",
+        "9_propiedades_fisicoquimicas": "Líquido. No inflamable. Sin UN.",
+        "10_estabilidad_reactividad": "Estable.",
+        "11_toxicologica": "Irritación ocular/dérmica leve.",
+        "12_ecologica": "Baja/moderada (tensoactivos).",
+        "13_eliminacion": "Drenaje según normativa local (carga de tensoactivos).",
+        "14_transporte": "No regulado.",
+        "15_reglamentaria": "OSHA HazCom; walking-working surfaces 1910.22. México NOM-018, NOM-001-STPS-2008 (pisos) ✔.",
+        "16_otra": "El accidente típico no es químico: es la caída. Gestión de piso = control principal."
+      },
+      "verificado": true,
+      "sds_url_verificada": false
+    },
+    {
+      "id": "INS-SNOW-01",
+      "familia_insumo": "Nieve - fluidos/partículas",
+      "nombre": "Fluido de nieve de espuma / celulosa (SnowCel)",
+      "sinonimos": [
+        "Foam snow fluid",
+        "SnowCel",
+        "Celulosa de nieve",
+        "Paper snow"
+      ],
+      "efectos_ref": [
+        "FX-11"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "Enlace a la biblioteca HDS del fabricante; elegir el producto exacto.",
+      "sds_fuente_url": "https://www.froggysfog.com/sds-chemical-safety-information",
+      "sds_fuente_nota": "Froggy's Fog — biblioteca de HDS (Snow Juice / Froggys Flakes Snow Fluid, base tensoactivo, no controlado). Para nieve de celulosa/papel usar la HDS del material.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — verificar HDS del producto de nieve.",
+      "hds": {
+        "1_identificacion": "Nieve escénica: fluido de espuma (tensoactivo) o partícula de celulosa/plástico/papel (SnowCel).",
+        "2_peligros": "ATENCIÓN (baja). Fluido: irritación ocular leve, RESBALÓN. Partícula: inhalación de polvo fino de celulosa/plástico (irritación de vías respiratorias).",
+        "3_composicion": "Tensoactivo+agua (fluido) o celulosa/plástico/papel (partícula).",
+        "4_primeros_auxilios": "Ojos: enjuagar. Inhalación de polvo: aire fresco.",
+        "5_incendios": "No inflamable (fluido); la celulosa fina puede arder.",
+        "6_derrames": "Resbaladizo (fluido); recoger partícula.",
+        "7_manejo_almacenamiento": "Cerrado y seco.",
+        "8_controles_epp_vle": "Fluido: protección ocular, antiderrapante. Partícula fina: respirador N95, protección ocular; controlar polvo.",
+        "9_propiedades_fisicoquimicas": "Líquido o partícula. Sin UN.",
+        "10_estabilidad_reactividad": "Estable.",
+        "11_toxicologica": "Irritación leve; partícula fina irrita vías respiratorias.",
+        "12_ecologica": "Baja.",
+        "13_eliminacion": "Drenaje/residuo según normativa local.",
+        "14_transporte": "No regulado.",
+        "15_reglamentaria": "OSHA HazCom; México NOM-010-STPS-2014 (partículas), NOM-018.",
+        "16_otra": "El frío no es el riesgo (salvo nieve real): es resbalón + polvo de partícula."
+      },
+      "verificado": true,
+      "sds_url_verificada": false
+    },
+    {
+      "id": "INS-DUST-01",
+      "familia_insumo": "Polvo/partículas - tierras y polvos",
+      "nombre": "Tierra de batán (Fuller's earth) / polvo fotográfico",
+      "sinonimos": [
+        "Fuller's earth",
+        "Tierra de batán",
+        "Photographic dust",
+        "Fuller earth"
+      ],
+      "efectos_ref": [
+        "FX-18"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://jmfx.net/sites/default/files/sds_rgr_fullers_earth.pdf",
+      "sds_fuente_nota": "JMFX — Fuller's Earth SDS (sílice cristalina = cancerígeno IARC Grupo 1).",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — verificar HDS del producto y su % de sílice cristalina.",
+      "hds": {
+        "1_identificacion": "Tierra de batán (arcilla, atapulgita/montmorillonita) y polvos fotográficos para ambientar polvo/impactos.",
+        "2_peligros": "ATENCIÓN/PELIGRO según sílice. Polvo respirable irrita vías respiratorias/ojos. SI CONTIENE SÍLICE CRISTALINA RESPIRABLE: H350 puede causar cáncer (pulmón) y silicosis por exposición repetida (STOT RE).",
+        "3_composicion": "Arcilla mineral; puede contener cuarzo (sílice cristalina) en proporción variable.",
+        "4_primeros_auxilios": "Inhalación: aire fresco. Ojos: enjuagar. Piel: lavar.",
+        "5_incendios": "No combustible.",
+        "6_derrames": "Barrer con métodos que no dispersen polvo (aspiración HEPA/húmedo).",
+        "7_manejo_almacenamiento": "Seco, cerrado; minimizar generación de polvo.",
+        "8_controles_epp_vle": "VLE: polvo respirable y SÍLICE CRISTALINA (OSHA PEL sílice 50 µg/m³; ACGIH TLV 25 µg/m³). Respirador N95/P100 según polvo; protección ocular; controlar exposición del talento.",
+        "9_propiedades_fisicoquimicas": "Polvo fino. No inflamable. Sin UN.",
+        "10_estabilidad_reactividad": "Estable.",
+        "11_toxicologica": "Irritación respiratoria; si hay sílice cristalina: silicosis y cáncer pulmonar (crónico).",
+        "12_ecologica": "Baja preocupación.",
+        "13_eliminacion": "Residuo sólido común (según sílice).",
+        "14_transporte": "No regulado en transporte.",
+        "15_reglamentaria": "OSHA HazCom + norma de sílice 1910.1053; México NOM-010-STPS-2014, NOM-018. CSATF Fact Sheet Photographic Dust Effects.",
+        "16_otra": "Pedir al proveedor el % de sílice cristalina: es la diferencia entre 'polvo molesto' y 'cancerígeno'."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-RET-01",
+      "familia_insumo": "Tratamientos - retardante de fuego",
+      "nombre": "Retardante de fuego (ignifugante)",
+      "sinonimos": [
+        "Fire retardant",
+        "Retardante de fuego",
+        "Ignifugante",
+        "Polifosfato de amonio"
+      ],
+      "efectos_ref": [
+        "FX-23"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "PENDIENTE: sin enlace verificado; se retiró el incorrecto.",
+      "sds_fuente_url": "",
+      "sds_fuente_nota": "PENDIENTE — HDS por producto (p.ej. Rosco Flamex u otro ignifugante base agua). El enlace previo era incorrecto y se retiró; se confirmará con el producto real.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — verificar HDS del retardante específico.",
+      "hds": {
+        "1_identificacion": "Retardante de fuego para escenografía/telas/follaje (base agua con sales: polifosfato/sulfato de amonio, boratos).",
+        "2_peligros": "ATENCIÓN (baja-moderada). H319/H315 irritación ocular/dérmica; algunos boratos con advertencia reproductiva (H360 en ciertos boratos — verificar). Nieblas de aplicación irritan vías respiratorias.",
+        "3_composicion": "Sales inorgánicas (amonio/borato/fosfato) en agua.",
+        "4_primeros_auxilios": "Ojos/piel: enjuagar. Inhalación de niebla: aire fresco.",
+        "5_incendios": "No inflamable (base agua; es el propósito).",
+        "6_derrames": "Absorber; enjuagar; evitar drenaje si hay borato.",
+        "7_manejo_almacenamiento": "Cerrado; base agua (proteger de congelación).",
+        "8_controles_epp_vle": "Ventilación y respirador para nieblas en aplicación; guantes, protección ocular.",
+        "9_propiedades_fisicoquimicas": "Líquido base agua. No inflamable. Sin UN.",
+        "10_estabilidad_reactividad": "Estable.",
+        "11_toxicologica": "Irritación; verificar boratos (reproductivo).",
+        "12_ecologica": "Verificar (boratos).",
+        "13_eliminacion": "Según normativa local.",
+        "14_transporte": "No regulado usualmente.",
+        "15_reglamentaria": "OSHA HazCom; California Fire Code (exige tratamiento). México NOM-018, NOM-002-STPS-2010 (incendios) ✔.",
+        "16_otra": "El certificado de ignifugación suele exigirse como PERMISO; guardar constancia y HDS del producto."
+      },
+      "verificado": false,
+      "sds_url_verificada": false
+    },
+    {
+      "id": "INS-WELD-01",
+      "familia_insumo": "Soldadura - humos y gases",
+      "nombre": "Humos y gases de soldadura/corte",
+      "sinonimos": [
+        "Welding fumes",
+        "Humos de soldadura",
+        "Gases de soldadura",
+        "Acetileno",
+        "Argón"
+      ],
+      "efectos_ref": [
+        "FX-25"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "Proceso: sin HDS única; ver HDS por gas/consumible.",
+      "sds_fuente_url": "",
+      "sds_fuente_nota": "Perfil de PROCESO, no un producto único. Usar la HDS de cada gas (acetileno UN 1001, argón UN 1006, oxígeno UN 1072, CO2 UN 1013 — Airgas) y del electrodo/consumible real.",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — perfil de proceso; usar HDS de cada gas y consumible real.",
+      "hds": {
+        "1_identificacion": "Humos metálicos y gases generados al soldar/cortar rigs de efectos (morteros, flame bars, estructuras).",
+        "2_peligros": "PELIGRO. Humos metálicos: 'fiebre por humos metálicos' (zinc/cobre), manganeso (neurotóxico), CROMO VI (cancerígeno en inox). Radiación UV/IR ('ojo de arco', quemaduras). Gases: acetileno (H220 inflamable, UN 1001), argón/CO2 (asfixiantes), oxígeno (oxidante, UN 1072). CHISPAS que inician incendio.",
+        "3_composicion": "Humos de metal base y recubrimientos + gases de proceso.",
+        "4_primeros_auxilios": "Inhalación de humos: aire fresco. 'Ojo de arco': ambiente oscuro, atención oftálmica. Quemadura: enfriar, médico.",
+        "5_incendios": "Chispas: extintor a la mano; vigía de fuego 30+ min tras terminar.",
+        "6_derrames": "Ventilar humos; asegurar cilindros de gas.",
+        "7_manejo_almacenamiento": "Permiso de trabajo en caliente; separar de combustibles y PIROTECNIA; cilindros asegurados con capuchón.",
+        "8_controles_epp_vle": "Ventilación local de humos; respirador para humos metálicos; careta de soldar con filtro; mamparas UV; VLE por metal (Mn, Cr VI muy bajo) en NOM-010.",
+        "9_propiedades_fisicoquimicas": "Humos (partícula) + gases. Acetileno UN 1001, argón UN 1006, oxígeno UN 1072, CO2 UN 1013.",
+        "10_estabilidad_reactividad": "Los gases a presión: no calentar. Acetileno inestable a presión/con cobre.",
+        "11_toxicologica": "Cr VI cancerígeno; Mn neurotóxico; fiebre por humos metálicos; UV.",
+        "12_ecologica": "Según metales.",
+        "13_eliminacion": "Residuos/escoria según normativa.",
+        "14_transporte": "Gases: Clase 2 (ver UN por gas).",
+        "15_reglamentaria": "OSHA Welding 1910.252; México NOM-027-STPS-2008 (soldadura y corte) ✔, NOM-010-STPS-2014 (humos) ✔.",
+        "16_otra": "Riesgo doble en set de efectos: humos+UV para el soldador Y chispa que enciende combustibles/pirotecnia cercanos. Separación y vigía de fuego."
+      },
+      "verificado": true,
+      "sds_url_verificada": false
+    },
+    {
+      "id": "INS-SPARK-01",
+      "familia_insumo": "Chispa fría - gránulo metálico",
+      "nombre": "Gránulos de titanio (chispa fría)",
+      "sinonimos": [
+        "Titanium granules",
+        "Gránulo de titanio",
+        "Sparkular granules"
+      ],
+      "efectos_ref": [
+        "FX-08"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://www.espimetals.com/index.php/msds/954-Titanium%20Powder",
+      "sds_fuente_nota": "ESPI Metals — Titanium Powder SDS (H228 sólido inflamable; UN 1352/2546).",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — verificar HDS del gránulo del fabricante.",
+      "hds": {
+        "1_identificacion": "Gránulos metálicos (titanio y otros) que la máquina de 'chispa fría' calienta a ~500-600°C para producir chispas.",
+        "2_peligros": "PELIGRO. GHS02. Metal en polvo/gránulo fino: sólido inflamable; riesgo de EXPLOSIÓN DE POLVO metálico; las chispas emitidas (aunque de baja temperatura al salir) queman e inician incendios.",
+        "3_composicion": "Titanio (y otros metales) en gránulo. Composición del consumible según fabricante.",
+        "4_primeros_auxilios": "Quemadura: enfriar, médico. Inhalación de polvo: aire fresco.",
+        "5_incendios": "Fuego de metal: usar agente Clase D (polvo especial); NO agua sobre metal ardiendo.",
+        "6_derrames": "Evitar dispersar polvo; recoger sin generar nube.",
+        "7_manejo_almacenamiento": "Seco, cerrado, lejos de ignición y oxidantes; evitar acumulación de polvo.",
+        "8_controles_epp_vle": "Ventilación; evitar nube de polvo; protección ocular; el control principal es distancia y limpieza de la máquina.",
+        "9_propiedades_fisicoquimicas": "Gránulo/polvo metálico. Inflamable en polvo fino. Titanio en polvo: UN 1352 (humedecido) / UN 2546 (seco, pirofórico).",
+        "10_estabilidad_reactividad": "Reactivo en polvo fino (inflamable/explosión de polvo); estable en gránulo grueso.",
+        "11_toxicologica": "Sólido inflamable; explosión de polvo; chispas incendiarias.",
+        "12_ecologica": "Baja preocupación.",
+        "13_eliminacion": "Residuo metálico controlado.",
+        "14_transporte": "UN 1352 / UN 2546, Clase 4.1/4.2 según forma.",
+        "15_reglamentaria": "APA/NFPA (equipo de simulación pirotécnica); NFPA 1126/160; en CA 'sparking granules' bajo Título 19 Tabla 14A. México: Protección Civil/AHJ.",
+        "16_otra": "Recordar (ver FX-08): 'chispa fría' NO es no-pirotécnica. Tratar el gránulo como material regulado hasta que la autoridad diga lo contrario."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    },
+    {
+      "id": "INS-BATT-01",
+      "familia_insumo": "Réplicas - energía",
+      "nombre": "Batería de litio (réplicas electrónicas de arma)",
+      "sinonimos": [
+        "Li-ion",
+        "Batería de litio",
+        "LiPo",
+        "Battery pack"
+      ],
+      "efectos_ref": [
+        "FX-16"
+      ],
+      "sds_nivel": 3,
+      "sds_estado": "✓ enlace verificado (resuelve a la HDS de esta sustancia, 2026-07-16)",
+      "sds_fuente_url": "https://anchors.dewalt.com/anchors/_documents/uploads/_msds_reports/DW_LithiumIonBatteryPacks-SDS-EN_DDS1.pdf",
+      "sds_fuente_nota": "DeWalt — Lithium-Ion Battery Packs SDS (fuga térmica; UN 3480/3481).",
+      "sds_fecha_verificacion": "2026-07-16",
+      "sds_disclaimer": "Resumen de referencia CrewCare — verificar HDS/hoja del pack de batería específico.",
+      "hds": {
+        "1_identificacion": "Batería de ion-litio/LiPo que alimenta réplicas de arma con fogonazo electrónico (eSquib) u otros props electrónicos.",
+        "2_peligros": "PELIGRO. GHS02/GHS08 según celda. Riesgo de FUGA TÉRMICA (thermal runaway): incendio/explosión por daño físico, sobrecarga, corto o calor; libera gases tóxicos/inflamables (incl. HF).",
+        "3_composicion": "Celdas de litio + electrolito inflamable.",
+        "4_primeros_auxilios": "Quemadura/exposición a gases: aire fresco, atención médica. Contacto con electrolito: enjuagar.",
+        "5_incendios": "Fuego de litio: mucha agua/enfriamiento prolongado o dejar consumir en zona segura; el fuego puede reavivar. Agente Clase D para litio metálico.",
+        "6_derrames": "Aislar celda dañada (hinchada/caliente) en zona no combustible; no perforar.",
+        "7_manejo_almacenamiento": "Almacenar a carga parcial, en contenedor ignífugo, lejos de calor; no cargar sin supervisión.",
+        "8_controles_epp_vle": "No es exposición química rutinaria; el control es de integridad física y carga. Inspeccionar packs; retirar hinchados.",
+        "9_propiedades_fisicoquimicas": "Pack sellado. Electrolito inflamable interno.",
+        "10_estabilidad_reactividad": "Sensible a daño físico/sobrecarga/calor.",
+        "11_toxicologica": "Gases de fuga tóxicos/inflamables (HF) si falla.",
+        "12_ecologica": "Residuo especial (no basura común).",
+        "13_eliminacion": "Reciclaje de baterías autorizado.",
+        "14_transporte": "Litio ion UN 3480 / contenida en equipo UN 3481, Clase 9.",
+        "15_reglamentaria": "IATA/DOT baterías de litio; CSATF Fact Sheet Li-ion (2024). México: NOM de residuos/manejo; transporte SICT.",
+        "16_otra": "En réplicas 'que no disparan' el riesgo migra de la pólvora a la BATERÍA: inspección, carga supervisada y retiro de packs dañados."
+      },
+      "verificado": true,
+      "sds_url_verificada": true
+    }
+  ],
+  "pendientes_verificacion": {
+    "nota_lectura": "El conteo plano de 'pendientes' engaña: la mayoría NO es deuda del catálogo sino DATO DE INSTANCIA que, por diseño, solo se resuelve con el producto físico en set. Separados así se lee honesto.",
+    "deuda_resoluble_en_catalogo": [
+      "VLE numéricos exactos por sustancia: hoy se remite a las tablas de NOM-010-STPS-2014 / ACGIH; se pueden transcribir los valores puntuales por insumo si se requiere en la app.",
+      "Secciones exactas de Cal-OSHA (Título 8) marcadas '§ indicativa, EEUU' (confinados, eléctrico, GFCI): son EEUU, no NOM; verificables si se quiere precisión de auditoría CA.",
+      "Clasificación local MX (AHJ/Protección Civil) de chispa fría (gránulo de titanio) y de baterías Li-ion en réplicas: zona gris real; se resuelve caso por caso con la autoridad."
+    ],
+    "dato_de_instancia_por_diseno": [
+      "HDS por MARCA/producto: se adjunta al recibir el material en set; el catálogo entrega el genérico de la familia.",
+      "Número UN exacto por producto de energéticos y salvas (varía por tipo/carga): se toma de la hoja del embarque con permiso SEDENA.",
+      "Número UN de líquido de antorcha / nafta: varía con el punto de inflamación del producto real.",
+      "% de sílice cristalina en tierras/polvos (FX-18): cambia la clasificación; se pide al proveedor por producto.",
+      "Boratos con advertencia reproductiva en retardantes (FX-23): depende de la formulación del producto.",
+      "Tipo de curado de silicona (FX-24): platino vs. estaño cambia subproductos; por producto."
+    ],
+    "expansion_opcional": [
+      "Otros combustibles caseros si aparecen (unicel/poliestireno, alcohol de caña, espesantes alternativos): se catalogan como bandera roja, sin método.",
+      "Insumos de familias menores ya cubiertas por referencia cruzada; poblar solo si el uso lo justifica."
+    ]
+  }
+}
