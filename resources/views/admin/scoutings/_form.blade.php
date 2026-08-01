@@ -97,9 +97,36 @@
     $sb132Scene      = $sb132['scene_number'] ?? '';
     $sb132Personnel  = $sb132['certified_personnel_required'] ?? '';
 
-    // Viabilidad y acuerdos: listas de filas guardadas; el form muestra mínimo 4.
-    $viabRows = ($isEdit && is_array($report->viability_checklist)) ? array_values($report->viability_checklist) : [];
-    $agrRows  = ($isEdit && is_array($report->agreements)) ? array_values($report->agreements) : [];
+    // (2026-08-01 · captura fluida) Viabilidad y Acuerdos ARRANCAN VACÍOS y se
+    // auto-agregan (botón + fila plantilla), como la tabla de peligros. Ya no se
+    // pintan 4 filas fijas. Prioridad de origen: old() (preserva TODAS las filas al
+    // rebotar validación) → reporte en edición → vacío al crear.
+    if (is_array(old('viab_area'))) {
+        $viabRows = [];
+        foreach (old('viab_area') as $i => $va) {
+            $viabRows[] = [
+                'area'        => $va,
+                'status'      => old('viab_status.' . $i),
+                'responsible' => old('viab_responsible.' . $i),
+                'note'        => old('viab_note.' . $i),
+            ];
+        }
+    } else {
+        $viabRows = ($isEdit && is_array($report->viability_checklist)) ? array_values($report->viability_checklist) : [];
+    }
+    if (is_array(old('agr_item'))) {
+        $agrRows = [];
+        foreach (old('agr_item') as $i => $ai) {
+            $agrRows[] = [
+                'item'        => $ai,
+                'responsible' => old('agr_responsible.' . $i),
+                'date'        => old('agr_date.' . $i),
+                'status'      => old('agr_status.' . $i),
+            ];
+        }
+    } else {
+        $agrRows = ($isEdit && is_array($report->agreements)) ? array_values($report->agreements) : [];
+    }
 @endphp
 
 @if($errors->any())
@@ -610,6 +637,9 @@
          flag (apagado por defecto; se enciende en Ajustes › Feature Flags). --}}
     @include('componentes._handover-stub')
 
+    {{-- Comportamiento compartido de filas que se auto-agregan (Viabilidad y Acuerdos). --}}
+    @include('componentes._repeatable-rows')
+
     {{-- ============ SECCIÓN: VIABILIDAD ============ --}}
     <div class="card shadow-sm mb-4">
         <h3 class="card-header bg-secondary text-white fw-bold h6 mb-0 d-flex align-items-center gap-2">
@@ -619,37 +649,59 @@
         <div class="card-body">
             {{-- (2026-07-15) cc-stack: en <768px cada fila se apila como tarjeta (data-label
                  arriba) para matar el scroll horizontal; en desktop se ve como tabla normal. --}}
-            <div class="table-responsive">
-                <table class="table table-sm align-middle cc-stack" style="min-width: 600px;">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Área</th>
-                            <th style="width:18%">Estatus</th>
-                            <th>Responsable</th>
-                            <th>Nota</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @for($i = 0; $i < max(4, count($viabRows)); $i++)
-                            @php $v = $viabRows[$i] ?? []; @endphp
+            <div data-cc-repeat>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle cc-stack" style="min-width: 600px;">
+                        <thead class="table-light">
                             <tr>
-                                <td data-label="Área"><input type="text" name="viab_area[]" class="form-control form-control-sm" value="{{ old('viab_area.'.$i, $v['area'] ?? '') }}"></td>
-                                <td data-label="Estatus">
-                                    <select name="viab_status[]" class="form-select form-select-sm">
-                                        <option value="">—</option>
-                                        <option value="OK" {{ old('viab_status.'.$i, $v['status'] ?? '') === 'OK' ? 'selected' : '' }}>OK</option>
-                                        <option value="PorAsignar" {{ old('viab_status.'.$i, $v['status'] ?? '') === 'PorAsignar' ? 'selected' : '' }}>Por asignar</option>
-                                        <option value="Pendiente" {{ old('viab_status.'.$i, $v['status'] ?? '') === 'Pendiente' ? 'selected' : '' }}>Pendiente</option>
-                                    </select>
-                                </td>
-                                <td data-label="Responsable"><input type="text" name="viab_responsible[]" class="form-control form-control-sm" value="{{ old('viab_responsible.'.$i, $v['responsible'] ?? '') }}"></td>
-                                <td data-label="Nota"><input type="text" name="viab_note[]" class="form-control form-control-sm" value="{{ old('viab_note.'.$i, $v['note'] ?? '') }}"></td>
+                                <th>Área</th>
+                                <th style="width:18%">Estatus</th>
+                                <th>Responsable</th>
+                                <th>Nota</th>
+                                <th style="width:36px"></th>
                             </tr>
-                        @endfor
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody data-cc-repeat-body>
+                            @foreach($viabRows as $v)
+                                <tr data-cc-repeat-row>
+                                    <td data-label="Área"><input type="text" name="viab_area[]" class="form-control form-control-sm" value="{{ $v['area'] ?? '' }}"></td>
+                                    <td data-label="Estatus">
+                                        <select name="viab_status[]" class="form-select form-select-sm">
+                                            <option value="">—</option>
+                                            <option value="OK" {{ ($v['status'] ?? '') === 'OK' ? 'selected' : '' }}>OK</option>
+                                            <option value="PorAsignar" {{ ($v['status'] ?? '') === 'PorAsignar' ? 'selected' : '' }}>Por asignar</option>
+                                            <option value="Pendiente" {{ ($v['status'] ?? '') === 'Pendiente' ? 'selected' : '' }}>Pendiente</option>
+                                        </select>
+                                    </td>
+                                    <td data-label="Responsable"><input type="text" name="viab_responsible[]" class="form-control form-control-sm" value="{{ $v['responsible'] ?? '' }}"></td>
+                                    <td data-label="Nota"><input type="text" name="viab_note[]" class="form-control form-control-sm" value="{{ $v['note'] ?? '' }}"></td>
+                                    <td data-label="" class="text-center align-middle"><button type="button" class="btn btn-sm btn-link text-danger p-0" data-cc-repeat-remove title="Quitar" aria-label="Quitar fila">&times;</button></td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <template data-cc-repeat-tpl>
+                    <tr data-cc-repeat-row>
+                        <td data-label="Área"><input type="text" name="viab_area[]" class="form-control form-control-sm"></td>
+                        <td data-label="Estatus">
+                            <select name="viab_status[]" class="form-select form-select-sm">
+                                <option value="">—</option>
+                                <option value="OK">OK</option>
+                                <option value="PorAsignar">Por asignar</option>
+                                <option value="Pendiente">Pendiente</option>
+                            </select>
+                        </td>
+                        <td data-label="Responsable"><input type="text" name="viab_responsible[]" class="form-control form-control-sm"></td>
+                        <td data-label="Nota"><input type="text" name="viab_note[]" class="form-control form-control-sm"></td>
+                        <td data-label="" class="text-center align-middle"><button type="button" class="btn btn-sm btn-link text-danger p-0" data-cc-repeat-remove title="Quitar" aria-label="Quitar fila">&times;</button></td>
+                    </tr>
+                </template>
+                <button type="button" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1" data-cc-repeat-add>
+                    @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-ico'])
+                    <span>Agregar área</span>
+                </button>
             </div>
-            <small class="cc-muted">Deja vacías las filas que no uses.</small>
         </div>
     </div>
 
@@ -661,37 +713,59 @@
         </h3>
         <div class="card-body">
             {{-- (2026-07-15) cc-stack: filas apiladas como tarjeta en <768px (data-label arriba). --}}
-            <div class="table-responsive">
-                <table class="table table-sm align-middle cc-stack" style="min-width: 600px;">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Acuerdo</th>
-                            <th>Responsable</th>
-                            <th style="width:18%">Fecha</th>
-                            <th style="width:18%">Estatus</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @for($i = 0; $i < max(4, count($agrRows)); $i++)
-                            @php $a = $agrRows[$i] ?? []; @endphp
+            <div data-cc-repeat>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle cc-stack" style="min-width: 600px;">
+                        <thead class="table-light">
                             <tr>
-                                <td data-label="Acuerdo"><input type="text" name="agr_item[]" class="form-control form-control-sm" value="{{ old('agr_item.'.$i, $a['item'] ?? '') }}"></td>
-                                <td data-label="Responsable"><input type="text" name="agr_responsible[]" class="form-control form-control-sm" value="{{ old('agr_responsible.'.$i, $a['responsible'] ?? '') }}"></td>
-                                <td data-label="Fecha"><input type="date" name="agr_date[]" class="form-control form-control-sm" value="{{ old('agr_date.'.$i, $a['date'] ?? '') }}"></td>
-                                <td data-label="Estatus">
-                                    <select name="agr_status[]" class="form-select form-select-sm">
-                                        <option value="">—</option>
-                                        <option value="Pendiente" {{ old('agr_status.'.$i, $a['status'] ?? '') === 'Pendiente' ? 'selected' : '' }}>Pendiente</option>
-                                        <option value="EnProceso" {{ old('agr_status.'.$i, $a['status'] ?? '') === 'EnProceso' ? 'selected' : '' }}>En proceso</option>
-                                        <option value="Cerrado" {{ old('agr_status.'.$i, $a['status'] ?? '') === 'Cerrado' ? 'selected' : '' }}>Cerrado</option>
-                                    </select>
-                                </td>
+                                <th>Acuerdo</th>
+                                <th>Responsable</th>
+                                <th style="width:18%">Fecha</th>
+                                <th style="width:18%">Estatus</th>
+                                <th style="width:36px"></th>
                             </tr>
-                        @endfor
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody data-cc-repeat-body>
+                            @foreach($agrRows as $a)
+                                <tr data-cc-repeat-row>
+                                    <td data-label="Acuerdo"><input type="text" name="agr_item[]" class="form-control form-control-sm" value="{{ $a['item'] ?? '' }}"></td>
+                                    <td data-label="Responsable"><input type="text" name="agr_responsible[]" class="form-control form-control-sm" value="{{ $a['responsible'] ?? '' }}"></td>
+                                    <td data-label="Fecha"><input type="date" name="agr_date[]" class="form-control form-control-sm" value="{{ $a['date'] ?? '' }}"></td>
+                                    <td data-label="Estatus">
+                                        <select name="agr_status[]" class="form-select form-select-sm">
+                                            <option value="">—</option>
+                                            <option value="Pendiente" {{ ($a['status'] ?? '') === 'Pendiente' ? 'selected' : '' }}>Pendiente</option>
+                                            <option value="EnProceso" {{ ($a['status'] ?? '') === 'EnProceso' ? 'selected' : '' }}>En proceso</option>
+                                            <option value="Cerrado" {{ ($a['status'] ?? '') === 'Cerrado' ? 'selected' : '' }}>Cerrado</option>
+                                        </select>
+                                    </td>
+                                    <td data-label="" class="text-center align-middle"><button type="button" class="btn btn-sm btn-link text-danger p-0" data-cc-repeat-remove title="Quitar" aria-label="Quitar fila">&times;</button></td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <template data-cc-repeat-tpl>
+                    <tr data-cc-repeat-row>
+                        <td data-label="Acuerdo"><input type="text" name="agr_item[]" class="form-control form-control-sm"></td>
+                        <td data-label="Responsable"><input type="text" name="agr_responsible[]" class="form-control form-control-sm"></td>
+                        <td data-label="Fecha"><input type="date" name="agr_date[]" class="form-control form-control-sm"></td>
+                        <td data-label="Estatus">
+                            <select name="agr_status[]" class="form-select form-select-sm">
+                                <option value="">—</option>
+                                <option value="Pendiente">Pendiente</option>
+                                <option value="EnProceso">En proceso</option>
+                                <option value="Cerrado">Cerrado</option>
+                            </select>
+                        </td>
+                        <td data-label="" class="text-center align-middle"><button type="button" class="btn btn-sm btn-link text-danger p-0" data-cc-repeat-remove title="Quitar" aria-label="Quitar fila">&times;</button></td>
+                    </tr>
+                </template>
+                <button type="button" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1" data-cc-repeat-add>
+                    @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-ico'])
+                    <span>Agregar acuerdo</span>
+                </button>
             </div>
-            <small class="cc-muted">Deja vacías las filas que no uses.</small>
         </div>
     </div>
 
