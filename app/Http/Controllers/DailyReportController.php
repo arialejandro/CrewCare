@@ -74,12 +74,22 @@ class DailyReportController extends Controller
                 ->get(['id', 'location_name', 'nearest_hospital', 'hospital_eta', 'ambulance_company', 'latitude', 'longitude']);
         }
 
+        // (2026-08-01 · captura fluida, Paso 5) "Lo de hoy al frente": permisos emitidos
+        // hoy + acciones abiertas de la producción + temas que la locación ya evaluó (para
+        // sugerir al elegirla). NADA se marca solo. Todo defensivo (DsrContext no rompe si
+        // falta una tabla/modelo).
+        $pidCtx   = \App\Support\CurrentProduction::id();
+        $shootDay = $derivado;
+
         return view('admin.dailyreports.create', [
-            'calAncla'    => $ancla ? $ancla->toDateString() : null,
-            'calFechas'   => \App\Support\ProductionCalendar::shootDates(),
-            'diaLabel'    => \App\Support\ProductionCalendar::labelFor(now()),
-            'diaSugerido' => $derivado !== null ? $derivado : 1,
-            'scoutings'   => $scoutings,
+            'calAncla'     => $ancla ? $ancla->toDateString() : null,
+            'calFechas'    => \App\Support\ProductionCalendar::shootDates(),
+            'diaLabel'     => \App\Support\ProductionCalendar::labelFor(now()),
+            'diaSugerido'  => $derivado !== null ? $derivado : 1,
+            'scoutings'    => $scoutings,
+            'dsrPermits'   => \App\Support\DsrContext::permitsToday($pidCtx, $shootDay),
+            'dsrActions'   => \App\Support\DsrContext::openActionItems($pidCtx),
+            'dsrLocTopics' => \App\Support\DsrContext::locationTopics($pidCtx),
         ]);
     }
 

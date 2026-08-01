@@ -114,6 +114,16 @@
                             </datalist>
                             <div class="form-text small">Escribe la locación o elígela de la lista.</div>
                         @endif
+                        {{-- (2026-08-01 · captura fluida) Sugerencia geo de locación, igual que los
+                             demás reportes: detecta la locación scouteada más cercana y llena el
+                             nombre (el DSR no guarda GPS; solo sugiere). Al llenarse dispara 'input',
+                             que ya hereda hospital/ambulancia y sugiere los temas de esa locación. --}}
+                        <small id="dsr-geo-note" class="cc-muted d-block mt-1"></small>
+                        @include('componentes._geo-capture', [
+                            'mode' => 'silent',
+                            'suggestTarget' => '#cc-location-input',
+                            'noteTarget' => '#dsr-geo-note',
+                        ])
                     </div>
                 </div>
 
@@ -214,6 +224,91 @@
                        no reescriba el histórico. La vista traduce clave → etiqueta al pintar. --}}
                 <div class="row g-3 mb-4">
                     <div class="col-12">
+                        {{-- (2026-08-01 · captura fluida, Paso 5) LO DE HOY AL FRENTE: el contexto
+                             SUGIERE qué revisar hoy (permisos del día, acciones abiertas, y los temas
+                             que la locación ya evaluó). Nada se marca solo. --}}
+                        @php $ctxCatLabels = \App\Models\HazardEvent::categoriesLocalized(); @endphp
+                        <style>
+                            .dsr-ctx { display:flex; flex-wrap:wrap; gap:.5rem; margin-bottom:.5rem; }
+                            .dsr-ctx-card { flex:1 1 260px; border:1px solid var(--border,#dee2e6); border-radius:10px; padding:.5rem .7rem; background:var(--surface-2,#f8fafc); }
+                            .dsr-ctx-h { font-size:.78rem; font-weight:700; margin-bottom:.3rem; display:flex; align-items:center; gap:.4rem; }
+                            .dsr-ctx-n { font-size:.7rem; font-weight:700; background:color-mix(in srgb,var(--brand-primary,#0e6f6c) 15%,transparent); color:var(--brand-primary,#0e6f6c); border-radius:999px; padding:.02rem .45rem; }
+                            .dsr-ctx-list { margin:0; padding-left:1rem; font-size:.82rem; }
+                            .dsr-ctx-code { font-size:.7rem; color:var(--text-muted,#6c757d); }
+                            .dsr-sugg { display:block; margin-bottom:.6rem; background:color-mix(in srgb,var(--brand-primary,#0e6f6c) 6%,transparent); border-color:color-mix(in srgb,var(--brand-primary,#0e6f6c) 30%,transparent); }
+                            .dsr-sugg-chips { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.2rem; }
+                            .dsr-sugg-chip { border:1px solid color-mix(in srgb,var(--brand-primary,#0e6f6c) 40%,transparent); background:var(--surface,#fff); color:var(--brand-primary,#0e6f6c); border-radius:999px; padding:.35rem .7rem; font-size:.8rem; cursor:pointer; min-height:38px; }
+                            .dsr-sugg-chip.picked { background:color-mix(in srgb,var(--brand-primary,#0e6f6c) 18%,transparent); }
+                        </style>
+                        @if($dsrPermits->isNotEmpty() || $dsrActions->isNotEmpty())
+                            <div class="dsr-ctx">
+                                @if($dsrPermits->isNotEmpty())
+                                    <div class="dsr-ctx-card">
+                                        <div class="dsr-ctx-h">Permisos emitidos hoy <span class="dsr-ctx-n">{{ $dsrPermits->count() }}</span></div>
+                                        <ul class="dsr-ctx-list">
+                                            @foreach($dsrPermits as $p)
+                                                <li><span class="fw-semibold">{{ $p->permit_name }}</span>@if($p->permit_code) <span class="dsr-ctx-code">{{ $p->permit_code }}</span>@endif @if($p->site_label)· {{ $p->site_label }}@endif</li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @endif
+                                @if($dsrActions->isNotEmpty())
+                                    <div class="dsr-ctx-card">
+                                        <div class="dsr-ctx-h">Acciones abiertas de la producción <span class="dsr-ctx-n">{{ $dsrActions->count() }}</span></div>
+                                        <ul class="dsr-ctx-list">
+                                            @foreach($dsrActions as $a)
+                                                <li>{{ \Illuminate\Support\Str::limit(trim((string) $a->description) ?: 'Acción correctiva', 90) }}@if($a->due_date) · <span class="cc-muted">vence {{ $a->due_date->format('d M') }}</span>@endif</li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+                        <div class="dsr-ctx-card dsr-sugg" id="dsr-loc-suggest" style="display:none;">
+                            <div class="dsr-ctx-h">Sugeridos por la locación <span class="cc-muted small">— toca para marcar; nada se marca solo</span></div>
+                            <div class="dsr-sugg-chips" id="dsr-sugg-chips"></div>
+                        </div>
+                        <script type="application/json" id="dsr-loc-topics">@json($dsrLocTopics)</script>
+                        <script type="application/json" id="dsr-cat-labels">@json($ctxCatLabels)</script>
+                        <script>
+                            (function () {
+                                var input = document.getElementById('cc-location-input');
+                                var box = document.getElementById('dsr-loc-suggest');
+                                var wrap = document.getElementById('dsr-sugg-chips');
+                                var tEl = document.getElementById('dsr-loc-topics');
+                                var lEl = document.getElementById('dsr-cat-labels');
+                                if (!input || !box || !wrap || !tEl || !lEl) return;
+                                var TOPICS = {}, LABELS = {};
+                                try { TOPICS = JSON.parse(tEl.textContent || '{}') || {}; } catch (e) {}
+                                try { LABELS = JSON.parse(lEl.textContent || '{}') || {}; } catch (e) {}
+                                function refresh() {
+                                    var key = (input.value || '').trim().toLowerCase();
+                                    var cats = TOPICS[key];
+                                    wrap.innerHTML = '';
+                                    if (!cats || !cats.length) { box.style.display = 'none'; return; }
+                                    box.style.display = '';
+                                    cats.forEach(function (ck) {
+                                        var b = document.createElement('button');
+                                        b.type = 'button'; b.className = 'dsr-sugg-chip';
+                                        b.textContent = LABELS[ck] || ck;
+                                        b.addEventListener('click', function () {
+                                            var cb = document.getElementById('smt_' + ck);
+                                            if (cb) {
+                                                cb.checked = true;
+                                                cb.dispatchEvent(new Event('change', { bubbles: true }));
+                                                var det = cb.closest('details'); if (det) { det.open = true; }
+                                                b.classList.add('picked');
+                                            }
+                                        });
+                                        wrap.appendChild(b);
+                                    });
+                                }
+                                input.addEventListener('input', refresh);
+                                input.addEventListener('change', refresh);
+                                refresh();
+                            })();
+                        </script>
+
                         <label class="form-label small fw-bold">Temas Tratados</label>
                         <div class="form-text small mb-2">{{ __('reports.dsr_meeting_topics_hint') }}</div>
 
