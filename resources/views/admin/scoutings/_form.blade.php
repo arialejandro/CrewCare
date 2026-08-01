@@ -928,6 +928,11 @@
 
 </form>
 
+{{-- (2026-08-01 · captura fluida, Paso 9) Modelo ÚNICO de foto (redimensiona/comprime +
+     maneja HEIC de iPhone) para todos los caminos de imagen. Se carga ANTES del script
+     inline de abajo (script clásico = ejecución en orden) para que window.CCPhoto exista. --}}
+<script src="{{ asset('js/cc-photo.js') }}?v=1"></script>
+
 <script>
     // Aviso SB132: muestra/oculta según la casilla de actividades especiales.
     function toggleSpecial() {
@@ -1152,37 +1157,29 @@
         var canDT = false;
         try { var _probe = new DataTransfer(); void _probe.items; canDT = true; } catch (e) { canDT = false; }
 
-        // Reduce peso/dimensiones de una imagen en el navegador. Best-effort: ante CUALQUIER
-        // problema (o navegador viejo) devuelve el archivo ORIGINAL, así nunca rompe la subida.
+        // (2026-08-01 · Paso 9) Delegado al MODELO ÚNICO de foto (public/js/cc-photo.js):
+        // redimensiona/comprime + orienta EXIF + convierte HEIC. Best-effort: si CCPhoto no
+        // cargó, sube el original (nunca rompe la subida).
         function processFile(file) {
-            return new Promise(function (resolve) {
-                if (!file || !file.type || file.type.indexOf('image/') !== 0 || file.type === 'image/gif') {
-                    return resolve(file); // no-imagen o GIF (posible animación) → sin tocar
-                }
-                if (typeof createImageBitmap !== 'function') { return resolve(file); }
-                var p;
-                try { p = createImageBitmap(file, { imageOrientation: 'from-image' }); }
-                catch (e) { p = createImageBitmap(file); } // navegadores sin la opción de orientación
-                Promise.resolve(p).then(function (bmp) {
-                    var MAX = 2200, w = bmp.width, h = bmp.height;
-                    var big = Math.max(w, h) > MAX;
-                    // Ya es chica y liviana → no vale la pena recomprimir.
-                    if (!big && file.size <= 2 * 1024 * 1024) { if (bmp.close) bmp.close(); return resolve(file); }
-                    var scale = big ? MAX / Math.max(w, h) : 1;
-                    var nw = Math.round(w * scale), nh = Math.round(h * scale);
-                    var canvas = document.createElement('canvas');
-                    canvas.width = nw; canvas.height = nh;
-                    canvas.getContext('2d').drawImage(bmp, 0, 0, nw, nh);
-                    if (bmp.close) bmp.close();
-                    canvas.toBlob(function (blob) {
-                        if (!blob || blob.size >= file.size) { return resolve(file); } // no mejoró
-                        var base = file.name.replace(/\.[^.]+$/, '');
-                        try {
-                            resolve(new File([blob], base + '.jpg', { type: 'image/jpeg', lastModified: file.lastModified }));
-                        } catch (e2) { resolve(file); }
-                    }, 'image/jpeg', 0.82);
-                }, function () { resolve(file); });
-            });
+            return (window.CCPhoto && window.CCPhoto.process)
+                ? window.CCPhoto.process(file)
+                : Promise.resolve(file);
+        }
+
+        // Aviso reutilizable: una foto HEIC (iPhone) que ESTE navegador no pudo convertir
+        // (Safari sí la convierte solo; Chrome/Firefox no, salvo que se autoaloje heic2any).
+        // No bloquea la subida; sólo orienta al usuario.
+        function ccHeicWarn(anchor, on) {
+            if (!anchor) return;
+            var note = anchor.querySelector('.cc-heic-note');
+            if (on && !note) {
+                note = document.createElement('div');
+                note.className = 'cc-heic-note alert alert-warning py-1 px-2 small mt-2 mb-0';
+                note.textContent = 'Una imagen HEIC (formato de iPhone) no se pudo convertir en este navegador. Ábrela desde un iPhone/Safari, o vuelve a subirla como JPG o PNG.';
+                anchor.appendChild(note);
+            } else if (!on && note) {
+                note.parentNode.removeChild(note);
+            }
         }
 
         function fmtSize(bytes) {
@@ -1199,6 +1196,7 @@
                 var f = mainInput.files && mainInput.files[0];
                 if (!f) return;
                 processFile(f).then(function (out) {
+                    if (window.CCPhoto) { ccHeicWarn(mainInput.parentNode, window.CCPhoto.unconverted(f, out)); }
                     if (out === f) return; // sin cambios
                     var dt = new DataTransfer();
                     dt.items.add(out);
@@ -1278,10 +1276,12 @@
                 var picked = Array.prototype.slice.call(aiInput.files || []);
                 if (!picked.length) return;
                 aiAdd.disabled = true;
+                var heicBad = false;
                 var chain = Promise.resolve();
                 picked.forEach(function (f) {
                     chain = chain.then(function () {
                         return processFile(f).then(function (out) {
+                            if (window.CCPhoto && window.CCPhoto.unconverted(f, out)) { heicBad = true; }
                             var k = keyOf(out);
                             if (!seen[k]) { seen[k] = true; store.items.add(out); captions.push(''); }
                         });
@@ -1291,6 +1291,7 @@
                     busy = true; syncInput(); busy = false;
                     aiAdd.disabled = false;
                     render();
+                    ccHeicWarn(document.getElementById('ai-uploader'), heicBad);
                 });
             });
         }
