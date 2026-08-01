@@ -240,30 +240,9 @@
                             .dsr-sugg-chip { border:1px solid color-mix(in srgb,var(--brand-primary,#0e6f6c) 40%,transparent); background:var(--surface,#fff); color:var(--brand-primary,#0e6f6c); border-radius:999px; padding:.35rem .7rem; font-size:.8rem; cursor:pointer; min-height:38px; }
                             .dsr-sugg-chip.picked { background:color-mix(in srgb,var(--brand-primary,#0e6f6c) 18%,transparent); }
                         </style>
-                        @if($dsrPermits->isNotEmpty() || $dsrActions->isNotEmpty())
-                            <div class="dsr-ctx">
-                                @if($dsrPermits->isNotEmpty())
-                                    <div class="dsr-ctx-card">
-                                        <div class="dsr-ctx-h">Permisos emitidos hoy <span class="dsr-ctx-n">{{ $dsrPermits->count() }}</span></div>
-                                        <ul class="dsr-ctx-list">
-                                            @foreach($dsrPermits as $p)
-                                                <li><span class="fw-semibold">{{ $p->permit_name }}</span>@if($p->permit_code) <span class="dsr-ctx-code">{{ $p->permit_code }}</span>@endif @if($p->site_label)· {{ $p->site_label }}@endif</li>
-                                            @endforeach
-                                        </ul>
-                                    </div>
-                                @endif
-                                @if($dsrActions->isNotEmpty())
-                                    <div class="dsr-ctx-card">
-                                        <div class="dsr-ctx-h">Acciones abiertas de la producción <span class="dsr-ctx-n">{{ $dsrActions->count() }}</span></div>
-                                        <ul class="dsr-ctx-list">
-                                            @foreach($dsrActions as $a)
-                                                <li>{{ \Illuminate\Support\Str::limit(trim((string) $a->description) ?: 'Acción correctiva', 90) }}@if($a->due_date) · <span class="cc-muted">vence {{ $a->due_date->format('d M') }}</span>@endif</li>
-                                            @endforeach
-                                        </ul>
-                                    </div>
-                                @endif
-                            </div>
-                        @endif
+                        {{-- (2026-08-01) Las "alertas de producción" (permisos del día, acciones
+                             abiertas) NO van aquí: son de un módulo aparte, no del llenado del DSR.
+                             DsrContext las sigue calculando para ese módulo futuro. --}}
                         <div class="dsr-ctx-card dsr-sugg" id="dsr-loc-suggest" style="display:none;">
                             <div class="dsr-ctx-h">Sugeridos por la locación <span class="cc-muted small">— toca para marcar; nada se marca solo</span></div>
                             <div class="dsr-sugg-chips" id="dsr-sugg-chips"></div>
@@ -292,13 +271,9 @@
                                         b.type = 'button'; b.className = 'dsr-sugg-chip';
                                         b.textContent = LABELS[ck] || ck;
                                         b.addEventListener('click', function () {
-                                            var cb = document.getElementById('smt_' + ck);
-                                            if (cb) {
-                                                cb.checked = true;
-                                                cb.dispatchEvent(new Event('change', { bubbles: true }));
-                                                var det = cb.closest('details'); if (det) { det.open = true; }
-                                                b.classList.add('picked');
-                                            }
+                                            var tags = document.getElementById('ctags-topics');
+                                            if (tags) { tags.dispatchEvent(new CustomEvent('cc:catalog-add', { detail: { value: ck } })); }
+                                            b.classList.add('picked');
                                         });
                                         wrap.appendChild(b);
                                     });
@@ -331,43 +306,20 @@
                             .smt-act .form-check { min-height:38px; }
                             .smt-act > div { padding:0 .8rem .7rem; }
                         </style>
-                        <div class="smt-groups" id="smt-groups">
-                            @foreach(\App\Support\HazardActivities::categoriesGrouped() as $actKey => $grp)
-                                @php $grpHasChecked = (bool) array_intersect(array_keys($grp['categories']), (array) $oldTopics); @endphp
-                                <details class="smt-act" @if($grpHasChecked) open @endif>
-                                    <summary>
-                                        <span>{{ $grp['label'] }}</span>
-                                        <span class="smt-checked"></span>
-                                        <span class="smt-count">{{ count($grp['categories']) }}</span>
-                                    </summary>
-                                    <div class="row g-1">
-                                        @foreach($grp['categories'] as $key => $label)
-                                            <div class="col-lg-4 col-md-6 col-12">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="safety_meeting_topics[]" value="{{ $key }}" id="smt_{{ $key }}" {{ in_array($key, $oldTopics) ? 'checked' : '' }}>
-                                                    <label class="form-check-label small" for="smt_{{ $key }}" title="{{ $label }}">{{ $label }}</label>
-                                                </div>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                </details>
-                            @endforeach
-                        </div>
-                        <script>
-                            (function () {
-                                var wrap = document.getElementById('smt-groups');
-                                if (!wrap) return;
-                                function refresh(det) {
-                                    var n = det.querySelectorAll('input[type="checkbox"]:checked').length;
-                                    var b = det.querySelector('.smt-checked');
-                                    if (b) { b.textContent = n + ' marcado' + (n === 1 ? '' : 's'); b.classList.toggle('on', n > 0); }
-                                }
-                                wrap.querySelectorAll('details.smt-act').forEach(function (det) {
-                                    refresh(det);
-                                    det.addEventListener('change', function () { refresh(det); });
-                                });
-                            })();
-                        </script>
+                        @php
+                            $topicGroups = collect(\App\Support\HazardActivities::categoriesGrouped())
+                                ->mapWithKeys(function ($g, $k) { return [$g['label'] => array_keys($g['categories'])]; })
+                                ->all();
+                        @endphp
+                        @include('componentes._catalog-tags', [
+                            'name' => 'safety_meeting_topics',
+                            'options' => $ctxCatLabels,
+                            'groups' => $topicGroups,
+                            'selected' => $oldTopics,
+                            'allowCustom' => false,
+                            'placeholder' => 'Escribe o elige un tema…',
+                            'tagsId' => 'ctags-topics',
+                        ])
                     </div>
                 </div>
 
@@ -424,31 +376,28 @@
 
                 <div class="mb-3">
                     <label class="form-label small fw-bold">Factores de riesgo del día</label>
-                    <div class="row g-2">
-                        @foreach(['Trabajo en altura', 'Trabajo eléctrico', 'Espacios confinados', 'Manejo de químicos', 'Tráfico/vialidad', 'Cargas suspendidas'] as $i => $factor)
-                            <div class="col-md-4 col-6">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="day_risk_factors[]" value="{{ $factor }}" id="drf{{ $i }}" {{ in_array($factor, $oldFactors) ? 'checked' : '' }}>
-                                    <label class="form-check-label small" for="drf{{ $i }}">{{ $factor }}</label>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
+                    @include('componentes._catalog-tags', [
+                        'name' => 'day_risk_factors',
+                        'options' => collect(['Trabajo en altura', 'Trabajo eléctrico', 'Espacios confinados', 'Manejo de químicos', 'Tráfico/vialidad', 'Cargas suspendidas'])->mapWithKeys(function ($f) { return [$f => $f]; })->all(),
+                        'selected' => $oldFactors,
+                        'allowCustom' => true,
+                        'placeholder' => 'Escribe o elige un factor…',
+                        'tagsId' => 'ctags-factors',
+                    ])
+                    <div class="form-text small">Elige del catálogo o escribe uno y toca Agregar.</div>
                 </div>
 
                 <div class="mb-4">
                     <label class="form-label small fw-bold">EPP requerido</label>
-                    <div class="row g-2">
-                        @foreach(['Casco', 'Chaleco', 'Botas', 'Guantes', 'Lentes', 'Arnés', 'Protección auditiva', 'Cubrebocas', 'Bloqueador'] as $i => $ppe)
-                            <div class="col-md-3 col-6">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="required_ppe[]" value="{{ $ppe }}" id="ppe{{ $i }}" {{ in_array($ppe, $oldPpe) ? 'checked' : '' }}>
-                                    <label class="form-check-label small" for="ppe{{ $i }}">{{ $ppe }}</label>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                    <div class="form-text">Selecciona el equipo de protección personal exigido para las actividades del día.</div>
+                    @include('componentes._catalog-tags', [
+                        'name' => 'required_ppe',
+                        'options' => collect(['Casco', 'Chaleco', 'Botas', 'Guantes', 'Lentes', 'Arnés', 'Protección auditiva', 'Cubrebocas', 'Bloqueador'])->mapWithKeys(function ($p) { return [$p => $p]; })->all(),
+                        'selected' => $oldPpe,
+                        'allowCustom' => true,
+                        'placeholder' => 'Escribe o elige EPP…',
+                        'tagsId' => 'ctags-ppe',
+                    ])
+                    <div class="form-text small">Elige del catálogo o escribe uno y toca Agregar.</div>
                 </div>
 
                 <h5 class="fw-bold text-primary mb-3 border-bottom pb-2">6. Cierre del Reporte</h5>
