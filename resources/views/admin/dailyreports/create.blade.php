@@ -216,16 +216,63 @@
                     <div class="col-12">
                         <label class="form-label small fw-bold">Temas Tratados</label>
                         <div class="form-text small mb-2">{{ __('reports.dsr_meeting_topics_hint') }}</div>
-                        <div class="row g-1">
-                            @foreach(\App\Models\HazardEvent::categoriesLocalized() as $key => $label)
-                                <div class="col-lg-3 col-md-4 col-6">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="safety_meeting_topics[]" value="{{ $key }}" id="smt_{{ $key }}" {{ in_array($key, $oldTopics) ? 'checked' : '' }}>
-                                        <label class="form-check-label small" for="smt_{{ $key }}" title="{{ $label }}">{{ $label }}</label>
+
+                        {{-- (2026-08-01 · captura fluida, Paso 5) Los ~38 temas ya no van en una
+                             rejilla plana que no se recorre: se pliegan por ACTIVIDAD, a un toque.
+                             Nada se marca solo; un grupo se abre solo si ya trae temas marcados (al
+                             rebotar validación) para no esconder lo elegido. --}}
+                        <style>
+                            .smt-groups { display:flex; flex-direction:column; gap:.4rem; }
+                            .smt-act { border:1px solid var(--border,#dee2e6); border-radius:10px; background:var(--surface,#fff); }
+                            .smt-act > summary { list-style:none; cursor:pointer; padding:.6rem .8rem; min-height:44px;
+                                display:flex; align-items:center; gap:.5rem; font-weight:600; font-size:.9rem; }
+                            .smt-act > summary::-webkit-details-marker { display:none; }
+                            .smt-act > summary::before { content:'▸'; color:var(--text-muted,#6c757d); transition:transform .12s ease; }
+                            .smt-act[open] > summary::before { transform:rotate(90deg); }
+                            .smt-count { margin-left:auto; font-size:.72rem; font-weight:700; color:var(--text-muted,#6c757d); }
+                            .smt-checked { display:none; font-size:.72rem; font-weight:700; color:#0e6f6c;
+                                background:color-mix(in srgb,#0e6f6c 12%,transparent); border-radius:999px; padding:.05rem .45rem; }
+                            .smt-checked.on { display:inline-block; }
+                            .smt-act .form-check { min-height:38px; }
+                            .smt-act > div { padding:0 .8rem .7rem; }
+                        </style>
+                        <div class="smt-groups" id="smt-groups">
+                            @foreach(\App\Support\HazardActivities::categoriesGrouped() as $actKey => $grp)
+                                @php $grpHasChecked = (bool) array_intersect(array_keys($grp['categories']), (array) $oldTopics); @endphp
+                                <details class="smt-act" @if($grpHasChecked) open @endif>
+                                    <summary>
+                                        <span>{{ $grp['label'] }}</span>
+                                        <span class="smt-checked"></span>
+                                        <span class="smt-count">{{ count($grp['categories']) }}</span>
+                                    </summary>
+                                    <div class="row g-1">
+                                        @foreach($grp['categories'] as $key => $label)
+                                            <div class="col-lg-4 col-md-6 col-12">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" name="safety_meeting_topics[]" value="{{ $key }}" id="smt_{{ $key }}" {{ in_array($key, $oldTopics) ? 'checked' : '' }}>
+                                                    <label class="form-check-label small" for="smt_{{ $key }}" title="{{ $label }}">{{ $label }}</label>
+                                                </div>
+                                            </div>
+                                        @endforeach
                                     </div>
-                                </div>
+                                </details>
                             @endforeach
                         </div>
+                        <script>
+                            (function () {
+                                var wrap = document.getElementById('smt-groups');
+                                if (!wrap) return;
+                                function refresh(det) {
+                                    var n = det.querySelectorAll('input[type="checkbox"]:checked').length;
+                                    var b = det.querySelector('.smt-checked');
+                                    if (b) { b.textContent = n + ' marcado' + (n === 1 ? '' : 's'); b.classList.toggle('on', n > 0); }
+                                }
+                                wrap.querySelectorAll('details.smt-act').forEach(function (det) {
+                                    refresh(det);
+                                    det.addEventListener('change', function () { refresh(det); });
+                                });
+                            })();
+                        </script>
                     </div>
                 </div>
 

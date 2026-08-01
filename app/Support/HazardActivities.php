@@ -51,6 +51,38 @@ class HazardActivities
         return $out;
     }
 
+    /**
+     * Las 38 categorías (con su etiqueta localizada) agrupadas bajo sus 12 actividades,
+     * en el orden de MAP. Fuente única para plegar rejillas por actividad (DSR "Temas
+     * Tratados"). Las categorías sin actividad mapeada caen en 'otros'.
+     *
+     * @return array<string, array{label:string, categories:array<string,string>}>
+     */
+    public static function categoriesGrouped($lang = 'es')
+    {
+        $catLabels = \App\Models\HazardEvent::categoriesLocalized();
+        $out = [];
+        $mapped = [];
+        foreach (self::MAP as $actKey => $meta) {
+            $cats = [];
+            foreach ($meta['categories'] as $ck) {
+                $mapped[$ck] = true;
+                if (isset($catLabels[$ck])) { $cats[$ck] = $catLabels[$ck]; }
+            }
+            if ($cats) {
+                $out[$actKey] = ['label' => self::label($actKey, $lang), 'categories' => $cats];
+            }
+        }
+        $others = [];
+        foreach ($catLabels as $ck => $label) {
+            if (!isset($mapped[$ck])) { $others[$ck] = $label; }
+        }
+        if ($others) {
+            $out[self::OTHER_KEY] = ['label' => self::label(self::OTHER_KEY, $lang), 'categories' => $others];
+        }
+        return $out;
+    }
+
     public static function label($key, $lang = 'es')
     {
         if ($key === self::OTHER_KEY) {
