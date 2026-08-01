@@ -142,8 +142,15 @@
     <div class="alert alert-danger">{{ session('error') }}</div>
 @endif
 
-<form action="{{ $isEdit ? route('scoutings.update', $report->id) : route('scoutings.store') }}" method="POST" enctype="multipart/form-data" data-cc-autosave="scouting-report">
+<form action="{{ $isEdit ? route('scoutings.update', $report->id) : route('scoutings.store') }}" method="POST" enctype="multipart/form-data" data-cc-autosave="scouting-report" data-cc-sections>
     @csrf
+
+    {{-- (2026-08-01 · captura fluida, Paso 7) Secciones plegables + estado por sección.
+         NO invasivo: marca este <form> con data-cc-sections y el comportamiento convierte
+         cada encabezado de tarjeta en plegador con chip de estado (Revisar/Falta/Listo/…),
+         barra Expandir/Contraer todo y auto-expansión de la sección con error al enviar.
+         Para arrancar contraído deja `data-cc-sections="collapsed"` en el <form> de arriba. --}}
+    @include('componentes._collapsible-sections')
     @if($isEdit)
         @method('PUT')
     @endif
