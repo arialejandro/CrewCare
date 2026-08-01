@@ -267,6 +267,16 @@ Route::middleware(['auth','permission:locations.create'])->group(function () {
     // para que `{id}/edit` nunca sea capturado por el patrón del show.
     Route::get('/scoutings/{id}/edit', [App\Http\Controllers\ScoutingReportController::class, 'edit'])->name('scoutings.edit')->whereNumber('id');
     Route::put('/scoutings/{id}', [App\Http\Controllers\ScoutingReportController::class, 'update'])->name('scoutings.update')->whereNumber('id');
+
+    // ---- MAPEO DE LA LOCACIÓN (delta #48): pines sobre lienzos, insumo del PAE. ----
+    // Mismo permiso que editar (locations.create). El segmento fijo `/mapeo` va con
+    // {id} numérico, así nunca lo captura el show `/scoutings/{id}` del grupo de abajo.
+    Route::get('/scoutings/{id}/mapeo', [App\Http\Controllers\ScoutingCanvasController::class, 'index'])->name('scoutings.mapping')->whereNumber('id');
+    Route::post('/scoutings/{id}/mapeo/lienzos', [App\Http\Controllers\ScoutingCanvasController::class, 'storeCanvas'])->name('scoutings.mapping.canvas.store')->whereNumber('id');
+    Route::delete('/scoutings/{id}/mapeo/lienzos/{canvas}', [App\Http\Controllers\ScoutingCanvasController::class, 'destroyCanvas'])->name('scoutings.mapping.canvas.destroy')->whereNumber('id')->whereNumber('canvas');
+    Route::post('/scoutings/{id}/mapeo/lienzos/{canvas}/pines', [App\Http\Controllers\ScoutingCanvasController::class, 'storePin'])->name('scoutings.mapping.pin.store')->whereNumber('id')->whereNumber('canvas');
+    Route::match(['put', 'patch'], '/scoutings/{id}/mapeo/lienzos/{canvas}/pines/{pin}', [App\Http\Controllers\ScoutingCanvasController::class, 'updatePin'])->name('scoutings.mapping.pin.update')->whereNumber('id')->whereNumber('canvas')->whereNumber('pin');
+    Route::delete('/scoutings/{id}/mapeo/lienzos/{canvas}/pines/{pin}', [App\Http\Controllers\ScoutingCanvasController::class, 'destroyPin'])->name('scoutings.mapping.pin.destroy')->whereNumber('id')->whereNumber('canvas')->whereNumber('pin');
 });
 Route::middleware(['auth','permission:locations.view'])->group(function () {
     Route::get('/scoutings', [App\Http\Controllers\ScoutingReportController::class, 'index'])->name('scoutings.index');

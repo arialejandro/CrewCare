@@ -141,4 +141,15 @@ class ScoutingReport extends Model
 
         return $out;
     }
+
+    /**
+     * Lienzos del mapeo de la locación (satelital|foto|plano|aereo), cada uno con
+     * sus propios pines (delta #48). Un scouting sin ningún lienzo es válido: el
+     * mapeo es OPCIONAL y no bloquea nada. Es insumo del PAE, no del reporte de
+     * scouting (sus fotos NO se renderizan en el documento sellado).
+     */
+    public function canvases()
+    {
+        return $this->hasMany(ScoutingCanvas::class, 'scouting_report_id');
+    }
 }

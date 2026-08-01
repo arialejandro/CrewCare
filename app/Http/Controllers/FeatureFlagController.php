@@ -31,7 +31,6 @@ class FeatureFlagController extends Controller
             'dsr_injection'       => 'Inyección de eventos al DSR',
             'sds_sfx'             => 'Módulo SDS / Efectos Especiales',
             'medical_addendum'    => 'Addendums médicos',
-            'aerial_mapping'      => 'Mapeo aéreo (dron) — futuro',
             'location_handover'   => 'Handover de locaciones — futuro',
         ];
     }

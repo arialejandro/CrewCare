@@ -4,7 +4,7 @@
 @php
     // Keys consideradas "de futuro / gran escala": apagadas por defecto y separadas
     // visualmente del resto. Se etiquetan aparte para orientar a Producción.
-    $futureKeys = ['aerial_mapping', 'location_handover'];
+    $futureKeys = ['location_handover'];
 @endphp
 
 @push('styles')

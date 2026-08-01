@@ -29,6 +29,8 @@ return [
 
     // Pilar 5 — features de gran escala, APAGADAS por defecto y ocultas hasta que
     // Producción/Admin las encienda según la logística del proyecto.
-    'aerial_mapping'      => false, // overlay de marcadores sobre foto de dron (Scouting)
+    // (2026-08-01) 'aerial_mapping' RETIRADO: el mapeo de la locación (pines sobre
+    // lienzos, incluido el aéreo de dron) ya está CONSTRUIDO como módulo real
+    // (delta #48, /scoutings/{id}/mapeo), no como stub tras flag.
     'location_handover'   => false, // handover de responsabilidad Construcción→Rigging→Shooting
 ];

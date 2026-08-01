@@ -575,9 +575,32 @@
     {{-- Buscador (typeahead) para los selects de evento de cada fila de peligro. --}}
     @include('componentes._typeahead')
 
-    {{-- (Pilar 5) Módulos de gran escala — estructura lista, OCULTA tras su flag
-         (apagados por defecto; se encienden en Ajustes › Feature Flags). --}}
-    @include('componentes._aerial-mapping-stub')
+    {{-- ============ SECCIÓN: MAPEO DE LA LOCACIÓN (delta #48) ============
+         Pines sobre lienzos (satelital/foto/plano/aéreo): dónde están los peligros y
+         los recursos de emergencia. Insumo del PAE. Vive en su PROPIA página, con su
+         propio guardado (AJAX), no dentro de este <form>, para no mezclar el guardado
+         del scouting con el de los lienzos. Ocupa el antiguo stub "mapeo aéreo". --}}
+    <div class="card shadow-sm mb-4">
+        <h3 class="card-header bg-secondary text-white fw-bold h6 mb-0 d-flex align-items-center gap-2">
+            @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-ico'])
+            <span>Mapeo de la locación</span>
+        </h3>
+        <div class="card-body">
+            <p class="text-muted mb-2">Localiza sobre una imagen (satelital, foto, plano o aéreo de dron) dónde están los peligros y los recursos de emergencia: extintores, botiquín, salidas, punto de reunión, tablero eléctrico… Es opcional y es el insumo del PAE.</p>
+            @if($isEdit)
+                <a href="{{ route('scoutings.mapping', $report->id) }}" target="_blank" rel="noopener" class="btn btn-outline-primary d-inline-flex align-items-center gap-2">
+                    @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-ico'])
+                    <span>Abrir mapeo de la locación</span>
+                </a>
+                <div class="form-text">Se abre en otra pestaña para no perder lo que estás editando aquí. Si acabas de cambiar datos de la locación, guárdalos antes.</div>
+            @else
+                <div class="alert alert-info mb-0 py-2">Guarda primero la locación para poder mapearla (agregar lienzos y colocar pines).</div>
+            @endif
+        </div>
+    </div>
+
+    {{-- (Pilar 5) Módulo de gran escala pendiente — estructura lista, OCULTA tras su
+         flag (apagado por defecto; se enciende en Ajustes › Feature Flags). --}}
     @include('componentes._handover-stub')
 
     {{-- ============ SECCIÓN: VIABILIDAD ============ --}}
