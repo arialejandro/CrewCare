@@ -35,6 +35,11 @@ class HazardEvent extends Model
         'name_en',
         'description_es',
         'description_en',
+        // (2026-08-01 · delta #49) Medida de control PRE-PROPUESTA (editable en captura).
+        // NULL = sin medida → el campo del formulario llega VACÍO (nunca texto inventado).
+        // Llenarlas es trabajo de contenido del owner, no de código.
+        'control_measure_es',
+        'control_measure_en',
         'default_likelihood',
         'default_consequence',
         'sort_order',
@@ -80,6 +85,21 @@ class HazardEvent extends Model
             'set_build'    => 'Soundstage & set build',
             'transversal'  => 'Cross-cutting',
         ];
+    }
+
+    /**
+     * Medida de control PRE-PROPUESTA, localizada con respaldo a ES (delta #49).
+     * Devuelve '' cuando el evento NO tiene medida redactada: el campo del
+     * formulario llega vacío, NUNCA con texto inventado. PHP 7.4: sin nullsafe.
+     */
+    public function controlMeasure($lang = 'es')
+    {
+        $es = trim((string) ($this->control_measure_es ?? ''));
+        $en = trim((string) ($this->control_measure_en ?? ''));
+        if ($lang === 'en') {
+            return $en !== '' ? $en : $es;
+        }
+        return $es !== '' ? $es : $en;
     }
 
     /**

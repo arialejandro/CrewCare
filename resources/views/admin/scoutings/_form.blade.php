@@ -63,14 +63,12 @@
         }
     }
 
-    if (empty($hazardRows)) {
-        foreach ($categories as $ck => $clabel) {
-            if ($ck === 'special') {
-                continue; // ahora es la casilla SB132, no una fila
-            }
-            $hazardRows[] = ['key' => $ck, 'hazard' => $clabel];
-        }
-    }
+    // (2026-08-01 · captura fluida, Paso 4) La tabla ARRANCA VACÍA. Ya NO se siembran las
+    // ~37 categorías como filas: el safety no piensa por categoría sino por ACTIVIDAD, y
+    // 37 filas de 7 campos son el peso real. Una fila existe cuando se AGREGA ese peligro
+    // —desde el selector por actividad (que trae control/EPP/norma pre-propuestos) o a
+    // mano—. En edición y al rebotar validación, las filas guardadas se conservan (ramas
+    // de arriba). $categories sigue disponible para el resto del formulario (casilla SB132).
 
     // Precargar el select de norma por fila: si viene por badge+code (snapshot),
     // se re-resuelve el category_name contra el catálogo.
@@ -485,6 +483,15 @@
                 @foreach(['CSATF', 'OSHA', 'STPS', 'DOT', 'SCT'] as $mk)
                     <button type="button" class="hzf-chip badge badge-{{ $mk }}" data-marco="{{ $mk }}" aria-pressed="false">{{ $mk }}</button>
                 @endforeach
+            </div>
+
+            {{-- (2026-08-01 · captura fluida, Pasos 1-3) Entrar por ACTIVIDAD: elige la(s)
+                 actividad(es) del día y agrega sus peligros; cada uno llega con su medida de
+                 control y su norma pre-propuestas (editables). La tabla de abajo arranca vacía:
+                 una fila existe cuando agregas ese peligro aquí. Para algo fuera de las
+                 actividades, escribe en el buscador (llega al catálogo completo). --}}
+            <div class="mb-3">
+                @include('componentes._hazard-activity-picker', ['hazardEvents' => $hazardEvents ?? collect(), 'pickerId' => 'hzpick-scouting'])
             </div>
 
             <div class="table-responsive">
@@ -977,6 +984,34 @@
                 // Propaga el filtro activo a la .hz-event recién mejorada (clones).
                 if (activeFrames.length) { applyFacetsAll(newRow); }
                 contarSinEvento();
+            });
+        }
+
+        // (2026-08-01 · captura fluida) El selector por ACTIVIDAD agrega una fila con el
+        // evento elegido y su control/norma pre-propuestos. Reusa el mismo template y wire().
+        function addRowForEvent(ev) {
+            if (!tpl || !tpl.content) { return; }
+            body.appendChild(tpl.content.cloneNode(true));
+            var rows = body.querySelectorAll('.hz-row');
+            var tr = rows[rows.length - 1];
+            wire(tr);
+            var sel = tr.querySelector('.hz-event');
+            if (sel && ev && ev.id) { sel.value = String(ev.id); }
+            if (window.CCTypeahead) { window.CCTypeahead.enhanceAll(tr); }
+            // change → norma + prob/cons sugeridas (handler existente de wire()).
+            if (sel && ev && ev.id) { sel.dispatchEvent(new Event('change', { bubbles: true })); }
+            // Paso 3: control PRE-PROPUESTO (editable) sólo si el evento lo trae y está vacío.
+            // Vacío = vacío: nunca texto inventado.
+            var ctrl = tr.querySelector('input[name="hz_control[]"]');
+            if (ctrl && ev && ev.control && !ctrl.value) { ctrl.value = ev.control; }
+            if (activeFrames.length) { applyFacetsAll(tr); }
+            contarSinEvento();
+            if (tr.scrollIntoView) { tr.scrollIntoView({ block: 'nearest' }); }
+        }
+        var pickerRoot = document.getElementById('hzpick-scouting');
+        if (pickerRoot) {
+            pickerRoot.addEventListener('cc:hazard-pick', function (e) {
+                if (e.detail && e.detail.event) { addRowForEvent(e.detail.event); }
             });
         }
 
