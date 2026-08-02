@@ -268,11 +268,15 @@ Route::middleware(['auth','permission:locations.create'])->group(function () {
     Route::get('/scoutings/{id}/edit', [App\Http\Controllers\ScoutingReportController::class, 'edit'])->name('scoutings.edit')->whereNumber('id');
     Route::put('/scoutings/{id}', [App\Http\Controllers\ScoutingReportController::class, 'update'])->name('scoutings.update')->whereNumber('id');
 
-    // (2026-08-01) RETIRADO el "Mapeo de la locación" por pines (delta #48) y su borrador
-    // automático (Paso 8). El mapeo de riesgos ahora se resuelve dentro del propio scouting:
-    // las Imágenes adicionales llevan un check "Mapeo de riesgos" (sin doble subida). El
-    // controlador ScoutingCanvasController y la vista admin/scoutings/mapping quedan huérfanos
-    // (sin ruta que los alcance); se pueden borrar o mover a _legacy_backup en una limpieza.
+    // (2026-08-01) MAPEO DE RIESGOS — sección APARTE y editable del scouting (reemplaza al
+    // mapeo por pines del delta #48, retirado). Galería de imágenes valiosas por tipo
+    // (plano|satelital|dron|foto): subir/editar/quitar en cualquier momento, imprimible a PDF.
+    // Reusa la tabla scouting_canvases (sin SQL). Mismo permiso que editar (locations.create).
+    // Segmento fijo NO numérico en {id}/mapeo-riesgos → nunca lo captura `/scoutings/{id}` (show).
+    Route::get('/scoutings/{id}/mapeo-riesgos', [App\Http\Controllers\ScoutingRiskMapController::class, 'index'])->name('scoutings.riskmap')->whereNumber('id');
+    Route::post('/scoutings/{id}/mapeo-riesgos', [App\Http\Controllers\ScoutingRiskMapController::class, 'store'])->name('scoutings.riskmap.store')->whereNumber('id');
+    Route::match(['put', 'patch'], '/scoutings/{id}/mapeo-riesgos/{img}', [App\Http\Controllers\ScoutingRiskMapController::class, 'update'])->name('scoutings.riskmap.update')->whereNumber('id')->whereNumber('img');
+    Route::delete('/scoutings/{id}/mapeo-riesgos/{img}', [App\Http\Controllers\ScoutingRiskMapController::class, 'destroy'])->name('scoutings.riskmap.destroy')->whereNumber('id')->whereNumber('img');
 });
 Route::middleware(['auth','permission:locations.view'])->group(function () {
     Route::get('/scoutings', [App\Http\Controllers\ScoutingReportController::class, 'index'])->name('scoutings.index');

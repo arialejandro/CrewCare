@@ -616,9 +616,28 @@
     {{-- Buscador (typeahead) para los selects de evento de cada fila de peligro. --}}
     @include('componentes._typeahead')
 
-    {{-- (2026-08-01) El "Mapeo de la locación" por pines se RETIRÓ. El mapeo de riesgos
-         ahora vive en la sección Imágenes de este mismo formulario: cada imagen adicional
-         puede marcarse como "Mapeo de riesgos" (sin salir del scouting, sin doble subida). --}}
+    {{-- ============ SECCIÓN: MAPEO DE RIESGOS (sección aparte, editable) ============
+         El mapeo por pines (delta #48) se retiró. Dos vías que se complementan: (1) marca
+         fotos como "Mapeo de riesgos" con el check en Imágenes (arriba), útil al capturar;
+         (2) su PROPIA página editable para plano/satelital/dron/foto, que se llena y edita
+         en cualquier momento (también después del scouting) e imprime a PDF. --}}
+    <div class="card shadow-sm mb-4">
+        <h3 class="card-header bg-secondary text-white fw-bold h6 mb-0 d-flex align-items-center gap-2">
+            @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-ico'])
+            <span>Mapeo de riesgos</span>
+        </h3>
+        <div class="card-body">
+            @if($isEdit)
+                <a href="{{ route('scoutings.riskmap', $report->id) }}" target="_blank" rel="noopener" class="btn btn-outline-primary d-inline-flex align-items-center gap-2">
+                    @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-ico'])
+                    <span>Abrir mapeo de riesgos</span>
+                </a>
+                <div class="form-text">Plano, satelital, dron o foto. Se edita cuando sea. Abre en otra pestaña.</div>
+            @else
+                <div class="alert alert-info mb-0 py-2">Guarda el scouting para abrir su mapeo. Mientras capturas, marca las fotos que apliquen con el check <strong>“Mapeo de riesgos”</strong> en Imágenes.</div>
+            @endif
+        </div>
+    </div>
 
     {{-- (Pilar 5) Módulo de gran escala pendiente — estructura lista, OCULTA tras su
          flag (apagado por defecto; se enciende en Ajustes › Feature Flags). --}}
