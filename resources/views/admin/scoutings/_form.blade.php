@@ -616,42 +616,9 @@
     {{-- Buscador (typeahead) para los selects de evento de cada fila de peligro. --}}
     @include('componentes._typeahead')
 
-    {{-- ============ SECCIÓN: MAPEO DE LA LOCACIÓN (delta #48) ============
-         Pines sobre lienzos (satelital/foto/plano/aéreo): dónde están los peligros y
-         los recursos de emergencia. Insumo del PAE. Vive en su PROPIA página, con su
-         propio guardado (AJAX), no dentro de este <form>, para no mezclar el guardado
-         del scouting con el de los lienzos. Ocupa el antiguo stub "mapeo aéreo". --}}
-    <div class="card shadow-sm mb-4">
-        <h3 class="card-header bg-secondary text-white fw-bold h6 mb-0 d-flex align-items-center gap-2">
-            @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-ico'])
-            <span>Mapeo de la locación</span>
-        </h3>
-        <div class="card-body">
-            <p class="text-muted mb-2">Localiza sobre una imagen (satelital, foto, plano o aéreo de dron) dónde están los peligros y los recursos de emergencia: extintores, botiquín, salidas, punto de reunión, tablero eléctrico… Es opcional y es el insumo del PAE.</p>
-            @if($isEdit)
-                <a href="{{ route('scoutings.mapping', $report->id) }}" target="_blank" rel="noopener" class="btn btn-outline-primary d-inline-flex align-items-center gap-2">
-                    @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-ico'])
-                    <span>Abrir mapeo de la locación</span>
-                </a>
-                <div class="form-text">Se abre en otra pestaña para no perder lo que estás editando aquí. Si acabas de cambiar datos de la locación, guárdalos antes.</div>
-            @else
-                {{-- (2026-08-01 · captura fluida, Paso 8) Mapear en CAPTURA sin guardar a mano:
-                     el botón persiste/actualiza un BORRADOR (create-or-update) con lo que llevas
-                     y abre el mapeo en otra pestaña; el formulario queda ligado a ese borrador
-                     (pasa a modo edición) para que al Guardar se ACTUALICE y no se duplique. --}}
-                <input type="hidden" name="mapping_draft_id" value="">
-                <button type="button" id="map-open-draft"
-                        data-draft-url="{{ route('scoutings.mapping.draft') }}"
-                        class="btn btn-outline-primary d-inline-flex align-items-center gap-2">
-                    @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-ico'])
-                    <span>Abrir mapeo de la locación</span>
-                </button>
-                <div id="map-draft-status" class="form-text cc-muted mt-1">
-                    No necesitas guardar: se prepara un borrador con lo que llevas y el mapeo abre en otra pestaña. Al <strong>Guardar</strong> el scouting, ese borrador se convierte en el reporte (no se duplica).
-                </div>
-            @endif
-        </div>
-    </div>
+    {{-- (2026-08-01) El "Mapeo de la locación" por pines se RETIRÓ. El mapeo de riesgos
+         ahora vive en la sección Imágenes de este mismo formulario: cada imagen adicional
+         puede marcarse como "Mapeo de riesgos" (sin salir del scouting, sin doble subida). --}}
 
     {{-- (Pilar 5) Módulo de gran escala pendiente — estructura lista, OCULTA tras su
          flag (apagado por defecto; se enciende en Ajustes › Feature Flags). --}}
@@ -847,9 +814,16 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">Imágenes adicionales</label>
+                    <div class="cc-muted small mb-2">Marca las que formen parte del <strong>mapeo de riesgos</strong>.</div>
                     {{-- Señal de que esta sección gestiona las imágenes: update() reconstruye el set
                          (conservadas + nuevas), lo que permite editar pies de foto y quitar existentes. --}}
                     <input type="hidden" name="images_managed" value="1">
+                    <style>
+                        .ai-risk { min-height:36px; margin-top:.35rem; }
+                        .ai-risk .form-check-label { font-size:.78rem; font-weight:600; cursor:pointer; user-select:none; }
+                        .ai-risk .form-check-input { cursor:pointer; }
+                        .ai-cell.is-risk .ai-thumb { outline:2px solid #f0ad4e; outline-offset:1px; }
+                    </style>
 
                     @if($isEdit)
                         @php $existingImgs = $report->additionalImagesList(); @endphp
@@ -858,7 +832,7 @@
                                 <div class="cc-muted ai-existing-title mb-2">Ya guardadas — edita el pie de foto o quítalas con&nbsp;×:</div>
                                 <div class="ai-grid">
                                     @foreach($existingImgs as $ei)
-                                        <div class="ai-cell">
+                                        <div class="ai-cell {{ !empty($ei['risk_map']) ? 'is-risk' : '' }}">
                                             <div class="ai-thumb">
                                                 <img src="{{ $ei['path'] }}" alt="Imagen adicional">
                                                 <button type="button" class="ai-rm ai-ex-rm" title="Quitar">&times;</button>
@@ -867,6 +841,12 @@
                                             <input type="text" name="existing_images_captions[]"
                                                    class="form-control form-control-sm ai-cap mt-1" maxlength="300"
                                                    placeholder="Pie de foto (hallazgo / acción)…" value="{{ $ei['caption'] }}">
+                                            {{-- Flag mapeo de riesgos: hidden 0/1 índice-alineado con existing_images[] (el switch sólo lo togglea). --}}
+                                            <div class="ai-risk form-check form-switch">
+                                                <input class="form-check-input ai-risk-check" type="checkbox" role="switch" id="exrisk-{{ $loop->index }}" {{ !empty($ei['risk_map']) ? 'checked' : '' }}>
+                                                <input type="hidden" name="existing_images_riskmap[]" value="{{ !empty($ei['risk_map']) ? '1' : '0' }}">
+                                                <label class="form-check-label" for="exrisk-{{ $loop->index }}">Mapeo de riesgos</label>
+                                            </div>
                                         </div>
                                     @endforeach
                                 </div>
@@ -885,7 +865,7 @@
                         <span id="ai-count" class="cc-muted small ms-2"></span>
                         <div id="ai-grid" class="ai-grid mt-2"></div>
                         <small id="ai-help" class="cc-muted d-block mt-1" style="display:none;">
-                            Agrega varias imágenes y escribe un <strong>pie de foto</strong> en cada una para señalar hallazgos o urgir acciones. Puedes volver a pulsar el botón para sumar más; se optimizan solas para subir más rápido.
+                            Pon un pie de foto y marca las que sean <strong>mapeo de riesgos</strong>.
                         </small>
                     </div>
                 </div>
@@ -1229,6 +1209,7 @@
             var store = new DataTransfer(); // acumulador real que alimenta al <input name="additional_images[]">
             var seen  = {};                 // dedupe por nombre+tamaño
             var captions = [];              // pie de foto por archivo, índice-alineado con store.files
+            var riskmaps = [];              // flag "mapeo de riesgos" por archivo, índice-alineado
 
             // Mejora progresiva: ocultar el input plano, mostrar botón + ayuda.
             aiInput.classList.remove('form-control');
@@ -1267,7 +1248,29 @@
                     cap.value = captions[i] || '';
                     cap.addEventListener('input', function () { captions[i] = cap.value; });
 
-                    cell.appendChild(thumb); cell.appendChild(cap);
+                    // Toggle "Mapeo de riesgos": switch visible + hidden 0/1 índice-alineado
+                    // con additional_images[] (mismo orden del DOM). riskmaps[] persiste el estado.
+                    var riskWrap = document.createElement('div');
+                    riskWrap.className = 'ai-risk form-check form-switch';
+                    var riskChk = document.createElement('input');
+                    riskChk.type = 'checkbox'; riskChk.className = 'form-check-input';
+                    riskChk.setAttribute('role', 'switch'); riskChk.id = 'nrisk-' + i;
+                    riskChk.checked = !!riskmaps[i];
+                    var riskHid = document.createElement('input');
+                    riskHid.type = 'hidden'; riskHid.name = 'additional_images_riskmap[]';
+                    riskHid.value = riskmaps[i] ? '1' : '0';
+                    var riskLbl = document.createElement('label');
+                    riskLbl.className = 'form-check-label'; riskLbl.setAttribute('for', 'nrisk-' + i);
+                    riskLbl.textContent = 'Mapeo de riesgos';
+                    if (riskmaps[i]) { cell.classList.add('is-risk'); }
+                    riskChk.addEventListener('change', function () {
+                        riskmaps[i] = riskChk.checked;
+                        riskHid.value = riskChk.checked ? '1' : '0';
+                        cell.classList.toggle('is-risk', riskChk.checked);
+                    });
+                    riskWrap.appendChild(riskChk); riskWrap.appendChild(riskHid); riskWrap.appendChild(riskLbl);
+
+                    cell.appendChild(thumb); cell.appendChild(cap); cell.appendChild(riskWrap);
                     aiGrid.appendChild(cell);
                 });
             }
@@ -1277,6 +1280,7 @@
                 var removed = files.splice(i, 1)[0];
                 if (removed) delete seen[keyOf(removed)];
                 captions.splice(i, 1);
+                riskmaps.splice(i, 1);
                 store.items.clear();
                 files.forEach(function (f) { store.items.add(f); });
                 syncInput(); render();
@@ -1296,7 +1300,7 @@
                         return processFile(f).then(function (out) {
                             if (window.CCPhoto && window.CCPhoto.unconverted(f, out)) { heicBad = true; }
                             var k = keyOf(out);
-                            if (!seen[k]) { seen[k] = true; store.items.add(out); captions.push(''); }
+                            if (!seen[k]) { seen[k] = true; store.items.add(out); captions.push(''); riskmaps.push(false); }
                         });
                     });
                 });
@@ -1319,77 +1323,19 @@
                 var cell = btn.closest ? btn.closest('.ai-cell') : null;
                 if (cell && cell.parentNode) { cell.parentNode.removeChild(cell); }
             });
+            // Toggle "Mapeo de riesgos" de una imagen ya guardada: el switch sólo mueve su
+            // hidden existing_images_riskmap[] (0/1) y resalta la celda. El orden no cambia.
+            aiExisting.addEventListener('change', function (e) {
+                var chk = e.target && e.target.classList && e.target.classList.contains('ai-risk-check') ? e.target : null;
+                if (!chk) return;
+                var cell = chk.closest ? chk.closest('.ai-cell') : null;
+                var hid = cell ? cell.querySelector('input[name="existing_images_riskmap[]"]') : null;
+                if (hid) { hid.value = chk.checked ? '1' : '0'; }
+                if (cell) { cell.classList.toggle('is-risk', chk.checked); }
+            });
         }
     })();
     // La lógica GPS + hospitales vive en public/js/crewcare-geo.js (incluido por el parcial _geo-capture).
-
-    // (2026-08-01 · captura fluida, Paso 8) Mapear en CAPTURA sin guardar a mano.
-    // Al tocar "Abrir mapeo": persiste/actualiza un BORRADOR (create-or-update) con lo que lleva
-    // el formulario y abre el mapeo en otra pestaña. La 1ª vez, liga el <form> a ese borrador
-    // (modo edición) para que al Guardar se ACTUALICE y NO se duplique. Sólo existe en creación.
-    (function () {
-        var btn = document.getElementById('map-open-draft');
-        if (!btn) return;
-        var form = document.querySelector('form[data-cc-autosave="scouting-report"]');
-        if (!form) return;
-        var url = btn.getAttribute('data-draft-url');
-        var draftInput = form.querySelector('input[name="mapping_draft_id"]');
-        var statusEl = document.getElementById('map-draft-status');
-        var metaTok = document.querySelector('meta[name="csrf-token"]');
-        var token = metaTok ? metaTok.getAttribute('content') : '';
-        var flipped = false;
-
-        function setStatus(msg, isErr) {
-            if (!statusEl) return;
-            statusEl.innerHTML = '';
-            statusEl.appendChild(document.createTextNode(msg)); // sin innerHTML de datos
-            statusEl.className = 'form-text mt-1 ' + (isErr ? 'text-danger' : 'cc-muted');
-        }
-
-        btn.addEventListener('click', function () {
-            var loc = form.querySelector('[name="location_name"]');
-            if (loc && String(loc.value).trim() === '') {
-                setStatus('Escribe primero la locación para poder mapearla.', true);
-                if (loc.focus) { try { loc.focus(); } catch (e) {} }
-                return;
-            }
-            btn.disabled = true;
-            setStatus('Preparando el mapeo…', false);
-
-            var fd = new FormData(form);
-            // Al borrador NO le mandamos archivos (las imágenes se guardan al Guardar el scouting).
-            fd.delete('main_image');
-            fd.delete('additional_images[]');
-            fd.set('mapping_draft_id', draftInput ? draftInput.value : '');
-
-            fetch(url, {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-                body: fd,
-                credentials: 'same-origin'
-            }).then(function (r) {
-                if (!r.ok) { throw new Error('HTTP ' + r.status); }
-                return r.json();
-            }).then(function (data) {
-                if (!data || !data.id) { throw new Error('sin id'); }
-                if (draftInput) { draftInput.value = data.id; }
-                // Ligar el form a ESE borrador una sola vez → al Guardar se ACTUALIZA (no duplica).
-                if (!flipped && data.update_url) {
-                    form.setAttribute('action', data.update_url);
-                    var m = document.createElement('input');
-                    m.type = 'hidden'; m.name = '_method'; m.value = 'PUT';
-                    form.appendChild(m);
-                    flipped = true;
-                }
-                setStatus('Borrador listo. El mapeo abre en otra pestaña.', false);
-                window.open(data.mapping_url, '_blank', 'noopener');
-            }).catch(function () {
-                setStatus('No se pudo preparar el mapeo. Revisa la locación e inténtalo de nuevo.', true);
-            }).then(function () {
-                btn.disabled = false;
-            });
-        });
-    })();
 
     // (2026-07-15) Tras un error de validación: lleva al primer campo marcado y enfócalo,
     // para no dejar al usuario adivinando dónde está el problema en un form largo.

@@ -132,10 +132,16 @@ class ScoutingReport extends Model
             if (is_array($item)) {
                 $path = $item['path'] ?? ($item['url'] ?? null);
                 if (is_string($path) && $path !== '') {
-                    $out[] = ['path' => $path, 'caption' => (string) ($item['caption'] ?? '')];
+                    // risk_map: la imagen forma parte del "Mapeo de riesgos" (foto ya
+                    // marcada por el usuario). Opcional; ausente = false. No dobla la subida.
+                    $out[] = [
+                        'path'     => $path,
+                        'caption'  => (string) ($item['caption'] ?? ''),
+                        'risk_map' => !empty($item['risk_map']),
+                    ];
                 }
             } elseif (is_string($item) && $item !== '') {
-                $out[] = ['path' => $item, 'caption' => ''];
+                $out[] = ['path' => $item, 'caption' => '', 'risk_map' => false];
             }
         }
 

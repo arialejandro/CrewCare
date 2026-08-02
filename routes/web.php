@@ -268,20 +268,11 @@ Route::middleware(['auth','permission:locations.create'])->group(function () {
     Route::get('/scoutings/{id}/edit', [App\Http\Controllers\ScoutingReportController::class, 'edit'])->name('scoutings.edit')->whereNumber('id');
     Route::put('/scoutings/{id}', [App\Http\Controllers\ScoutingReportController::class, 'update'])->name('scoutings.update')->whereNumber('id');
 
-    // (2026-08-01 · captura fluida, Paso 8) Borrador AUTOMÁTICO para mapear en captura:
-    // crea/actualiza un borrador con el estado actual del form y devuelve id + URLs (JSON).
-    // Segmento fijo NO numérico → nunca lo captura `/scoutings/{id}` (whereNumber).
-    Route::post('/scoutings/mapeo-borrador', [App\Http\Controllers\ScoutingReportController::class, 'draftForMapping'])->name('scoutings.mapping.draft');
-
-    // ---- MAPEO DE LA LOCACIÓN (delta #48): pines sobre lienzos, insumo del PAE. ----
-    // Mismo permiso que editar (locations.create). El segmento fijo `/mapeo` va con
-    // {id} numérico, así nunca lo captura el show `/scoutings/{id}` del grupo de abajo.
-    Route::get('/scoutings/{id}/mapeo', [App\Http\Controllers\ScoutingCanvasController::class, 'index'])->name('scoutings.mapping')->whereNumber('id');
-    Route::post('/scoutings/{id}/mapeo/lienzos', [App\Http\Controllers\ScoutingCanvasController::class, 'storeCanvas'])->name('scoutings.mapping.canvas.store')->whereNumber('id');
-    Route::delete('/scoutings/{id}/mapeo/lienzos/{canvas}', [App\Http\Controllers\ScoutingCanvasController::class, 'destroyCanvas'])->name('scoutings.mapping.canvas.destroy')->whereNumber('id')->whereNumber('canvas');
-    Route::post('/scoutings/{id}/mapeo/lienzos/{canvas}/pines', [App\Http\Controllers\ScoutingCanvasController::class, 'storePin'])->name('scoutings.mapping.pin.store')->whereNumber('id')->whereNumber('canvas');
-    Route::match(['put', 'patch'], '/scoutings/{id}/mapeo/lienzos/{canvas}/pines/{pin}', [App\Http\Controllers\ScoutingCanvasController::class, 'updatePin'])->name('scoutings.mapping.pin.update')->whereNumber('id')->whereNumber('canvas')->whereNumber('pin');
-    Route::delete('/scoutings/{id}/mapeo/lienzos/{canvas}/pines/{pin}', [App\Http\Controllers\ScoutingCanvasController::class, 'destroyPin'])->name('scoutings.mapping.pin.destroy')->whereNumber('id')->whereNumber('canvas')->whereNumber('pin');
+    // (2026-08-01) RETIRADO el "Mapeo de la locación" por pines (delta #48) y su borrador
+    // automático (Paso 8). El mapeo de riesgos ahora se resuelve dentro del propio scouting:
+    // las Imágenes adicionales llevan un check "Mapeo de riesgos" (sin doble subida). El
+    // controlador ScoutingCanvasController y la vista admin/scoutings/mapping quedan huérfanos
+    // (sin ruta que los alcance); se pueden borrar o mover a _legacy_backup en una limpieza.
 });
 Route::middleware(['auth','permission:locations.view'])->group(function () {
     Route::get('/scoutings', [App\Http\Controllers\ScoutingReportController::class, 'index'])->name('scoutings.index');

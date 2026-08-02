@@ -273,17 +273,23 @@ class ScoutingReportController extends Controller
         }
 
         if ($request->hasFile('additional_images')) {
-            // Los pies de foto llegan índice-alineados con los archivos (mismo orden del DOM).
+            // Los pies de foto y el flag de mapeo llegan índice-alineados con los archivos
+            // (mismo orden del DOM). additional_images_riskmap[] es "0"/"1" por imagen.
             $captions = $request->input('additional_images_captions', []);
+            $riskmap  = $request->input('additional_images_riskmap', []);
             $items = [];
             foreach ($request->file('additional_images') as $idx => $image) {
                 if (!$image || !$image->isValid()) {
                     continue; // ignora slots vacíos/corruptos del arreglo
                 }
-                $items[] = [
+                $item = [
                     'path'    => $this->storeUploadedImage($image, 'additional'),
                     'caption' => $this->cleanCaption($captions[$idx] ?? ''),
                 ];
+                if (!empty($riskmap[$idx])) {
+                    $item['risk_map'] = true; // sólo se guarda cuando SÍ es mapeo de riesgos
+                }
+                $items[] = $item;
             }
             // El cast 'array' serializa; se asigna como LISTA de {path, caption} (sin json_encode).
             if (!empty($items)) {
@@ -319,58 +325,6 @@ class ScoutingReportController extends Controller
             return redirect()->back()->withInput()
                 ->with('error', 'No se pudo guardar el reporte de scouting. Intenta de nuevo.');
         }
-    }
-
-    /**
-     * (2026-08-01 · captura fluida, Paso 8) BORRADOR AUTOMÁTICO para mapear en CAPTURA.
-     *
-     * El mapeo de la locación necesita un scouting con id: los lienzos cuelgan de él y los
-     * pines de peligro referencian peligros YA evaluados en su risk_assessment. En creación
-     * aún no hay id, así que "guarda primero" cortaba la captura. Aquí se persiste un BORRADOR
-     * con el estado ACTUAL del formulario (incluidos los peligros ya agregados) y se devuelve
-     * su id + las URLs (mapeo y update) en JSON. El formulario, ya en el cliente, se liga a ESE
-     * borrador (pasa a modo edición) para que al Guardar se ACTUALICE y no se duplique.
-     *
-     * Idempotente por 'mapping_draft_id': si esta captura ya tiene borrador, se ACTUALIZA. Sólo
-     * se puede reusar un registro en estado 'draft' (nunca uno final → no se secuestran reportes
-     * sellados). NUNCA sella (es borrador). Validación mínima: sólo la locación.
-     */
-    public function draftForMapping(Request $request)
-    {
-        $request->validate(
-            ['location_name' => 'required|string|max:255'],
-            ['location_name.required' => 'Escribe la locación antes de mapearla.']
-        );
-
-        // Mismo ensamblado que store()/update() (corre buildHazards → llena hazardStandardIds).
-        $reportData = $this->assembleReportData($request);
-        $reportData['status'] = 'draft'; // el borrador de mapeo nunca nace final ni se sella.
-
-        // ¿Actualizar el borrador de ESTA captura, o crear uno nuevo?
-        $draftId = $request->input('mapping_draft_id');
-        $report  = !empty($draftId)
-            ? ScoutingReport::where('status', 'draft')->find($draftId)
-            : null;
-
-        if ($report) {
-            // La AUTOFIRMA original (make_by/created_by_id/make_date) NO se toca al actualizar.
-            $report->update($reportData);
-        } else {
-            // Nuevo borrador: autofirma de autoría, igual que store() en creación.
-            $reportData['make_by']       = auth()->user()->name;
-            $reportData['created_by_id'] = auth()->id();
-            $reportData['make_date']     = now()->toDateString();
-            $report = ScoutingReport::create($reportData);
-        }
-
-        // Pobla el pivote de normas con la unión de los eventos elegidos (defensivo).
-        $report->syncStandards(array_values($this->hazardStandardIds));
-
-        return response()->json([
-            'id'          => $report->id,
-            'mapping_url' => route('scoutings.mapping', $report->id),
-            'update_url'  => route('scoutings.update', $report->id),
-        ]);
     }
 
     /**
@@ -458,12 +412,17 @@ class ScoutingReportController extends Controller
             $originalPaths = array_map(function ($x) { return $x['path']; }, $report->additionalImagesList());
             $exPaths = (array) $request->input('existing_images', []);
             $exCaps  = (array) $request->input('existing_images_captions', []);
+            $exRisk  = (array) $request->input('existing_images_riskmap', []);
             $kept = [];
             foreach ($exPaths as $i => $p) {
                 if (!is_string($p) || $p === '' || !in_array($p, $originalPaths, true)) {
                     continue; // ignora rutas vacías o ajenas a este reporte
                 }
-                $kept[] = ['path' => $p, 'caption' => $this->cleanCaption($exCaps[$i] ?? '')];
+                $keepItem = ['path' => $p, 'caption' => $this->cleanCaption($exCaps[$i] ?? '')];
+                if (!empty($exRisk[$i])) {
+                    $keepItem['risk_map'] = true;
+                }
+                $kept[] = $keepItem;
             }
 
             // (2) Borra del disco las existentes que YA NO se conservan.
@@ -478,14 +437,19 @@ class ScoutingReportController extends Controller
             $newItems = [];
             if ($request->hasFile('additional_images')) {
                 $captions = $request->input('additional_images_captions', []);
+                $riskmap  = $request->input('additional_images_riskmap', []);
                 foreach ($request->file('additional_images') as $idx => $image) {
                     if (!$image || !$image->isValid()) {
                         continue;
                     }
-                    $newItems[] = [
+                    $newItem = [
                         'path'    => $this->storeUploadedImage($image, 'additional'),
                         'caption' => $this->cleanCaption($captions[$idx] ?? ''),
                     ];
+                    if (!empty($riskmap[$idx])) {
+                        $newItem['risk_map'] = true;
+                    }
+                    $newItems[] = $newItem;
                 }
             }
 

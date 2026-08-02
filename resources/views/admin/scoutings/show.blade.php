@@ -598,11 +598,14 @@
       </section>
       @endif
 
-      {{-- EVIDENCIA FOTOGRÁFICA --}}
+      {{-- EVIDENCIA FOTOGRÁFICA + MAPEO DE RIESGOS.
+           Las imágenes marcadas como "mapeo de riesgos" (risk_map) se agrupan aparte;
+           el resto va en Evidencia fotográfica junto con la imagen principal. --}}
       @php
+        $riskPhotos = array_values(array_filter($gallery, function ($g) { return !empty($g['risk_map']); }));
         $photos = [];
         if ($report->main_image_path) { $photos[] = ['path' => $report->main_image_path, 'caption' => '']; }
-        $photos = array_merge($photos, $gallery);
+        foreach ($gallery as $g) { if (empty($g['risk_map'])) { $photos[] = $g; } }
       @endphp
       @if(count($photos))
       <section class="sec">
@@ -610,6 +613,17 @@
         <div class="photos">
           @foreach($photos as $i => $img)
           <div class="photo"><img src="{{ $img['path'] }}" loading="lazy" alt="{{ __('reports.injury_section_photo_evidence') }} {{ $i + 1 }}"><span class="cap">{{ !empty($img['caption']) ? $img['caption'] : __('reports.injury_section_photo_evidence') . ' ' . ($i + 1) }}</span></div>
+          @endforeach
+        </div>
+      </section>
+      @endif
+
+      @if(count($riskPhotos))
+      <section class="sec">
+        <div class="sec-h"><span class="bar"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><h2>Mapeo de riesgos</h2></div>
+        <div class="photos">
+          @foreach($riskPhotos as $i => $img)
+          <div class="photo"><img src="{{ $img['path'] }}" loading="lazy" alt="Mapeo de riesgos {{ $i + 1 }}"><span class="cap">{{ !empty($img['caption']) ? $img['caption'] : 'Mapeo de riesgos ' . ($i + 1) }}</span></div>
           @endforeach
         </div>
       </section>
