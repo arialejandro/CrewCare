@@ -51,9 +51,9 @@
 <div class="container py-3 rm-page">
 
     <div class="rm-head no-print">
-        <a href="{{ route('scoutings.edit', $scouting->id) }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+        <a href="{{ route('riskmaps.index') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
             @include('componentes._icon', ['name' => 'arrow-left', 'class' => 'cc-ico'])
-            <span>Volver al scouting</span>
+            <span>Todos los mapeos</span>
         </a>
         <div class="rm-grow">
             <h1>Mapeo de riesgos</h1>
@@ -80,7 +80,7 @@
     {{-- ---- Agregar imagen ---- --}}
     <div class="rm-panel no-print">
         <h2>@include('componentes._icon', ['name' => 'plus', 'class' => 'cc-ico']) <span>Agregar imagen</span></h2>
-        <form method="POST" action="{{ route('scoutings.riskmap.store', $scouting->id) }}" enctype="multipart/form-data">
+        <form method="POST" action="{{ route('riskmaps.images.store', $scouting->id) }}" enctype="multipart/form-data">
             @csrf
             <div class="row g-2 align-items-end">
                 <div class="col-sm-3">
@@ -119,7 +119,7 @@
                         <span class="rm-name">{{ $im->name }}</span>
 
                         <div class="rm-actions no-print">
-                            <form method="POST" action="{{ route('scoutings.riskmap.destroy', [$scouting->id, $im->id]) }}"
+                            <form method="POST" action="{{ route('riskmaps.images.destroy', [$scouting->id, $im->id]) }}"
                                   onsubmit="return confirm('¿Quitar esta imagen del mapeo?');">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="btn btn-outline-danger d-inline-flex align-items-center gap-1">
@@ -131,7 +131,7 @@
 
                         <details class="rm-edit no-print">
                             <summary>Editar</summary>
-                            <form method="POST" action="{{ route('scoutings.riskmap.update', [$scouting->id, $im->id]) }}" enctype="multipart/form-data">
+                            <form method="POST" action="{{ route('riskmaps.images.update', [$scouting->id, $im->id]) }}" enctype="multipart/form-data">
                                 @csrf @method('PUT')
                                 <div class="row-g">
                                     <div>

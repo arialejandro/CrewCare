@@ -26,8 +26,34 @@ class ScoutingRiskMapController extends Controller
     /** Imagen aceptada (igual criterio que el resto de subidas de la app). */
     const IMG_RULES = 'image|mimes:jpeg,jpg,png,webp|max:12288'; // 12 MB
 
-    /** Página del mapeo: galería editable + fotos del scouting marcadas + imprimir. */
-    public function index($id)
+    /** Índice del MÓDULO: todos los mapeos, listados por nombre de locación. */
+    public function index()
+    {
+        $scoutings = ScoutingReport::orderBy('location_name')->orderByDesc('id')->get();
+
+        // Conteo de imágenes del mapeo por scouting (1 query) + fotos marcadas (JSON en memoria).
+        $imgCounts = RiskMapImage::selectRaw('scouting_report_id, COUNT(*) as c')
+            ->groupBy('scouting_report_id')->pluck('c', 'scouting_report_id');
+
+        $rows = $scoutings->map(function ($s) use ($imgCounts) {
+            $flagged = 0;
+            foreach ($s->additionalImagesList() as $im) {
+                if (!empty($im['risk_map'])) { $flagged++; }
+            }
+            return [
+                'id'       => $s->id,
+                'location' => $s->location_name,
+                'date'     => optional($s->date_shoot)->format('d/m/Y') ?: (optional($s->make_date)->format('d/m/Y') ?: ''),
+                'images'   => (int) ($imgCounts[$s->id] ?? 0),
+                'flagged'  => $flagged,
+            ];
+        })->values();
+
+        return view('admin.scoutings.riskmap-index', ['rows' => $rows]);
+    }
+
+    /** Detalle de un mapeo: galería editable + fotos del scouting marcadas + imprimir/PDF. */
+    public function show($id)
     {
         $scouting = ScoutingReport::findOrFail($id);
 
@@ -71,7 +97,7 @@ class ScoutingRiskMapController extends Controller
             'image_path'         => $this->storeImage($request->file('image')),
         ]);
 
-        return redirect()->route('scoutings.riskmap', $scouting->id)->with('success', 'Imagen agregada al mapeo.');
+        return redirect()->route('riskmaps.show',$scouting->id)->with('success', 'Imagen agregada al mapeo.');
     }
 
     /** Edita nombre/tipo y, opcionalmente, reemplaza la imagen. */
@@ -98,7 +124,7 @@ class ScoutingRiskMapController extends Controller
         }
         $img->save();
 
-        return redirect()->route('scoutings.riskmap', $id)->with('success', 'Imagen actualizada.');
+        return redirect()->route('riskmaps.show',$id)->with('success', 'Imagen actualizada.');
     }
 
     /** Quita una imagen del mapeo (y su archivo en disco). */
@@ -108,7 +134,7 @@ class ScoutingRiskMapController extends Controller
         $this->deleteImage($img->image_path);
         $img->delete();
 
-        return redirect()->route('scoutings.riskmap', $id)->with('success', 'Imagen eliminada.');
+        return redirect()->route('riskmaps.show',$id)->with('success', 'Imagen eliminada.');
     }
 
     // ---------------------------------------------------------------------

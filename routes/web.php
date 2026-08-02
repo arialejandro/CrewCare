@@ -268,15 +268,24 @@ Route::middleware(['auth','permission:locations.create'])->group(function () {
     Route::get('/scoutings/{id}/edit', [App\Http\Controllers\ScoutingReportController::class, 'edit'])->name('scoutings.edit')->whereNumber('id');
     Route::put('/scoutings/{id}', [App\Http\Controllers\ScoutingReportController::class, 'update'])->name('scoutings.update')->whereNumber('id');
 
-    // (2026-08-01) MAPEO DE RIESGOS — sección APARTE y editable del scouting (reemplaza al
-    // mapeo por pines del delta #48, retirado). Galería de imágenes valiosas por tipo
-    // (plano|satelital|dron|foto): subir/editar/quitar en cualquier momento, imprimible a PDF.
-    // Reusa la tabla scouting_canvases (sin SQL). Mismo permiso que editar (locations.create).
-    // Segmento fijo NO numérico en {id}/mapeo-riesgos → nunca lo captura `/scoutings/{id}` (show).
-    Route::get('/scoutings/{id}/mapeo-riesgos', [App\Http\Controllers\ScoutingRiskMapController::class, 'index'])->name('scoutings.riskmap')->whereNumber('id');
-    Route::post('/scoutings/{id}/mapeo-riesgos', [App\Http\Controllers\ScoutingRiskMapController::class, 'store'])->name('scoutings.riskmap.store')->whereNumber('id');
-    Route::match(['put', 'patch'], '/scoutings/{id}/mapeo-riesgos/{img}', [App\Http\Controllers\ScoutingRiskMapController::class, 'update'])->name('scoutings.riskmap.update')->whereNumber('id')->whereNumber('img');
-    Route::delete('/scoutings/{id}/mapeo-riesgos/{img}', [App\Http\Controllers\ScoutingRiskMapController::class, 'destroy'])->name('scoutings.riskmap.destroy')->whereNumber('id')->whereNumber('img');
+    // (2026-08-01) El mapeo de riesgos se movió a su PROPIO módulo (ya no cuelga del scouting,
+    // confundía): ver el grupo `riskmaps.*` justo abajo.
+});
+
+// ============================================================================
+// MÓDULO Mapeo de riesgos (2026-08-01) — sección PROPIA, fuera del scouting.
+// Índice: TODOS los mapeos por nombre de locación. Detalle: galería editable de imágenes
+// por tipo (plano|satelital|dron|foto) + export PDF (window.print). Reusa la tabla
+// scouting_canvases (SIN SQL). El detalle se llavea por scouting id (cada locación = su mapeo).
+// ============================================================================
+Route::middleware(['auth', 'permission:locations.view'])->group(function () {
+    Route::get('/mapeo-riesgos', [App\Http\Controllers\ScoutingRiskMapController::class, 'index'])->name('riskmaps.index');
+});
+Route::middleware(['auth', 'permission:locations.create'])->group(function () {
+    Route::get('/mapeo-riesgos/{scouting}', [App\Http\Controllers\ScoutingRiskMapController::class, 'show'])->name('riskmaps.show')->whereNumber('scouting');
+    Route::post('/mapeo-riesgos/{scouting}/imagenes', [App\Http\Controllers\ScoutingRiskMapController::class, 'store'])->name('riskmaps.images.store')->whereNumber('scouting');
+    Route::match(['put', 'patch'], '/mapeo-riesgos/{scouting}/imagenes/{img}', [App\Http\Controllers\ScoutingRiskMapController::class, 'update'])->name('riskmaps.images.update')->whereNumber('scouting')->whereNumber('img');
+    Route::delete('/mapeo-riesgos/{scouting}/imagenes/{img}', [App\Http\Controllers\ScoutingRiskMapController::class, 'destroy'])->name('riskmaps.images.destroy')->whereNumber('scouting')->whereNumber('img');
 });
 Route::middleware(['auth','permission:locations.view'])->group(function () {
     Route::get('/scoutings', [App\Http\Controllers\ScoutingReportController::class, 'index'])->name('scoutings.index');

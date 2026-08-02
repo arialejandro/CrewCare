@@ -616,28 +616,9 @@
     {{-- Buscador (typeahead) para los selects de evento de cada fila de peligro. --}}
     @include('componentes._typeahead')
 
-    {{-- ============ SECCIÓN: MAPEO DE RIESGOS (sección aparte, editable) ============
-         El mapeo por pines (delta #48) se retiró. Dos vías que se complementan: (1) marca
-         fotos como "Mapeo de riesgos" con el check en Imágenes (arriba), útil al capturar;
-         (2) su PROPIA página editable para plano/satelital/dron/foto, que se llena y edita
-         en cualquier momento (también después del scouting) e imprime a PDF. --}}
-    <div class="card shadow-sm mb-4">
-        <h3 class="card-header bg-secondary text-white fw-bold h6 mb-0 d-flex align-items-center gap-2">
-            @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-ico'])
-            <span>Mapeo de riesgos</span>
-        </h3>
-        <div class="card-body">
-            @if($isEdit)
-                <a href="{{ route('scoutings.riskmap', $report->id) }}" target="_blank" rel="noopener" class="btn btn-outline-primary d-inline-flex align-items-center gap-2">
-                    @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-ico'])
-                    <span>Abrir mapeo de riesgos</span>
-                </a>
-                <div class="form-text">Plano, satelital, dron o foto. Se edita cuando sea. Abre en otra pestaña.</div>
-            @else
-                <div class="alert alert-info mb-0 py-2">Guarda el scouting para abrir su mapeo. Mientras capturas, marca las fotos que apliquen con el check <strong>“Mapeo de riesgos”</strong> en Imágenes.</div>
-            @endif
-        </div>
-    </div>
+    {{-- (2026-08-01) El "Mapeo de riesgos" es su PROPIO módulo (menú lateral · rutas riskmaps.*),
+         ya NO vive dentro del scouting (confundía). El check "Mapeo de riesgos" en Imágenes se
+         queda como puente: marca qué fotos del scouting alimentan el mapeo de esa locación. --}}
 
     {{-- (Pilar 5) Módulo de gran escala pendiente — estructura lista, OCULTA tras su
          flag (apagado por defecto; se enciende en Ajustes › Feature Flags). --}}

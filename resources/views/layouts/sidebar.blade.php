@@ -307,6 +307,12 @@
                                 <span>{{ __('nav.loc_scoutings') }}</span>
                             </a>
                         @endcan
+                        @can('locations.view')
+                            <a href="{{ route('riskmaps.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'image', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>Mapeo de riesgos</span>
+                            </a>
+                        @endcan
                         @can('locations.create')
                             <a href="{{ route('scoutings.create') }}" class="cc-item cc-item--new">
                                 @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
@@ -651,6 +657,12 @@
                                 <a href="{{ route('scoutings.index') }}" class="cc-item">
                                     @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-item__ico', 'label' => null])
                                     <span>{{ __('nav.loc_scoutings') }}</span>
+                                </a>
+                            @endcan
+                            @can('locations.view')
+                                <a href="{{ route('riskmaps.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'image', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>Mapeo de riesgos</span>
                                 </a>
                             @endcan
                             @can('locations.create')
