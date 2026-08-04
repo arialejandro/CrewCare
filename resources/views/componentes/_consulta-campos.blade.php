@@ -81,6 +81,46 @@
         .cc-consulta .cc-actionbar .cc-cta,
         .cc-consulta .cc-actionbar .cc-btn-ghost { flex: 1 1 auto; }
     }
+
+    /* ── Móvil: la tabla de medicamentos se apila en tarjetas (mata el scroll
+       horizontal, antes se recortaba la columna Dosis/Presentación). Mismo enfoque
+       que .cc-stack del scouting: <thead> oculto, cada <tr> = tarjeta, cada <td> a
+       lo ancho con su etiqueta (data-label vía ::before) y el input/select al 100%.
+       En ≥768px la tabla conserva su min-width y se ve como tabla normal. ── */
+    @media (min-width: 768px) {
+        .cc-consulta .cc-med-table { min-width: 620px; }
+    }
+    @media (max-width: 767px) {
+        .cc-consulta .cc-med-table,
+        .cc-consulta .cc-med-table tbody,
+        .cc-consulta .cc-med-table tr,
+        .cc-consulta .cc-med-table td { display: block; width: 100%; }
+        .cc-consulta .cc-med-table thead {
+            position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+        }
+        .cc-consulta .cc-med-table tbody tr {
+            margin: 0 0 .75rem; padding: .35rem .7rem .55rem;
+            border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2);
+        }
+        .cc-consulta .cc-med-table td {
+            padding: .4rem 0; border: 0; border-bottom: 1px solid var(--border);
+        }
+        .cc-consulta .cc-med-table td:last-child { border-bottom: 0; text-align: right; }
+        .cc-consulta .cc-med-table td[data-label]::before {
+            content: attr(data-label);
+            display: block; margin-bottom: .25rem;
+            font-size: .7rem; text-transform: uppercase; letter-spacing: .04em;
+            font-weight: 600; color: var(--text-muted);
+        }
+        .cc-consulta .cc-med-table td .form-control,
+        .cc-consulta .cc-med-table td .form-select { width: 100%; }
+        /* El # actúa como título de la tarjeta; el botón de borrar queda a la derecha. */
+        .cc-consulta .cc-med-table td.cc-med-num {
+            padding: .1rem 0 .35rem; color: var(--text); font-weight: 700; font-size: .95rem;
+        }
+        .cc-consulta .cc-med-table td.cc-med-num::before { content: "#"; color: var(--text-muted); }
+    }
 </style>
 @endpush
 @endonce
@@ -165,7 +205,7 @@
             <span class="cc-help mb-2">{{ __('Agrega uno o más. Si escribes una variante nueva (nombre/dosis/presentación) se guarda en el catálogo para reutilizarla.') }}</span>
 
             <div class="table-responsive mt-2">
-                <table class="table cc-med-table align-middle" style="min-width: 620px;">
+                <table class="table cc-med-table align-middle">
                     <thead>
                         <tr>
                             <th style="width:42px;">#</th>
@@ -180,10 +220,10 @@
                         @for ($i = 0; $i < $rows; $i++)
                         <tr>
                             <td class="cc-med-num med-num">{{ $i + 1 }}</td>
-                            <td><input type="number" name="med_qty[]" class="form-control form-control-sm cc-control-sm med-qty" min="0" step="1" inputmode="numeric" value="{{ $oldQtys[$i] ?? 1 }}"></td>
-                            <td><input type="text" name="med_name[]" list="med-names" class="form-control form-control-sm cc-control-sm" value="{{ $oldNames[$i] ?? '' }}" placeholder="Paracetamol" maxlength="150"></td>
-                            <td><input type="text" name="med_dosage[]" list="med-dosages" class="form-control form-control-sm cc-control-sm" value="{{ $oldDosages[$i] ?? '' }}" placeholder="500mg" maxlength="60"></td>
-                            <td>
+                            <td data-label="{{ __('Cant.') }}"><input type="number" name="med_qty[]" class="form-control form-control-sm cc-control-sm med-qty" min="0" step="1" inputmode="numeric" value="{{ $oldQtys[$i] ?? 1 }}"></td>
+                            <td data-label="{{ __('Medicamento') }}"><input type="text" name="med_name[]" list="med-names" class="form-control form-control-sm cc-control-sm" value="{{ $oldNames[$i] ?? '' }}" placeholder="Paracetamol" maxlength="150"></td>
+                            <td data-label="{{ __('Dosis') }}"><input type="text" name="med_dosage[]" list="med-dosages" class="form-control form-control-sm cc-control-sm" value="{{ $oldDosages[$i] ?? '' }}" placeholder="500mg" maxlength="60"></td>
+                            <td data-label="{{ __('Presentación') }}">
                                 <select name="med_presentation[]" class="form-select form-select-sm cc-control-sm">
                                     <option value="">—</option>
                                     @foreach ($presentations as $p)

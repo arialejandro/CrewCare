@@ -17,7 +17,7 @@
     $rr = $hz['rating'] ?? null;
 @endphp
 <tr class="hz-row">
-    <td>
+    <td data-label="Peligro">
         {{-- (2026-07-13) HOMOLOGADO: UN solo selector de EVENTO del catálogo único,
              agrupado por contexto (Locaciones / Set / Construcción / Foros / Transversal).
              El evento aporta la categoría y su(s) norma(s) → reemplaza el select de 13
@@ -30,7 +30,7 @@
         </select>
         <input type="text" name="hz_hazard[]" class="form-control form-control-sm" value="{{ $hz['hazard'] ?? '' }}" placeholder="Detalle adicional (opcional)">
     </td>
-    <td>
+    <td data-label="Prob.">
         {{-- Probabilidad (A–E) — etiquetas de la ESPEC CANÓNICA de la matriz de riesgo. --}}
         <select name="hz_likelihood[]" class="form-select form-select-sm hz-l">
             <option value="">—</option>
@@ -39,7 +39,7 @@
             @endforeach
         </select>
     </td>
-    <td>
+    <td data-label="Cons.">
         {{-- Consecuencia (1–5) — etiquetas de la ESPEC CANÓNICA de la matriz de riesgo. --}}
         <select name="hz_consequence[]" class="form-select form-select-sm hz-c">
             <option value="">—</option>
@@ -48,14 +48,14 @@
             @endforeach
         </select>
     </td>
-    <td class="text-center align-middle">
+    <td data-label="Clasif." class="text-center align-middle">
         <span class="hz-rating badge rounded-pill {{ $rr && isset($rmap[$rr]) ? '' : 'bg-light text-muted border' }}"
               @if($rr && isset($rmap[$rr])) style="background: {{ $rmap[$rr][1] }}; color: {{ $rmap[$rr][2] }};" @endif>
             {{ $rr && isset($rmap[$rr]) ? $rr . ' · ' . $rmap[$rr][0] : '—' }}
         </span>
     </td>
-    <td><input type="text" name="hz_control[]" class="form-control form-control-sm" value="{{ $hz['control'] ?? '' }}"></td>
-    <td>
+    <td data-label="Control"><input type="text" name="hz_control[]" class="form-control form-control-sm" value="{{ $hz['control'] ?? '' }}"></td>
+    <td data-label="Residual">
         <select name="hz_residual[]" class="form-select form-select-sm">
             <option value="">—</option>
             @foreach(['L' => 'Bajo', 'M' => 'Medio', 'H' => 'Alto', 'E' => 'Muy alto'] as $rk => $rl)
@@ -63,8 +63,8 @@
             @endforeach
         </select>
     </td>
-    <td><input type="text" name="hz_personnel[]" class="form-control form-control-sm" value="{{ $hz['personnel'] ?? '' }}" placeholder="Ej. 2 riggers"></td>
-    <td class="align-middle">
+    <td data-label="Personal"><input type="text" name="hz_personnel[]" class="form-control form-control-sm" value="{{ $hz['personnel'] ?? '' }}" placeholder="Ej. 2 riggers"></td>
+    <td data-label="Norma" class="align-middle">
         {{-- (2026-07-13) Norma AUTO: se deriva del EVENTO elegido (ya no es un select
              manual). El JS de _form la rellena al cambiar el evento; en edición muestra
              el badge/código guardado en la fila (norma principal del evento). --}}
@@ -76,7 +76,7 @@
             @endif
         </span>
     </td>
-    <td class="text-center align-middle">
+    <td data-label="" class="text-center align-middle">
         <button type="button" class="btn btn-sm btn-link text-danger p-0 hz-del" title="Quitar peligro" aria-label="Quitar peligro">&times;</button>
     </td>
 </tr>

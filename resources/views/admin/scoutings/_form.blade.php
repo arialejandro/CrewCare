@@ -528,8 +528,22 @@
                 @include('componentes._hazard-activity-picker', ['hazardEvents' => $hazardEvents ?? collect(), 'pickerId' => 'hzpick-scouting'])
             </div>
 
+            {{-- (2026-08-04) cc-stack: en <768px cada fila de peligro se apila como tarjeta
+                 (data-label por celda, definidos en _hazard-row para que las filas nuevas
+                 clonadas del <template> nazcan igual). El min-width:1200px se conserva para
+                 el ESCRITORIO (9 columnas) y se anula en móvil (regla global .cc-stack).
+                 El <style> de abajo hace que en móvil cada control ocupe el 100% con su
+                 etiqueta encima, en vez de compartir renglón (celdas ricas: select+input). --}}
+            <style>
+                @media (max-width: 767px) {
+                    #hazards-table.cc-stack td { flex-wrap: wrap; text-align: left; }
+                    #hazards-table.cc-stack td::before { flex: 1 1 100%; }
+                    #hazards-table.cc-stack td > .form-select,
+                    #hazards-table.cc-stack td > .form-control { flex: 1 1 100%; width: 100%; }
+                }
+            </style>
             <div class="table-responsive">
-                <table class="table table-bordered align-middle" style="min-width: 1200px;" id="hazards-table">
+                <table class="table table-bordered align-middle cc-stack" style="min-width: 1200px;" id="hazards-table">
                     <thead class="table-light">
                         <tr>
                             <th style="width:20%">Peligro potencial</th>

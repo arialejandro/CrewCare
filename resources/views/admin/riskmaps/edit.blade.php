@@ -15,7 +15,24 @@
     .rm-btn--accent{background:var(--brand-primary);border-color:var(--brand-primary);color:var(--brand-on-primary)}
 
     .rm-ed-grid{display:grid;grid-template-columns:230px minmax(0,1fr) 260px;gap:1rem;align-items:start}
-    @media (max-width:1100px){.rm-ed-grid{grid-template-columns:1fr}}
+    @media (max-width:1100px){
+        .rm-ed-grid{grid-template-columns:1fr}
+        /* Táctil: el lienzo (foto) manda; herramientas arriba, listas debajo */
+        .rm-panel--stage{order:1}
+        .rm-panel--props{order:2}
+        .rm-panel--views{order:3}
+        .rm-ed-canvas-wrap{max-height:82vh}
+        .rm-ed-canvas img{max-height:78vh}
+        /* Blancos de toque >=44px */
+        .rm-btn,.rm-side button,.rm-src-tabs button{min-height:44px}
+        .rm-zoom__btn{min-height:44px;min-width:44px}
+        .rm-ed-armbar select{flex:1 1 42%}
+        .rm-ed-armbar select,.rm-size select,.rm-addview select,.rm-addview input[type=text],.rm-addview input[type=file]{min-height:44px}
+        .rm-ed-view__del{min-width:44px;min-height:44px}
+        .rm-ed-view__link img{width:52px;height:40px}
+        /* Evita el zoom automático de iOS al enfocar (>=16px) */
+        .rm-props input[type=text],.rm-props textarea,.rm-addview select,.rm-addview input[type=text],.rm-ed-armbar select,.rm-size select{font-size:16px}
+    }
 
     .rm-panel{background:var(--glass-2);border:1px solid var(--stroke);border-radius:14px;padding:.85rem}
     .rm-panel h3{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);font-weight:700;margin:0 0 .6rem}
@@ -47,8 +64,13 @@
     .rm-ed-armbar{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.6rem}
     .rm-ed-armbar select{background:var(--surface-3);color:var(--text);border:1px solid var(--stroke);border-radius:8px;padding:.45rem .55rem;font:inherit;font-size:.82rem}
     .rm-ed-armhint{font-size:.75rem;color:var(--brand-primary);font-weight:600;align-self:center}
-    .rm-ed-canvas{position:relative;border:1px solid var(--stroke);border-radius:10px;overflow:hidden;background:#0b1220;user-select:none;touch-action:none}
+    /* Contenedor con scroll para el zoom (imagen + pines escalan JUNTOS) */
+    .rm-ed-canvas-wrap{overflow:auto;-webkit-overflow-scrolling:touch;position:relative;border-radius:10px;max-height:80vh}
+    .rm-ed-canvas-sizer{position:relative}
+    .rm-ed-canvas{position:relative;border:1px solid var(--stroke);border-radius:10px;overflow:hidden;background:#0b1220;user-select:none;touch-action:none;transform-origin:0 0}
     .rm-ed-canvas.armed{cursor:crosshair}
+    /* Con zoom, el dedo puede desplazar (los pines conservan touch-action:none y se arrastran) */
+    .rm-ed-canvas.is-zoomed{touch-action:pan-x pan-y}
     .rm-ed-canvas img{display:block;width:100%;max-height:70vh;object-fit:contain}
     .rm-ed-empty{padding:3rem 1rem;text-align:center;color:var(--text-muted)}
 
@@ -77,6 +99,23 @@
     .rm-props .empty{color:var(--text-muted);font-size:.85rem}
     .rm-del{margin-top:.8rem;color:var(--danger);border-color:color-mix(in srgb,var(--danger) 34%,transparent)}
     .rm-count{font-size:.7rem;color:var(--text-muted);text-align:right}
+
+    /* Ajuste fino (nudge) del pin seleccionado — precisión con el dedo */
+    .rm-nudge{margin:.7rem 0 .2rem}
+    .rm-nudge__lbl{display:block;font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin:0 0 .4rem}
+    .rm-nudge__pad{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:.3rem;max-width:168px}
+    .rm-nudge__btn{min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;font-size:1.25rem;line-height:1;border:1px solid var(--stroke);background:var(--surface-3);color:var(--text);border-radius:10px;cursor:pointer;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+    .rm-nudge__btn:active{background:var(--brand-primary);border-color:var(--brand-primary);color:var(--brand-on-primary)}
+    .rm-nudge__u{grid-column:2;grid-row:1}
+    .rm-nudge__l{grid-column:1;grid-row:2}
+    .rm-nudge__r{grid-column:3;grid-row:2}
+    .rm-nudge__d{grid-column:2;grid-row:3}
+
+    /* Zoom del lienzo */
+    .rm-zoom{display:inline-flex;align-items:center;gap:.25rem;margin-left:auto}
+    .rm-zoom__btn{min-width:40px;min-height:36px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--stroke);background:var(--surface-3);color:var(--text);border-radius:8px;font-size:1rem;font-weight:700;cursor:pointer;line-height:1;padding:0 .4rem;touch-action:manipulation}
+    .rm-zoom__btn:active{background:var(--brand-primary);border-color:var(--brand-primary);color:var(--brand-on-primary)}
+    #rm-zoom-lvl{min-width:54px;font-size:.78rem;font-weight:600}
 </style>
 @endpush
 
@@ -117,7 +156,7 @@
     <div class="rm-ed-grid">
 
         {{-- IZQUIERDA: vistas --}}
-        <div class="rm-panel">
+        <div class="rm-panel rm-panel--views">
             <h3>Vistas</h3>
             <ul class="rm-ed-views" id="rm-views">
                 @foreach($views as $v)
@@ -178,7 +217,7 @@
         </div>
 
         {{-- CENTRO: escenario --}}
-        <div class="rm-panel">
+        <div class="rm-panel rm-panel--stage">
             @if($current)
                 <div class="rm-ed-armbar">
                     <select id="rm-arm-res">
@@ -190,9 +229,18 @@
                         @foreach($eligibleEvents as $id => $ev)<option value="{{ $id }}">{{ $ev['name'] }}</option>@endforeach
                     </select>
                     <span class="rm-ed-armhint" id="rm-arm-hint"></span>
+                    <div class="rm-zoom" role="group" aria-label="Zoom del lienzo">
+                        <button type="button" class="rm-zoom__btn" id="rm-zoom-out" aria-label="Alejar">&minus;</button>
+                        <button type="button" class="rm-zoom__btn" id="rm-zoom-lvl" aria-label="Restablecer zoom a 100%">100%</button>
+                        <button type="button" class="rm-zoom__btn" id="rm-zoom-in" aria-label="Acercar">+</button>
+                    </div>
                 </div>
-                <div class="rm-ed-canvas" id="rm-canvas" style="--pin: {{ $map->pinPx() }}px">
-                    <img src="{{ $current->imageUrl() }}" alt="{{ $current->displayLabel() }}" id="rm-canvas-img" draggable="false">
+                <div class="rm-ed-canvas-wrap" id="rm-canvas-wrap">
+                    <div class="rm-ed-canvas-sizer" id="rm-canvas-sizer">
+                        <div class="rm-ed-canvas" id="rm-canvas" style="--pin: {{ $map->pinPx() }}px">
+                            <img src="{{ $current->imageUrl() }}" alt="{{ $current->displayLabel() }}" id="rm-canvas-img" draggable="false">
+                        </div>
+                    </div>
                 </div>
                 <p class="rm-count" id="rm-count"></p>
                 @if($eligibleEvents->isEmpty())
@@ -207,7 +255,7 @@
         </div>
 
         {{-- DERECHA: narrativa + propiedades --}}
-        <div class="rm-panel">
+        <div class="rm-panel rm-panel--props">
             @if($current)
                 <h3>Narrativa de la vista</h3>
                 <div class="rm-props">
@@ -228,7 +276,16 @@
                     <p class="empty" id="rm-props-empty">Toca un marcador para editarlo.</p>
                     <div id="rm-props-body" style="display:none">
                         <div class="selname" id="rm-sel-name"></div>
-                        <p class="rm-hint">Arrastra el pin o su etiqueta para moverlos.</p>
+                        <p class="rm-hint">Arrastra el pin o su etiqueta para moverlos, o usa el ajuste fino.</p>
+                        <div class="rm-nudge" role="group" aria-label="Ajuste fino de la posición del pin">
+                            <span class="rm-nudge__lbl">Ajuste fino del pin</span>
+                            <div class="rm-nudge__pad" id="rm-nudge">
+                                <button type="button" class="rm-nudge__btn rm-nudge__u" data-nudge="up" aria-label="Mover el pin hacia arriba">&uarr;</button>
+                                <button type="button" class="rm-nudge__btn rm-nudge__l" data-nudge="left" aria-label="Mover el pin a la izquierda">&larr;</button>
+                                <button type="button" class="rm-nudge__btn rm-nudge__r" data-nudge="right" aria-label="Mover el pin a la derecha">&rarr;</button>
+                                <button type="button" class="rm-nudge__btn rm-nudge__d" data-nudge="down" aria-label="Mover el pin hacia abajo">&darr;</button>
+                            </div>
+                        </div>
                         <button type="button" class="rm-btn" id="rm-lbl-reset" style="width:100%;justify-content:center">Reubicar etiqueta</button>
                         <button type="button" class="rm-btn rm-del" id="rm-del" style="width:100%;justify-content:center;margin-top:.5rem">Quitar marcador</button>
                     </div>
@@ -610,6 +667,31 @@
                 refreshCount();
             });
         }
+
+        /* Ajuste fino (nudge): mueve el pin +-0.5% y persiste por el MISMO
+           camino que un arrastre (saveMarker). Solo POSICION (x_pct/y_pct). */
+        var nudgePad = document.getElementById('rm-nudge');
+        if (nudgePad) {
+            var NUDGE = 0.5;
+            var VEC = { up: [0, -NUDGE], down: [0, NUDGE], left: [-NUDGE, 0], right: [NUDGE, 0] };
+            var nudgeTimer = null;
+            var scheduleNudgeSave = function (m) {
+                if (nudgeTimer) { clearTimeout(nudgeTimer); }
+                nudgeTimer = setTimeout(function () { nudgeTimer = null; saveMarker(m); }, 350);
+            };
+            nudgePad.addEventListener('click', function (e) {
+                var btn = e.target.closest('[data-nudge]');
+                if (!btn || !selected) { return; }
+                var v = VEC[btn.getAttribute('data-nudge')];
+                if (!v) { return; }
+                var m = selected;
+                m.x_pct = clamp((+m.x_pct) + v[0], 0, 100);
+                m.y_pct = clamp((+m.y_pct) + v[1], 0, 100);
+                if (m._pin) { m._pin.style.left = m.x_pct + '%'; m._pin.style.top = m.y_pct + '%'; }
+                updateLine(m);
+                scheduleNudgeSave(m);
+            });
+        }
     })();
 
     /* Armar colocación desde los selects */
@@ -648,6 +730,47 @@
             return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
         });
     }
+
+    /* ---- Zoom del lienzo (escala uniforme; x_pct/y_pct NO cambian) ----
+       Se escala el CONTENEDOR completo (.rm-ed-canvas: imagen + capa de pines)
+       con la MISMA transform, así que ambos comparten el espacio de coordenadas.
+       pct(e) usa img.getBoundingClientRect(), que refleja la escala y el scroll:
+       la fracción de un punto sobre la foto es idéntica a cualquier zoom. Un
+       "sizer" con tamaño real (bw*z x bh*z) provee el area de scroll. */
+    (function () {
+        var wrap = document.getElementById('rm-canvas-wrap');
+        var sizer = document.getElementById('rm-canvas-sizer');
+        if (!wrap || !sizer) { return; }
+        var zoom = 1, MINZ = 1, MAXZ = 4, STEP = 0.5;
+        var lvl = document.getElementById('rm-zoom-lvl');
+        function apply(z) {
+            z = clamp(Math.round(z * 2) / 2, MINZ, MAXZ); // pasos de 0.5
+            // Medir el tamaño base (escala 1) con transform y sizer neutros.
+            canvas.style.transform = 'none';
+            sizer.style.width = ''; sizer.style.height = '';
+            var r = canvas.getBoundingClientRect();
+            var bw = r.width, bh = r.height;
+            if (z <= 1.001) {
+                zoom = 1;
+                canvas.style.transform = '';
+                canvas.classList.remove('is-zoomed');
+            } else {
+                zoom = z;
+                canvas.style.transform = 'scale(' + z + ')';
+                sizer.style.width = (bw * z) + 'px';
+                sizer.style.height = (bh * z) + 'px';
+                canvas.classList.add('is-zoomed');
+            }
+            if (lvl) { lvl.textContent = Math.round(zoom * 100) + '%'; }
+        }
+        var zin = document.getElementById('rm-zoom-in');
+        var zout = document.getElementById('rm-zoom-out');
+        if (zin) { zin.addEventListener('click', function () { apply(zoom + STEP); }); }
+        if (zout) { zout.addEventListener('click', function () { apply(zoom - STEP); }); }
+        if (lvl) { lvl.addEventListener('click', function () { apply(1); }); }
+        // Reajustar el area de scroll si cambia el tamaño/orientación.
+        window.addEventListener('resize', function () { if (zoom > 1) { apply(zoom); } });
+    })();
 
     renderAll();
 })();

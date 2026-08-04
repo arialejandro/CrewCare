@@ -296,6 +296,11 @@
        ================================================================== */
     @media (max-width: 767px) {
         table.cc-stack, table.cc-stack tbody, table.cc-stack tr, table.cc-stack td { display: block; width: 100%; }
+        /* (2026-08-04) Al apilar, un min-width EN LÍNEA (p.ej. style="min-width:1200px",
+           necesario para no aplastar la tabla en escritorio) seguiría forzando scroll
+           horizontal en el teléfono. Al estar apilada ya no lo necesita: lo anulamos.
+           Va con !important porque compite contra el min-width en línea; solo <768px. */
+        table.cc-stack { min-width: 0 !important; }
         table.cc-stack thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
         table.cc-stack tr {
             margin: 0 0 .75rem; padding: .35rem .25rem;
