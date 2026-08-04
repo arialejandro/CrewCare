@@ -358,6 +358,8 @@ class RiskMapController extends Controller
             'kind'           => 'required|in:resource,hazard', // 'area' (polígono) fuera de alcance
             'x_pct'          => 'required|numeric|min:0|max:100',
             'y_pct'          => 'required|numeric|min:0|max:100',
+            'label_x_pct'    => 'nullable|numeric|min:0|max:100',
+            'label_y_pct'    => 'nullable|numeric|min:0|max:100',
             'label_side'     => 'nullable|in:left,right',
             'reference_text' => 'nullable|string|max:200',
             'resource_type'  => 'nullable|in:' . implode(',', array_keys(RiskMapMarker::RESOURCE_TYPES)),
@@ -369,6 +371,12 @@ class RiskMapController extends Controller
         $marker->y_pct          = round((float) $data['y_pct'], 3);
         $marker->label_side     = $data['label_side'] ?? 'right';
         $marker->reference_text = trim((string) ($data['reference_text'] ?? '')) ?: null;
+
+        // Posición de la etiqueta (chip). Se envía solo al reubicarla; vacío = auto junto al pin.
+        if ($request->has('label_x_pct')) {
+            $marker->label_x_pct = $request->filled('label_x_pct') ? round((float) $data['label_x_pct'], 3) : null;
+            $marker->label_y_pct = $request->filled('label_y_pct') ? round((float) $data['label_y_pct'], 3) : null;
+        }
 
         if ($data['kind'] === 'resource') {
             if (empty($data['resource_type'])) {
@@ -410,6 +418,8 @@ class RiskMapController extends Controller
             'event_id'       => $marker->event_id,
             'x_pct'          => (float) $marker->x_pct,
             'y_pct'          => (float) $marker->y_pct,
+            'label_x'        => $marker->label_x_pct !== null ? (float) $marker->label_x_pct : null,
+            'label_y'        => $marker->label_y_pct !== null ? (float) $marker->label_y_pct : null,
             'label_side'     => $marker->label_side,
             'reference_text' => $marker->reference_text,
             'icon'           => $marker->iconKey(),

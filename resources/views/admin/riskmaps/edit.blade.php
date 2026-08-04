@@ -57,9 +57,10 @@
     .rm-pin.sel .rm-pin__drop{outline:2px solid #fff;outline-offset:1px}
     .rm-pin__drop{width:var(--pin,32px);height:var(--pin,32px);border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.5);border:1.5px solid rgba(255,255,255,.95)}
     .rm-pin__drop svg{width:calc(var(--pin,32px)*.55);height:calc(var(--pin,32px)*.55);transform:rotate(45deg)}
-    .rm-pin__chip{position:absolute;bottom:calc(var(--pin,32px)*.45);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:700;color:#fff;border-radius:6px;padding:2px 7px;line-height:1.3;box-shadow:0 1px 2px rgba(0,0,0,.3);text-transform:uppercase;letter-spacing:.02em}
-    .rm-pin__chip--right{left:calc(var(--pin,32px)*.55)}
-    .rm-pin__chip--left{right:calc(var(--pin,32px)*.55);text-align:right}
+    .rm-chip{position:absolute;transform:translate(-50%,-50%);z-index:3;cursor:grab;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:700;color:#fff;border-radius:6px;padding:2px 7px;line-height:1.3;box-shadow:0 1px 2px rgba(0,0,0,.35);text-transform:uppercase;letter-spacing:.02em}
+    .rm-chip.sel{outline:2px solid #fff;outline-offset:1px}
+    .rm-leaders{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+    .rm-hint{font-size:.72rem;color:var(--text-muted);margin:.5rem 0 .4rem}
     .rm-size{display:flex;align-items:center;gap:.3rem}
     .rm-size select{background:var(--surface-3);color:var(--text);border:1px solid var(--stroke);border-radius:8px;padding:.5rem .55rem;font:inherit;font-size:.85rem}
 
@@ -225,12 +226,9 @@
                     <p class="empty" id="rm-props-empty">Toca un marcador para editarlo.</p>
                     <div id="rm-props-body" style="display:none">
                         <div class="selname" id="rm-sel-name"></div>
-                        <label>Lado de la etiqueta</label>
-                        <div class="rm-side">
-                            <button type="button" id="rm-side-left">Izquierda</button>
-                            <button type="button" id="rm-side-right">Derecha</button>
-                        </div>
-                        <button type="button" class="rm-btn rm-del" id="rm-del" style="width:100%;justify-content:center;margin-top:.8rem">Quitar marcador</button>
+                        <p class="rm-hint">Arrastra el pin o su etiqueta para moverlos.</p>
+                        <button type="button" class="rm-btn" id="rm-lbl-reset" style="width:100%;justify-content:center">Reubicar etiqueta</button>
+                        <button type="button" class="rm-btn rm-del" id="rm-del" style="width:100%;justify-content:center;margin-top:.5rem">Quitar marcador</button>
                     </div>
                 </div>
             @endif
@@ -250,6 +248,8 @@
         return [
             'id' => $m->id, 'kind' => $m->kind, 'resource_type' => $m->resource_type,
             'event_id' => $m->event_id, 'x_pct' => (float) $m->x_pct, 'y_pct' => (float) $m->y_pct,
+            'label_x' => $m->label_x_pct !== null ? (float) $m->label_x_pct : null,
+            'label_y' => $m->label_y_pct !== null ? (float) $m->label_y_pct : null,
             'label_side' => $m->label_side, 'reference_text' => $m->reference_text,
             'icon' => $m->iconKey(), 'label' => $lbl, 'short' => $sh, 'color' => $m->color(),
         ];
@@ -419,12 +419,35 @@
     function refreshCount() {
         if (countEl) { countEl.textContent = markers.length + (markers.length === 1 ? ' marcador' : ' marcadores'); }
     }
-
     function iconFor(key) { return DATA.icons[key] || DATA.icons['area'] || ''; }
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    function svgEl(t) { return document.createElementNS('http://www.w3.org/2000/svg', t); }
 
-    function buildPin(m) {
+    // Capa de líneas guía (pin -> etiqueta), en coords 0..100 = % de la imagen.
+    var leaders = svgEl('svg');
+    leaders.setAttribute('class', 'rm-leaders');
+    leaders.setAttribute('viewBox', '0 0 100 100');
+    leaders.setAttribute('preserveAspectRatio', 'none');
+    canvas.insertBefore(leaders, img.nextSibling);
+
+    // Posición del chip: la guardada, o una por defecto a un lado del pin.
+    function labelPos(m) {
+        if (m.label_x !== null && m.label_x !== undefined) { return { x: +m.label_x, y: +m.label_y }; }
+        var dir = m.x_pct > 55 ? -1 : 1;
+        return { x: clamp(m.x_pct + dir * 13, 5, 95), y: clamp(m.y_pct - 12, 5, 95) };
+    }
+
+    function updateLine(m) {
+        if (!m._line) { return; }
+        var lp = labelPos(m);
+        m._line.setAttribute('x1', m.x_pct); m._line.setAttribute('y1', m.y_pct);
+        m._line.setAttribute('x2', lp.x); m._line.setAttribute('y2', lp.y);
+        if (m._chip) { m._chip.style.left = lp.x + '%'; m._chip.style.top = lp.y + '%'; }
+    }
+
+    function renderMarker(m) {
         var pin = document.createElement('div');
-        pin.className = 'rm-pin rm-pin--' + m.kind;
+        pin.className = 'rm-pin';
         pin.setAttribute('data-id', m.id);
         pin.style.left = m.x_pct + '%';
         pin.style.top = m.y_pct + '%';
@@ -432,20 +455,37 @@
         drop.className = 'rm-pin__drop';
         drop.style.background = m.color || '#c0392b';
         drop.innerHTML = iconFor(m.icon);
+        pin.appendChild(drop);
+        pin.title = (m.label || '') + (m.reference_text ? ' — ' + m.reference_text : '');
+
+        var lp = labelPos(m);
         var chip = document.createElement('div');
-        chip.className = 'rm-pin__chip rm-pin__chip--' + (m.label_side === 'left' ? 'left' : 'right');
+        chip.className = 'rm-chip';
+        chip.setAttribute('data-id', m.id);
+        chip.style.left = lp.x + '%';
+        chip.style.top = lp.y + '%';
         chip.style.background = m.color || '#c0392b';
         chip.textContent = m.short || m.label || '';
-        pin.title = (m.label || '') + (m.reference_text ? ' — ' + m.reference_text : '');
-        pin.appendChild(drop);
-        pin.appendChild(chip);
-        attachPin(pin, m);
-        return pin;
+
+        var line = svgEl('line');
+        line.setAttribute('vector-effect', 'non-scaling-stroke');
+        line.setAttribute('stroke', m.color || '#c0392b');
+        line.setAttribute('stroke-width', '1.4');
+        line.setAttribute('x1', m.x_pct); line.setAttribute('y1', m.y_pct);
+        line.setAttribute('x2', lp.x); line.setAttribute('y2', lp.y);
+        leaders.appendChild(line);
+
+        m._pin = pin; m._chip = chip; m._line = line;
+        canvas.appendChild(pin);
+        canvas.appendChild(chip);
+        attachDrag(pin, m, false);
+        attachDrag(chip, m, true);
     }
 
     function renderAll() {
-        canvas.querySelectorAll('.rm-pin').forEach(function (p) { p.remove(); });
-        markers.forEach(function (m) { canvas.appendChild(buildPin(m)); });
+        canvas.querySelectorAll('.rm-pin, .rm-chip').forEach(function (p) { p.remove(); });
+        while (leaders.firstChild) { leaders.removeChild(leaders.firstChild); }
+        markers.forEach(function (m) { renderMarker(m); });
         refreshCount();
     }
 
@@ -459,17 +499,16 @@
     /* Colocar un marcador nuevo al hacer clic (cuando hay algo armado) */
     canvas.addEventListener('click', function (e) {
         if (!armed) { return; }
-        if (e.target.closest('.rm-pin')) { return; }
+        if (e.target.closest('.rm-pin') || e.target.closest('.rm-chip')) { return; }
         var p = pct(e);
-        var fields = { kind: armed.kind, x_pct: p.x.toFixed(3), y_pct: p.y.toFixed(3), label_side: (p.x > 60 ? 'left' : 'right') };
+        var fields = { kind: armed.kind, x_pct: p.x.toFixed(3), y_pct: p.y.toFixed(3) };
         if (armed.kind === 'resource') { fields.resource_type = armed.resource_type; }
         else { fields.event_id = armed.event_id; }
         post(DATA.urls.markerStore, 'POST', fields, function (res) {
             if (res.ok && res.body && res.body.marker) {
                 markers.push(res.body.marker);
-                var pin = buildPin(res.body.marker);
-                canvas.appendChild(pin);
-                selectMarker(res.body.marker, pin);
+                renderMarker(res.body.marker);
+                selectMarker(res.body.marker);
                 refreshCount();
             } else if (res.body && res.body.error) {
                 alert(res.body.error);
@@ -478,103 +517,89 @@
         });
     });
 
-    /* Arrastrar / seleccionar un pin */
-    function attachPin(pin, m) {
+    /* Arrastrar el pin (mueve el peligro) o el chip (mueve la etiqueta); clic = seleccionar */
+    function attachDrag(el, m, isChip) {
         var start = null, moved = false;
-        pin.addEventListener('pointerdown', function (e) {
+        el.addEventListener('pointerdown', function (e) {
             e.stopPropagation();
             start = { x: e.clientX, y: e.clientY };
             moved = false;
-            pin.setPointerCapture(e.pointerId);
+            el.setPointerCapture(e.pointerId);
         });
-        pin.addEventListener('pointermove', function (e) {
+        el.addEventListener('pointermove', function (e) {
             if (!start) { return; }
             if (Math.abs(e.clientX - start.x) > 3 || Math.abs(e.clientY - start.y) > 3) { moved = true; }
             if (!moved) { return; }
             var p = pct(e);
-            pin.style.left = p.x + '%';
-            pin.style.top = p.y + '%';
-            m.x_pct = p.x; m.y_pct = p.y;
+            el.style.left = p.x + '%'; el.style.top = p.y + '%';
+            if (isChip) {
+                m.label_x = p.x; m.label_y = p.y;
+                if (m._line) { m._line.setAttribute('x2', p.x); m._line.setAttribute('y2', p.y); }
+            } else {
+                m.x_pct = p.x; m.y_pct = p.y;
+                updateLine(m);
+            }
         });
-        pin.addEventListener('pointerup', function (e) {
-            if (start) { try { pin.releasePointerCapture(e.pointerId); } catch (er) {} }
+        el.addEventListener('pointerup', function (e) {
+            if (start) { try { el.releasePointerCapture(e.pointerId); } catch (er) {} }
             start = null;
             if (moved) { saveMarker(m); }
-            else { selectMarker(m, pin); }
+            else { selectMarker(m); }
         });
     }
 
-    function selectMarker(m, pin) {
-        selected = { data: m, el: pin };
-        canvas.querySelectorAll('.rm-pin').forEach(function (p) { p.classList.remove('sel'); });
-        pin.classList.add('sel');
+    function selectMarker(m) {
+        selected = m;
+        canvas.querySelectorAll('.rm-pin, .rm-chip').forEach(function (p) { p.classList.remove('sel'); });
+        if (m._pin) { m._pin.classList.add('sel'); }
+        if (m._chip) { m._chip.classList.add('sel'); }
         var body = document.getElementById('rm-props-body');
         var empty = document.getElementById('rm-props-empty');
         if (empty) { empty.style.display = 'none'; }
         if (body) { body.style.display = ''; }
         var name = document.getElementById('rm-sel-name');
         if (name) { name.innerHTML = iconFor(m.icon) + '<span>' + escapeHtml(m.label || '') + '</span>'; }
-        var ref = document.getElementById('rm-ref');
-        if (ref) { ref.value = m.reference_text || ''; }
-        setSideButtons(m.label_side);
-    }
-
-    function setSideButtons(side) {
-        var l = document.getElementById('rm-side-left'), r = document.getElementById('rm-side-right');
-        if (l) { l.classList.toggle('active', side === 'left'); }
-        if (r) { r.classList.toggle('active', side !== 'left'); }
     }
 
     function saveMarker(m) {
         var url = DATA.urls.markerItem.replace('__M__', m.id);
         var fields = {
             kind: m.kind, x_pct: (+m.x_pct).toFixed(3), y_pct: (+m.y_pct).toFixed(3),
-            label_side: m.label_side || 'right', reference_text: m.reference_text || ''
+            reference_text: m.reference_text || '',
+            label_x_pct: (m.label_x !== null && m.label_x !== undefined) ? (+m.label_x).toFixed(3) : '',
+            label_y_pct: (m.label_y !== null && m.label_y !== undefined) ? (+m.label_y).toFixed(3) : ''
         };
         if (m.kind === 'resource') { fields.resource_type = m.resource_type; }
         else { fields.event_id = m.event_id; }
         post(url, 'PUT', fields, function (res) {
-            if (res.ok && res.body && res.body.marker && selected && selected.data.id === m.id) {
+            if (res.ok && res.body && res.body.marker) {
+                var pin = m._pin, chip = m._chip, line = m._line;
                 Object.assign(m, res.body.marker);
+                m._pin = pin; m._chip = chip; m._line = line;
             }
         });
     }
 
-    /* Controles del panel de propiedades */
+    /* Panel de propiedades: reubicar etiqueta (auto) + quitar */
     (function () {
-        var left = document.getElementById('rm-side-left');
-        var right = document.getElementById('rm-side-right');
-        if (left) { left.addEventListener('click', function () { if (!selected) { return; } selected.data.label_side = 'left'; applySide(); }); }
-        if (right) { right.addEventListener('click', function () { if (!selected) { return; } selected.data.label_side = 'right'; applySide(); }); }
-        function applySide() {
-            var m = selected.data, chip = selected.el.querySelector('.rm-pin__chip');
-            if (chip) { chip.className = 'rm-pin__chip rm-pin__chip--' + (m.label_side === 'left' ? 'left' : 'right'); }
-            setSideButtons(m.label_side);
-            saveMarker(m);
-        }
-        var ref = document.getElementById('rm-ref');
-        if (ref) {
-            ref.addEventListener('blur', function () {
+        var reset = document.getElementById('rm-lbl-reset');
+        if (reset) {
+            reset.addEventListener('click', function () {
                 if (!selected) { return; }
-                selected.data.reference_text = ref.value.trim();
-                var chip = selected.el.querySelector('.rm-pin__chip');
-                if (chip) {
-                    chip.innerHTML = '';
-                    chip.appendChild(document.createTextNode(selected.data.label || ''));
-                    if (selected.data.reference_text) {
-                        var s = document.createElement('span'); s.className = 'ref'; s.textContent = selected.data.reference_text; chip.appendChild(s);
-                    }
-                }
-                saveMarker(selected.data);
+                selected.label_x = null; selected.label_y = null;
+                updateLine(selected);
+                saveMarker(selected);
             });
         }
         var del = document.getElementById('rm-del');
         if (del) {
             del.addEventListener('click', function () {
                 if (!selected) { return; }
-                var m = selected.data, url = DATA.urls.markerItem.replace('__M__', m.id);
+                var m = selected, url = DATA.urls.markerItem.replace('__M__', m.id);
                 post(url, 'DELETE', {}, function () {});
-                selected.el.remove();
+                if (m._pin) { m._pin.remove(); }
+                if (m._chip) { m._chip.remove(); }
+                if (m._line) { m._line.remove(); }
                 markers = markers.filter(function (x) { return x.id !== m.id; });
                 selected = null;
                 document.getElementById('rm-props-body').style.display = 'none';

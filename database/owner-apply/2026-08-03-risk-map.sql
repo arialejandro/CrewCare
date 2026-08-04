@@ -123,7 +123,9 @@ CREATE TABLE IF NOT EXISTS `risk_map_markers` (
 
     `x_pct`          DECIMAL(6,3) NOT NULL,                    -- 0..100, relativo a la imagen
     `y_pct`          DECIMAL(6,3) NOT NULL,
-    `label_side`     ENUM('left','right') NOT NULL DEFAULT 'right',
+    `label_side`     ENUM('left','right') NOT NULL DEFAULT 'right',   -- (legado; con etiqueta movible ya no se usa)
+    `label_x_pct`    DECIMAL(6,3) NULL DEFAULT NULL,           -- posición del chip (centro, % de la imagen); NULL = auto junto al pin. DISPLAY, fuera del hash
+    `label_y_pct`    DECIMAL(6,3) NULL DEFAULT NULL,
     `reference_text` VARCHAR(200) NULL DEFAULT NULL,           -- frase de referencia visible (opcional)
     `polygon`        JSON         NULL DEFAULT NULL,           -- solo kind=area (FUERA DE ALCANCE hoy)
 

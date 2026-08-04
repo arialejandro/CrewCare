@@ -19,7 +19,7 @@ class RiskMapMarker extends Model
     protected $fillable = [
         'view_id', 'sort_order',
         'kind', 'resource_type', 'event_id',
-        'x_pct', 'y_pct', 'label_side', 'reference_text', 'polygon',
+        'x_pct', 'y_pct', 'label_side', 'label_x_pct', 'label_y_pct', 'reference_text', 'polygon',
     ];
 
     protected $casts = [

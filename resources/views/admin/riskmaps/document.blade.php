@@ -107,12 +107,13 @@
         display:flex; align-items:center; justify-content:center; color:#fff;
         box-shadow:0 1px 3px rgba(0,0,0,.4); border:1.5px solid rgba(255,255,255,.95); }
     .rmr-pin__drop svg{ width:calc(var(--pin,32px)*.55); height:calc(var(--pin,32px)*.55); transform:rotate(45deg); }
-    /* Chip: etiqueta CORTA en color, texto blanco, con tope de ancho (no se desborda) */
-    .rmr-pin__chip{ position:absolute; bottom:calc(var(--pin,32px)*.45); max-width:150px; overflow:hidden; text-overflow:ellipsis;
+    /* Etiqueta del marcador: CORTA, en color, MOVIBLE (posición propia). NOTA: clase distinta de
+       .rmr-chip (la píldora de cabecera de la vista) para no colisionar. */
+    .rmr-lbl{ position:absolute; transform:translate(-50%,-50%); z-index:3; max-width:160px; overflow:hidden; text-overflow:ellipsis;
         white-space:nowrap; font-size:9px; font-weight:700; color:#fff; border-radius:6px; padding:2px 7px;
-        line-height:1.3; box-shadow:0 1px 2px rgba(0,0,0,.3); text-transform:uppercase; letter-spacing:.02em; }
-    .rmr-pin__chip--right{ left:calc(var(--pin,32px)*.55); }
-    .rmr-pin__chip--left{ right:calc(var(--pin,32px)*.55); text-align:right; }
+        line-height:1.3; box-shadow:0 1px 2px rgba(0,0,0,.35); text-transform:uppercase; letter-spacing:.02em; }
+    /* Líneas guía pin -> etiqueta (coords 0..100 = % de la imagen) */
+    .rmr-leaders{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:1; }
 
     /* Leyenda de simbología (página final) */
     .rmr-legend{ display:grid; grid-template-columns:repeat(3,1fr); gap:7px 16px; margin-top:2px; }
@@ -238,18 +239,28 @@
             @if($v->imageUrl() !== '')
                 <img src="{{ $v->imageUrl() }}" alt="{{ $v->displayLabel() }}">
             @endif
+            <svg class="rmr-leaders" viewBox="0 0 100 100" preserveAspectRatio="none">
+                @foreach($v->markers as $m)
+                    @php
+                        $lx = $m->label_x_pct !== null ? (float) $m->label_x_pct : max(5, min(95, (float) $m->x_pct + ((float) $m->x_pct > 55 ? -13 : 13)));
+                        $ly = $m->label_y_pct !== null ? (float) $m->label_y_pct : max(5, min(95, (float) $m->y_pct - 12));
+                    @endphp
+                    <line x1="{{ $m->x_pct }}" y1="{{ $m->y_pct }}" x2="{{ $lx }}" y2="{{ $ly }}" stroke="{{ $m->color() }}" stroke-width="1.4" vector-effect="non-scaling-stroke"></line>
+                @endforeach
+            </svg>
             @foreach($v->markers as $m)
                 @php
                     if ($m->kind === 'resource') { $mLabel = $m->resourceLabel(); $mShort = $mLabel; }
                     else { $ev = $eligibleEvents->get((int) $m->event_id); $mLabel = $ev['name'] ?? ('#' . $m->event_id); $mShort = $ev['short'] ?? 'Peligro'; }
                     $mTitle = $mLabel . ($m->reference_text ? ' — ' . $m->reference_text : '');
                     $mColor = $m->color();
-                    $mSide  = $m->label_side === 'left' ? 'left' : 'right';
+                    $lx = $m->label_x_pct !== null ? (float) $m->label_x_pct : max(5, min(95, (float) $m->x_pct + ((float) $m->x_pct > 55 ? -13 : 13)));
+                    $ly = $m->label_y_pct !== null ? (float) $m->label_y_pct : max(5, min(95, (float) $m->y_pct - 12));
                 @endphp
                 <div class="rmr-pin" style="left:{{ $m->x_pct }}%;top:{{ $m->y_pct }}%" title="{{ $mTitle }}">
                     <div class="rmr-pin__drop" style="background:{{ $mColor }}">@include('componentes._rm-icon', ['key' => $m->iconKey(), 'class' => ''])</div>
-                    <div class="rmr-pin__chip rmr-pin__chip--{{ $mSide }}" style="background:{{ $mColor }}">{{ $mShort }}</div>
                 </div>
+                <div class="rmr-lbl" style="left:{{ $lx }}%;top:{{ $ly }}%;background:{{ $mColor }}">{{ $mShort }}</div>
             @endforeach
         </div>
 

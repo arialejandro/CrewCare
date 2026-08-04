@@ -175,9 +175,9 @@ class RiskMap extends Model
                     'kind'           => (string) $m->kind,
                     'resource_type'  => $m->resource_type !== null ? (string) $m->resource_type : null,
                     'event_id'       => $m->event_id !== null ? (int) $m->event_id : null,
-                    'x_pct'          => (string) $m->x_pct,   // DECIMAL(6,3) tal como lo guarda MySQL
+                    'x_pct'          => (string) $m->x_pct,   // DECIMAL(6,3) tal como lo guarda MySQL (POSICIÓN DEL PELIGRO = contenido)
                     'y_pct'          => (string) $m->y_pct,
-                    'label_side'     => (string) $m->label_side,
+                    // label_side / label_x_pct / label_y_pct = ubicación cosmética de la etiqueta → FUERA del hash
                     'reference_text' => $m->reference_text !== null ? (string) $m->reference_text : null,
                     'polygon'        => $m->polygon,          // array|null (fuera de alcance hoy)
                     'sort_order'     => (int) $m->sort_order,
