@@ -273,19 +273,33 @@ Route::middleware(['auth','permission:locations.create'])->group(function () {
 });
 
 // ============================================================================
-// MÓDULO Mapeo de riesgos (2026-08-01) — sección PROPIA, fuera del scouting.
-// Índice: TODOS los mapeos por nombre de locación. Detalle: galería editable de imágenes
-// por tipo (plano|satelital|dron|foto) + export PDF (window.print). Reusa la tabla
-// scouting_canvases (SIN SQL). El detalle se llavea por scouting id (cada locación = su mapeo).
+// MÓDULO Mapeo de riesgos y recursos (2026-08-03 · delta #50) — EDITOR APARTE.
+// No cuelga del scouting: es su propio editor que produce un DOCUMENTO SELLADO
+// (una página por vista) y lo referencia en SOLO LECTURA. Todo el módulo va con
+// permission:riskmap.issue (safety). Los marcadores/vistas se guardan por AJAX.
+// Verificador público: tipo 'rmap' (ver SealVerifier::TYPES).
 // ============================================================================
-Route::middleware(['auth', 'permission:locations.view'])->group(function () {
-    Route::get('/mapeo-riesgos', [App\Http\Controllers\ScoutingRiskMapController::class, 'index'])->name('riskmaps.index');
-});
-Route::middleware(['auth', 'permission:locations.create'])->group(function () {
-    Route::get('/mapeo-riesgos/{scouting}', [App\Http\Controllers\ScoutingRiskMapController::class, 'show'])->name('riskmaps.show')->whereNumber('scouting');
-    Route::post('/mapeo-riesgos/{scouting}/imagenes', [App\Http\Controllers\ScoutingRiskMapController::class, 'store'])->name('riskmaps.images.store')->whereNumber('scouting');
-    Route::match(['put', 'patch'], '/mapeo-riesgos/{scouting}/imagenes/{img}', [App\Http\Controllers\ScoutingRiskMapController::class, 'update'])->name('riskmaps.images.update')->whereNumber('scouting')->whereNumber('img');
-    Route::delete('/mapeo-riesgos/{scouting}/imagenes/{img}', [App\Http\Controllers\ScoutingRiskMapController::class, 'destroy'])->name('riskmaps.images.destroy')->whereNumber('scouting')->whereNumber('img');
+Route::middleware(['auth', 'permission:riskmap.issue'])->group(function () {
+    Route::get('/mapeo-riesgos', [App\Http\Controllers\RiskMapController::class, 'index'])->name('riskmaps.index');
+    Route::post('/mapeo-riesgos', [App\Http\Controllers\RiskMapController::class, 'store'])->name('riskmaps.store');
+
+    Route::get('/mapeo-riesgos/{id}/editar', [App\Http\Controllers\RiskMapController::class, 'edit'])->name('riskmaps.edit')->whereNumber('id');
+    Route::put('/mapeo-riesgos/{id}', [App\Http\Controllers\RiskMapController::class, 'updateMeta'])->name('riskmaps.update')->whereNumber('id');
+    Route::delete('/mapeo-riesgos/{id}', [App\Http\Controllers\RiskMapController::class, 'destroy'])->name('riskmaps.destroy')->whereNumber('id');
+
+    Route::get('/mapeo-riesgos/{id}/documento', [App\Http\Controllers\RiskMapController::class, 'document'])->name('riskmaps.document')->whereNumber('id');
+    Route::post('/mapeo-riesgos/{id}/sellar', [App\Http\Controllers\RiskMapController::class, 'seal'])->name('riskmaps.seal')->whereNumber('id');
+
+    // Vistas (páginas)
+    Route::post('/mapeo-riesgos/{id}/vistas', [App\Http\Controllers\RiskMapController::class, 'storeView'])->name('riskmaps.views.store')->whereNumber('id');
+    Route::put('/mapeo-riesgos/{id}/vistas/{view}', [App\Http\Controllers\RiskMapController::class, 'updateView'])->name('riskmaps.views.update')->whereNumber('id')->whereNumber('view');
+    Route::delete('/mapeo-riesgos/{id}/vistas/{view}', [App\Http\Controllers\RiskMapController::class, 'destroyView'])->name('riskmaps.views.destroy')->whereNumber('id')->whereNumber('view');
+    Route::post('/mapeo-riesgos/{id}/vistas-orden', [App\Http\Controllers\RiskMapController::class, 'reorderViews'])->name('riskmaps.views.reorder')->whereNumber('id');
+
+    // Marcadores (AJAX)
+    Route::post('/mapeo-riesgos/{id}/vistas/{view}/marcadores', [App\Http\Controllers\RiskMapController::class, 'storeMarker'])->name('riskmaps.markers.store')->whereNumber('id')->whereNumber('view');
+    Route::put('/mapeo-riesgos/{id}/vistas/{view}/marcadores/{marker}', [App\Http\Controllers\RiskMapController::class, 'updateMarker'])->name('riskmaps.markers.update')->whereNumber('id')->whereNumber('view')->whereNumber('marker');
+    Route::delete('/mapeo-riesgos/{id}/vistas/{view}/marcadores/{marker}', [App\Http\Controllers\RiskMapController::class, 'destroyMarker'])->name('riskmaps.markers.destroy')->whereNumber('id')->whereNumber('view')->whereNumber('marker');
 });
 Route::middleware(['auth','permission:locations.view'])->group(function () {
     Route::get('/scoutings', [App\Http\Controllers\ScoutingReportController::class, 'index'])->name('scoutings.index');

@@ -292,7 +292,7 @@
             @endcanany
 
             {{-- ===== LOCACIONES ===== --}}
-            @canany(['locations.view', 'locations.create'])
+            @canany(['locations.view', 'locations.create', 'riskmap.issue'])
                 <div class="cc-sec" data-open="false">
                     <button type="button" class="cc-sec-head" aria-expanded="false">
                         @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-sec-head__ico', 'label' => null])
@@ -307,7 +307,7 @@
                                 <span>{{ __('nav.loc_scoutings') }}</span>
                             </a>
                         @endcan
-                        @can('locations.view')
+                        @can('riskmap.issue')
                             <a href="{{ route('riskmaps.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'image', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>Mapeo de riesgos</span>
@@ -644,7 +644,7 @@
                 @endcanany
 
                 {{-- ===== LOCACIONES ===== --}}
-                @canany(['locations.view', 'locations.create'])
+                @canany(['locations.view', 'locations.create', 'riskmap.issue'])
                     <div class="cc-sec" data-open="false">
                         <button type="button" class="cc-sec-head" aria-expanded="false">
                             @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-sec-head__ico', 'label' => null])
@@ -659,7 +659,7 @@
                                     <span>{{ __('nav.loc_scoutings') }}</span>
                                 </a>
                             @endcan
-                            @can('locations.view')
+                            @can('riskmap.issue')
                                 <a href="{{ route('riskmaps.index') }}" class="cc-item">
                                     @include('componentes._icon', ['name' => 'image', 'class' => 'cc-item__ico', 'label' => null])
                                     <span>Mapeo de riesgos</span>

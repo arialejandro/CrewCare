@@ -78,6 +78,12 @@ class SealVerifier
         // Cada emisión es INDEPENDIENTE (sin cadena/sustituye-a) → NO tiene concepto de retiro: dos
         // estados, vigente / alterado.
         'mdvc'   => ['App\Models\MedevacPoster',          'Póster MEDEVAC',            'MDVC',  'CREWCARE-MDVC'],
+        // (2026-08-03 · delta #50) Mapeo de riesgos y recursos. Documento por locación con
+        // una página por vista (imagen anotada + marcadores). Etiqueta genérica para el acuse
+        // público: dice que es un mapeo, nunca de qué locación. El folio lo calcula
+        // RiskMap::folio() (RMAP-####). Emisiones INDEPENDIENTES (sin cadena/sustituye-a) → sin
+        // concepto de retiro: dos estados, vigente / alterado.
+        'rmap'   => ['App\Models\RiskMap',                'Mapeo de riesgos y recursos', 'RMAP',  'CREWCARE-RMAP'],
     ];
 
     /**
