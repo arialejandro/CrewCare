@@ -52,13 +52,15 @@
     .rm-ed-canvas img{display:block;width:100%;max-height:70vh;object-fit:contain}
     .rm-ed-empty{padding:3rem 1rem;text-align:center;color:var(--text-muted)}
 
-    .rm-pin{position:absolute;transform:translate(-50%,-100%);z-index:2;cursor:grab}
-    .rm-pin.sel{z-index:4}
+    .rm-pin{position:absolute;transform:translate(-50%,-100%);z-index:2;cursor:grab;touch-action:none}
+    .rm-pin.sel{z-index:5}
     .rm-pin.sel .rm-pin__drop{outline:2px solid #fff;outline-offset:1px}
-    .rm-pin__drop{width:var(--pin,32px);height:var(--pin,32px);border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.5);border:1.5px solid rgba(255,255,255,.95)}
+    /* área de toque ampliada (>=44px) para arrastrar en iPad sin precisión */
+    .rm-pin::before,.rm-chip::before{content:'';position:absolute;inset:-9px}
+    .rm-pin__drop{width:var(--pin,32px);height:var(--pin,32px);border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 2px 5px rgba(0,0,0,.45),inset 0 1.5px 1px rgba(255,255,255,.4);border:1.5px solid rgba(255,255,255,.95)}
     .rm-pin__drop svg{width:calc(var(--pin,32px)*.55);height:calc(var(--pin,32px)*.55);transform:rotate(45deg)}
-    .rm-chip{position:absolute;transform:translate(-50%,-50%);z-index:3;cursor:grab;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:700;color:#fff;border-radius:6px;padding:2px 7px;line-height:1.3;box-shadow:0 1px 2px rgba(0,0,0,.35);text-transform:uppercase;letter-spacing:.02em}
-    .rm-chip.sel{outline:2px solid #fff;outline-offset:1px}
+    .rm-chip{position:absolute;transform:translate(-50%,-50%);z-index:3;cursor:grab;touch-action:none;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:700;color:#fff;border-radius:6px;padding:3px 8px;line-height:1.3;box-shadow:0 1px 3px rgba(0,0,0,.35);text-transform:uppercase;letter-spacing:.02em}
+    .rm-chip.sel{outline:2px solid #fff;outline-offset:1px;z-index:6}
     .rm-leaders{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
     .rm-hint{font-size:.72rem;color:var(--text-muted);margin:.5rem 0 .4rem}
     .rm-size{display:flex;align-items:center;gap:.3rem}
@@ -243,15 +245,15 @@
     $__icons = [];
     foreach ($__iconKeys as $k) { $__icons[$k] = trim(view('componentes._rm-icon', ['key' => $k])->render()); }
     $__markers = $current ? $current->markers->map(function ($m) use ($map) {
-        if ($m->kind === 'resource') { $lbl = $m->resourceLabel(); $sh = $lbl; }
-        else { $ev = $map->eligibleEvents()->get((int) $m->event_id); $lbl = $ev['name'] ?? ('#' . $m->event_id); $sh = $ev['short'] ?? 'Peligro'; }
+        if ($m->kind === 'resource') { $lbl = $m->resourceLabel(); $sh = $lbl; $ic = $m->iconKey(); }
+        else { $ev = $map->eligibleEvents()->get((int) $m->event_id); $lbl = $ev['name'] ?? ('#' . $m->event_id); $sh = $ev['short'] ?? 'Peligro'; $ic = $ev['icon'] ?? 'haz-warn'; }
         return [
             'id' => $m->id, 'kind' => $m->kind, 'resource_type' => $m->resource_type,
             'event_id' => $m->event_id, 'x_pct' => (float) $m->x_pct, 'y_pct' => (float) $m->y_pct,
             'label_x' => $m->label_x_pct !== null ? (float) $m->label_x_pct : null,
             'label_y' => $m->label_y_pct !== null ? (float) $m->label_y_pct : null,
             'label_side' => $m->label_side, 'reference_text' => $m->reference_text,
-            'icon' => $m->iconKey(), 'label' => $lbl, 'short' => $sh, 'color' => $m->color(),
+            'icon' => $ic, 'label' => $lbl, 'short' => $sh, 'color' => $m->color(),
         ];
     })->values() : [];
     $__eligible = [];

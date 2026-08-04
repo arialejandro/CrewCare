@@ -105,7 +105,7 @@
     .rmr-pin{ position:absolute; transform:translate(-50%,-100%); z-index:2; }
     .rmr-pin__drop{ width:var(--pin,32px); height:var(--pin,32px); border-radius:50% 50% 50% 0; transform:rotate(-45deg);
         display:flex; align-items:center; justify-content:center; color:#fff;
-        box-shadow:0 1px 3px rgba(0,0,0,.4); border:1.5px solid rgba(255,255,255,.95); }
+        box-shadow:0 2px 4px rgba(0,0,0,.4), inset 0 1.5px 1px rgba(255,255,255,.4); border:1.5px solid rgba(255,255,255,.95); }
     .rmr-pin__drop svg{ width:calc(var(--pin,32px)*.55); height:calc(var(--pin,32px)*.55); transform:rotate(45deg); }
     /* Etiqueta del marcador: CORTA, en color, MOVIBLE (posición propia). NOTA: clase distinta de
        .rmr-chip (la píldora de cabecera de la vista) para no colisionar. */
@@ -250,15 +250,15 @@
             </svg>
             @foreach($v->markers as $m)
                 @php
-                    if ($m->kind === 'resource') { $mLabel = $m->resourceLabel(); $mShort = $mLabel; }
-                    else { $ev = $eligibleEvents->get((int) $m->event_id); $mLabel = $ev['name'] ?? ('#' . $m->event_id); $mShort = $ev['short'] ?? 'Peligro'; }
+                    if ($m->kind === 'resource') { $mLabel = $m->resourceLabel(); $mShort = $mLabel; $mIcon = $m->iconKey(); }
+                    else { $ev = $eligibleEvents->get((int) $m->event_id); $mLabel = $ev['name'] ?? ('#' . $m->event_id); $mShort = $ev['short'] ?? 'Peligro'; $mIcon = $ev['icon'] ?? 'haz-warn'; }
                     $mTitle = $mLabel . ($m->reference_text ? ' — ' . $m->reference_text : '');
                     $mColor = $m->color();
                     $lx = $m->label_x_pct !== null ? (float) $m->label_x_pct : max(5, min(95, (float) $m->x_pct + ((float) $m->x_pct > 55 ? -13 : 13)));
                     $ly = $m->label_y_pct !== null ? (float) $m->label_y_pct : max(5, min(95, (float) $m->y_pct - 12));
                 @endphp
                 <div class="rmr-pin" style="left:{{ $m->x_pct }}%;top:{{ $m->y_pct }}%" title="{{ $mTitle }}">
-                    <div class="rmr-pin__drop" style="background:{{ $mColor }}">@include('componentes._rm-icon', ['key' => $m->iconKey(), 'class' => ''])</div>
+                    <div class="rmr-pin__drop" style="background:{{ $mColor }}">@include('componentes._rm-icon', ['key' => $mIcon, 'class' => ''])</div>
                 </div>
                 <div class="rmr-lbl" style="left:{{ $lx }}%;top:{{ $ly }}%;background:{{ $mColor }}">{{ $mShort }}</div>
             @endforeach

@@ -103,6 +103,30 @@ class RiskMap extends Model
         return self::HAZARD_CATEGORY_LABELS[$c] ?? 'Peligro';
     }
 
+    /** Clave de PICTOGRAMA (_rm-icon) por categoría del catálogo. */
+    const HAZARD_ICON_KEYS = [
+        'electrical' => 'haz-bolt', 'electrical_water' => 'haz-bolt', 'ev_hybrid' => 'haz-bolt', 'portable_power' => 'haz-bolt',
+        'fire' => 'haz-flame', 'fire_burn' => 'haz-flame', 'pyro_sfx' => 'haz-flame',
+        'heights' => 'haz-fall', 'stunts_high_fall' => 'haz-fall', 'aerial_work' => 'haz-fall', 'aerial_platform' => 'haz-fall',
+        'rigging_hoist' => 'haz-fall', 'wire_work' => 'haz-fall', 'stabilized_rig' => 'haz-fall', 'camera_crane' => 'haz-fall',
+        'weather' => 'haz-temp',
+        'water' => 'haz-water', 'water_work' => 'haz-water',
+        'traffic' => 'haz-vehicle', 'camera_car' => 'haz-vehicle', 'stunts_vehicular' => 'haz-vehicle',
+        'utility_transport' => 'haz-vehicle', 'railroad' => 'haz-vehicle',
+        'crowd' => 'haz-people', 'crowd_action' => 'haz-people', 'minors_physical' => 'haz-people',
+        'structural' => 'haz-struct',
+        'biological' => 'haz-bio', 'hazmat' => 'haz-bio',
+        'animals_wrangler' => 'haz-animal',
+        'drones_uas' => 'haz-drone',
+        'access' => 'salida_emergencia', // evacuación → símbolo de salida
+        // base_camp, firearms, fight_combat, special, uncontrolled_env, confined → genérico
+    ];
+
+    public static function hazardIconKey($category): string
+    {
+        return self::HAZARD_ICON_KEYS[(string) $category] ?? 'haz-warn';
+    }
+
     /* ------------------------------------------------------------------ */
     /* Relaciones                                                          */
     /* ------------------------------------------------------------------ */
@@ -244,6 +268,7 @@ class RiskMap extends Model
                     'name'     => (string) ($e->name_localized ?: $e->name_es),
                     'category' => (string) $e->category,
                     'short'    => self::hazardCategoryLabel($e->category), // etiqueta corta del pin
+                    'icon'     => self::hazardIconKey($e->category),       // pictograma por categoría
                     'norms' => $e->standards->map(function ($s) {
                         $code = trim(($s->regulation_badge ? $s->regulation_badge . ' ' : '') . $s->regulation_code);
                         return ['code' => $code, 'url' => $s->reference_url];
@@ -320,7 +345,7 @@ class RiskMap extends Model
                     $ev = $elig->get((int) $m->event_id);
                     $short = $ev['short'] ?? 'Peligro';
                     $items['h:' . $short] = [
-                        'icon'  => 'hazard',
+                        'icon'  => $ev['icon'] ?? 'haz-warn',
                         'label' => $short,
                         'color' => $m->color(),
                     ];

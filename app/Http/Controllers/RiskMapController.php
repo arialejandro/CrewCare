@@ -405,10 +405,12 @@ class RiskMapController extends Controller
         if ($marker->kind === 'resource') {
             $label = $marker->resourceLabel();
             $short = $label;
+            $icon  = $marker->iconKey();
         } else {
             $ev = $map->eligibleEvents()->get((int) $marker->event_id);
             $label = $ev['name'] ?? ('#' . $marker->event_id);
             $short = $ev['short'] ?? 'Peligro';
+            $icon  = $ev['icon'] ?? 'haz-warn';
         }
 
         return [
@@ -422,7 +424,7 @@ class RiskMapController extends Controller
             'label_y'        => $marker->label_y_pct !== null ? (float) $marker->label_y_pct : null,
             'label_side'     => $marker->label_side,
             'reference_text' => $marker->reference_text,
-            'icon'           => $marker->iconKey(),
+            'icon'           => $icon,      // pictograma (recurso o categoría del peligro)
             'label'          => $label,     // nombre completo (tooltip)
             'short'          => $short,     // etiqueta corta del chip
             'color'          => $marker->color(),
