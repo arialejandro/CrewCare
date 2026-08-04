@@ -55,14 +55,11 @@
     .rm-pin{position:absolute;transform:translate(-50%,-100%);z-index:2;cursor:grab}
     .rm-pin.sel{z-index:4}
     .rm-pin.sel .rm-pin__drop{outline:2px solid #fff;outline-offset:1px}
-    .rm-pin__drop{width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.5);border:1.5px solid rgba(255,255,255,.9)}
+    .rm-pin__drop{width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.5);border:1.5px solid rgba(255,255,255,.95)}
     .rm-pin__drop svg{width:15px;height:15px;transform:rotate(45deg)}
-    .rm-pin--resource .rm-pin__drop{background:#0e7a3d}
-    .rm-pin--hazard .rm-pin__drop{background:#c0392b}
-    .rm-pin__chip{position:absolute;bottom:12px;white-space:nowrap;font-size:9.5px;font-weight:700;color:#12233b;background:rgba(255,255,255,.94);border:1px solid #d7dde5;border-radius:6px;padding:2px 6px;line-height:1.25}
-    .rm-pin__chip .ref{display:block;font-weight:500;color:#5b6472;font-size:8.5px}
-    .rm-pin__chip--right{left:16px}
-    .rm-pin__chip--left{right:16px;text-align:right}
+    .rm-pin__chip{position:absolute;bottom:14px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:8.5px;font-weight:700;color:#fff;border-radius:6px;padding:2px 7px;line-height:1.3;box-shadow:0 1px 2px rgba(0,0,0,.3);text-transform:uppercase;letter-spacing:.02em}
+    .rm-pin__chip--right{left:15px}
+    .rm-pin__chip--left{right:15px;text-align:right}
 
     /* Propiedades */
     .rm-props label{display:block;font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin:.55rem 0 .2rem}
@@ -218,6 +215,11 @@
                     <p class="empty" id="rm-props-empty">Toca un marcador para editarlo.</p>
                     <div id="rm-props-body" style="display:none">
                         <div class="selname" id="rm-sel-name"></div>
+                        <label>Lado de la etiqueta</label>
+                        <div class="rm-side">
+                            <button type="button" id="rm-side-left">Izquierda</button>
+                            <button type="button" id="rm-side-right">Derecha</button>
+                        </div>
                         <button type="button" class="rm-btn rm-del" id="rm-del" style="width:100%;justify-content:center;margin-top:.8rem">Quitar marcador</button>
                     </div>
                 </div>
@@ -233,13 +235,13 @@
     $__icons = [];
     foreach ($__iconKeys as $k) { $__icons[$k] = trim(view('componentes._rm-icon', ['key' => $k])->render()); }
     $__markers = $current ? $current->markers->map(function ($m) use ($map) {
-        if ($m->kind === 'resource') { $lbl = $m->resourceLabel(); }
-        else { $ev = $map->eligibleEvents()->get((int) $m->event_id); $lbl = $ev['name'] ?? ('#' . $m->event_id); }
+        if ($m->kind === 'resource') { $lbl = $m->resourceLabel(); $sh = $lbl; }
+        else { $ev = $map->eligibleEvents()->get((int) $m->event_id); $lbl = $ev['name'] ?? ('#' . $m->event_id); $sh = $ev['short'] ?? 'Peligro'; }
         return [
             'id' => $m->id, 'kind' => $m->kind, 'resource_type' => $m->resource_type,
             'event_id' => $m->event_id, 'x_pct' => (float) $m->x_pct, 'y_pct' => (float) $m->y_pct,
             'label_side' => $m->label_side, 'reference_text' => $m->reference_text,
-            'icon' => $m->iconKey(), 'label' => $lbl,
+            'icon' => $m->iconKey(), 'label' => $lbl, 'short' => $sh, 'color' => $m->color(),
         ];
     })->values() : [];
     $__eligible = [];
@@ -408,9 +410,15 @@
         pin.style.top = m.y_pct + '%';
         var drop = document.createElement('div');
         drop.className = 'rm-pin__drop';
+        drop.style.background = m.color || '#c0392b';
         drop.innerHTML = iconFor(m.icon);
+        var chip = document.createElement('div');
+        chip.className = 'rm-pin__chip rm-pin__chip--' + (m.label_side === 'left' ? 'left' : 'right');
+        chip.style.background = m.color || '#c0392b';
+        chip.textContent = m.short || m.label || '';
         pin.title = (m.label || '') + (m.reference_text ? ' — ' + m.reference_text : '');
         pin.appendChild(drop);
+        pin.appendChild(chip);
         attachPin(pin, m);
         return pin;
     }
@@ -433,7 +441,7 @@
         if (!armed) { return; }
         if (e.target.closest('.rm-pin')) { return; }
         var p = pct(e);
-        var fields = { kind: armed.kind, x_pct: p.x.toFixed(3), y_pct: p.y.toFixed(3), label_side: 'right' };
+        var fields = { kind: armed.kind, x_pct: p.x.toFixed(3), y_pct: p.y.toFixed(3), label_side: (p.x > 60 ? 'left' : 'right') };
         if (armed.kind === 'resource') { fields.resource_type = armed.resource_type; }
         else { fields.event_id = armed.event_id; }
         post(DATA.urls.markerStore, 'POST', fields, function (res) {

@@ -43,6 +43,58 @@ class RiskMap extends Model
         'sealed_at' => 'datetime',
     ];
 
+    /**
+     * Etiqueta CORTA en español por `hazard_events.category` (slug del catálogo).
+     * Es lo que se pinta en el pin y en la leyenda —"Riesgo eléctrico"— en vez del
+     * nombre largo y específico del evento (que sigue en la lista de normas y la tabla).
+     */
+    const HAZARD_CATEGORY_LABELS = [
+        'access'            => 'Acceso / evacuación',
+        'aerial_platform'   => 'Plataforma aérea',
+        'aerial_work'       => 'Trabajo aéreo',
+        'animals_wrangler'  => 'Animales',
+        'base_camp'         => 'Base camp',
+        'biological'        => 'Riesgo biológico',
+        'camera_car'        => 'Camera car',
+        'camera_crane'      => 'Grúa de cámara',
+        'confined'          => 'Espacio confinado',
+        'crowd'             => 'Multitudes',
+        'crowd_action'      => 'Escena con extras',
+        'drones_uas'        => 'Dron / UAS',
+        'electrical'        => 'Riesgo eléctrico',
+        'electrical_water'  => 'Eléctrico + agua',
+        'ev_hybrid'         => 'Vehículo eléctrico',
+        'fight_combat'      => 'Combate escénico',
+        'fire'              => 'Incendio / fuego',
+        'fire_burn'         => 'Fuego / quemadura',
+        'firearms'          => 'Armas de fuego',
+        'hazmat'            => 'Materiales peligrosos',
+        'heights'           => 'Altura / caída',
+        'minors_physical'   => 'Menores',
+        'portable_power'    => 'Energía portátil',
+        'pyro_sfx'          => 'Pirotecnia / SFX',
+        'railroad'          => 'Vías / tren',
+        'rigging_hoist'     => 'Rigging / izaje',
+        'special'           => 'Riesgo especial',
+        'stabilized_rig'    => 'Rig estabilizado',
+        'structural'        => 'Riesgo estructural',
+        'stunts_high_fall'  => 'Caída de altura',
+        'stunts_vehicular'  => 'Stunt vehicular',
+        'traffic'           => 'Tránsito vehicular',
+        'uncontrolled_env'  => 'Entorno no controlado',
+        'utility_transport' => 'Transporte / utility',
+        'water'             => 'Agua / ahogamiento',
+        'water_work'        => 'Trabajo en agua',
+        'weather'           => 'Clima extremo',
+        'wire_work'         => 'Wire work',
+    ];
+
+    public static function hazardCategoryLabel($category): string
+    {
+        $c = (string) $category;
+        return self::HAZARD_CATEGORY_LABELS[$c] ?? 'Peligro';
+    }
+
     /* ------------------------------------------------------------------ */
     /* Relaciones                                                          */
     /* ------------------------------------------------------------------ */
@@ -178,8 +230,10 @@ class RiskMap extends Model
         return HazardEvent::with('standards')->whereIn('id', $ids)->get()
             ->map(function ($e) {
                 return [
-                    'id'    => (int) $e->id,
-                    'name'  => (string) ($e->name_localized ?: $e->name_es),
+                    'id'       => (int) $e->id,
+                    'name'     => (string) ($e->name_localized ?: $e->name_es),
+                    'category' => (string) $e->category,
+                    'short'    => self::hazardCategoryLabel($e->category), // etiqueta corta del pin
                     'norms' => $e->standards->map(function ($s) {
                         $code = trim(($s->regulation_badge ? $s->regulation_badge . ' ' : '') . $s->regulation_code);
                         return ['code' => $code, 'url' => $s->reference_url];
@@ -234,5 +288,35 @@ class RiskMap extends Model
             }
         }
         return $rows;
+    }
+
+    /**
+     * Leyenda de símbolos: los tipos DISTINTOS realmente usados en el mapeo
+     * (recurso por tipo · peligro por categoría), con su icono, etiqueta corta y color.
+     */
+    public function legendItems(): array
+    {
+        $elig = $this->eligibleEvents();
+        $items = [];
+        foreach ($this->views as $v) {
+            foreach ($v->markers as $m) {
+                if ($m->kind === 'resource' && $m->resource_type) {
+                    $items['r:' . $m->resource_type] = [
+                        'icon'  => $m->resource_type,
+                        'label' => $m->resourceLabel(),
+                        'color' => $m->color(),
+                    ];
+                } elseif ($m->kind === 'hazard' && $m->event_id) {
+                    $ev = $elig->get((int) $m->event_id);
+                    $short = $ev['short'] ?? 'Peligro';
+                    $items['h:' . $short] = [
+                        'icon'  => 'hazard',
+                        'label' => $short,
+                        'color' => $m->color(),
+                    ];
+                }
+            }
+        }
+        return array_values($items);
     }
 }

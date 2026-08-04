@@ -105,17 +105,20 @@
     .rmr-pin{ position:absolute; transform:translate(-50%,-100%); z-index:2; }
     .rmr-pin__drop{ width:26px; height:26px; border-radius:50% 50% 50% 0; transform:rotate(-45deg);
         display:flex; align-items:center; justify-content:center; color:#fff;
-        box-shadow:0 1px 3px rgba(0,0,0,.4); border:1.5px solid rgba(255,255,255,.9); }
+        box-shadow:0 1px 3px rgba(0,0,0,.4); border:1.5px solid rgba(255,255,255,.95); }
     .rmr-pin__drop svg{ width:15px; height:15px; transform:rotate(45deg); }
-    .rmr-pin--resource .rmr-pin__drop{ background:var(--rmr-res); }
-    .rmr-pin--hazard   .rmr-pin__drop{ background:var(--rmr-haz); }
-    .rmr-pin--area     .rmr-pin__drop{ background:var(--rmr-area); }
-    .rmr-pin__chip{ position:absolute; bottom:12px; white-space:nowrap; font-size:9.5px; font-weight:700;
-        color:#12233b; background:rgba(255,255,255,.92); border:1px solid var(--rmr-line);
-        border-radius:6px; padding:2px 6px; line-height:1.25; box-shadow:0 1px 2px rgba(0,0,0,.15); }
-    .rmr-pin__chip .ref{ display:block; font-weight:500; color:var(--rmr-muted); font-size:8.5px; }
-    .rmr-pin__chip--right{ left:16px; }
-    .rmr-pin__chip--left{ right:16px; text-align:right; }
+    /* Chip: etiqueta CORTA en color, texto blanco, con tope de ancho (no se desborda) */
+    .rmr-pin__chip{ position:absolute; bottom:14px; max-width:150px; overflow:hidden; text-overflow:ellipsis;
+        white-space:nowrap; font-size:8.5px; font-weight:700; color:#fff; border-radius:6px; padding:2px 7px;
+        line-height:1.3; box-shadow:0 1px 2px rgba(0,0,0,.3); text-transform:uppercase; letter-spacing:.02em; }
+    .rmr-pin__chip--right{ left:15px; }
+    .rmr-pin__chip--left{ right:15px; text-align:right; }
+
+    /* Leyenda de simbología (página final) */
+    .rmr-legend{ display:grid; grid-template-columns:repeat(3,1fr); gap:7px 16px; margin-top:2px; }
+    .rmr-legend .leg{ display:flex; align-items:center; gap:9px; font-size:10px; color:var(--rmr-wordmark); }
+    .rmr-legend .leg-ic{ flex:none; width:23px; height:23px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; }
+    .rmr-legend .leg-ic svg{ width:13px; height:13px; }
 
     /* Narrativa (tres renglones; el vacío no aparece) */
     .rmr-narr{ margin:11px 0 0; display:grid; gap:5px; }
@@ -236,12 +239,15 @@
             @endif
             @foreach($v->markers as $m)
                 @php
-                    if ($m->kind === 'resource') { $mLabel = $m->resourceLabel(); }
-                    else { $ev = $eligibleEvents->get((int) $m->event_id); $mLabel = $ev['name'] ?? ('#' . $m->event_id); }
+                    if ($m->kind === 'resource') { $mLabel = $m->resourceLabel(); $mShort = $mLabel; }
+                    else { $ev = $eligibleEvents->get((int) $m->event_id); $mLabel = $ev['name'] ?? ('#' . $m->event_id); $mShort = $ev['short'] ?? 'Peligro'; }
                     $mTitle = $mLabel . ($m->reference_text ? ' — ' . $m->reference_text : '');
+                    $mColor = $m->color();
+                    $mSide  = $m->label_side === 'left' ? 'left' : 'right';
                 @endphp
-                <div class="rmr-pin rmr-pin--{{ $m->kind }}" style="left:{{ $m->x_pct }}%;top:{{ $m->y_pct }}%" title="{{ $mTitle }}">
-                    <div class="rmr-pin__drop">@include('componentes._rm-icon', ['key' => $m->iconKey(), 'class' => ''])</div>
+                <div class="rmr-pin" style="left:{{ $m->x_pct }}%;top:{{ $m->y_pct }}%" title="{{ $mTitle }}">
+                    <div class="rmr-pin__drop" style="background:{{ $mColor }}">@include('componentes._rm-icon', ['key' => $m->iconKey(), 'class' => ''])</div>
+                    <div class="rmr-pin__chip rmr-pin__chip--{{ $mSide }}" style="background:{{ $mColor }}">{{ $mShort }}</div>
                 </div>
             @endforeach
         </div>
@@ -328,6 +334,17 @@
     </table>
     @else
         <div class="rmr-empty">No se marcó ningún peligro en el mapeo.</div>
+    @endif
+
+    {{-- Simbología: los tipos realmente usados en el mapeo --}}
+    @php $legend = $map->legendItems(); @endphp
+    @if(count($legend))
+    <div class="rmr-sec">Simbología</div>
+    <div class="rmr-legend">
+        @foreach($legend as $li)
+            <div class="leg"><span class="leg-ic" style="background:{{ $li['color'] }}">@include('componentes._rm-icon', ['key' => $li['icon'], 'class' => ''])</span> {{ $li['label'] }}</div>
+        @endforeach
+    </div>
     @endif
 
     {{-- Sello --}}

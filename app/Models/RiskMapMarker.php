@@ -40,6 +40,34 @@ class RiskMapMarker extends Model
         'acceso_ambulancia' => 'Acceso de ambulancia',
     ];
 
+    /** Color de la gota por función (semántico, calcado del mapa de referencia). */
+    const RESOURCE_COLOR = [
+        'extintor'          => '#c0392b', // fuego → rojo
+        'manguera_hidrante' => '#c0392b',
+        'punto_alarma'      => '#c0392b',
+        'salida_emergencia' => '#1a8f4c', // evacuación → verde
+        'punto_reunion'     => '#1a8f4c',
+        'botiquin'          => '#2c6fbf', // médico/técnico → azul
+        'acceso_ambulancia' => '#2c6fbf',
+        'tablero_electrico' => '#2c6fbf',
+    ];
+
+    /** Los peligros van en ámbar (⚠), como en el mapa de referencia. */
+    const HAZARD_COLOR = '#d99a00';
+    const AREA_COLOR   = '#2c6fbf';
+
+    /** Color hex de este marcador. */
+    public function color(): string
+    {
+        if ($this->kind === 'resource') {
+            return self::RESOURCE_COLOR[$this->resource_type] ?? '#c0392b';
+        }
+        if ($this->kind === 'hazard') {
+            return self::HAZARD_COLOR;
+        }
+        return self::AREA_COLOR;
+    }
+
     public function view()
     {
         return $this->belongsTo(RiskMapView::class, 'view_id');
