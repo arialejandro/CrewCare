@@ -218,14 +218,7 @@
                     <p class="empty" id="rm-props-empty">Toca un marcador para editarlo.</p>
                     <div id="rm-props-body" style="display:none">
                         <div class="selname" id="rm-sel-name"></div>
-                        <label>Lado de la etiqueta</label>
-                        <div class="rm-side">
-                            <button type="button" data-side="left" id="rm-side-left">Izquierda</button>
-                            <button type="button" data-side="right" id="rm-side-right">Derecha</button>
-                        </div>
-                        <label>Referencia (opcional)</label>
-                        <input type="text" id="rm-ref" maxlength="200" placeholder="Frase corta visible">
-                        <button type="button" class="rm-btn rm-del" id="rm-del" style="width:100%;justify-content:center">Quitar marcador</button>
+                        <button type="button" class="rm-btn rm-del" id="rm-del" style="width:100%;justify-content:center;margin-top:.8rem">Quitar marcador</button>
                     </div>
                 </div>
             @endif
@@ -416,15 +409,8 @@
         var drop = document.createElement('div');
         drop.className = 'rm-pin__drop';
         drop.innerHTML = iconFor(m.icon);
-        var chip = document.createElement('div');
-        chip.className = 'rm-pin__chip rm-pin__chip--' + (m.label_side === 'left' ? 'left' : 'right');
-        chip.appendChild(document.createTextNode(m.label || ''));
-        if (m.reference_text) {
-            var ref = document.createElement('span'); ref.className = 'ref'; ref.textContent = m.reference_text;
-            chip.appendChild(ref);
-        }
+        pin.title = (m.label || '') + (m.reference_text ? ' — ' + m.reference_text : '');
         pin.appendChild(drop);
-        pin.appendChild(chip);
         attachPin(pin, m);
         return pin;
     }

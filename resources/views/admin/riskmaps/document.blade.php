@@ -238,11 +238,10 @@
                 @php
                     if ($m->kind === 'resource') { $mLabel = $m->resourceLabel(); }
                     else { $ev = $eligibleEvents->get((int) $m->event_id); $mLabel = $ev['name'] ?? ('#' . $m->event_id); }
-                    $side = $m->label_side === 'left' ? 'left' : 'right';
+                    $mTitle = $mLabel . ($m->reference_text ? ' — ' . $m->reference_text : '');
                 @endphp
-                <div class="rmr-pin rmr-pin--{{ $m->kind }}" style="left:{{ $m->x_pct }}%;top:{{ $m->y_pct }}%">
+                <div class="rmr-pin rmr-pin--{{ $m->kind }}" style="left:{{ $m->x_pct }}%;top:{{ $m->y_pct }}%" title="{{ $mTitle }}">
                     <div class="rmr-pin__drop">@include('componentes._rm-icon', ['key' => $m->iconKey(), 'class' => ''])</div>
-                    <div class="rmr-pin__chip rmr-pin__chip--{{ $side }}">{{ $mLabel }}@if($m->reference_text)<span class="ref">{{ $m->reference_text }}</span>@endif</div>
                 </div>
             @endforeach
         </div>
