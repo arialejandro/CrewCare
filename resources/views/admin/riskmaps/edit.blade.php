@@ -55,11 +55,13 @@
     .rm-pin{position:absolute;transform:translate(-50%,-100%);z-index:2;cursor:grab}
     .rm-pin.sel{z-index:4}
     .rm-pin.sel .rm-pin__drop{outline:2px solid #fff;outline-offset:1px}
-    .rm-pin__drop{width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.5);border:1.5px solid rgba(255,255,255,.95)}
-    .rm-pin__drop svg{width:15px;height:15px;transform:rotate(45deg)}
-    .rm-pin__chip{position:absolute;bottom:14px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:8.5px;font-weight:700;color:#fff;border-radius:6px;padding:2px 7px;line-height:1.3;box-shadow:0 1px 2px rgba(0,0,0,.3);text-transform:uppercase;letter-spacing:.02em}
-    .rm-pin__chip--right{left:15px}
-    .rm-pin__chip--left{right:15px;text-align:right}
+    .rm-pin__drop{width:var(--pin,32px);height:var(--pin,32px);border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.5);border:1.5px solid rgba(255,255,255,.95)}
+    .rm-pin__drop svg{width:calc(var(--pin,32px)*.55);height:calc(var(--pin,32px)*.55);transform:rotate(45deg)}
+    .rm-pin__chip{position:absolute;bottom:calc(var(--pin,32px)*.45);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:700;color:#fff;border-radius:6px;padding:2px 7px;line-height:1.3;box-shadow:0 1px 2px rgba(0,0,0,.3);text-transform:uppercase;letter-spacing:.02em}
+    .rm-pin__chip--right{left:calc(var(--pin,32px)*.55)}
+    .rm-pin__chip--left{right:calc(var(--pin,32px)*.55);text-align:right}
+    .rm-size{display:flex;align-items:center;gap:.3rem}
+    .rm-size select{background:var(--surface-3);color:var(--text);border:1px solid var(--stroke);border-radius:8px;padding:.5rem .55rem;font:inherit;font-size:.85rem}
 
     /* Propiedades */
     .rm-props label{display:block;font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin:.55rem 0 .2rem}
@@ -93,6 +95,14 @@
             <input type="text" id="rm-title" class="rm-ed-title" value="{{ $map->title }}" maxlength="160" aria-label="Título del mapeo">
         </div>
         <div class="rm-ed-actions">
+            <div class="rm-size" title="Tamaño del pin">
+                @include('componentes._icon', ['name' => 'maximize-2'])
+                <select id="rm-pin-scale" aria-label="Tamaño del pin">
+                    <option value="sm" {{ $map->pin_scale === 'sm' ? 'selected' : '' }}>Pin chico</option>
+                    <option value="md" {{ $map->pin_scale === 'md' ? 'selected' : '' }}>Pin mediano</option>
+                    <option value="lg" {{ $map->pin_scale === 'lg' ? 'selected' : '' }}>Pin grande</option>
+                </select>
+            </div>
             <a href="{{ route('riskmaps.document', $map->id) }}" class="rm-btn">@include('componentes._icon', ['name' => 'eye']) Vista previa</a>
             <form action="{{ route('riskmaps.seal', $map->id) }}" method="POST" onsubmit="return confirm('Sellar el mapeo lo vuelve INMUTABLE. ¿Continuar?');" style="display:inline">
                 @csrf
@@ -178,7 +188,7 @@
                     </select>
                     <span class="rm-ed-armhint" id="rm-arm-hint"></span>
                 </div>
-                <div class="rm-ed-canvas" id="rm-canvas">
+                <div class="rm-ed-canvas" id="rm-canvas" style="--pin: {{ $map->pinPx() }}px">
                     <img src="{{ $current->imageUrl() }}" alt="{{ $current->displayLabel() }}" id="rm-canvas-img" draggable="false">
                 </div>
                 <p class="rm-count" id="rm-count"></p>
@@ -295,6 +305,16 @@
             title.addEventListener('blur', function () {
                 var v = title.value.trim(); if (v === '') { return; }
                 post(DATA.metaUpdate, 'PUT', { title: v });
+            });
+        }
+        // Tamaño del pin: aplica en vivo (--pin en el lienzo) y persiste.
+        var scaleSel = document.getElementById('rm-pin-scale');
+        if (scaleSel) {
+            var PIN_PX = { sm: 24, md: 32, lg: 42 };
+            scaleSel.addEventListener('change', function () {
+                var v = scaleSel.value, cv = document.getElementById('rm-canvas');
+                if (cv && PIN_PX[v]) { cv.style.setProperty('--pin', PIN_PX[v] + 'px'); }
+                post(DATA.metaUpdate, 'PUT', { pin_scale: v });
             });
         }
         if (!DATA.hasView) { return; }

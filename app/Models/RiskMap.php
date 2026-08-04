@@ -33,10 +33,18 @@ class RiskMap extends Model
 
     protected $fillable = [
         'scouting_id', 'project_id', 'location_id',
-        'title', 'status', 'version',
+        'title', 'status', 'version', 'pin_scale',
         'folio', 'uuid', 'sealed_at', 'seal_hash', 'sealed_by',
         'created_by_id',
     ];
+
+    /** Tamaño del pin (clave => px de la gota). DISPLAY, no entra al hash. */
+    const PIN_SCALES = ['sm' => 24, 'md' => 32, 'lg' => 42];
+
+    public function pinPx(): int
+    {
+        return self::PIN_SCALES[$this->pin_scale] ?? self::PIN_SCALES['md'];
+    }
 
     protected $casts = [
         'version'   => 'integer',
@@ -146,10 +154,12 @@ class RiskMap extends Model
     {
         $payload = $this->attributesToArray();
 
-        // Fuera: volátiles + estado de emisión + realce (mejorar imagen no re-sella).
+        // Fuera: volátiles + estado de emisión + realce/preferencias de display
+        // (cambiar tamaño de pin o mejorar una imagen NO re-sella).
         $drop = [
             'created_at', 'updated_at', 'uuid',
             'status', 'folio', 'sealed_at', 'seal_hash', 'sealed_by', 'created_by_id',
+            'pin_scale',
         ];
         foreach ($drop as $k) {
             unset($payload[$k]);

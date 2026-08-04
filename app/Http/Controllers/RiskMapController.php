@@ -126,8 +126,17 @@ class RiskMapController extends Controller
     public function updateMeta(Request $request, $id)
     {
         $map = $this->draftOrFail($id);
-        $data = $request->validate(['title' => 'required|string|max:160'], [], ['title' => 'título']);
-        $map->title = trim($data['title']);
+        $data = $request->validate([
+            'title'     => 'nullable|string|max:160',
+            'pin_scale' => 'nullable|in:sm,md,lg',
+        ], [], ['title' => 'título']);
+
+        if ($request->filled('title')) {
+            $map->title = trim($data['title']);
+        }
+        if ($request->filled('pin_scale')) {
+            $map->pin_scale = $data['pin_scale'];
+        }
         $map->save();
 
         return $this->wantsJson($request)

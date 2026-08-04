@@ -103,16 +103,16 @@
     .rmr-canvas{ position:relative; border:1px solid var(--rmr-line); border-radius:3px; overflow:hidden; }
     .rmr-canvas img{ display:block; width:100%; max-height:150mm; object-fit:contain; background:#0b1220; }
     .rmr-pin{ position:absolute; transform:translate(-50%,-100%); z-index:2; }
-    .rmr-pin__drop{ width:26px; height:26px; border-radius:50% 50% 50% 0; transform:rotate(-45deg);
+    .rmr-pin__drop{ width:var(--pin,32px); height:var(--pin,32px); border-radius:50% 50% 50% 0; transform:rotate(-45deg);
         display:flex; align-items:center; justify-content:center; color:#fff;
         box-shadow:0 1px 3px rgba(0,0,0,.4); border:1.5px solid rgba(255,255,255,.95); }
-    .rmr-pin__drop svg{ width:15px; height:15px; transform:rotate(45deg); }
+    .rmr-pin__drop svg{ width:calc(var(--pin,32px)*.55); height:calc(var(--pin,32px)*.55); transform:rotate(45deg); }
     /* Chip: etiqueta CORTA en color, texto blanco, con tope de ancho (no se desborda) */
-    .rmr-pin__chip{ position:absolute; bottom:14px; max-width:150px; overflow:hidden; text-overflow:ellipsis;
-        white-space:nowrap; font-size:8.5px; font-weight:700; color:#fff; border-radius:6px; padding:2px 7px;
+    .rmr-pin__chip{ position:absolute; bottom:calc(var(--pin,32px)*.45); max-width:150px; overflow:hidden; text-overflow:ellipsis;
+        white-space:nowrap; font-size:9px; font-weight:700; color:#fff; border-radius:6px; padding:2px 7px;
         line-height:1.3; box-shadow:0 1px 2px rgba(0,0,0,.3); text-transform:uppercase; letter-spacing:.02em; }
-    .rmr-pin__chip--right{ left:15px; }
-    .rmr-pin__chip--left{ right:15px; text-align:right; }
+    .rmr-pin__chip--right{ left:calc(var(--pin,32px)*.55); }
+    .rmr-pin__chip--left{ right:calc(var(--pin,32px)*.55); text-align:right; }
 
     /* Leyenda de simbología (página final) */
     .rmr-legend{ display:grid; grid-template-columns:repeat(3,1fr); gap:7px 16px; margin-top:2px; }
@@ -194,7 +194,8 @@
     }
 </style>
 </head>
-<body>
+<body style="--pin: {{ $map->pinPx() }}px">
+
 
 <div class="rmr-toolbar">
     @if($sealed)

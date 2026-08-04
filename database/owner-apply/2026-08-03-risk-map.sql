@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS `risk_maps` (
     `title`          VARCHAR(160) NOT NULL,                    -- título interno editable (la banda dice "MAPEO DE RIESGOS Y RECURSOS")
     `status`         ENUM('draft','sealed') NOT NULL DEFAULT 'draft',
     `version`        INT UNSIGNED NOT NULL DEFAULT 1,
+    `pin_scale`      VARCHAR(8) NOT NULL DEFAULT 'md',         -- tamaño del pin (sm|md|lg); DISPLAY, fuera del hash
 
     -- Emisión / sello (se asignan al sellar; NULL mientras es borrador) --------
     `folio`          VARCHAR(40)  NULL DEFAULT NULL,           -- consecutivo legible (RMAP-####)
