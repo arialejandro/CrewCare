@@ -428,6 +428,7 @@ class RiskMapController extends Controller
             'label'          => $label,     // nombre completo (tooltip)
             'short'          => $short,     // etiqueta corta del chip
             'color'          => $marker->color(),
+            'ink'            => $marker->ink(), // color del símbolo (negro en peligros)
         ];
     }
 

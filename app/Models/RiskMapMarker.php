@@ -52,9 +52,11 @@ class RiskMapMarker extends Model
         'tablero_electrico' => '#2c6fbf',
     ];
 
-    /** Los peligros van en ámbar (⚠), como en el mapa de referencia. */
-    const HAZARD_COLOR = '#d99a00';
+    /** Los peligros van en AMARILLO de advertencia (ISO), con símbolo NEGRO. */
+    const HAZARD_COLOR = '#f4b400';
     const AREA_COLOR   = '#2c6fbf';
+    /** Tinta del símbolo: negro sobre el amarillo del peligro; blanco en el resto. */
+    const HAZARD_INK   = '#14110a';
 
     /** Color hex de este marcador. */
     public function color(): string
@@ -66,6 +68,12 @@ class RiskMapMarker extends Model
             return self::HAZARD_COLOR;
         }
         return self::AREA_COLOR;
+    }
+
+    /** Color del SÍMBOLO (currentColor). Peligro = negro sobre amarillo; resto = blanco. */
+    public function ink(): string
+    {
+        return $this->kind === 'hazard' ? self::HAZARD_INK : '#fff';
     }
 
     public function view()

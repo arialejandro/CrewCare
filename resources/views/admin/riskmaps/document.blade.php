@@ -106,7 +106,7 @@
     .rmr-pin__drop{ width:var(--pin,32px); height:var(--pin,32px); border-radius:50% 50% 50% 0; transform:rotate(-45deg);
         display:flex; align-items:center; justify-content:center; color:#fff;
         box-shadow:0 2px 4px rgba(0,0,0,.4), inset 0 1.5px 1px rgba(255,255,255,.4); border:1.5px solid rgba(255,255,255,.95); }
-    .rmr-pin__drop svg{ width:calc(var(--pin,32px)*.55); height:calc(var(--pin,32px)*.55); transform:rotate(45deg); }
+    .rmr-pin__drop svg{ width:calc(var(--pin,32px)*.62); height:calc(var(--pin,32px)*.62); transform:rotate(45deg); }
     /* Etiqueta del marcador: CORTA, en color, MOVIBLE (posición propia). NOTA: clase distinta de
        .rmr-chip (la píldora de cabecera de la vista) para no colisionar. */
     .rmr-lbl{ position:absolute; transform:translate(-50%,-50%); z-index:3; max-width:160px; overflow:hidden; text-overflow:ellipsis;
@@ -258,7 +258,7 @@
                     $ly = $m->label_y_pct !== null ? (float) $m->label_y_pct : max(5, min(95, (float) $m->y_pct - 12));
                 @endphp
                 <div class="rmr-pin" style="left:{{ $m->x_pct }}%;top:{{ $m->y_pct }}%" title="{{ $mTitle }}">
-                    <div class="rmr-pin__drop" style="background:{{ $mColor }}">@include('componentes._rm-icon', ['key' => $mIcon, 'class' => ''])</div>
+                    <div class="rmr-pin__drop" style="background:{{ $mColor }};color:{{ $m->ink() }}">@include('componentes._rm-icon', ['key' => $mIcon, 'class' => ''])</div>
                 </div>
                 <div class="rmr-lbl" style="left:{{ $lx }}%;top:{{ $ly }}%;background:{{ $mColor }}">{{ $mShort }}</div>
             @endforeach
@@ -354,7 +354,7 @@
     <div class="rmr-sec">Simbología</div>
     <div class="rmr-legend">
         @foreach($legend as $li)
-            <div class="leg"><span class="leg-ic" style="background:{{ $li['color'] }}">@include('componentes._rm-icon', ['key' => $li['icon'], 'class' => ''])</span> {{ $li['label'] }}</div>
+            <div class="leg"><span class="leg-ic" style="background:{{ $li['color'] }};color:{{ $li['ink'] ?? '#fff' }}">@include('componentes._rm-icon', ['key' => $li['icon'], 'class' => ''])</span> {{ $li['label'] }}</div>
         @endforeach
     </div>
     @endif

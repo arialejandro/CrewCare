@@ -41,6 +41,22 @@ class RiskMap extends Model
     /** Tamaño del pin (clave => px de la gota). DISPLAY, no entra al hash. */
     const PIN_SCALES = ['sm' => 24, 'md' => 32, 'lg' => 42];
 
+    /**
+     * TODAS las claves que puede emitir _rm-icon. El editor precarga estos SVG
+     * para pintarlos en el lienzo (si faltara una, el pin caía al glifo 'area').
+     */
+    const ICON_KEYS = [
+        // recursos (símbolo blanco)
+        'extintor', 'salida_emergencia', 'botiquin', 'punto_alarma', 'manguera_hidrante',
+        'tablero_electrico', 'punto_reunion', 'acceso_ambulancia',
+        // peligros (símbolo negro sobre amarillo)
+        'haz-warn', 'haz-bolt', 'haz-flame', 'haz-fall', 'haz-fallobj', 'haz-suspended',
+        'haz-collapse', 'haz-slip', 'haz-temp', 'haz-water', 'haz-vehicle', 'haz-people',
+        'haz-bio', 'haz-toxic', 'haz-animal', 'haz-drone', 'haz-firearm', 'haz-explosive', 'haz-exit',
+        // especiales
+        'hazard', 'area',
+    ];
+
     public function pinPx(): int
     {
         return self::PIN_SCALES[$this->pin_scale] ?? self::PIN_SCALES['md'];
@@ -103,28 +119,92 @@ class RiskMap extends Model
         return self::HAZARD_CATEGORY_LABELS[$c] ?? 'Peligro';
     }
 
-    /** Clave de PICTOGRAMA (_rm-icon) por categoría del catálogo. */
+    /** Clave de PICTOGRAMA (_rm-icon) por categoría del catálogo (símbolo base). */
     const HAZARD_ICON_KEYS = [
         'electrical' => 'haz-bolt', 'electrical_water' => 'haz-bolt', 'ev_hybrid' => 'haz-bolt', 'portable_power' => 'haz-bolt',
-        'fire' => 'haz-flame', 'fire_burn' => 'haz-flame', 'pyro_sfx' => 'haz-flame',
-        'heights' => 'haz-fall', 'stunts_high_fall' => 'haz-fall', 'aerial_work' => 'haz-fall', 'aerial_platform' => 'haz-fall',
-        'rigging_hoist' => 'haz-fall', 'wire_work' => 'haz-fall', 'stabilized_rig' => 'haz-fall', 'camera_crane' => 'haz-fall',
+        'fire' => 'haz-flame', 'fire_burn' => 'haz-flame',
+        'pyro_sfx' => 'haz-explosive',
+        'heights' => 'haz-fall', 'stunts_high_fall' => 'haz-fall', 'aerial_work' => 'haz-fall',
+        'aerial_platform' => 'haz-fall', 'wire_work' => 'haz-fall', 'stabilized_rig' => 'haz-fall',
+        'rigging_hoist' => 'haz-suspended', 'camera_crane' => 'haz-suspended',
         'weather' => 'haz-temp',
         'water' => 'haz-water', 'water_work' => 'haz-water',
         'traffic' => 'haz-vehicle', 'camera_car' => 'haz-vehicle', 'stunts_vehicular' => 'haz-vehicle',
         'utility_transport' => 'haz-vehicle', 'railroad' => 'haz-vehicle',
         'crowd' => 'haz-people', 'crowd_action' => 'haz-people', 'minors_physical' => 'haz-people',
-        'structural' => 'haz-struct',
-        'biological' => 'haz-bio', 'hazmat' => 'haz-bio',
+        'structural' => 'haz-warn',
+        'biological' => 'haz-bio',
+        'hazmat' => 'haz-toxic',
+        'firearms' => 'haz-firearm',
         'animals_wrangler' => 'haz-animal',
         'drones_uas' => 'haz-drone',
-        'access' => 'salida_emergencia', // evacuación → símbolo de salida
-        // base_camp, firearms, fight_combat, special, uncontrolled_env, confined → genérico
+        'access' => 'haz-exit', // evacuación bloqueada → símbolo de salida
+        // base_camp, fight_combat, special, uncontrolled_env, confined → genérico (haz-warn)
     ];
 
     public static function hazardIconKey($category): string
     {
         return self::HAZARD_ICON_KEYS[(string) $category] ?? 'haz-warn';
+    }
+
+    /**
+     * Símbolo (icono + etiqueta corta) de un peligro. Afina por PALABRA CLAVE del
+     * nombre por encima de la categoría: dentro de "heights" hay caída DE PERSONAS
+     * y golpe por OBJETO que cae; "structural" mezcla colapso y resbalones. Devuelve
+     * ['icon','short']. DERIVADO: no toca columnas ni el sello.
+     */
+    public static function hazardSymbol($category, $nameEs = null): array
+    {
+        $cat  = (string) $category;
+        $name = $nameEs !== null ? self::normalizeName((string) $nameEs) : '';
+
+        if ($name !== '') {
+            // 'arma de fuego' (NO 'armado' de un andamio) → llaves específicas.
+            if (self::nameHasAny($name, ['arma de fuego', 'disparo', 'municion', 'balac', 'proyectil', 'pistola', 'rifle', 'escopeta'])) {
+                return ['icon' => 'haz-firearm', 'short' => 'Armas de fuego'];
+            }
+            if (self::nameHasAny($name, ['explos', 'pirotec', 'detonac', 'carga explosiva'])) {
+                return ['icon' => 'haz-explosive', 'short' => 'Explosión / pirotecnia'];
+            }
+            if (self::nameHasAny($name, ['carga suspendida', 'izaje', 'suspendid', 'colgado y tensado', 'grua'])) {
+                return ['icon' => 'haz-suspended', 'short' => 'Carga suspendida'];
+            }
+            if (self::nameHasAny($name, ['objeto', 'herramienta que cae', 'material que cae', 'golpe por objeto', 'que cae sobre', 'caida de herramienta', 'caida de material'])) {
+                return ['icon' => 'haz-fallobj', 'short' => 'Caída de objetos'];
+            }
+            if (self::nameHasAny($name, ['colaps', 'estibad', 'estiba ', 'apilad'])) {
+                return ['icon' => 'haz-collapse', 'short' => 'Colapso / estiba'];
+            }
+            if (self::nameHasAny($name, ['resbal', 'tropiez', 'tropez', 'pisada', 'orden y limpieza'])) {
+                return ['icon' => 'haz-slip', 'short' => 'Resbalón / tropiezo'];
+            }
+        }
+
+        return [
+            'icon'  => self::HAZARD_ICON_KEYS[$cat] ?? 'haz-warn',
+            'short' => self::hazardCategoryLabel($cat),
+        ];
+    }
+
+    /** minúsculas + sin acentos, para cotejar palabras clave del nombre del evento. */
+    private static function normalizeName(string $s): string
+    {
+        $s = function_exists('mb_strtolower') ? mb_strtolower($s, 'UTF-8') : strtolower($s);
+        return str_replace(
+            ['á', 'é', 'í', 'ó', 'ú', 'ü', 'ñ', 'à', 'è', 'ì', 'ò', 'ù'],
+            ['a', 'e', 'i', 'o', 'u', 'u', 'n', 'a', 'e', 'i', 'o', 'u'],
+            $s
+        );
+    }
+
+    private static function nameHasAny(string $name, array $needles): bool
+    {
+        foreach ($needles as $n) {
+            if ($n !== '' && strpos($name, $n) !== false) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /* ------------------------------------------------------------------ */
@@ -263,12 +343,13 @@ class RiskMap extends Model
 
         return HazardEvent::with('standards')->whereIn('id', $ids)->get()
             ->map(function ($e) {
+                $sym = self::hazardSymbol($e->category, $e->name_es); // afina por nombre
                 return [
                     'id'       => (int) $e->id,
                     'name'     => (string) ($e->name_localized ?: $e->name_es),
                     'category' => (string) $e->category,
-                    'short'    => self::hazardCategoryLabel($e->category), // etiqueta corta del pin
-                    'icon'     => self::hazardIconKey($e->category),       // pictograma por categoría
+                    'short'    => $sym['short'], // etiqueta corta del pin (afinada)
+                    'icon'     => $sym['icon'],  // pictograma (afinado por nombre)
                     'norms' => $e->standards->map(function ($s) {
                         $code = trim(($s->regulation_badge ? $s->regulation_badge . ' ' : '') . $s->regulation_code);
                         return ['code' => $code, 'url' => $s->reference_url];
@@ -340,14 +421,19 @@ class RiskMap extends Model
                         'icon'  => $m->resource_type,
                         'label' => $m->resourceLabel(),
                         'color' => $m->color(),
+                        'ink'   => $m->ink(),
                     ];
                 } elseif ($m->kind === 'hazard' && $m->event_id) {
-                    $ev = $elig->get((int) $m->event_id);
+                    $ev    = $elig->get((int) $m->event_id);
                     $short = $ev['short'] ?? 'Peligro';
-                    $items['h:' . $short] = [
-                        'icon'  => $ev['icon'] ?? 'haz-warn',
+                    $icon  = $ev['icon'] ?? 'haz-warn';
+                    // Clave por etiqueta+icono: dos glifos distintos con la misma
+                    // etiqueta (p. ej. caída vs. objetos) aparecen ambos en la leyenda.
+                    $items['h:' . $short . ':' . $icon] = [
+                        'icon'  => $icon,
                         'label' => $short,
                         'color' => $m->color(),
+                        'ink'   => $m->ink(),
                     ];
                 }
             }

@@ -58,7 +58,7 @@
     /* área de toque ampliada (>=44px) para arrastrar en iPad sin precisión */
     .rm-pin::before,.rm-chip::before{content:'';position:absolute;inset:-9px}
     .rm-pin__drop{width:var(--pin,32px);height:var(--pin,32px);border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 2px 5px rgba(0,0,0,.45),inset 0 1.5px 1px rgba(255,255,255,.4);border:1.5px solid rgba(255,255,255,.95)}
-    .rm-pin__drop svg{width:calc(var(--pin,32px)*.55);height:calc(var(--pin,32px)*.55);transform:rotate(45deg)}
+    .rm-pin__drop svg{width:calc(var(--pin,32px)*.62);height:calc(var(--pin,32px)*.62);transform:rotate(45deg)}
     .rm-chip{position:absolute;transform:translate(-50%,-50%);z-index:3;cursor:grab;touch-action:none;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:700;color:#fff;border-radius:6px;padding:3px 8px;line-height:1.3;box-shadow:0 1px 3px rgba(0,0,0,.35);text-transform:uppercase;letter-spacing:.02em}
     .rm-chip.sel{outline:2px solid #fff;outline-offset:1px;z-index:6}
     .rm-leaders{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
@@ -241,7 +241,7 @@
 
 {{-- Datos para el editor (sin {{ }} dentro de <script>: van por JSON) --}}
 @php
-    $__iconKeys = array_merge(array_keys($resourceTypes), ['hazard', 'area']);
+    $__iconKeys = \App\Models\RiskMap::ICON_KEYS; // TODAS las claves (peligros incluidos) o el pin caía a 'area'
     $__icons = [];
     foreach ($__iconKeys as $k) { $__icons[$k] = trim(view('componentes._rm-icon', ['key' => $k])->render()); }
     $__markers = $current ? $current->markers->map(function ($m) use ($map) {
@@ -253,7 +253,7 @@
             'label_x' => $m->label_x_pct !== null ? (float) $m->label_x_pct : null,
             'label_y' => $m->label_y_pct !== null ? (float) $m->label_y_pct : null,
             'label_side' => $m->label_side, 'reference_text' => $m->reference_text,
-            'icon' => $ic, 'label' => $lbl, 'short' => $sh, 'color' => $m->color(),
+            'icon' => $ic, 'label' => $lbl, 'short' => $sh, 'color' => $m->color(), 'ink' => $m->ink(),
         ];
     })->values() : [];
     $__eligible = [];
@@ -456,6 +456,7 @@
         var drop = document.createElement('div');
         drop.className = 'rm-pin__drop';
         drop.style.background = m.color || '#c0392b';
+        drop.style.color = m.ink || '#fff';
         drop.innerHTML = iconFor(m.icon);
         pin.appendChild(drop);
         pin.title = (m.label || '') + (m.reference_text ? ' — ' + m.reference_text : '');
