@@ -31,6 +31,9 @@ class HazardEvent extends Model
         'code',
         'context',
         'category',
+        // (2026-08-04 · delta #51) Pictograma (_rm-icon) CURADO que sobreescribe el
+        // icono derivado (categoría + palabra clave). NULL = usa el derivado. Cosmético.
+        'risk_icon',
         'name_es',
         'name_en',
         'description_es',

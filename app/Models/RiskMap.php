@@ -153,9 +153,16 @@ class RiskMap extends Model
      * y golpe por OBJETO que cae; "structural" mezcla colapso y resbalones. Devuelve
      * ['icon','short']. DERIVADO: no toca columnas ni el sello.
      */
-    public static function hazardSymbol($category, $nameEs = null): array
+    public static function hazardSymbol($category, $nameEs = null, $iconOverride = null): array
     {
-        $cat  = (string) $category;
+        $cat = (string) $category;
+
+        // Override CURADO del catálogo (hazard_events.risk_icon): manda sobre todo.
+        // El owner toma el icono; la etiqueta corta se queda en la de la categoría.
+        if ($iconOverride !== null && $iconOverride !== '' && in_array($iconOverride, self::ICON_KEYS, true)) {
+            return ['icon' => $iconOverride, 'short' => self::hazardCategoryLabel($cat)];
+        }
+
         $name = $nameEs !== null ? self::normalizeName((string) $nameEs) : '';
 
         if ($name !== '') {
@@ -343,7 +350,7 @@ class RiskMap extends Model
 
         return HazardEvent::with('standards')->whereIn('id', $ids)->get()
             ->map(function ($e) {
-                $sym = self::hazardSymbol($e->category, $e->name_es); // afina por nombre
+                $sym = self::hazardSymbol($e->category, $e->name_es, $e->risk_icon); // override curado > palabra clave > categoría
                 return [
                     'id'       => (int) $e->id,
                     'name'     => (string) ($e->name_localized ?: $e->name_es),
