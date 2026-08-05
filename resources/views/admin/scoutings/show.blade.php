@@ -239,6 +239,13 @@
     .panel[style*="overflow-x:auto"]{-webkit-overflow-scrolling:touch}
     .panel[style*="overflow-x:auto"]::-webkit-scrollbar{height:6px}
     .panel[style*="overflow-x:auto"]::-webkit-scrollbar-thumb{background:var(--stroke-2);border-radius:3px}
+
+    /* Tabla de evaluación de riesgos apilada: en vez del flex "etiqueta a la izq /
+       valor a la der" del cc-stack global (bueno para valores cortos, apretado con el
+       control/personal largos), aquí la etiqueta va ARRIBA y el texto a lo ancho, a la izq. */
+    .sec .tbl.cc-stack td{display:block;text-align:left;padding:.45rem .2rem}
+    .sec .tbl.cc-stack td::before{display:block;margin:0 0 2px;font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;font-weight:700;color:var(--faint)}
+    .sec .tbl.cc-stack td:first-child{font-weight:700;font-size:.92rem}
   }
 </style>
 </head>
@@ -412,8 +419,10 @@
         <div class="sec-h"><span class="bar"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg><h2>{{ __('reports.scouting_section_risk_assessment') }}</h2><span class="line"></span></div>
 
         @if(count($rows))
+        {{-- cc-stack: en móvil (<768px) cada peligro se APILA como tarjeta (data-label por celda),
+             así no se corta; en escritorio/impresión sigue siendo tabla (min-width:640px). --}}
         <div class="panel" style="padding:4px 8px;overflow-x:auto;margin-bottom:14px">
-          <table class="tbl" style="min-width:640px">
+          <table class="tbl cc-stack" style="min-width:640px">
             <thead><tr>
               <th>{{ __('reports.scouting_th_hazard') }}</th>
               <th title="{{ __('reports.label_probability') }}">P</th>
@@ -441,20 +450,20 @@
                   </div>
                   @endif
                 </td>
-                <td class="mono" style="text-align:center;font-weight:700">{{ $row['likelihood'] ?: '—' }}</td>
-                <td class="mono" style="text-align:center;font-weight:700">{{ $row['consequence'] ?: '—' }}</td>
-                <td style="text-align:center">
+                <td class="mono" data-label="{{ __('reports.label_probability') }}" style="text-align:center;font-weight:700">{{ $row['likelihood'] ?: '—' }}</td>
+                <td class="mono" data-label="{{ __('reports.label_consequence') }}" style="text-align:center;font-weight:700">{{ $row['consequence'] ?: '—' }}</td>
+                <td data-label="{{ __('reports.scouting_th_classification') }}" style="text-align:center">
                   @if($row['rating'])
                   <span class="rate rate-{{ $row['rating'] }}">{{ $row['rating'] }} · {{ $ratingWord[$row['rating']] ?? '' }}</span>
                   @else
                   <span class="rate rate-none">—</span>
                   @endif
                 </td>
-                <td style="color:var(--muted)">{{ $row['control'] ?: '—' }}</td>
-                <td style="text-align:center">
+                <td data-label="{{ __('reports.scouting_th_controls') }}" style="color:var(--muted)">{{ $row['control'] ?: '—' }}</td>
+                <td data-label="{{ __('reports.scouting_th_residual') }}" style="text-align:center">
                   @if($row['residual'])<span class="rate rate-{{ $row['residual'] }}">{{ $row['residual'] }}</span>@else<span style="color:var(--faint)">—</span>@endif
                 </td>
-                <td style="color:var(--muted)">{{ $row['personnel'] ?: '—' }}</td>
+                <td data-label="{{ __('reports.scouting_th_personnel') }}" style="color:var(--muted)">{{ $row['personnel'] ?: '—' }}</td>
               </tr>
               @endforeach
             </tbody>
@@ -469,24 +478,11 @@
           @endif
         </div>
 
-        <div class="panel">
-          <div class="matrix">
-            <div class="corner">P&nbsp;▸/C&nbsp;▾</div>
-            @foreach($mtxCons as $ci => $cl)<div class="ch">{{ $cl }}</div>@endforeach
-            @foreach($mtxRows as $rk)
-              <div class="rh">{{ $mtxProb[$rk] }}</div>
-              @for($c = 1; $c <= 5; $c++)
-                @php $cellv = $mtxGrid[$rk][$c - 1]; $on = ($hasCell && $rk === $mtxLk && $c === $mtxCs); @endphp
-                <div class="cell5 {{ $on ? 'on' : '' }}" style="background:{{ $mtxColor[$cellv] }}" title="{{ $ratingWord[$cellv] ?? $cellv }}">{{ $cellv }}</div>
-              @endfor
-            @endforeach
-          </div>
-          <div class="mlegend">
-            <span><i style="background:var(--r-1)"></i>{{ __('reports.rating_low') }}</span><span><i style="background:var(--r-3)"></i>{{ __('reports.rating_medium') }}</span>
-            <span><i style="background:var(--r-4)"></i>{{ __('reports.rating_high') }}</span><span><i style="background:var(--r-5)"></i>{{ __('reports.rating_very_high') }}</span>
-            @if($hasCell)<span style="margin-left:auto;color:var(--text)"><b>{{ $mtxProb[$mtxLk] }}</b> × <b>{{ $mtxCons[$mtxCs] }}</b> = <b style="color:{{ $mtxColor[$mtxGrid[$mtxLk][$mtxCs-1]] }}">{{ $ratingWord[$mtxGrid[$mtxLk][$mtxCs-1]] ?? '' }}</b></span>@endif
-          </div>
-        </div>
+        {{-- (2026-08-04) La MATRIZ 5×5 se retiró de la vista/reporte del scouting (pedido del
+             owner): la lectura de riesgo ya vive en los chips de arriba (.riskrow: Riesgo /
+             Probabilidad / Consecuencia) y en las columnas P·C·Clasif de la tabla, así que la
+             rejilla era redundante. Se conserva SOLO en el Amazon MGM RA (_risk-matrix). Las
+             variables $mtx* siguen calculándose porque las usan los chips de .riskrow. --}}
         @else
         <p class="desc">{{ __('reports.scouting_empty_risk_assessment') }}</p>
         @endif

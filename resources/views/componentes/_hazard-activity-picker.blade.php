@@ -76,7 +76,7 @@
     .hzpick-searchwrap { margin:.7rem 0 .3rem; }
     .hzpick-search { min-height:44px; }
     .hzpick-hint { font-size:.8rem; color:var(--text-muted,#6c757d); margin-bottom:.4rem; }
-    .hzpick-list { display:flex; flex-direction:column; gap:.15rem; max-height:340px; overflow-y:auto; }
+    .hzpick-list { display:flex; flex-direction:column; gap:.35rem; max-height:340px; overflow-y:auto; }
     .hzpick-group-h { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
         color:var(--text-muted,#6c757d); padding:.5rem .2rem .2rem; position:sticky; top:0; background:var(--surface,#fff); }
     .hzpick-item { display:flex; align-items:flex-start; gap:.5rem; width:100%; text-align:left;

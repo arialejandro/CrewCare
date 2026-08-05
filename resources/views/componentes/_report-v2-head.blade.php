@@ -328,6 +328,16 @@
   :root[data-view="print"] .print-foot .ft-name,:root[data-view="print"] .print-foot .cc{color:#9aa3af}
   :root[data-view="print"] .print-foot .ft-lbl,:root[data-view="print"] .print-foot .ft-meta,:root[data-view="print"] .print-foot .ft-uuid{color:#aab1bb}
 
+  /* (2026-08-04) FOOTER DUPLICADO EN PANTALLA: la regla de arriba fuerza
+     .docfoot,.print-foot{display:flex!important}, lo que anulaba el .print-foot{display:none}
+     de pantalla → el pie de IMPRESIÓN se veía en el flujo, DEBAJO del pie de pantalla.
+     Separación limpia: en PANTALLA (no preview) solo el .docfoot; en preview de impresión
+     solo el .print-foot (como en papel). El @media screen evita tocar la impresión real. */
+  @media screen {
+    :root:not([data-view="print"]) .print-foot{display:none!important}
+  }
+  :root[data-view="print"] .docfoot{display:none!important}
+
   /* BANDA sólida (no degradado): pantalla oscura / papel claro. */
   .band{background:#141a26!important}
   :root[data-view="print"] .band{background:#eef2f7!important}
