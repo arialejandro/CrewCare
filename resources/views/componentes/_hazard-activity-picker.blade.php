@@ -79,7 +79,11 @@
     .hzpick-list { display:flex; flex-direction:column; gap:.35rem; max-height:340px; overflow-y:auto; }
     .hzpick-group-h { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
         color:var(--text-muted,#6c757d); padding:.5rem .2rem .2rem; position:sticky; top:0; background:var(--surface,#fff); }
-    .hzpick-item { display:flex; align-items:flex-start; gap:.5rem; width:100%; text-align:left;
+    /* flex:0 0 auto = NO encoger: en un contenedor flex-column con max-height, los ítems
+       (flex-shrink:1 por defecto) se aplastaban a 44px cuando había muchos y su contenido
+       (nombre+normas ≈64px) se DESBORDABA sobre el siguiente = superposición. Con esto cada
+       ítem conserva su alto natural y la lista scrollea (overflow-y). ESTA era la causa real. */
+    .hzpick-item { display:flex; align-items:flex-start; gap:.5rem; width:100%; text-align:left; flex:0 0 auto;
         -webkit-appearance:none; appearance:none; line-height:1.3;
         border:1px solid transparent; border-radius:10px; padding:.55rem .6rem; min-height:44px; cursor:pointer;
         background:transparent; color:var(--text,#14181f); }
