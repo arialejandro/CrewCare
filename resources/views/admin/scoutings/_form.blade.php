@@ -1351,10 +1351,14 @@
     })();
     // La lógica GPS + hospitales vive en public/js/crewcare-geo.js (incluido por el parcial _geo-capture).
 
-    // (2026-07-15) Tras un error de validación: lleva al primer campo marcado y enfócalo,
+    // (2026-07-15) Tras un error de validación REAL: lleva al primer campo marcado y enfócalo,
     // para no dejar al usuario adivinando dónde está el problema en un form largo.
+    // (2026-08-04) El fallback EXCLUYE #sb132-alert: es un aviso informativo PERMANENTE que
+    // también usa .alert-danger, así que en un alta LIMPIA no hay match → no hay scroll (antes
+    // se auto-desplazaba al bloque SB132 al cargar). Los avisos de error reales (resumen de
+    // validación / session error) sí matchean y sí desplazan.
     (function () {
-        var first = document.querySelector('.is-invalid') || document.querySelector('.alert-danger');
+        var first = document.querySelector('.is-invalid') || document.querySelector('.alert-danger:not(#sb132-alert)');
         if (!first) return;
         first.scrollIntoView({ behavior: 'smooth', block: 'center' });
         if (first.classList.contains('is-invalid') && typeof first.focus === 'function') {

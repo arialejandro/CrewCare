@@ -182,6 +182,64 @@
   .draft-flag .n{font-weight:400;font-style:normal;text-transform:none;font-family:var(--font);
     font-size:.72rem;letter-spacing:0;opacity:.85}
   @media (max-width:720px){ .invgrid{grid-template-columns:1fr} }
+
+  /* ============================================================================
+     RESPONSIVE MÓVIL (≤767px). SOLO presentación: nada aquí toca impresión ni
+     escritorio (el @media print y :root[data-view="print"] viven en el chrome y
+     quedan intactos). Metas: cero scroll horizontal del BODY; hero/botones
+     apilados sin cortarse; las tablas de datos conservan su scroll DENTRO del
+     panel (el overflow-x:auto ya existente). */
+  @media (max-width:767px){
+    /* Candado: ninguna parte de la página desborda a lo ancho del viewport. Las
+       tablas anchas siguen deslizándose dentro de su .panel (scroll propio). */
+    html,body{max-width:100%;overflow-x:hidden}
+
+    /* CAUSA RAÍZ del corte: .report-wrap (motor de paginación) es auto-layout, así
+       que su <td> se estira al min-width:640px de la tabla de riesgos y el
+       overflow-x:auto del panel deja de poder recortar → el documento "se sale".
+       Con layout fijo el <td> queda al 100% y el panel vuelve a deslizar la tabla. */
+    .report-wrap{table-layout:fixed}
+
+    /* Toolbar flotante: que ENVUELVA en vez de cortarse (toque cómodo). */
+    .toolbar{left:10px;right:10px;top:12px;flex-wrap:wrap;justify-content:flex-end;gap:6px;padding:6px}
+    .tb{height:38px;padding:0 10px;font-size:.75rem}
+    .tb.ico{width:38px}
+    /* Reserva de aire para una toolbar de hasta 2 filas + laterales más finos. */
+    .stage{padding:116px 12px 48px}
+
+    /* Cuerpo con menos padding: más ancho útil para tablas y fichas. */
+    .body{padding:18px 14px 4px}
+
+    /* Hero: el logo y el nombre/locación dejan de montarse uno sobre otro y el
+       texto de la locación puede envolver en vez de recortarse. */
+    .doc-hero .hero-logo img{max-width:40vw;height:auto}
+    .hero-side{max-width:50%;right:12px;top:12px}
+    .hero-callbox{max-width:100%}
+    .hero-callbox .cl-loc{white-space:normal;overflow:visible}
+    .draft-flag{flex-wrap:wrap}
+
+    /* Banda "de un vistazo": apilada (el chrome ya lo hace a 720; se asegura a 767). */
+    .band{flex-direction:column}
+    .band .lead{border-right:0;border-bottom:1px solid var(--stroke)}
+
+    /* Fichas y firmas a menos columnas. */
+    .facts{grid-template-columns:repeat(2,1fr)}
+    .sign{grid-template-columns:1fr}
+
+    /* Controles operativos: folio arriba, botones apilados a lo ancho (sin cortar). */
+    .ops{flex-direction:column;align-items:stretch;gap:8px}
+    .ops .ops-note{text-align:left}
+    .ops>div{flex-direction:column;align-items:stretch;width:100%}
+    .ops>div .btn{width:100%;min-height:44px}
+    /* Cualquier botón del documento: el texto envuelve y nunca desborda su caja. */
+    .btn{max-width:100%;white-space:normal;height:auto;min-height:38px;justify-content:center;text-align:center}
+
+    /* Pista visual de que las tablas anchas se deslizan: barra fina siempre visible
+       en los paneles con scroll horizontal (los selecciona por su estilo en línea). */
+    .panel[style*="overflow-x:auto"]{-webkit-overflow-scrolling:touch}
+    .panel[style*="overflow-x:auto"]::-webkit-scrollbar{height:6px}
+    .panel[style*="overflow-x:auto"]::-webkit-scrollbar-thumb{background:var(--stroke-2);border-radius:3px}
+  }
 </style>
 </head>
 <body>

@@ -79,16 +79,17 @@
     .hzpick-list { display:flex; flex-direction:column; gap:.15rem; max-height:340px; overflow-y:auto; }
     .hzpick-group-h { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
         color:var(--text-muted,#6c757d); padding:.5rem .2rem .2rem; position:sticky; top:0; background:var(--surface,#fff); }
-    .hzpick-item { display:flex; align-items:center; gap:.5rem; width:100%; text-align:left;
+    .hzpick-item { display:flex; align-items:flex-start; gap:.5rem; width:100%; text-align:left;
+        -webkit-appearance:none; appearance:none; line-height:1.3;
         border:1px solid transparent; border-radius:10px; padding:.55rem .6rem; min-height:44px; cursor:pointer;
         background:transparent; color:var(--text,#14181f); }
     .hzpick-item:hover { background:var(--surface-2,#f5f6f8); border-color:var(--border,#dee2e6); }
-    .hzpick-item-main { flex:1; min-width:0; }
-    .hzpick-item-name { font-size:.9rem; }
-    .hzpick-item-norms { display:inline-flex; gap:.25rem; flex-wrap:wrap; margin-left:.35rem; }
+    .hzpick-item-main { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:.2rem; }
+    .hzpick-item-name { font-size:.9rem; line-height:1.3; overflow-wrap:anywhere; }
+    .hzpick-item-norms { display:flex; gap:.25rem; flex-wrap:wrap; margin-left:0; }
     .hzpick-norm { font-size:.64rem; font-weight:700; letter-spacing:.02em; padding:.05rem .3rem; border-radius:6px;
         background:color-mix(in srgb, var(--brand-primary,#0e6f6c) 12%, transparent); color:var(--brand-primary,#0e6f6c); }
-    .hzpick-item-add { font-size:.78rem; font-weight:700; color:var(--brand-primary,#0e6f6c); white-space:nowrap; }
+    .hzpick-item-add { font-size:.78rem; font-weight:700; color:var(--brand-primary,#0e6f6c); white-space:nowrap; align-self:center; flex:0 0 auto; }
     .hzpick-item.added { background:color-mix(in srgb, var(--brand-primary,#0e6f6c) 8%, transparent); }
     .hzpick-item.added .hzpick-item-add { color:#2e7d32; }
     .hzpick-empty { font-size:.85rem; color:var(--text-muted,#6c757d); padding:.6rem .2rem; }
