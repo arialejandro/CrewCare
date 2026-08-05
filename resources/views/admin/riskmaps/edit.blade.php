@@ -77,10 +77,15 @@
     .rm-pin{position:absolute;transform:translate(-50%,-100%);z-index:2;cursor:grab;touch-action:none}
     .rm-pin.sel{z-index:5}
     .rm-pin.sel .rm-pin__drop{outline:2px solid #fff;outline-offset:1px}
+    .rm-pin.sel .rm-pin__sign{outline:2px solid #fff;outline-offset:1px;border-radius:4px}
     /* área de toque ampliada (>=44px) para arrastrar en iPad sin precisión */
     .rm-pin::before,.rm-chip::before{content:'';position:absolute;inset:-9px}
     .rm-pin__drop{width:var(--pin,32px);height:var(--pin,32px);border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 2px 5px rgba(0,0,0,.45),inset 0 1.5px 1px rgba(255,255,255,.4);border:1.5px solid rgba(255,255,255,.95)}
     .rm-pin__drop svg{width:calc(var(--pin,32px)*.62);height:calc(var(--pin,32px)*.62);transform:rotate(45deg)}
+    /* Señal a color (ISO/hazmat/EPP): upright, sin gota, con sombra para leerse sobre la foto. */
+    .rm-pin__sign{width:calc(var(--pin,32px)*1.32);height:calc(var(--pin,32px)*1.32);display:flex;align-items:center;justify-content:center}
+    .rm-pin__sign img,.rm-sign{width:100%;height:100%;object-fit:contain;display:block}
+    .rm-pin__sign img{filter:drop-shadow(0 1px 2px rgba(0,0,0,.55))}
     .rm-chip{position:absolute;transform:translate(-50%,-50%);z-index:3;cursor:grab;touch-action:none;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:700;color:#fff;border-radius:6px;padding:3px 8px;line-height:1.3;box-shadow:0 1px 3px rgba(0,0,0,.35);text-transform:uppercase;letter-spacing:.02em}
     .rm-chip.sel{outline:2px solid #fff;outline-offset:1px;z-index:6}
     .rm-leaders{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
@@ -298,7 +303,11 @@
 
 {{-- Datos para el editor (sin {{ }} dentro de <script>: van por JSON) --}}
 @php
-    $__iconKeys = \App\Models\RiskMap::ICON_KEYS; // TODAS las claves (peligros incluidos) o el pin caía a 'area'
+    $__iconKeys = \App\Models\RiskMap::ICON_KEYS; // claves dibujadas (peligros/recursos) o el pin caía a 'area'
+    // + señales realmente alcanzables: el icono de cada evento elegible (incluye un
+    //   override risk_icon que apunte a un slug de la biblioteca, p. ej. 'adr_3b').
+    foreach ($eligibleEvents as $__ev) { $__iconKeys[] = $__ev['icon']; }
+    $__iconKeys = array_values(array_unique($__iconKeys));
     $__icons = [];
     foreach ($__iconKeys as $k) { $__icons[$k] = trim(view('componentes._rm-icon', ['key' => $k])->render()); }
     $__markers = $current ? $current->markers->map(function ($m) use ($map) {
@@ -510,11 +519,17 @@
         pin.setAttribute('data-id', m.id);
         pin.style.left = m.x_pct + '%';
         pin.style.top = m.y_pct + '%';
+        var html = iconFor(m.icon);
+        var isSign = html.indexOf('rm-sign') !== -1; // señal a color → sin gota
         var drop = document.createElement('div');
-        drop.className = 'rm-pin__drop';
-        drop.style.background = m.color || '#c0392b';
-        drop.style.color = m.ink || '#fff';
-        drop.innerHTML = iconFor(m.icon);
+        if (isSign) {
+            drop.className = 'rm-pin__sign';
+        } else {
+            drop.className = 'rm-pin__drop';
+            drop.style.background = m.color || '#c0392b';
+            drop.style.color = m.ink || '#fff';
+        }
+        drop.innerHTML = html;
         pin.appendChild(drop);
         pin.title = (m.label || '') + (m.reference_text ? ' — ' + m.reference_text : '');
 

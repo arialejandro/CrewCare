@@ -159,7 +159,11 @@ class RiskMap extends Model
 
         // Override CURADO del catálogo (hazard_events.risk_icon): manda sobre todo.
         // El owner toma el icono; la etiqueta corta se queda en la de la categoría.
-        if ($iconOverride !== null && $iconOverride !== '' && in_array($iconOverride, self::ICON_KEYS, true)) {
+        // Acepta una clave dibujada (ICON_KEYS) O cualquier slug de la biblioteca de
+        // señales (p. ej. 'adr_3b', 'wear_safety_glasses') — así las familias nuevas
+        // (hazmat, EPP, prohibición) se pueden asignar por evento del catálogo.
+        if ($iconOverride !== null && $iconOverride !== ''
+            && (in_array($iconOverride, self::ICON_KEYS, true) || \App\Support\RiskSigns::has($iconOverride))) {
             return ['icon' => $iconOverride, 'short' => self::hazardCategoryLabel($cat)];
         }
 

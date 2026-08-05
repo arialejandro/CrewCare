@@ -107,6 +107,10 @@
         display:flex; align-items:center; justify-content:center; color:#fff;
         box-shadow:0 2px 4px rgba(0,0,0,.4), inset 0 1.5px 1px rgba(255,255,255,.4); border:1.5px solid rgba(255,255,255,.95); }
     .rmr-pin__drop svg{ width:calc(var(--pin,32px)*.62); height:calc(var(--pin,32px)*.62); transform:rotate(45deg); }
+    /* Señal a color (ISO/hazmat/EPP): sin gota, upright, con sombra para leerse sobre la foto. */
+    .rmr-pin__sign{ width:calc(var(--pin,32px)*1.32); height:calc(var(--pin,32px)*1.32); display:flex; align-items:center; justify-content:center; }
+    .rmr-pin__sign img{ width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
+    .rm-sign{ width:100%; height:100%; object-fit:contain; display:block; }
     /* Etiqueta del marcador: CORTA, en color, MOVIBLE (posición propia). NOTA: clase distinta de
        .rmr-chip (la píldora de cabecera de la vista) para no colisionar. */
     .rmr-lbl{ position:absolute; transform:translate(-50%,-50%); z-index:3; max-width:160px; overflow:hidden; text-overflow:ellipsis;
@@ -120,6 +124,8 @@
     .rmr-legend .leg{ display:flex; align-items:center; gap:9px; font-size:10px; color:var(--rmr-wordmark); }
     .rmr-legend .leg-ic{ flex:none; width:23px; height:23px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; }
     .rmr-legend .leg-ic svg{ width:13px; height:13px; }
+    .rmr-legend .leg-ic--sign{ background:transparent!important; }
+    .rmr-legend .leg-ic img{ width:100%; height:100%; object-fit:contain; }
 
     /* Narrativa (tres renglones; el vacío no aparece) */
     .rmr-narr{ margin:11px 0 0; display:grid; gap:5px; }
@@ -144,6 +150,8 @@
     .rmr-inv .ic{ flex:none; width:30px; height:30px; border-radius:50%; background:color-mix(in srgb,var(--rmr-res) 12%,#fff);
         color:var(--rmr-res); display:flex; align-items:center; justify-content:center; }
     .rmr-inv .ic svg{ width:17px; height:17px; }
+    .rmr-inv .ic--sign{ background:transparent!important; }
+    .rmr-inv .ic img{ width:100%; height:100%; object-fit:contain; }
     .rmr-inv .num{ font-family:var(--rmr-cond); font-weight:800; font-size:20px; color:var(--rmr-ink); line-height:1; }
     .rmr-inv .lbl{ font-size:9px; color:var(--rmr-muted); text-transform:uppercase; letter-spacing:.02em; }
     .rmr-inv .cell.zero{ opacity:.6; }
@@ -254,11 +262,17 @@
                     else { $ev = $eligibleEvents->get((int) $m->event_id); $mLabel = $ev['name'] ?? ('#' . $m->event_id); $mShort = $ev['short'] ?? 'Peligro'; $mIcon = $ev['icon'] ?? 'haz-warn'; }
                     $mTitle = $mLabel . ($m->reference_text ? ' — ' . $m->reference_text : '');
                     $mColor = $m->color();
+                    $mSign  = \App\Support\RiskSigns::has($mIcon); // señal a color → sin gota
+
                     $lx = $m->label_x_pct !== null ? (float) $m->label_x_pct : max(5, min(95, (float) $m->x_pct + ((float) $m->x_pct > 55 ? -13 : 13)));
                     $ly = $m->label_y_pct !== null ? (float) $m->label_y_pct : max(5, min(95, (float) $m->y_pct - 12));
                 @endphp
                 <div class="rmr-pin" style="left:{{ $m->x_pct }}%;top:{{ $m->y_pct }}%" title="{{ $mTitle }}">
-                    <div class="rmr-pin__drop" style="background:{{ $mColor }};color:{{ $m->ink() }}">@include('componentes._rm-icon', ['key' => $mIcon, 'class' => ''])</div>
+                    @if($mSign)
+                        <div class="rmr-pin__sign">@include('componentes._rm-icon', ['key' => $mIcon, 'class' => ''])</div>
+                    @else
+                        <div class="rmr-pin__drop" style="background:{{ $mColor }};color:{{ $m->ink() }}">@include('componentes._rm-icon', ['key' => $mIcon, 'class' => ''])</div>
+                    @endif
                 </div>
                 <div class="rmr-lbl" style="left:{{ $lx }}%;top:{{ $ly }}%;background:{{ $mColor }}">{{ $mShort }}</div>
             @endforeach
@@ -315,7 +329,7 @@
         @foreach($resLabels as $rt => $lbl)
             @php $c = (int) ($inventory[$rt] ?? 0); @endphp
             <div class="cell {{ $c === 0 ? 'zero' : '' }}">
-                <div class="ic">@include('componentes._rm-icon', ['key' => $rt, 'class' => ''])</div>
+                <div class="ic {{ \App\Support\RiskSigns::has($rt) ? 'ic--sign' : '' }}">@include('componentes._rm-icon', ['key' => $rt, 'class' => ''])</div>
                 <div><div class="num">{{ $c }}</div><div class="lbl">{{ $lbl }}</div></div>
             </div>
         @endforeach
@@ -354,7 +368,8 @@
     <div class="rmr-sec">Simbología</div>
     <div class="rmr-legend">
         @foreach($legend as $li)
-            <div class="leg"><span class="leg-ic" style="background:{{ $li['color'] }};color:{{ $li['ink'] ?? '#fff' }}">@include('componentes._rm-icon', ['key' => $li['icon'], 'class' => ''])</span> {{ $li['label'] }}</div>
+            @php $legSign = \App\Support\RiskSigns::has($li['icon']); @endphp
+            <div class="leg"><span class="leg-ic {{ $legSign ? 'leg-ic--sign' : '' }}" @if(!$legSign)style="background:{{ $li['color'] }};color:{{ $li['ink'] ?? '#fff' }}"@endif>@include('componentes._rm-icon', ['key' => $li['icon'], 'class' => ''])</span> {{ $li['label'] }}</div>
         @endforeach
     </div>
     @endif
