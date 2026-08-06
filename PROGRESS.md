@@ -235,6 +235,12 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-06 — 📚 Catch-up de los 5 mapas de referencia (post-compact)
+- **Estado:** Hecho.
+- **Archivos:** `ARCHITECTURE.md`, `DATABASE-SCHEMA.md`, `ROUTES.md`, `VIEWS-INVENTORY.md`, `ORG-TAXONOMY.md` (+ memoria `documentation-map.md`).
+- **Qué/Por qué:** los 5 mapas 🟡 seguían en el snapshot de auditoría de ~junio y no reflejaban los ~12 módulos nuevos (deltas #40-#51). A cada uno se le **prepuso** un bloque fechado "⚠ ACTUALIZACIÓN 2026-08-06" con la verdad de terreno (cuerpo viejo intacto): **53 controllers · 51 modelos · 26 servicios · 226 rutas · 84 tablas · 188 vistas**, RBAC Spatie vivo + catálogo de permisos, rutas/modelos/servicios por módulo nuevo, tablas nuevas por delta.
+- **Riesgo/Notas:** Solo docs, sin código ni SQL. **🔴 Hallazgo:** el dump `database/schema/mysql-schema.dump` está en **56 tablas** vs **84** reales (28 de deltas #41-#50 aplicadas por SQL local, dump sin regenerar) → regenerarlo es owner (afecta bootstrap de prod). Tablas residuales: `clinic_attestations`(0, leftover beta), `scouting_canvases`/`canvas_pins` (superseded #48). **Pendiente:** dossier `Estado-Real-CrewCare.md` (pasada dedicada). Ver [[documentation-map]].
+
 ### 2026-08-06 — 🗺️ Mapeo de riesgos: documento HOMOLOGADO al chrome del DSR
 - **Estado:** Hecho (verificado en render pantalla+papel). Commit `77c4f839`.
 - **Archivos:** `resources/views/admin/riskmaps/document.blade.php`.

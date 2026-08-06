@@ -4,6 +4,21 @@ Auditoría read-only de las **95 vistas Blade** (+2 archivos backup), repartida 
 y cruzada con rutas/controllers para evaluar **funcionalidad real, arquitectura y
 performance** (carga, consultas, N+1). No se modificó código.
 
+> ## ⚠ ACTUALIZACIÓN 2026-08-06 (catch-up post-compact — deltas #40-#51)
+> El inventario de abajo (95 vistas, 2026-06-24) quedó atrás: hoy son **188 archivos `.blade.php`** (casi el doble).
+> Los módulos nuevos NO reintroducen los 3 males del snapshot (3 frameworks CSS / jQuery roto / shell pesado):
+> corren sobre el **design system "Cinematic Dark Glass"** con tokens y el **chrome de reporte v2 compartido**
+> (`resources/views/componentes/_report-v2-head`, `_report-v2-toolbar`, `_doc-hero`, `_report-v2-foot`) — un solo
+> lugar para fuentes/CSS/motor de impresión. Directorios de vistas nuevos:
+> - **Top-level nuevos:** `epi/`, `inspection/`, `permits/`, `avisos/` (aviso de privacidad), `accesos/`.
+> - **Bajo `admin/`:** `scoutings/`, `dailyreports/`, `riskmaps/`, `medevac/`, `hazard-events/`, `standards/`,
+>   `sfx/`, `sfx-effects/`, `consumables/`, `lite/`, `features/`, `badge/`, `wrap/`, `partials/`.
+> - **`componentes/`** creció con parciales compartidos: `_report-v2-*`, `_doc-hero(-styles)`, `_rm-icon`,
+>   `_hazard-activity-picker`, `_risk-matrix`, `_typeahead`, `_icon` (Lucide), `_confirm-submit`, `_doc-hero`.
+> - **`medical/`** y **`correos/`** también crecieron (bitácora, materialidad, consulta compartida crew+lite; magic links).
+> Cada vista de reporte sellable termina en `_report-v2-foot` (cierra `</article></div>` + footer + JS de tema/impresión).
+> Detalle vivo por módulo en la **memoria** (`/memory/*.md`).
+
 Leyenda de clasificación: **KEEP** (sirve, conservar) · **REFACTOR** (sirve pero deuda) ·
 **DEDUPE** (colapsar con su gemela en un parcial/componente) · **REMOVE** (muerta/COVID/backup).
 
