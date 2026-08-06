@@ -235,6 +235,12 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-06 — 🚑 PAE · rediseño de vistas por feedback del owner
+- **Estado:** Hecho (render + sin fugas de código + sello verificados).
+- **Archivos:** `resources/views/admin/pae/{show,create,index}.blade.php`, `app/Support/{PaeOrgChart,EmergencyActionPlanBuilder}.php`, `app/Http/Controllers/PaeController.php`.
+- **Qué/Por qué:** el owner pidió (1) que el **documento** siga la estructura/campos de su PDF de referencia (PAE de rodaje) pero en estilo CrewCare, con la **versión de documento tipo DSR**; (2) index/create al estilo de la app (sin "logo" gigante ni código en botones). **show REHECHO sobre el chrome report-v2** (`_report-v2-head/-toolbar/-foot` + `_doc-hero` + banda + `.sec`): secciones 1·Mapeo de riesgos (tabla Zona|Riesgo|Nivel|**Medida de control**|**Responsable**, desde `risk_assessment.control`/`.personnel`) · 2·Organigrama (Rol|Nombre|Teléfono|**Radio**, 7 puestos) · 3·Procedimientos rápidos (texto fijo) · 4·Acuse de recepción (firma en papel). Versión (`config('crewcare.doc_version')`) visible en banda/meta/footer. index/create reescritos con clases reales del design system.
+- **Riesgo/Notas:** **2 gotchas corregidos:** (a) `@selected/@checked/@disabled` NO existen en Laravel 8 → quedaban literales (`isEmpty())>`, `id)>`) → reemplazados por ternarios; (b) el `_report-v2-head` requiere `$primary` definido por la vista. También el gotcha Blade `@endif@if` (espacio). Sello intacto (solo cambió el render, no el DATO). Ver [[pae-emergency-action-plan]].
+
 ### 2026-08-06 — 🚑 PAE · Plan de Atención a Emergencias (Frente A, delta owner-apply 2026-08-06)
 - **Estado:** Hecho (E2E + adversarial A4 + render verificados). Cableado en zona reservada YA aplicado (con visto bueno del owner).
 - **Archivos:** NUEVOS `app/Models/EmergencyActionPlan.php`, `app/Support/{EmergencyActionPlanBuilder,PaeOrgChart}.php`, `app/Http/Controllers/PaeController.php`, `resources/views/admin/pae/{index,create,show}.blade.php`, `database/owner-apply/2026-08-06-pae-emergency-action-plans.sql`, `database/seeders/PaePermissionsSeeder.php`. EDITADOS `app/Support/SealVerifier.php` (+`'pae'`), `routes/web.php` (grupo `pae.*` gateado), `resources/views/layouts/sidebar.blade.php` (link "PAE · Emergencias" en 2 copias + `pae.issue` en el canany de Seguridad).

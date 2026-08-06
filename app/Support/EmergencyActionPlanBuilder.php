@@ -171,6 +171,8 @@ class EmergencyActionPlanBuilder
                 'category_label' => $cat !== '' ? RiskMap::hazardCategoryLabel($cat) : '',
                 'rating'         => self::str($r['rating'] ?? ''),
                 'residual'       => self::str($r['residual'] ?? ''),
+                'control'        => self::str($r['control'] ?? ''),       // Medida de control (del scouting)
+                'responsable'    => self::str($r['personnel'] ?? ''),     // Responsable (del scouting)
                 'badge'          => self::str($r['badge'] ?? ''),
                 'code'           => self::str($r['code'] ?? ''),
                 'url'            => self::str($r['url'] ?? ''),
@@ -266,6 +268,7 @@ class EmergencyActionPlanBuilder
                 'label' => $slot['label'],
                 'name'  => self::str($c['name'] ?? ''),
                 'phone' => self::str($c['phone'] ?? ''),
+                'radio' => self::str($c['radio'] ?? ''),
             ];
         }
         return $out;

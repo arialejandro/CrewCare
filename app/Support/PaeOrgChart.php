@@ -8,55 +8,51 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * PaeOrgChart — resuelve el ORGANIGRAMA DE EMERGENCIA del PAE desde el CREW de la
- * producción vigente (mismo criterio híbrido que MedevacContacts: si existe en el
- * crew se pre-llena desde ahí con su users.phone; donde no exista, el emisor lo
- * captura al emitir; el resultado final se CONGELA en el PAE).
+ * producción vigente (criterio híbrido: si existe en el crew se pre-llena con su
+ * users.phone; donde no exista, el emisor lo captura al emitir; el resultado final
+ * se CONGELA en el PAE).
  *
- * A diferencia del MEDEVAC —que colapsa la producción en un solo "Production
- * Manager"— el PAE distingue CUATRO puestos:
- *   · LINE PRODUCER → rol Spatie `line-producer` (o, si nadie lo tiene, el puesto
- *     "Productor en Línea", position_id 12).
- *   · UPM (Gerente de Unidad) → por PUESTO (production_user.position_id ∈ {14,15});
- *     el rol no lo distingue.
- *   · SAFETY → rol Spatie `safety-officer`.
- *   · SET MEDIC → rol Spatie `medic` (fuente única User::isMedic()).
- * Más DOS servicios FIJOS que no salen del crew: 911 (nacional) y el hospital (éste
- * es POR LOCACIÓN, así que lo pinta cada bloque de locación, no el organigrama).
+ * Los roles siguen el organigrama estándar de un PAE de rodaje (Rol · Nombre ·
+ * Teléfono · Canal de radio). CrewCare RESUELVE los tres que conoce por rol/puesto;
+ * el resto son captura manual (nadie en el crew tiene ese rol como dato):
+ *   · COORDINADOR DE EMERGENCIA (Producción/UPM) → puesto 14/13/15, si no rol `line-producer`.
+ *   · SEGURIDAD EN SET (Safety)                   → rol `safety-officer`.
+ *   · COORDINACIÓN MÉDICA (Set Medic)             → rol `medic` (User::isMedic()).
+ *   · LOCACIONES Y TRANSPORTACIÓN · BRIGADA CONTRA INCENDIOS · SEGURIDAD SPFX/STUNTS ·
+ *     EXTRAS/BACKGROUND                            → manual (se capturan antes del rodaje).
  *
- * ⚠ SÓLO EL CREW DE ESTA PRODUCCIÓN. No hay fallback global a "cualquier safety de la
- *   app": pre-llenar en un plan de emergencias a alguien que NO está en este rodaje —
- *   con su teléfono— es un dato equivocado con apariencia de correcto en el campo que
- *   se lee corriendo cuando hay un herido. Si el puesto está vacante en el crew, el
- *   hueco se deja para que el emisor escriba al contacto REAL en set.
+ * ⚠ SÓLO EL CREW DE ESTA PRODUCCIÓN. No hay fallback global: pre-llenar en un plan de
+ *   emergencias a alguien que NO está en este rodaje es un dato equivocado con apariencia
+ *   de correcto. Si el puesto está vacante, el hueco se deja para el contacto REAL en set.
  *
- * Este resolutor sólo SUGIERE (pre-llena el formulario). Lo que se sella es lo que el
- * emisor confirmó, no lo que este método devolvió.
- *
- * DEFENSIVO: cada consulta se salta si su tabla no existe y nunca lanza. Devuelve los
- * cuatro slots siempre (name/phone vacíos si no hay quién).
+ * Este resolutor sólo SUGIERE. Lo que se sella es lo que el emisor confirmó.
+ * DEFENSIVO: cada consulta se salta si su tabla no existe y nunca lanza.
  */
 class PaeOrgChart
 {
-    /** Los 4 puestos del organigrama, con su etiqueta de oficio (convención del gremio). */
+    /**
+     * Los puestos del organigrama, con su etiqueta de oficio y si CrewCare los resuelve.
+     * `resolve` = clave de resolución (role:x / pos / null=manual).
+     */
     const SLOTS = [
-        ['key' => 'line_producer', 'label' => 'Line Producer'],
-        ['key' => 'upm',           'label' => 'UPM'],
-        ['key' => 'safety',        'label' => 'Safety'],
-        ['key' => 'set_medic',     'label' => 'Set Medic'],
+        ['key' => 'coordinador_emergencia', 'label' => 'Coordinador de emergencia (Producción / UPM)'],
+        ['key' => 'safety',                 'label' => 'Seguridad en set (Safety)'],
+        ['key' => 'set_medic',              'label' => 'Coordinación médica (Set Medic)'],
+        ['key' => 'locaciones_transporte',  'label' => 'Locaciones y transportación'],
+        ['key' => 'brigada_incendios',      'label' => 'Brigada contra incendios'],
+        ['key' => 'spfx_stunts',            'label' => 'Seguridad SPFX / Stunts'],
+        ['key' => 'extras_background',      'label' => 'Extras / Background'],
     ];
 
-    /** Puesto "Productor en Línea" (respaldo del Line Producer si nadie tiene el rol). */
-    const LINE_PRODUCER_POSITION_IDS = [12];
-
-    /** Puestos de UPM (production_user.position_id), en orden de preferencia. */
-    const UPM_POSITION_IDS = [14, 15];
+    /** Puestos de "coordinador de emergencia / producción" (production_user.position_id). */
+    const COORDINATOR_POSITION_IDS = [14, 13, 15];
 
     /** Servicio de emergencia FIJO (no sale del crew). El hospital va por locación. */
     const EMERGENCY_SERVICE = ['label' => 'Emergencias (911)', 'phone' => '911'];
 
     /**
-     * Devuelve [['key','label','name','phone'], x4]. name/phone = '' si el slot está
-     * vacante en el crew de la producción vigente.
+     * Devuelve [['key','label','name','phone','radio'], ...]. name/phone = '' si el slot
+     * está vacante en el crew; radio siempre '' (captura manual, no hay fuente).
      *
      * @param  int|null $productionId  por omisión, la producción vigente
      * @return array
@@ -67,11 +63,11 @@ class PaeOrgChart
         $crewIds = self::crewUserIds($pid);
 
         $picked = [
-            'line_producer' => self::firstByRole($crewIds, 'line-producer')
-                               ?: self::firstByPosition($pid, self::LINE_PRODUCER_POSITION_IDS),
-            'upm'           => self::firstByPosition($pid, self::UPM_POSITION_IDS),
-            'safety'        => self::firstByRole($crewIds, 'safety-officer'),
-            'set_medic'     => self::firstByRole($crewIds, 'medic'),
+            'coordinador_emergencia' => self::firstByPosition($pid, self::COORDINATOR_POSITION_IDS)
+                                        ?: self::firstByRole($crewIds, 'line-producer'),
+            'safety'                 => self::firstByRole($crewIds, 'safety-officer'),
+            'set_medic'              => self::firstByRole($crewIds, 'medic'),
+            // locaciones_transporte, brigada_incendios, spfx_stunts, extras_background → manual
         ];
 
         $out = [];
@@ -82,6 +78,7 @@ class PaeOrgChart
                 'label' => $slot['label'],
                 'name'  => $u ? trim((string) $u->name) : '',
                 'phone' => $u ? trim((string) ($u->phone ?? '')) : '',
+                'radio' => '',
             ];
         }
         return $out;
@@ -94,10 +91,7 @@ class PaeOrgChart
             return [];
         }
         try {
-            return DB::table('production_user')
-                ->where('production_id', $pid)
-                ->pluck('user_id')
-                ->all();
+            return DB::table('production_user')->where('production_id', $pid)->pluck('user_id')->all();
         } catch (\Throwable $e) {
             return [];
         }

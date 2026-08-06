@@ -6,38 +6,39 @@
 ============================================================================ --}}
 
 @section('content')
+@include('componentes._form-kit')
+
 @php $en = app()->getLocale() === 'en'; @endphp
 
-<div class="cc-pae container-fluid" style="max-width:980px;margin:0 auto;padding:18px 14px 60px;">
+<div class="cc-pae container-fluid" style="max-width:1000px;margin:0 auto;padding:18px 14px 60px;">
 
-    <div class="pae-head">
+    <div class="cc-page-head">
         <div>
-            <div class="pae-eyebrow">@include('componentes._icon', ['name' => 'ambulance', 'class' => 'cc-ico-18']) PAE · {{ $en ? 'Emergency Action Plans' : 'Planes de Atención a Emergencias' }}</div>
-            <h1 class="pae-title">{{ $en ? 'Emergency action plans' : 'Planes de atención a emergencias' }}</h1>
-            <div class="pae-sub cc-muted">{{ $en ? 'One per call sheet. Sealed and verifiable.' : 'Uno por llamado. Sellados y verificables.' }}</div>
+            <h1 class="cc-h1">{{ $en ? 'Emergency action plans' : 'Planes de atención a emergencias' }}</h1>
+            <p class="cc-sub">{{ $en ? 'One per call sheet. Sealed and verifiable.' : 'Uno por llamado. Sellados y verificables.' }}</p>
         </div>
         <a class="btn btn-primary cc-cta" href="{{ route('pae.create') }}">
-            @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-ico-18']) {{ $en ? 'Issue PAE' : 'Emitir PAE' }}
+            @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-ico-16']) {{ $en ? 'Issue PAE' : 'Emitir PAE' }}
         </a>
     </div>
 
     @if(session('success'))
-        <div class="pae-alert ok">@include('componentes._icon', ['name' => 'check-circle', 'class' => 'cc-ico-16']) {{ session('success') }}</div>
+        <div class="cc-alert cc-alert--ok">{{ session('success') }}</div>
     @endif
 
     @if($plans->isEmpty())
-        <div class="cc-form-card" style="text-align:center;padding:34px 18px;">
-            <div class="cc-muted" style="margin-bottom:12px;">{{ $en ? 'No emergency action plans issued yet.' : 'Aún no hay planes de atención a emergencias emitidos.' }}</div>
+        <div class="cc-form-card cc-empty">
+            <div class="cc-empty-txt">{{ $en ? 'No emergency action plans issued yet.' : 'Aún no hay planes de atención a emergencias emitidos.' }}</div>
             <a class="btn btn-primary cc-cta" href="{{ route('pae.create') }}">{{ $en ? 'Issue the first one' : 'Emitir el primero' }}</a>
         </div>
     @else
-        <div class="cc-form-card">
+        <div class="cc-form-card" style="padding:6px;">
             <div class="pae-rows">
                 @foreach($plans as $pl)
-                    <a class="pae-row-item" href="{{ route('pae.show', $pl->uuid) }}">
+                    <a class="pae-row" href="{{ route('pae.show', $pl->uuid) }}">
                         <span class="pae-folio">{{ $pl->folio() }}</span>
                         <span class="pae-label">{{ $pl->plan_label ?: ($pl->shoot_day ? ('Día ' . $pl->shoot_day) : 'PAE') }}</span>
-                        <span class="cc-muted pae-when">{{ optional($pl->issued_at)->format('d/m/Y H:i') }}</span>
+                        <span class="pae-when">{{ optional($pl->issued_at)->format('d/m/Y H:i') }}</span>
                         <span class="pae-by">{{ $pl->issued_by_name }}</span>
                     </a>
                 @endforeach
@@ -49,22 +50,24 @@
 
 @push('styles')
 <style>
-    .cc-pae .pae-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:16px;}
-    .cc-pae .pae-eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-primary,#ff9900);}
-    .cc-pae .pae-title{margin:.25rem 0 .1rem;font-size:1.5rem;font-weight:800;line-height:1.15;}
-    .cc-pae .pae-sub{font-size:.95rem;}
-    .cc-pae .pae-alert{padding:11px 13px;border-radius:11px;margin-bottom:14px;font-size:.92rem;display:flex;align-items:center;gap:8px;}
-    .cc-pae .pae-alert.ok{background:rgba(16,185,129,.10);border:1px solid rgba(16,185,129,.35);}
-    .cc-pae .pae-rows{display:flex;flex-direction:column;gap:6px;}
-    .cc-pae .pae-row-item{display:flex;gap:14px;align-items:center;padding:10px 12px;border:1px solid var(--stroke,rgba(0,0,0,.08));border-radius:10px;text-decoration:none;color:inherit;}
-    .cc-pae .pae-row-item:hover{border-color:var(--brand-primary,#ff9900);}
-    .cc-pae .pae-folio{font-weight:800;font-family:var(--mono,monospace);flex:none;}
-    .cc-pae .pae-label{font-weight:600;}
-    .cc-pae .pae-when{margin-left:auto;font-size:.85rem;}
-    .cc-pae .pae-by{font-size:.85rem;color:var(--muted,#6b7280);}
+    .cc-pae .cc-page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:18px;}
+    .cc-pae .cc-h1{margin:0;font-size:1.4rem;font-weight:800;line-height:1.2;}
+    .cc-pae .cc-sub{margin:.25rem 0 0;font-size:.92rem;color:var(--muted,#6b7280);}
+    .cc-pae .cc-alert{padding:11px 13px;border-radius:11px;margin-bottom:14px;font-size:.92rem;}
+    .cc-pae .cc-alert--ok{background:rgba(16,185,129,.10);border:1px solid rgba(16,185,129,.35);}
+    .cc-pae .cc-empty{text-align:center;padding:34px 18px;}
+    .cc-pae .cc-empty-txt{color:var(--muted,#6b7280);margin-bottom:12px;}
+    .cc-pae .pae-rows{display:flex;flex-direction:column;}
+    .cc-pae .pae-row{display:flex;gap:14px;align-items:center;padding:11px 12px;border-radius:9px;text-decoration:none;color:inherit;}
+    .cc-pae .pae-row:hover{background:var(--surface-2,rgba(0,0,0,.03));}
+    .cc-pae .pae-row + .pae-row{border-top:1px solid var(--stroke,rgba(0,0,0,.07));}
+    .cc-pae .pae-folio{font-weight:800;font-family:var(--mono,monospace);flex:none;min-width:88px;}
+    .cc-pae .pae-label{font-weight:600;flex:1;min-width:0;}
+    .cc-pae .pae-when{font-size:.85rem;color:var(--muted,#6b7280);}
+    .cc-pae .pae-by{font-size:.85rem;color:var(--muted,#6b7280);min-width:110px;text-align:right;}
     @media (max-width:620px){
-        .cc-pae .pae-row-item{flex-wrap:wrap;}
-        .cc-pae .pae-when{margin-left:0;}
+        .cc-pae .pae-row{flex-wrap:wrap;}
+        .cc-pae .pae-by{text-align:left;min-width:0;}
     }
 </style>
 @endpush

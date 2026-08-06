@@ -94,6 +94,7 @@ class PaeController extends Controller
             'contacts'         => 'nullable|array',
             'contacts.*.name'  => 'nullable|string|max:255',
             'contacts.*.phone' => 'nullable|string|max:50',
+            'contacts.*.radio' => 'nullable|string|max:50',
         ]);
 
         // Locaciones EN EL ORDEN capturado (el orden del arreglo enviado manda; company move).
@@ -119,6 +120,7 @@ class PaeController extends Controller
                 'label' => $slot['label'],
                 'name'  => trim((string) ($c['name'] ?? '')),
                 'phone' => trim((string) ($c['phone'] ?? '')),
+                'radio' => trim((string) ($c['radio'] ?? '')),
             ];
         }
 
