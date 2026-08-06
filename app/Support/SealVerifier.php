@@ -84,6 +84,12 @@ class SealVerifier
         // RiskMap::folio() (RMAP-####). Emisiones INDEPENDIENTES (sin cadena/sustituye-a) → sin
         // concepto de retiro: dos estados, vigente / alterado.
         'rmap'   => ['App\Models\RiskMap',                'Mapeo de riesgos y recursos', 'RMAP',  'CREWCARE-RMAP'],
+        // (2026-08-06) PAE — Plan de Atención a Emergencias, UNO por llamado (puede cubrir dos
+        // locaciones en company move). Segundo documento del motor de salida (hermano del MEDEVAC).
+        // Etiqueta genérica para el acuse público: dice que es un PAE, nunca de qué producción. El
+        // folio lo calcula EmergencyActionPlan::folio() (PAE-####). Emisiones INDEPENDIENTES (sin
+        // cadena/sustituye-a) → sin concepto de retiro: dos estados, vigente / alterado.
+        'pae'    => ['App\Models\EmergencyActionPlan',    'Plan de Atención a Emergencias', 'PAE', 'CREWCARE-PAE'],
     ];
 
     /**

@@ -324,7 +324,7 @@
             @endcanany
 
             {{-- ===== SEGURIDAD (H&S) ===== --}}
-            @canany(['dsr.view', 'dsr.create', 'hazards.view', 'hazards.create', 'injury.view', 'injury.create', 'tools.inspect', 'permits.issue', 'epi.view'])
+            @canany(['dsr.view', 'dsr.create', 'hazards.view', 'hazards.create', 'injury.view', 'injury.create', 'tools.inspect', 'permits.issue', 'pae.issue', 'epi.view'])
                 <div class="cc-sec" data-open="false">
                     <button type="button" class="cc-sec-head" aria-expanded="false">
                         @include('componentes._icon', ['name' => 'shield-alert', 'class' => 'cc-sec-head__ico', 'label' => null])
@@ -393,6 +393,13 @@
                             <a href="{{ route('permits.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'file-check', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.permits') }}</span>
+                            </a>
+                        @endcan
+                        {{-- PAE · Plan de Atención a Emergencias (2026-08-06): entrada PRINCIPAL. --}}
+                        @can('pae.issue')
+                            <a href="{{ route('pae.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'ambulance', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>PAE · Emergencias</span>
                             </a>
                         @endcan
                         {{-- Vigilancia epidemiológica (delta #45): panel silencioso, safety + médico. --}}
@@ -676,7 +683,7 @@
                 @endcanany
 
                 {{-- ===== SEGURIDAD (H&S) ===== --}}
-                @canany(['dsr.view', 'dsr.create', 'hazards.view', 'hazards.create', 'injury.view', 'injury.create', 'tools.inspect', 'permits.issue', 'epi.view'])
+                @canany(['dsr.view', 'dsr.create', 'hazards.view', 'hazards.create', 'injury.view', 'injury.create', 'tools.inspect', 'permits.issue', 'pae.issue', 'epi.view'])
                     <div class="cc-sec" data-open="false">
                         <button type="button" class="cc-sec-head" aria-expanded="false">
                             @include('componentes._icon', ['name' => 'shield-alert', 'class' => 'cc-sec-head__ico', 'label' => null])
@@ -745,6 +752,13 @@
                                 <a href="{{ route('permits.index') }}" class="cc-item">
                                     @include('componentes._icon', ['name' => 'file-check', 'class' => 'cc-item__ico', 'label' => null])
                                     <span>{{ __('nav.permits') }}</span>
+                                </a>
+                            @endcan
+                            {{-- PAE · Plan de Atención a Emergencias (2026-08-06): entrada PRINCIPAL. --}}
+                            @can('pae.issue')
+                                <a href="{{ route('pae.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'ambulance', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>PAE · Emergencias</span>
                                 </a>
                             @endcan
                             {{-- Vigilancia epidemiológica (delta #45): panel silencioso, safety + médico. --}}

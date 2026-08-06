@@ -235,6 +235,24 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-06 — 🚑 PAE · Plan de Atención a Emergencias (Frente A, delta owner-apply 2026-08-06)
+- **Estado:** Hecho (E2E + adversarial A4 + render verificados). Cableado en zona reservada YA aplicado (con visto bueno del owner).
+- **Archivos:** NUEVOS `app/Models/EmergencyActionPlan.php`, `app/Support/{EmergencyActionPlanBuilder,PaeOrgChart}.php`, `app/Http/Controllers/PaeController.php`, `resources/views/admin/pae/{index,create,show}.blade.php`, `database/owner-apply/2026-08-06-pae-emergency-action-plans.sql`, `database/seeders/PaePermissionsSeeder.php`. EDITADOS `app/Support/SealVerifier.php` (+`'pae'`), `routes/web.php` (grupo `pae.*` gateado), `resources/views/layouts/sidebar.blade.php` (link "PAE · Emergencias" en 2 copias + `pae.issue` en el canany de Seguridad).
+- **Qué/Por qué:** 2º documento del motor de salida (hermano del MEDEVAC): UNO por llamado, 1-2 locaciones (company move). Builder solo-lectura → payload congelado → sello (`HasDigitalSignatures`), verificador público `'pae'`, permiso propio `pae.issue` (solo safety). Cuerpo propio: cabecera + **organigrama una vez** (Line Producer=rol `line-producer`, UPM=puesto 14, Safety=rol `safety-officer`, Set Medic=rol `medic`, +911) + **bloque por locación** (hospital+mapa+riesgos del día desde `scouting.risk_assessment`). Riesgos = **híbrido** (resumen textual siempre + folio/QR del mapa sellado si existe) + **opción** de embeber vistas del mapa (data-URIs, downscaler GD aislado). Vacío se omite.
+- **Riesgo/Notas:** **delta SQL nuevo** (`emergency_action_plans`) + permiso `pae.issue` → ver [[pendientes-prod]]. Sello sobre el DATO (payload+día+fecha+unidad; `is_active` fuera). Enlace de ruta por `{pae:uuid}`. Ver [[pae-emergency-action-plan]].
+
+### 2026-08-06 — 📷 Aceptar imágenes HEIC en todos los formularios (Frente B)
+- **Estado:** Hecho (código + lint + Blade compile). ⚠ Conversión server INERTE en local (ver nota).
+- **Archivos:** `app/Support/ImageCompressor.php` (`heicSupport/isHeic/heicToJpegBytes/normalizeForUpload`), `app/Providers/AppServiceProvider.php` (regla `heic_ok`), 10 controllers + 4 FormRequests (validación `+heic,heif`/`heic_ok` + wiring `normalizeForUpload`), ~11 blades (`accept=".heic,.heif"`), NUEVO `public/js/cc-photo-auto.js` (convierte HEIC→JPEG en el navegador para todos los forms de foto).
+- **Qué/Por qué:** iPad/iPhone entregan .heic; hoy no entraban. Todos los campos de imagen (scouting, DSR, accidentes, peligros, actos, mapeo, MEDEVAC, materialidad, gafetes, perfil, mitigación) aceptan HEIC y **convierten a JPEG reusando el pipeline** existente. Cliente convierte en Safari (equipos del set); server convierte con Imagick+libheif si está.
+- **Riesgo/Notas:** 🔴 **Imagick NO está instalado en local** (`extension_loaded('imagick')=false`) → la conversión SERVER no corre aquí; se apoya en el JS del navegador. Si llega un HEIC crudo sin poder convertir, **rechaza con mensaje accionable, NUNCA guarda un archivo invisible**. Para prod hace falta ImageMagick+libheif+php-imagick → [[pendientes-prod]]. JPEG/PNG sin cambios (passthrough).
+
+### 2026-08-06 — 🎇 Catálogo SPFX: de tabla a rejilla de tarjetas (Frente C)
+- **Estado:** Hecho (25 tarjetas verificadas a 1280/768/375px).
+- **Archivos:** `resources/views/admin/sfx-effects/index.blade.php` (SOLO ese).
+- **Qué/Por qué:** el paso 4e prometió SPFX como rejilla; había quedado como tabla que solo se volvía tarjeta <767px. Ahora es rejilla de tarjetas en TODOS los anchos, reusando el lenguaje de tarjetas de **inspección** (`inspection/_tool-card`, tinte a `--brand-primary`). Conserva toda la info (tipo/familia/riesgo/insumos/estado con sus `title` de sello) + búsqueda/filtro/paginación. SDS (`consumables/index`) sigue tabla (lo acordado).
+- **Riesgo/Notas:** solo vista, sin SQL/permisos/controlador. De paso arregla el scroll horizontal que la tabla tenía a 768px.
+
 ### 2026-08-06 — 📚 Catch-up de los 5 mapas de referencia (post-compact)
 - **Estado:** Hecho.
 - **Archivos:** `ARCHITECTURE.md`, `DATABASE-SCHEMA.md`, `ROUTES.md`, `VIEWS-INVENTORY.md`, `ORG-TAXONOMY.md` (+ memoria `documentation-map.md`).

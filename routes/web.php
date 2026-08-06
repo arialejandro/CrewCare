@@ -410,6 +410,22 @@ Route::middleware(['auth','permission:medevac.issue'])->group(function () {
     Route::get('/medevac/{poster:uuid}', [App\Http\Controllers\MedevacController::class, 'show'])->name('medevac.show')->where('poster', '[0-9a-fA-F-]{36}');
 });
 
+// ---- PAE · PLAN DE ATENCIÓN A EMERGENCIAS (2026-08-06) ----
+// Documento UNO por llamado (día de rodaje), puede cubrir DOS locaciones (company move).
+// RENDERIZADO desde el/los scouting elegidos (no captura nueva): organigrama del crew + riesgos
+// evaluados + hospital por locación. Cada emisión CONGELA su payload y se sella; entra al
+// verificador PÚBLICO (SealVerifier 'pae'), cuya ruta va sin sesión más abajo. EMITE SÓLO EL
+// SAFETY: permiso PROPIO `pae.issue`, que también blinda la URL directa. Requiere la tabla
+// `emergency_action_plans` (owner-apply 2026-08-06); sin ella EmergencyActionPlan::supported()
+// hace que el controlador responda 404. Orden: /pae/emitir (fijo) antes de /pae/{uuid}; el PAE se
+// liga por uuid, no expone id secuencial.
+Route::middleware(['auth','permission:pae.issue'])->group(function () {
+    Route::get('/pae', [App\Http\Controllers\PaeController::class, 'index'])->name('pae.index');
+    Route::get('/pae/emitir', [App\Http\Controllers\PaeController::class, 'create'])->name('pae.create');
+    Route::post('/pae', [App\Http\Controllers\PaeController::class, 'store'])->name('pae.store');
+    Route::get('/pae/{pae:uuid}', [App\Http\Controllers\PaeController::class, 'show'])->name('pae.show')->where('pae', '[0-9a-fA-F-]{36}');
+});
+
 // ---- REPORTE FINAL DE WRAP (2026-07-24) ----
 // El documento de cierre de la producción: contrasta lo que el scouting predijo contra lo que
 // realmente pasó. Requiere la tabla `wrap_reports` (el owner aplica 2026-07-24-wrap-reports.sql);
