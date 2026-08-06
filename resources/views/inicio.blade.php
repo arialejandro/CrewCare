@@ -264,7 +264,7 @@
                     @include('componentes._icon', ['name' => 'camera', 'class' => 'cc-ico-18', 'label' => null])
                     {{ __('dashboard.change_photo') }}
                 </label>
-                <input type="file" id="imgperfil" name="imgperfil" class="form-control image" accept="image/*">
+                <input type="file" id="imgperfil" name="imgperfil" class="form-control image" accept="image/*,.heic,.heif">
             </form>
             <hr style="border-color: var(--border);">
             <div class="profile-card-2">

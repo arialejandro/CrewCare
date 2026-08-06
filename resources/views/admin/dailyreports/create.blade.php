@@ -203,7 +203,7 @@
                     </div>
                     <div class="col-md-4 col-12">
                         <label class="form-label small fw-bold">{{ __('reports.dsr_meeting_photo_label') }}</label>
-                        <input type="file" name="safety_meeting_photo" class="form-control" accept="image/*" capture="environment">
+                        <input type="file" name="safety_meeting_photo" class="form-control" accept="image/*,.heic,.heif" capture="environment" data-cc-photo>
                         <div class="form-text small">{{ __('reports.dsr_meeting_photo_hint') }}</div>
                     </div>
                 </div>
@@ -411,7 +411,7 @@
                 <div class="row g-3 mb-4">
                     <div class="col-md-6 col-12">
                         <label class="form-label small fw-bold">Hero Image (Portada)</label>
-                        <input type="file" name="hero_image" class="form-control" accept="image/*">
+                        <input type="file" name="hero_image" class="form-control" accept="image/*,.heic,.heif" data-cc-photo>
                         <div class="form-text">La foto principal del set que saldrá en la cabecera.</div>
                     </div>
                     <div class="col-md-6 col-12">
@@ -565,3 +565,9 @@
 })();
 </script>
 @endsection
+
+@push('scripts')
+{{-- HEIC (iPhone): conversión a JPEG en el navegador antes de subir (el servidor no decodifica HEIC). --}}
+<script src="/js/cc-photo.js"></script>
+<script src="/js/cc-photo-auto.js"></script>
+@endpush

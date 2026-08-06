@@ -57,7 +57,7 @@ class MedevacController extends Controller
             'contacts.*.phone' => 'nullable|string|max:50',
             // Mapa OPCIONAL: captura de Google Maps (la misma que se pega hoy a mano). Se sella
             // DENTRO del payload como data-URI → offline y a prueba de manipulación.
-            'map_image'        => 'nullable|image|mimes:jpeg,jpg,png,webp|max:8192',
+            'map_image'        => 'nullable|mimes:jpeg,jpg,png,webp,heic,heif|heic_ok|max:8192',
         ]);
 
         // Contactos ORDENADOS por slot, tal como el emisor los confirmó (pre-llenados del crew

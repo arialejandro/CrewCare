@@ -103,6 +103,15 @@ class ImageCompressor
     {
         $directory = trim($directory, '/');
 
+        // HEIC/HEIF (iPhone/iPad): GD NO lo decodifica. Si el servidor SÍ puede (Imagick+libheif)
+        // se transcodifica a un JPEG equivalente y todo el pipeline de abajo sigue igual. Si NO puede,
+        // NO se guarda un archivo invisible: se devuelve null (la validación 'heic_ok' ya le dijo al
+        // usuario qué hacer). Para JPEG/PNG esto es passthrough: no cambia nada de lo que hoy funciona.
+        $file = self::normalizeForUpload($file);
+        if (self::isHeic($file)) {
+            return null;
+        }
+
         $bytes = self::process($file);
 
         // REGLA DE ORO: nos quedamos con el resultado SÓLO si de verdad pesa menos.
@@ -145,6 +154,12 @@ class ImageCompressor
     {
         $directory = trim($directory, '/');
         $dir       = public_path($directory);
+
+        // Igual que store(): HEIC → JPEG si el servidor puede; si no, null (nunca un archivo invisible).
+        $file = self::normalizeForUpload($file);
+        if (self::isHeic($file)) {
+            return null;
+        }
 
         if (!is_dir($dir)) {
             @mkdir($dir, 0775, true);
@@ -197,6 +212,12 @@ class ImageCompressor
      */
     public static function compressToDataUri(UploadedFile $file, $maxBytes = 1200000)
     {
+        // HEIC → JPEG si el servidor puede; si no, null (el llamador emite sin mapa y avisa).
+        $file = self::normalizeForUpload($file);
+        if (self::isHeic($file)) {
+            return null;
+        }
+
         $bytes = self::process($file);
         $mime  = 'image/jpeg';
 
@@ -440,6 +461,202 @@ class ImageCompressor
         ];
 
         return isset($mapa[$info[2]]) ? $mapa[$info[2]] : null;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    //  HEIC / HEIF (formato nativo de iPhone/iPad)
+    //
+    //  GD NO decodifica HEIC. La ÚNICA vía server-side de convertirlo es Imagick
+    //  compilado con libheif. Por eso todo el soporte HEIC está detrás de heicSupport():
+    //  si el servidor no lo tiene, NO se guarda un archivo que luego no se podría ver —
+    //  la validación 'heic_ok' (AppServiceProvider) rechaza la subida con un mensaje que
+    //  dice qué hacer. En los navegadores del set (iPad/iPhone = Safari) la conversión ya
+    //  ocurre en el cliente (public/js/cc-photo.js), así que el servidor suele recibir JPEG.
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * ¿Este PHP puede DECODIFICAR HEIC/HEIF? Requiere la extensión Imagick compilada con
+     * libheif. Se memoiza porque instanciar Imagick+queryFormats no es gratis.
+     *
+     * @return bool
+     */
+    public static function heicSupport()
+    {
+        static $cap = null;
+        if ($cap !== null) {
+            return $cap;
+        }
+
+        $cap = false;
+        if (extension_loaded('imagick') && class_exists('Imagick')) {
+            try {
+                $im = new \Imagick();
+                $cap = count($im->queryFormats('HEIC')) > 0 || count($im->queryFormats('HEIF')) > 0;
+                $im->clear();
+            } catch (\Throwable $e) {
+                $cap = false;
+            }
+        }
+
+        return $cap;
+    }
+
+    /**
+     * ¿El archivo es HEIC/HEIF? Detección por CONTENIDO — getimagesize() NO reconoce HEIC,
+     * así que no sirve el camino normal. Se usa finfo (MIME real) con respaldo por bytes
+     * mágicos (caja 'ftyp' + marca de la familia HEIF). Acepta un UploadedFile o una ruta.
+     *
+     * @param  \Illuminate\Http\UploadedFile|string|null $file
+     * @return bool
+     */
+    public static function isHeic($file)
+    {
+        if ($file instanceof UploadedFile) {
+            $path = $file->getRealPath();
+        } elseif (is_string($file)) {
+            $path = $file;
+        } else {
+            return false;
+        }
+        if ($path === false || $path === '' || !is_readable($path)) {
+            return false;
+        }
+
+        // 1) MIME por contenido (fiable: en este PHP finfo reconoce image/heic).
+        if (function_exists('finfo_open')) {
+            $fi = @finfo_open(FILEINFO_MIME_TYPE);
+            if ($fi) {
+                $mime = strtolower((string) @finfo_file($fi, $path));
+                @finfo_close($fi);
+                if (in_array($mime, ['image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence'], true)) {
+                    return true;
+                }
+            }
+        }
+
+        // 2) Respaldo por bytes mágicos: los primeros 12 bytes de un HEIF son
+        //    [tamaño de caja (4)] . 'ftyp' . [marca mayor (4)]. Sólo marcas de la familia
+        //    HEIF cuentan → no hay falso positivo con MP4/MOV (isom, mp42…).
+        $fh = @fopen($path, 'rb');
+        if ($fh) {
+            $head = @fread($fh, 12);
+            @fclose($fh);
+            if (is_string($head) && strlen($head) >= 12 && substr($head, 4, 4) === 'ftyp') {
+                $brand = strtolower(substr($head, 8, 4));
+                $brands = ['heic', 'heix', 'heif', 'hevc', 'hevx', 'mif1', 'msf1', 'heim', 'heis', 'hevm', 'hevs'];
+                if (in_array($brand, $brands, true)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Transcodifica un HEIC/HEIF a bytes JPEG con Imagick. Aplica el MISMO tope de lado
+     * (MAX_EDGE) y calidad (QUALITY) que el resto del pipeline, hornea la orientación y
+     * descarta metadatos (privacidad: quita el GPS que incrusta el celular). Devuelve null
+     * si el servidor no puede o si la decodificación falla (nunca lanza).
+     *
+     * @param  string $source ruta física
+     * @return string|null
+     */
+    public static function heicToJpegBytes($source)
+    {
+        if (!self::heicSupport()) {
+            return null;
+        }
+        if (!is_string($source) || !is_readable($source)) {
+            return null;
+        }
+
+        $im = null;
+        try {
+            $im = new \Imagick();
+            $im->readImage($source);
+            $im->setIteratorIndex(0); // si fuera secuencia, sólo el primer fotograma
+
+            if (method_exists($im, 'autoOrient')) {
+                $im->autoOrient(); // hornear la orientación ANTES de descartar el EXIF
+            }
+
+            $w   = $im->getImageWidth();
+            $h   = $im->getImageHeight();
+            $max = max($w, $h);
+            if ($max > self::MAX_EDGE) {
+                $ratio = self::MAX_EDGE / $max;
+                $im->resizeImage((int) round($w * $ratio), (int) round($h * $ratio), \Imagick::FILTER_LANCZOS, 1);
+            }
+
+            // JPEG no tiene alfa: aplanar sobre blanco evita recuadros negros como en el camino GD.
+            $im->setImageBackgroundColor('white');
+            if (defined('\Imagick::ALPHACHANNEL_REMOVE')) {
+                @$im->setImageAlphaChannel(\Imagick::ALPHACHANNEL_REMOVE);
+            }
+            $im->setImageFormat('jpeg');
+            $im->setImageCompression(\Imagick::COMPRESSION_JPEG);
+            $im->setImageCompressionQuality(self::QUALITY);
+            if (method_exists($im, 'stripImage')) {
+                $im->stripImage(); // fuera EXIF/GPS (ya horneamos la orientación)
+            }
+
+            $bytes = $im->getImageBlob();
+            $im->clear();
+            $im->destroy();
+
+            return ($bytes !== false && $bytes !== '') ? $bytes : null;
+        } catch (\Throwable $e) {
+            if ($im instanceof \Imagick) {
+                @$im->clear();
+                @$im->destroy();
+            }
+            Log::warning('ImageCompressor: no se pudo transcodificar HEIC a JPEG: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Normaliza una imagen subida para el resto del pipeline. Si es HEIC/HEIF y el servidor
+     * SÍ puede convertir, devuelve un UploadedFile JPEG equivalente (apuntando a un temporal);
+     * en cualquier otro caso devuelve el archivo ORIGINAL sin tocarlo. Así store()/storeAs()/
+     * move()/compressToDataUri()/safeExtensionOrBin() siguen viendo siempre una imagen que
+     * saben manejar, y JPEG/PNG pasan de largo (cero cambios en lo que hoy funciona).
+     *
+     * IMPORTANTE: cuando el servidor NO puede convertir, la validación 'heic_ok' ya rechazó
+     * la subida con un mensaje accionable ANTES de llegar aquí. El passthrough del HEIC es
+     * defensa en profundidad, no un guardado silencioso: los llamadores comprueban isHeic()
+     * tras normalizar y NO escriben un archivo invisible.
+     *
+     * @param  \Illuminate\Http\UploadedFile $file
+     * @return \Illuminate\Http\UploadedFile
+     */
+    public static function normalizeForUpload(UploadedFile $file)
+    {
+        if (!self::isHeic($file) || !self::heicSupport()) {
+            return $file;
+        }
+
+        $bytes = self::heicToJpegBytes($file->getRealPath());
+        if ($bytes === null) {
+            return $file; // no se pudo; el llamador tratará el HEIC como no-guardable
+        }
+
+        try {
+            $tmp = tempnam(sys_get_temp_dir(), 'cchei');
+            if ($tmp === false || @file_put_contents($tmp, $bytes) === false) {
+                return $file;
+            }
+            $base = pathinfo((string) $file->getClientOriginalName(), PATHINFO_FILENAME);
+            $name = ($base !== '' ? $base : 'imagen') . '.jpg';
+
+            // test=true: el temporal no vino de una subida HTTP real, pero así isValid()/move()/
+            // store() lo tratan como archivo válido y el resto del código no cambia.
+            return new UploadedFile($tmp, $name, 'image/jpeg', null, true);
+        } catch (\Throwable $e) {
+            Log::warning('ImageCompressor: normalizeForUpload no pudo crear el JPEG temporal: ' . $e->getMessage());
+            return $file;
+        }
     }
 
     /**

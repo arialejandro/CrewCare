@@ -206,7 +206,7 @@
 
                 <div id="rm-src-upload" style="display:none">
                     <label>Imagen</label>
-                    <input type="file" name="image" id="rm-file" accept="image/*" data-cc-photo>
+                    <input type="file" name="image" id="rm-file" accept="image/*,.heic,.heif" data-cc-photo>
                 </div>
 
                 <label>Tipo de vista</label>

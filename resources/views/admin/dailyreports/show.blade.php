@@ -434,7 +434,7 @@
               </div>
               <div>
                 <span class="lbl">Foto evidencia</span>
-                <input type="file" name="photo" class="field" accept="image/*" capture="environment">
+                <input type="file" name="photo" class="field" accept="image/*,.heic,.heif" capture="environment" data-cc-photo>
               </div>
               <button class="btn brand" type="submit" style="align-self:flex-start">@include('componentes._icon', ['name' => 'check-circle']) Guardar hallazgo</button>
             </form>
@@ -453,7 +453,7 @@
               </div>
               <div>
                 <span class="lbl">Hero image (foto de portada)</span>
-                <input type="file" name="hero_image" class="field" accept="image/*">
+                <input type="file" name="hero_image" class="field" accept="image/*,.heic,.heif" data-cc-photo>
               </div>
               {{-- La foto del safety meeting también se puede subir aquí: el DSR se crea al
                    arrancar la jornada y la junta ocurre al call time, así que muchas veces
@@ -461,7 +461,7 @@
               @if($ccHasMeetPhoto && !$meetDenied)
               <div>
                 <span class="lbl">{{ __('reports.dsr_meeting_photo_label') }}</span>
-                <input type="file" name="safety_meeting_photo" class="field" accept="image/*" capture="environment">
+                <input type="file" name="safety_meeting_photo" class="field" accept="image/*,.heic,.heif" capture="environment" data-cc-photo>
                 <div style="font-size:.68rem;color:var(--faint);margin-top:4px">{{ __('reports.dsr_meeting_photo_hint') }}</div>
               </div>
               @endif
@@ -680,6 +680,12 @@
       'footPreparedMeta' => __('reports.label_risk_assessment') . ($heroDate ? ' · ' . $heroDate : ''),
       'footUuid'         => $footUuid,
     ])
+
+@push('scripts')
+{{-- HEIC (iPhone): conversión a JPEG en el navegador antes de subir (el servidor no decodifica HEIC). --}}
+<script src="/js/cc-photo.js"></script>
+<script src="/js/cc-photo-auto.js"></script>
+@endpush
 
 {{-- Render del stack de scripts. Este documento es STANDALONE (su propio <!DOCTYPE>, sin
      @extends layouts.app) y por eso NO heredaba ningún @stack('scripts'). Sin él, todo lo

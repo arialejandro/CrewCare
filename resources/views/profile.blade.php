@@ -72,7 +72,7 @@
                         <div class="cc-field">
                             <label for="imgperfil" class="cc-label">{{ __('Cambia tu foto de perfil') }}</label>
                             {{-- class `image` es LOAD-BEARING: profile.js abre el recortador al cambiar este input. --}}
-                            <input id="imgperfil" type="file" name="imgperfil" accept="image/*" class="form-control image cc-control">
+                            <input id="imgperfil" type="file" name="imgperfil" accept="image/*,.heic,.heif" class="form-control image cc-control">
                             <span class="cc-help">{{ __('Formatos de imagen. Se recorta a 1:1 (800×800).') }}</span>
                         </div>
                     </form>

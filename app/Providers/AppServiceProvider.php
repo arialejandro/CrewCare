@@ -30,6 +30,22 @@ class AppServiceProvider extends ServiceProvider
             return \App\Support\Features::enabled($key);
         });
 
+        // HEIC/HEIF (fotos de iPhone/iPad). Regla 'heic_ok': deja pasar cualquier imagen que NO
+        // sea HEIC, y sólo acepta un HEIC cuando ESTE servidor puede convertirlo (Imagick+libheif).
+        // Si no puede, el mensaje dice QUÉ HACER (cambiar a JPG) en vez de un error genérico —
+        // nunca se guarda una foto que después no se podría ver. En los iPad/iPhone del set la
+        // conversión ya ocurre en el navegador (public/js/cc-photo.js), así que el servidor
+        // normalmente recibe un JPEG y esta regla ni se dispara.
+        \Illuminate\Support\Facades\Validator::extend('heic_ok', function ($attribute, $value, $parameters, $validator) {
+            if (!$value instanceof \Illuminate\Http\UploadedFile) {
+                return true;
+            }
+            if (!\App\Support\ImageCompressor::isHeic($value)) {
+                return true;
+            }
+            return \App\Support\ImageCompressor::heicSupport();
+        }, 'Esta foto está en formato HEIC (iPhone/iPad). Cámbiala a JPG y vuelve a subirla: en tu iPhone entra a Ajustes › Cámara › Formatos y elige «Más compatible», o comparte la foto como JPG.');
+
         // PAGINACIÓN (2026-07-07): vista de marca PROPIA en TODA la app (markup .cc-pager, estilos
         // en layouts/_brand-theme). El default de Laravel era `tailwind` (enlaces pelones sin
         // Tailwind). Un markup propio evita chocar con estilos .page-link por-vista

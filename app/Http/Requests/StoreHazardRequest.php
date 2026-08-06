@@ -47,9 +47,9 @@ class StoreHazardRequest extends FormRequest
             'description_hazard_unsafe_act' => 'required|string',
             'action_taken'                  => 'nullable|string',
             'suggestions_corrective_action' => 'nullable|string',
-            'main_image'                    => 'nullable|image|mimes:jpeg,png,jpg,gif|max:12288',
+            'main_image'                    => 'nullable|mimes:jpeg,png,jpg,gif,heic,heif|heic_ok|max:12288',
             'additional_images'             => 'nullable|array',
-            'additional_images.*'           => 'nullable|image|mimes:jpeg,png,jpg,gif|max:12288',
+            'additional_images.*'           => 'nullable|mimes:jpeg,png,jpg,gif,heic,heif|heic_ok|max:12288',
             // (2026-07-13) Catálogo ÚNICO de eventos: sustituye a category_name y standards[].
             // 'nullable|integer' (NO exists:) a propósito, para no romper PROD antes del SQL;
             // el trait applyHazardEvent() valida contra hazard_events de forma defensiva.

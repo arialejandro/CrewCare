@@ -139,7 +139,7 @@ class HazardNotificationController extends Controller
 
         // Procesar la imagen principal
         if ($request->hasFile('main_image')) {
-            $image = $request->file('main_image');
+            $image = \App\Support\ImageCompressor::normalizeForUpload($request->file('main_image'));
             // (2026-06-28) nombre único: antes time().'_main.' colisionaba si dos uploads
             // caían en el mismo segundo. Se añade uniqid().
             $filename = time() . '_' . uniqid() . '_main.' . $image->getClientOriginalExtension();
@@ -151,6 +151,7 @@ class HazardNotificationController extends Controller
         if ($request->hasFile('additional_images')) {
             $additionalImagePaths = [];
             foreach ($request->file('additional_images') as $image) {
+                $image = \App\Support\ImageCompressor::normalizeForUpload($image);
                 $filename = time() . '_additional_' . uniqid() . '.' . $image->getClientOriginalExtension();
                 $path = $image->storeAs('hazard_images', $filename, 'public');
                 $additionalImagePaths[] = Storage::url($path);
@@ -297,9 +298,9 @@ class HazardNotificationController extends Controller
             'description_hazard_unsafe_act' => 'required|string',
             'action_taken'                  => 'nullable|string',
             'suggestions_corrective_action' => 'nullable|string',
-            'main_image'                    => 'nullable|image|mimes:jpeg,png,jpg,gif|max:12288',
+            'main_image'                    => 'nullable|mimes:jpeg,png,jpg,gif,heic,heif|heic_ok|max:12288',
             'additional_images'             => 'nullable|array',
-            'additional_images.*'           => 'nullable|image|mimes:jpeg,png,jpg,gif|max:12288',
+            'additional_images.*'           => 'nullable|mimes:jpeg,png,jpg,gif,heic,heif|heic_ok|max:12288',
             'hazard_event_id'               => 'nullable|integer',
             'risk_level'                    => 'nullable|in:Bajo,Medio,Alto,Extremo',
             'action_status'                 => 'nullable|in:Abierto,En proceso,Cerrado',
@@ -346,7 +347,7 @@ class HazardNotificationController extends Controller
 
         // Imagen principal: reemplazo OPCIONAL (si no se sube, se conserva la existente).
         if ($request->hasFile('main_image')) {
-            $image = $request->file('main_image');
+            $image = \App\Support\ImageCompressor::normalizeForUpload($request->file('main_image'));
             $filename = time() . '_' . uniqid() . '_main.' . $image->getClientOriginalExtension();
             $path = $image->storeAs('hazard_images', $filename, 'public');
             $data['main_image_path'] = Storage::url($path);
@@ -356,6 +357,7 @@ class HazardNotificationController extends Controller
         if ($request->hasFile('additional_images')) {
             $additionalImagePaths = is_array($report->additional_images_paths) ? $report->additional_images_paths : [];
             foreach ($request->file('additional_images') as $image) {
+                $image = \App\Support\ImageCompressor::normalizeForUpload($image);
                 $filename = time() . '_additional_' . uniqid() . '.' . $image->getClientOriginalExtension();
                 $path = $image->storeAs('hazard_images', $filename, 'public');
                 $additionalImagePaths[] = Storage::url($path);

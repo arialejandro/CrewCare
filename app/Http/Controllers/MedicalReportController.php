@@ -109,7 +109,7 @@ class MedicalReportController extends Controller
 
         $request->validate([
             'photos'   => 'required|array|min:1',
-            'photos.*' => 'image|max:12288', // 12 MB por foto (mismo límite que Accidentes)
+            'photos.*' => 'mimes:jpg,jpeg,png,gif,bmp,svg,webp,heic,heif|heic_ok|max:12288', // 12 MB por foto (mismo límite que Accidentes)
             'note'     => 'nullable|string|max:500',
         ], [], [
             'photos'   => 'fotos',
@@ -121,6 +121,8 @@ class MedicalReportController extends Controller
         $count = 0;
 
         foreach ($request->file('photos') as $image) {
+            // HEIC (iPhone) → JPEG si el servidor puede convertir; si no, la validación ya lo rechazó.
+            $image = \App\Support\ImageCompressor::normalizeForUpload($image);
             // Nombre único (time()+uniqid()) — mismo patrón que Accidentes/Actos inseguros.
             $filename = time() . '_' . uniqid() . '_mat.' . \App\Support\ImageCompressor::safeExtensionOrBin($image);
             $path = $image->storeAs('materiality_images', $filename, 'public');

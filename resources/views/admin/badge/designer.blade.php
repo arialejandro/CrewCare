@@ -106,7 +106,7 @@
                     <div class="card-body">
                         <div class="drop">
                             <label class="form-label mb-1 d-inline-flex align-items-center gap-1">@include('componentes._icon', ['name' => 'upload', 'class' => 'cc-ico', 'label' => null]) <span>Subir imagen de fondo</span></label>
-                            <input type="file" name="card_bg_file" id="cardBgFile" accept="image/png,image/jpeg,image/webp" class="form-control form-control-sm">
+                            <input type="file" name="card_bg_file" id="cardBgFile" accept="image/png,image/jpeg,image/webp,.heic,.heif" class="form-control form-control-sm" data-cc-photo>
                         </div>
                         <div class="form-text mt-2">
                             @include('componentes._icon', ['name' => 'info', 'class' => 'cc-ico', 'label' => null]) Tamaño recomendado: <strong>1276 × 2032 px</strong> (vertical, 108 × 172 mm a 300 DPI).
@@ -255,6 +255,9 @@
 </div>
 
 @push('scripts')
+{{-- HEIC (iPhone): conversión a JPEG en el navegador antes de subir (el servidor no decodifica HEIC). --}}
+<script src="/js/cc-photo.js"></script>
+<script src="/js/cc-photo-auto.js"></script>
 <script type="text/javascript">
     document.addEventListener('DOMContentLoaded', function () {
         var card = document.querySelector('#previewScale .gft-card');

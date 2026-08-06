@@ -266,8 +266,8 @@ class InjuryReportController extends Controller
             'further_comments' => 'nullable|string|max:1000',
             'user_id' => 'nullable|exists:users,id',
             // (2026-07-09) Límite de imagen subido a 12 MB (5 MB rechazaba fotos de celular en silencio).
-            'main_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:12288',
-            'additional_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:12288',
+            'main_image' => 'nullable|mimes:jpeg,png,jpg,gif,heic,heif|heic_ok|max:12288',
+            'additional_images.*' => 'nullable|mimes:jpeg,png,jpg,gif,heic,heif|heic_ok|max:12288',
             // (2026-06-28) Catálogo normativo legacy: nullable por compat con envíos viejos.
             'category_name' => 'nullable|string',
             // (2026-07-13) Catálogo ÚNICO de eventos. 'nullable|integer' (NO exists) para no
@@ -458,7 +458,8 @@ class InjuryReportController extends Controller
 
         // Imagen principal: solo se reemplaza si se sube una nueva (en edición conserva la actual).
         if ($request->hasFile('main_image')) {
-            $image = $request->file('main_image');
+            // HEIC (iPhone) → JPEG si el servidor puede; si no, la validación 'heic_ok' ya lo rechazó.
+            $image = \App\Support\ImageCompressor::normalizeForUpload($request->file('main_image'));
             // Nombre único (time()+uniqid()) para evitar colisiones en el mismo segundo.
             $filename = time() . '_' . uniqid() . '_main.' . \App\Support\ImageCompressor::safeExtensionOrBin($image);
             $path = $image->storeAs('injury_images', $filename, 'public');
@@ -471,6 +472,7 @@ class InjuryReportController extends Controller
                 ? $existing->additional_images_paths
                 : [];
             foreach ($request->file('additional_images') as $image) {
+                $image = \App\Support\ImageCompressor::normalizeForUpload($image);
                 $filename = time() . '_additional_' . uniqid() . '.' . \App\Support\ImageCompressor::safeExtensionOrBin($image);
                 $path = $image->storeAs('injury_images', $filename, 'public');
                 $additionalImagePaths[] = Storage::url($path);

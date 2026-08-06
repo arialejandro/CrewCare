@@ -308,7 +308,7 @@ class DailyReportController extends Controller
             'hazard_event_id' => 'required|integer',
             // 12 MB: las fotos de celular (capture="environment") superan fácil los 5 MB; el límite
             // viejo (5120) rechazaba la subida en silencio. PHP admite hasta 2G, así que 12 MB va sobrado.
-            'photo' => 'nullable|image|max:12288'
+            'photo' => 'nullable|mimes:jpg,jpeg,png,gif,bmp,svg,webp,heic,heif|heic_ok|max:12288'
         ]);
 
         // Manejo de imagen. (2026-07-21) Pasa por ImageCompressor: es la foto que más pesa
@@ -383,11 +383,11 @@ class DailyReportController extends Controller
 
         $data = $request->validate([
             'executive_summary' => 'nullable|string',
-            'hero_image' => 'nullable|image|max:12288', // 12 MB (foto de celular); ver nota en storeLog()
+            'hero_image' => 'nullable|mimes:jpg,jpeg,png,gif,bmp,svg,webp,heic,heif|heic_ok|max:12288', // 12 MB (foto de celular); ver nota en storeLog()
             // (2026-07-21) La foto del safety meeting también se puede subir en el cierre de
             // día: el DSR se crea al arrancar la jornada y la junta ocurre al call time, así
             // que muchas veces la foto llega después. Mismo mecanismo que el hero.
-            'safety_meeting_photo' => 'nullable|image|max:12288',
+            'safety_meeting_photo' => 'nullable|mimes:jpg,jpeg,png,gif,bmp,svg,webp,heic,heif|heic_ok|max:12288',
         ]);
 
         // 1. Procesamos y subimos las imágenes (comprimidas; ver ImageCompressor).

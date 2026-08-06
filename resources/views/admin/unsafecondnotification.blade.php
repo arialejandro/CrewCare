@@ -361,7 +361,7 @@
                                 <div class="form-text">Imagen actual. Sube otra para reemplazarla o déjalo vacío para conservarla.</div>
                             </div>
                         @endif
-                        <input type="file" class="form-control" id="main_image" name="main_image" accept="image/*">
+                        <input type="file" class="form-control" id="main_image" name="main_image" accept="image/*,.heic,.heif" data-cc-photo>
                         <div class="form-text">Esta será la imagen principal del reporte.</div>
                     </div>
                     <div class="col-12">
@@ -427,7 +427,7 @@
         const div = document.createElement('div');
         div.classList.add('input-group', 'mb-2');
         div.innerHTML = `
-            <input type="file" class="form-control" id="additional_image_${imageCounter}" name="additional_images[]" accept="image/*" aria-label="Imagen adicional ${imageCounter}">
+            <input type="file" class="form-control" id="additional_image_${imageCounter}" name="additional_images[]" accept="image/*,.heic,.heif" aria-label="Imagen adicional ${imageCounter}" data-cc-photo>
             <button type="button" class="btn btn-outline-danger" onclick="removeImageField(this)" title="Eliminar">✕</button>
         `;
         container.appendChild(div);
@@ -567,3 +567,9 @@
     })();
 </script>
 @endsection
+
+@push('scripts')
+{{-- HEIC (iPhone): conversión a JPEG en el navegador antes de subir (el servidor no decodifica HEIC). --}}
+<script src="/js/cc-photo.js"></script>
+<script src="/js/cc-photo-auto.js"></script>
+@endpush

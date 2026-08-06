@@ -134,7 +134,7 @@ class unsafecondNotificationController extends Controller
 
         // Procesar la imagen principal
         if ($request->hasFile('main_image')) {
-            $image = $request->file('main_image');
+            $image = \App\Support\ImageCompressor::normalizeForUpload($request->file('main_image'));
             // breadcrumb (nombre de archivo): antes time().'_main' (predecible/colisionable). Ahora único con uniqid().
             $filename = time() . '_' . uniqid() . '_main.' . $image->getClientOriginalExtension();
             $path = $image->storeAs('unsafe_images', $filename, 'public');
@@ -145,6 +145,7 @@ class unsafecondNotificationController extends Controller
         if ($request->hasFile('additional_images')) {
             $additionalImagePaths = [];
             foreach ($request->file('additional_images') as $image) {
+                $image = \App\Support\ImageCompressor::normalizeForUpload($image);
                 $filename = time() . '_additional_' . uniqid() . '.' . $image->getClientOriginalExtension();
                 $path = $image->storeAs('unsafe_images', $filename, 'public');
                 $additionalImagePaths[] = Storage::url($path);
@@ -309,7 +310,7 @@ class unsafecondNotificationController extends Controller
 
         // Reemplazo de la imagen principal (sólo si suben una nueva; si no, se conserva).
         if ($request->hasFile('main_image')) {
-            $image = $request->file('main_image');
+            $image = \App\Support\ImageCompressor::normalizeForUpload($request->file('main_image'));
             $filename = time() . '_' . uniqid() . '_main.' . $image->getClientOriginalExtension();
             $path = $image->storeAs('unsafe_images', $filename, 'public');
             $data['main_image_path'] = Storage::url($path);
@@ -319,6 +320,7 @@ class unsafecondNotificationController extends Controller
         if ($request->hasFile('additional_images')) {
             $additionalImagePaths = [];
             foreach ($request->file('additional_images') as $image) {
+                $image = \App\Support\ImageCompressor::normalizeForUpload($image);
                 $filename = time() . '_additional_' . uniqid() . '.' . $image->getClientOriginalExtension();
                 $path = $image->storeAs('unsafe_images', $filename, 'public');
                 $additionalImagePaths[] = Storage::url($path);

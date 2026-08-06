@@ -70,9 +70,9 @@ class StoreUnsafeConditionRequest extends FormRequest
             'description_unsafe_cond'  => 'required|string',
             'action_taken'             => 'nullable|string',
             'corrective_action'        => 'nullable|string',
-            'main_image'               => 'nullable|image|mimes:jpeg,png,jpg,gif|max:12288',
+            'main_image'               => 'nullable|mimes:jpeg,png,jpg,gif,heic,heif|heic_ok|max:12288',
             'additional_images'        => 'nullable|array',
-            'additional_images.*'      => 'nullable|image|mimes:jpeg,png,jpg,gif|max:12288',
+            'additional_images.*'      => 'nullable|mimes:jpeg,png,jpg,gif,heic,heif|heic_ok|max:12288',
             'hazard_event_id'          => 'nullable|integer',
             'category_name'            => 'nullable|string',
             'risk_level'               => 'nullable|in:Bajo,Medio,Alto,Extremo',
@@ -116,9 +116,9 @@ class StoreUnsafeConditionRequest extends FormRequest
             'description_unsafe_cond'  => 'required|string',
             'action_taken'             => 'nullable|string',
             'corrective_action'        => 'nullable|string',
-            'main_image'               => 'nullable|image|mimes:jpeg,png,jpg,gif|max:12288',
+            'main_image'               => 'nullable|mimes:jpeg,png,jpg,gif,heic,heif|heic_ok|max:12288',
             'additional_images'        => 'nullable|array',
-            'additional_images.*'      => 'nullable|image|mimes:jpeg,png,jpg,gif|max:12288',
+            'additional_images.*'      => 'nullable|mimes:jpeg,png,jpg,gif,heic,heif|heic_ok|max:12288',
             // (2026-07-13) Catálogo único de eventos posibles. 'nullable' (NO 'exists')
             // a propósito: no romper PROD antes de aplicar el SQL de hazard_events.
             'hazard_event_id'          => 'nullable|integer',

@@ -923,6 +923,8 @@ class ScoutingReportController extends Controller
      */
     private function storeUploadedImage($image, $tag)
     {
+        // HEIC (iPhone) → JPEG si el servidor puede convertir; si no, la validación ya lo rechazó.
+        $image    = \App\Support\ImageCompressor::normalizeForUpload($image);
         $filename = time() . '_' . $tag . '_' . uniqid() . '.' . \App\Support\ImageCompressor::safeExtensionOrBin($image);
         $path     = $image->storeAs('scouting_images', $filename, 'public');
         return Storage::url($path);

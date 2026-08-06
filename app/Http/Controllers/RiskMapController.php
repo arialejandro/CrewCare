@@ -28,7 +28,7 @@ use Illuminate\Support\Facades\Storage;
 class RiskMapController extends Controller
 {
     /** Imagen aceptada (el navegador ya comprime/convierte HEIC vía CCPhoto). */
-    const IMG_RULES = 'image|mimes:jpeg,jpg,png,webp|max:12288'; // 12 MB
+    const IMG_RULES = 'mimes:jpeg,jpg,png,webp,heic,heif|heic_ok|max:12288'; // 12 MB (heic/heif de iPhone; ver ImageCompressor)
 
     /* ================================================================== */
     /* Índice + alta                                                       */
@@ -483,6 +483,8 @@ class RiskMapController extends Controller
     /** Guarda una imagen subida en disco 'public' y devuelve su URL RELATIVA. */
     private function storeUpload($image): string
     {
+        // HEIC (iPhone) → JPEG si el servidor puede convertir; si no, la validación ya lo rechazó.
+        $image    = ImageCompressor::normalizeForUpload($image);
         $filename = time() . '_rmap_' . uniqid() . '.' . ImageCompressor::safeExtensionOrBin($image);
         $path = $image->storeAs('riskmaps', $filename, 'public');
         return Storage::url($path);

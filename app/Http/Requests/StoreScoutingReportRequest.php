@@ -131,8 +131,8 @@ class StoreScoutingReportRequest extends FormRequest
             'required_ppe.*'                                   => 'nullable|string|max:100',
 
             // Imágenes — 12 MB por archivo.
-            'main_image'          => 'nullable|image|mimes:jpeg,png,jpg,gif|max:12288',
-            'additional_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:12288',
+            'main_image'          => 'nullable|mimes:jpeg,png,jpg,gif,heic,heif|heic_ok|max:12288',
+            'additional_images.*' => 'nullable|mimes:jpeg,png,jpg,gif,heic,heif|heic_ok|max:12288',
 
             // Pies de foto + gestión de existentes al editar.
             'additional_images_captions'   => 'nullable|array',

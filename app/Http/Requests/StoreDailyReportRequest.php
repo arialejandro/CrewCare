@@ -115,7 +115,7 @@ class StoreDailyReportRequest extends FormRequest
             // en vez de mentir marcándolo como realizado.
             'safety_meeting_held'  => 'nullable|boolean',
             // Foto en gran angular del crew reunido (evidencia de la junta).
-            'safety_meeting_photo' => 'nullable|image|max:12288',
+            'safety_meeting_photo' => 'nullable|mimes:jpg,jpeg,png,gif,bmp,svg,webp,heic,heif|heic_ok|max:12288',
             // (2026-07-13) safety_meeting_topics pasó de texto libre a checkboxes (reusa el catálogo
             // de factores de riesgo + temas comunes). Llega como array; el controlador lo colapsa a
             // CSV para la columna string existente (sin cambio de esquema).
@@ -142,7 +142,7 @@ class StoreDailyReportRequest extends FormRequest
             'crew_count'           => 'required|integer',
             'executive_summary'    => 'nullable|string',
             // author_name NO se valida: es AUTOFIRMA (server-side con el usuario logueado).
-            'hero_image'           => 'nullable|image|max:12288', // 12 MB (foto de celular)
+            'hero_image'           => 'nullable|mimes:jpg,jpeg,png,gif,bmp,svg,webp,heic,heif|heic_ok|max:12288', // 12 MB (foto de celular)
 
             // --- Cimientos módulos 6-14 ---
             'humidity'             => 'nullable|integer|min:0|max:100',
