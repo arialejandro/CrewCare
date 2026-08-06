@@ -23,7 +23,7 @@ class RiskSigns
      * subió; las demás claves (haz-water, haz-people, botiquin, …) siguen con glifo.
      */
     const ALIAS = [
-        // recursos (la señal trae su propio color)
+        // recursos (la señal trae su propio color). 'botiquin' resuelve por slug directo.
         'extintor'          => 'extintor',
         'salida_emergencia' => 'salida_emergencia',
         'punto_reunion'     => 'punto_de_reunion',
@@ -31,15 +31,19 @@ class RiskSigns
         'haz-warn'      => 'exclamacion',
         'hazard'        => 'exclamacion',
         'haz-bolt'      => 'riesgo_electrico',
+        'haz-flame'     => 'riesgo_incendio',
         'haz-fall'      => 'caida_distinto_nivel',
         'haz-fallobj'   => 'caida_de_objetos',
         'haz-suspended' => 'izaje',
         'haz-collapse'  => 'aplastamiento',
         'haz-slip'      => 'superficie_resbalosa',
-        'haz-temp'      => 'superficie_caliente',
         'haz-toxic'     => 'peligro_grave_para_la_salud',
         'haz-explosive' => 'explosion',
-        'haz-exit'      => 'salida_emergencia',
+        'haz-exit'      => 'ruta_evacuacion', // acceso/evacuación es una RUTA, no la salida de emergencia
+        // haz-temp NO se mapea: "clima extremo" != "superficie caliente" (ésta es de
+        // maquinaria/equipo). El clima lo resuelve RiskMap::hazardSymbol por palabra
+        // clave → clima_* (default clima_aviso_general); superficie_caliente queda como
+        // slug de biblioteca para override (risk_icon) en eventos de maquinaria/equipo.
     ];
 
     /** Biblioteca cargada (slug => data:URI), memorizada por proceso. */

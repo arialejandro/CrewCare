@@ -169,7 +169,17 @@ class RiskMap extends Model
 
         $name = $nameEs !== null ? self::normalizeName((string) $nameEs) : '';
 
+        // CLIMA: el catálogo tiene UNA categoría 'weather' pero muchas señales de clima.
+        // Se elige la específica por palabra clave del nombre (default: aviso general).
+        if ($cat === 'weather') {
+            return ['icon' => self::weatherSign($name), 'short' => self::hazardCategoryLabel($cat)];
+        }
+
         if ($name !== '') {
+            // Insectos (abejas/avispas/garrapatas): condición del lugar, señal propia.
+            if (self::nameHasAny($name, ['abeja', 'avispa', 'garrapata', 'enjambre', 'insecto', 'mosquito', 'picadura'])) {
+                return ['icon' => 'insectos', 'short' => self::hazardCategoryLabel($cat)];
+            }
             // 'arma de fuego' (NO 'armado' de un andamio) → llaves específicas.
             if (self::nameHasAny($name, ['arma de fuego', 'disparo', 'municion', 'balac', 'proyectil', 'pistola', 'rifle', 'escopeta'])) {
                 return ['icon' => 'haz-firearm', 'short' => 'Armas de fuego'];
@@ -216,6 +226,36 @@ class RiskMap extends Model
             }
         }
         return false;
+    }
+
+    /**
+     * Señal de CLIMA por palabra clave del nombre (ya normalizado: minúsculas sin
+     * acentos). Orden IMPORTA: lo más específico primero (torrencial antes que lluvia,
+     * polvoriento antes que viento, frío antes que altitud). Default: aviso general.
+     * Devuelve un slug de la biblioteca de señales (RiskSigns) — no una clave dibujada.
+     */
+    private static function weatherSign(string $name): string
+    {
+        $has = function (array $ns) use ($name) { return self::nameHasAny($name, $ns); };
+
+        if ($has(['rayo', 'tormenta electrica', 'lightning', 'descarga atmosf'])) return 'clima_tormenta_electrica';
+        if ($has(['huracan', 'ciclon', 'tifon']))                                 return 'clima_huracan';
+        if ($has(['inundacion', 'inunda', 'desbordamiento', 'crecida']))          return 'clima_inundacion';
+        if ($has(['granizo']))                                                    return 'clima_granizo';
+        if ($has(['nevada', 'nieve', 'ventisca', 'nevado']))                      return 'clima_nevada';
+        if ($has(['neblina', 'niebla', 'baja visibilidad', 'visibilidad reducida', 'bruma'])) return 'clima_neblina_o_baja_visibildad';
+        if ($has(['lluvia torrencial', 'lluvias torrenciales', 'aguacero', 'diluvio'])) return 'clima_lluvias_torrenciales';
+        if ($has(['lluvia intensa', 'lluvia fuerte']))                            return 'clima_lluvia_intensa';
+        if ($has(['lluvia', 'precipitacion']))                                    return 'clima_lluvia';
+        if ($has(['viento polvoriento', 'polvo', 'polvareda', 'tolvanera']))      return 'clima_viento_polvoriento';
+        if ($has(['viento', 'ventarron', 'racha', 'vendaval']))                   return 'clima_vientos_fuertes';
+        if ($has(['radiacion uv', 'rayos uv', 'ultravioleta', 'radiacion solar', 'indice uv'])) return 'clima_radiacion_uv_extrema';
+        if ($has(['marea', 'oleaje', 'marejada']))                                return 'clima_marea_viva';
+        if ($has(['calor', 'deshidratacion', 'insolacion', 'sofocante', 'caluroso', 'termico'])) return 'clima_calor';
+        if ($has(['frio', 'hipotermia', 'congelacion', 'helada', 'gelida']))      return 'clima_frio';
+        if ($has(['altitud', 'alta montana', 'gran altura', 'mal de montana']))   return 'clima_altitud';
+
+        return 'clima_aviso_general';
     }
 
     /* ------------------------------------------------------------------ */

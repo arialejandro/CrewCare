@@ -107,9 +107,11 @@
         display:flex; align-items:center; justify-content:center; color:#fff;
         box-shadow:0 2px 4px rgba(0,0,0,.4), inset 0 1.5px 1px rgba(255,255,255,.4); border:1.5px solid rgba(255,255,255,.95); }
     .rmr-pin__drop svg{ width:calc(var(--pin,32px)*.62); height:calc(var(--pin,32px)*.62); transform:rotate(45deg); }
-    /* Señal a color (ISO/hazmat/EPP): sin gota, upright, con sombra para leerse sobre la foto. */
-    .rmr-pin__sign{ width:calc(var(--pin,32px)*1.32); height:calc(var(--pin,32px)*1.32); display:flex; align-items:center; justify-content:center; }
-    .rmr-pin__sign img{ width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
+    /* Señal a color (ISO/hazmat/EPP/clima): sin gota, upright, sobre PLATE blanco para
+       que resalte sobre la foto (el contorno/línea-arte se pierde sin fondo). */
+    .rmr-pin__sign{ width:calc(var(--pin,32px)*1.35); height:calc(var(--pin,32px)*1.35); display:flex; align-items:center; justify-content:center;
+        background:#fff; border-radius:7px; padding:3px; box-sizing:border-box; border:1.5px solid rgba(255,255,255,.95); box-shadow:0 2px 5px rgba(0,0,0,.5); }
+    .rmr-pin__sign img{ width:100%; height:100%; object-fit:contain; }
     .rm-sign{ width:100%; height:100%; object-fit:contain; display:block; }
     /* Etiqueta del marcador: CORTA, en color, MOVIBLE (posición propia). NOTA: clase distinta de
        .rmr-chip (la píldora de cabecera de la vista) para no colisionar. */
@@ -252,8 +254,10 @@
                     @php
                         $lx = $m->label_x_pct !== null ? (float) $m->label_x_pct : max(5, min(95, (float) $m->x_pct + ((float) $m->x_pct > 55 ? -13 : 13)));
                         $ly = $m->label_y_pct !== null ? (float) $m->label_y_pct : max(5, min(95, (float) $m->y_pct - 12));
+                        $lIcon = ($m->kind === 'hazard' && ($lev = $eligibleEvents->get((int) $m->event_id))) ? ($lev['icon'] ?? 'haz-warn') : $m->iconKey();
+                        $lStroke = \App\Support\RiskSigns::has($lIcon) ? '#334155' : $m->color(); // coherencia: la señal trae su color, la guía va neutra
                     @endphp
-                    <line x1="{{ $m->x_pct }}" y1="{{ $m->y_pct }}" x2="{{ $lx }}" y2="{{ $ly }}" stroke="{{ $m->color() }}" stroke-width="1.4" vector-effect="non-scaling-stroke"></line>
+                    <line x1="{{ $m->x_pct }}" y1="{{ $m->y_pct }}" x2="{{ $lx }}" y2="{{ $ly }}" stroke="{{ $lStroke }}" stroke-width="1.4" vector-effect="non-scaling-stroke"></line>
                 @endforeach
             </svg>
             @foreach($v->markers as $m)
@@ -274,7 +278,7 @@
                         <div class="rmr-pin__drop" style="background:{{ $mColor }};color:{{ $m->ink() }}">@include('componentes._rm-icon', ['key' => $mIcon, 'class' => ''])</div>
                     @endif
                 </div>
-                <div class="rmr-lbl" style="left:{{ $lx }}%;top:{{ $ly }}%;background:{{ $mColor }}">{{ $mShort }}</div>
+                <div class="rmr-lbl" style="left:{{ $lx }}%;top:{{ $ly }}%;background:{{ $mSign ? '#334155' : $mColor }}">{{ $mShort }}</div>
             @endforeach
         </div>
 
