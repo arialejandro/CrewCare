@@ -58,46 +58,57 @@
     .fx-select option{background:var(--bg-2);color:var(--text)}
     .fx-count{color:var(--text-muted);font-size:.82rem;margin-left:auto;white-space:nowrap}
 
-    /* ── Tabla del catálogo ─────────────────────────────────────────────────── */
-    /* position:relative NO es decorativo, es la otra mitad del .table-responsive.
-       La cabecera de la columna de acciones no tiene rótulo visible: su título vive en
-       un <span class="visually-hidden">Acciones</span>, y el .visually-hidden de
-       Bootstrap 5 es `position:absolute`. Un absoluto se posiciona respecto al ancestro
-       NO estático más cercano; con el wrapper en `static` ese ancestro era el bloque
-       contenedor inicial, o sea que el span SE ESCAPABA del contenedor de scroll y su
-       desborde lo heredaba la PÁGINA. Medido a 768px: el envoltorio ya contenía la
-       tabla y aun así el documento seguía en scrollWidth 1070 vs clientWidth 753;
-       quitando ese único span de 1px caía a 753 exacto. Con el wrapper posicionado, el
-       span queda dentro y el scroll horizontal de página desaparece del todo.
-       (Su hermana admin/consumables/index no sufre esto porque su <th> de acciones sí
-       lleva texto visible, no un visually-hidden.) */
-    .fx-table-wrap{position:relative}
-    .fx-table{--bs-table-bg:transparent;color:var(--text);margin-bottom:0}
-    .fx-table thead th{text-transform:uppercase;font-size:.7rem;letter-spacing:.05em;color:var(--text-muted);font-weight:700;border-bottom:1px solid var(--stroke);white-space:nowrap}
-    .fx-table td,.fx-table th{border-color:var(--stroke);vertical-align:middle}
-    .fx-table tbody tr:hover td{background:var(--glass-2)}
-    .fx-name{font-weight:600;color:var(--text);text-decoration:none;font-size:1rem}
-    .fx-name:hover{color:var(--brand-primary);text-decoration:underline}
-    .fx-code{font-size:.72rem;font-weight:700;letter-spacing:.06em;color:var(--text-muted);font-variant-numeric:tabular-nums}
-    .fx-risk{color:var(--text-muted);font-size:.85rem;max-width:44ch}
-    .fx-uses{display:inline-flex;align-items:center;gap:.35rem;color:var(--text);font-weight:700;font-size:.85rem;font-variant-numeric:tabular-nums}
-    .fx-uses .cc-ico{width:14px;height:14px;color:var(--text-muted)}
-    .fx-uses-none{color:var(--text-muted);font-weight:600}
-    .fx-open{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-height:44px;padding:.5rem .85rem;border-radius:var(--radius-sm);
-        border:1px solid var(--stroke);background:var(--glass);color:var(--text);text-decoration:none;font-size:.82rem;font-weight:600;white-space:nowrap}
-    .fx-open:hover{background:var(--glass-2);border-color:var(--stroke-2);color:var(--text)}
-    .fx-open .cc-ico{width:14px;height:14px}
+    /* ── Rejilla de tarjetas del catálogo ──────────────────────────────────────
+       Calca del lenguaje de tarjetas de la vertical de inspección
+       (resources/views/inspection/_tool-card.blade.php + componentes/_inspection-styles),
+       tintado a --brand-primary para que toda la página lea como una sola superficie.
+       Antes esto era una tabla que solo se volvía tarjeta bajo 767px; ahora es rejilla
+       en TODOS los anchos. Auto-fill: una columna en teléfono y tantas como quepan en
+       escritorio, SIN breakpoints que mantener. El vidrio y el borde los pone la .card
+       global (_brand-theme); aquí solo el layout, el hero, el hover y el CTA. */
+    .fx-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:1rem;align-items:stretch}
+    .fx-card{display:flex;flex-direction:column;overflow:hidden;height:100%;
+        transition:transform .18s var(--ease,cubic-bezier(.16,1,.3,1)),border-color .18s,box-shadow .18s}
+    .fx-card:hover{transform:translateY(-3px);border-color:var(--stroke-2);box-shadow:0 16px 34px -14px rgba(0,0,0,.5),var(--shadow) !important}
+    .fx-card[hidden]{display:none !important}
+
+    /* Hero sin foto (como las cards de herramienta): mono-icono sobre degradado de marca. */
+    .fx-card__hero{position:relative;aspect-ratio:16/10;
+        background:linear-gradient(135deg,color-mix(in srgb,var(--brand-primary) 20%,var(--surface-3)),var(--surface-3))}
+    @supports not (aspect-ratio:1/1){.fx-card__hero{height:150px}}
+    .fx-card__mono{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:color-mix(in srgb,var(--brand-primary) 60%,var(--text-muted));opacity:.85}
+    .fx-card__mono .cc-ico{width:44px;height:44px}
+    .fx-card__code{position:absolute;top:.55rem;left:.65rem;font-size:.68rem;font-weight:700;letter-spacing:.06em;font-variant-numeric:tabular-nums;color:color-mix(in srgb,var(--brand-primary) 72%,var(--text));opacity:.92}
+
+    .fx-card__body{padding:.8rem .85rem .35rem;display:flex;flex-direction:column;gap:.35rem;flex:1}
+    .fx-card__name{font-size:1.02rem;font-weight:700;color:var(--text);line-height:1.2;text-decoration:none}
+    .fx-card__name:hover{color:var(--brand-primary);text-decoration:underline}
+    .fx-card__meta{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
+    .fx-uses{display:inline-flex;align-items:center;gap:.35rem;color:var(--text);font-weight:700;font-size:.78rem;font-variant-numeric:tabular-nums}
+    .fx-uses .cc-ico{width:13px;height:13px;color:var(--text-muted)}
+    .fx-uses-none{color:var(--text-muted);font-weight:600;font-size:.78rem}
+    /* «Qué mirar» del tool-card, aquí «Riesgo principal»: la doctrina que la tabla
+       llevaba en su columna ancha, sin perderla. */
+    .fx-card__risk{margin-top:.15rem;padding:.45rem .55rem;border-radius:var(--radius-sm);font-size:.8rem;line-height:1.35;
+        background:color-mix(in srgb,var(--brand-primary) 7%,var(--surface-3));color:var(--text);display:flex;gap:.4rem}
+    .fx-card__risk .cc-ico{width:14px;height:14px;flex:none;margin-top:.15rem;color:var(--brand-primary)}
+    .fx-card__risk .fx-risk-label{font-weight:700}
+
+    .fx-card__actions{display:flex;gap:.4rem;padding:.5rem .85rem .85rem;margin-top:auto}
+    .fx-card__open{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.45rem;min-height:44px;
+        background:var(--brand-primary);color:var(--brand-on-primary);border:1px solid var(--brand-primary);
+        border-radius:var(--radius-sm);font-weight:700;font-size:.85rem;text-decoration:none;transition:filter .18s,transform .18s}
+    .fx-card__open:hover{filter:brightness(1.05);color:var(--brand-on-primary)}
+    .fx-card__open .cc-ico{width:15px;height:15px}
 
     .cc-idx-empty{text-align:center;padding:3rem 1.5rem;color:var(--text-muted)}
     .cc-idx-empty .cc-ico{width:42px;height:42px;color:var(--text-muted);opacity:.55;margin-bottom:.7rem}
     .cc-idx-empty .fw-semibold{color:var(--text)}
     .cc-idx-empty p{max-width:52ch;margin:.4rem auto 0;font-size:.85rem}
 
-    @media (max-width:767px){
-        /* .cc-stack convierte cada <tr> en tarjeta: la celda del nombre manda. */
-        .fx-table td[data-label="Tipo de efecto"]{display:block;text-align:left}
-        .fx-table td[data-label="Tipo de efecto"]::before{content:""}
-        .fx-risk{max-width:none;text-align:right}
+    /* En teléfono el contador baja de línea (el auto-fill de .fx-cards ya colapsa a una
+       sola columna solo con la rejilla, sin más breakpoints). */
+    @media (max-width:600px){
         .fx-count{margin-left:0}
     }
 </style>
@@ -192,75 +203,69 @@
             <div class="fx-count" id="fx-count" aria-live="polite"></div>
         </div>
 
-        <div class="card border-0 rounded-3">
-            <div class="card-body p-0">
-                {{-- .table-responsive NO es decorativo: .cc-stack solo entra a ≤767px, así que
-                     entre 768px y ~1100px no hay ni tarjetas ni contenedor con scroll propio.
-                     Medido a 768px (iPad) con las 25 filas reales: la tabla pide 932px dentro
-                     de un contenedor de 556px y, sin envoltorio, ese desbordamiento lo absorbía
-                     la PÁGINA entera (scrollWidth 1094 vs clientWidth 753 = 341px de scroll
-                     horizontal) — «Estado» y «Ver ficha» fuera de pantalla y todo moviéndose en
-                     diagonal. Con el wrapper el scroll queda DENTRO de la tabla, que es lo que
-                     ya hace su hermana admin/consumables/index. --}}
-                <div class="table-responsive fx-table-wrap">
-                <table class="table fx-table cc-stack table-hover align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th class="ps-4">Tipo de efecto</th>
-                            <th>Familia</th>
-                            <th>Riesgo principal</th>
-                            <th>Insumos</th>
-                            <th>Estado</th>
-                            <th class="text-end pe-4"><span class="visually-hidden">Acciones</span></th>
-                        </tr>
-                    </thead>
-                    <tbody id="fx-rows">
-                        @forelse($effects as $effect)
-                            @php
-                                /**
-                                 * Conteo de insumos ligados: llega en la misma consulta vía el
-                                 * withCount() del controlador. El fallback existe para que quitar
-                                 * ese withCount no degrade a un «Sin insumos» FALSO en silencio
-                                 * (aquí ya estamos dentro de $layerA: el pivote existe).
-                                 */
-                                if (isset($effect->consumables_count)) {
-                                    $uses = (int) $effect->consumables_count;
-                                } elseif ($effect->relationLoaded('consumables')) {
-                                    $uses = $effect->consumables->count();
-                                } else {
-                                    $uses = $effect->consumables()->count();
-                                }
+        @if($effects->isEmpty())
+            {{-- Catálogo VACÍO (0 tipos de efecto sembrados): distinto de «nada casa el
+                 filtro», que es el bloque #fx-noresults de más abajo. --}}
+            <div class="card border-0 rounded-3">
+                <div class="card-body">
+                    <div class="cc-idx-empty">
+                        @include('componentes._icon', ['name' => 'zap', 'label' => 'Catálogo vacío'])
+                        <div class="fw-semibold">Aún no hay tipos de efecto en el catálogo.</div>
+                        <p>El catálogo SPFX se importa desde el documento fuente; en cuanto se siembre, aparecerá aquí.</p>
+                    </div>
+                </div>
+            </div>
+        @else
+            {{-- Rejilla de tarjetas (auto-fill) en TODOS los anchos. Cada tarjeta conserva
+                 lo que la tabla mostraba: clave (hero), nombre (enlace), familia, insumos
+                 ligados, riesgo principal, estado de verificación y el acceso a la ficha.
+                 El #fx-rows y los data-* los consume el mismo filtro en cliente de siempre. --}}
+            <div class="fx-cards" id="fx-rows">
+                @foreach($effects as $effect)
+                    @php
+                        /**
+                         * Conteo de insumos ligados: llega en la misma consulta vía el
+                         * withCount() del controlador. El fallback existe para que quitar
+                         * ese withCount no degrade a un «Sin insumos» FALSO en silencio
+                         * (aquí ya estamos dentro de $layerA: el pivote existe).
+                         */
+                        if (isset($effect->consumables_count)) {
+                            $uses = (int) $effect->consumables_count;
+                        } elseif ($effect->relationLoaded('consumables')) {
+                            $uses = $effect->consumables->count();
+                        } else {
+                            $uses = $effect->consumables()->count();
+                        }
 
-                                $haystack = trim(implode(' ', array_filter([
-                                    $effect->name, $effect->code, $effect->family, $effect->main_risk,
-                                ])));
-                            @endphp
-                        <tr data-family="{{ $effect->family }}" data-search="{{ $haystack }}">
-                            <td class="ps-4" data-label="Tipo de efecto">
-                                @if($effect->code)
-                                    <div class="fx-code">{{ $effect->code }}</div>
-                                @endif
-                                <a class="fx-name" href="{{ route('sfx-effects.show', $effect->id) }}">{{ $effect->name }}</a>
-                            </td>
-                            <td data-label="Familia">
+                        $haystack = trim(implode(' ', array_filter([
+                            $effect->name, $effect->code, $effect->family, $effect->main_risk,
+                        ])));
+                    @endphp
+                    <article class="fx-card card border-0 rounded-3" data-family="{{ $effect->family }}" data-search="{{ $haystack }}">
+                        <div class="fx-card__hero">
+                            @if($effect->code)
+                                <span class="fx-card__code">{{ $effect->code }}</span>
+                            @endif
+                            <span class="fx-card__mono">@include('componentes._icon', ['name' => 'zap', 'label' => null])</span>
+                        </div>
+
+                        <div class="fx-card__body">
+                            <a class="fx-card__name" href="{{ route('sfx-effects.show', $effect->id) }}">{{ $effect->name }}</a>
+
+                            <div class="fx-card__meta">
                                 @if($effect->family)
                                     <span class="cc-chip cc-chip-neutral">{{ $effect->family }}</span>
-                                @else
-                                    <span class="text-muted">—</span>
                                 @endif
-                            </td>
-                            <td class="fx-risk" data-label="Riesgo principal">{{ $effect->main_risk ?: '—' }}</td>
-                            <td data-label="Insumos">
+
                                 @if($uses > 0)
-                                    <span class="fx-uses">
+                                    <span class="fx-uses" title="Insumos SDS ligados a este tipo de efecto">
                                         @include('componentes._icon', ['name' => 'flask-conical'])
-                                        {{ $uses }}
+                                        {{ $uses }} {{ $uses === 1 ? 'insumo' : 'insumos' }}
                                     </span>
                                 @else
                                     <span class="fx-uses-none">Sin insumos</span>
                                 @endif
-                            </td>
-                            <td data-label="Estado">
+
                                 @if($effect->isVerified())
                                     @php
                                         /**
@@ -292,38 +297,37 @@
                                         @include('componentes._icon', ['name' => 'alert-triangle']) Pendiente de verificación
                                     </span>
                                 @endif
-                            </td>
-                            <td class="text-end pe-4">
-                                <a class="fx-open" href="{{ route('sfx-effects.show', $effect->id) }}">
-                                    @include('componentes._icon', ['name' => 'eye']) Ver ficha
-                                </a>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="6">
-                                <div class="cc-idx-empty">
-                                    @include('componentes._icon', ['name' => 'zap', 'label' => 'Catálogo vacío'])
-                                    <div class="fw-semibold">Aún no hay tipos de efecto en el catálogo.</div>
-                                    <p>El catálogo SPFX se importa desde el documento fuente; en cuanto se siembre, aparecerá aquí.</p>
-                                </div>
-                            </td>
-                        </tr>
-                        @endforelse
-                        <tr id="fx-noresults" hidden>
-                            <td colspan="6">
-                                <div class="cc-idx-empty">
-                                    @include('componentes._icon', ['name' => 'search', 'label' => 'Sin coincidencias'])
-                                    <div class="fw-semibold">Ningún tipo de efecto coincide con el filtro.</div>
-                                    <p>Prueba con otra palabra o vuelve a «Todas las familias».</p>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </div>
+
+                            <div class="fx-card__risk">
+                                @include('componentes._icon', ['name' => 'alert-triangle'])
+                                <span><span class="fx-risk-label">Riesgo principal:</span> {{ $effect->main_risk ?: '—' }}</span>
+                            </div>
+                        </div>
+
+                        <div class="fx-card__actions">
+                            <a class="fx-card__open" href="{{ route('sfx-effects.show', $effect->id) }}">
+                                @include('componentes._icon', ['name' => 'eye']) Ver ficha
+                            </a>
+                        </div>
+                    </article>
+                @endforeach
+            </div>
+
+            {{-- Empty-state del FILTRO — aquí SÍ hay fichas, solo que ninguna casa. Lo alterna
+                 el mismo JS de siempre (ahora conmuta [hidden] sobre este bloque, no un <tr>). --}}
+            <div id="fx-noresults" hidden>
+                <div class="card border-0 rounded-3">
+                    <div class="card-body">
+                        <div class="cc-idx-empty">
+                            @include('componentes._icon', ['name' => 'search', 'label' => 'Sin coincidencias'])
+                            <div class="fw-semibold">Ningún tipo de efecto coincide con el filtro.</div>
+                            <p>Prueba con otra palabra o vuelve a «Todas las familias».</p>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
+        @endif
     @endif
 
 </div>
@@ -337,7 +341,7 @@
     var body   = document.getElementById('fx-rows');
     if (!q || !family || !body) { return; }
 
-    var rows  = Array.prototype.slice.call(body.querySelectorAll('tr[data-search]'));
+    var rows  = Array.prototype.slice.call(body.querySelectorAll('.fx-card[data-search]'));
     var none  = document.getElementById('fx-noresults');
     var count = document.getElementById('fx-count');
 
