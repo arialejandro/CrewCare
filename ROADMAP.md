@@ -1,7 +1,17 @@
 # ROADMAP.md — CrewCare → Plataforma de producción
 
 Plan de evolución del producto. **Documento de visión y estrategia, no de implementación.**
-No se ha tocado código. Sirve para entender el panorama y decidir el orden.
+Sirve para entender el panorama y decidir el orden.
+
+> **⚠ Estado real (2026-08-06):** ESTE documento es la VISIÓN; hace tiempo dejó de ser
+> cierto que "no se ha tocado código". La **capa de Health & Safety** (el diferenciador)
+> está fuertemente CONSTRUIDA: catálogo único de eventos+normas, los 5 reportes v2 sobre
+> chrome compartido, identidad médica + cédula, SDS/SPFX, herramientas/permisos +
+> inspección, emisión de permisos, vigilancia epidemiológica, consultas médicas, MEDEVAC,
+> scouting geo + Amazon MGM RA, Wrap report, y el **Mapeo de Riesgos y Recursos** (editor +
+> documento sellado + biblioteca de señalética). El registro cronológico de todo esto está
+> en **[PROGRESS.md](PROGRESS.md)** (deltas #40-#51) y el detalle en las notas de memoria.
+> Las FASES de abajo siguen siendo la guía estratégica; no reflejan aún todo lo implementado.
 
 Documentos relacionados: [ARCHITECTURE.md](ARCHITECTURE.md) (estado actual),
 [COVID-DECOMMISSION.md](COVID-DECOMMISSION.md) (qué retirar), [SECURITY.md](SECURITY.md),

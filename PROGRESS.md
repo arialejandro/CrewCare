@@ -229,6 +229,74 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 
 ## Historial de cambios
 
+> **⚠ RECONSTRUIDO EN BLOQUE (2026-08-06).** La bitácora se había quedado en **2026-06-28**;
+> las entradas de **2026-07-06 → 2026-08-06** se repusieron sintetizando la **memoria**
+> (`/memory/*.md`) y el **`git log`** (tras el reinit de historial del 2026-07-31, que
+> squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
+> De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
+
+### 2026-08-06 — 🗺️ Mapeo de riesgos: documento HOMOLOGADO al chrome del DSR
+- **Estado:** Hecho (verificado en render pantalla+papel). Commit `77c4f839`.
+- **Archivos:** `resources/views/admin/riskmaps/document.blade.php`.
+- **Qué/Por qué:** el documento traía su propio header/hero/chip a mano (genérico, "punto negro" = glifo por defecto de un `view_type` sin icono). Reescrito sobre el MISMO chrome que DSR/scouting: `_report-v2-head`/`-toolbar`/`-foot` + `_doc-hero` (se repite por hoja) + banda de datos + secciones `.sec`. Contenido propio (lienzo/pines/inventario/tabla/sello) conservado y retokenizado. Dos caras vidrio/papel.
+- **Riesgo/Notas:** Sin SQL. Sello sobre el DATO → intacto. **Gotcha Blade `@endif@if(...)`** (deja el 2º `@if` literal → `endif` huérfano) corregido con un espacio. Ver [[risk-map-module]].
+
+### 2026-08-05/06 — 🚸 Mapeo: biblioteca de SEÑALES industriales (ISO/hazmat/EPP/clima) + delta #51
+- **Estado:** Hecho. Commits `2438f4d0`, `ade00a9c`, `2a999365`, `a4fd6a42`, `a3f00d64`.
+- **Archivos:** `resources/svg/senaletica/*` (80 SVG) + `_generate.php`, `resources/rm-signs.generated.php` (NUEVO), `app/Support/RiskSigns.php` (NUEVO), `app/Models/RiskMap.php`, `_rm-icon.blade.php`, `admin/riskmaps/{document,edit}.blade.php`.
+- **Qué/Por qué:** el owner subió 80 SVG reales; se sirven como **`<img data:>` AISLADO** (mata la colisión de IDs internos del SVG). Auto-mapeo por evento (`hazardSymbol`/`weatherSign` por palabra clave), coherencia de color + plate blanco. Override `risk_icon` acepta cualquier slug de biblioteca.
+- **Riesgo/Notas:** Solo **delta #51** (`hazard_events.risk_icon`, ya en [[pendientes-prod]]). Iconos cosméticos → fuera del sello. Ver [[risk-map-module]].
+
+### 2026-08-04 — 📱 Pasada de usabilidad MÓVIL
+- **Estado:** Hecho. Commits `db3fa52e`, `b5b5397b`, `ef78e3f5`, `a4ba20fc`.
+- **Qué/Por qué:** casi todo se captura en teléfono. Consulta médica y tablas del scouting apiladas (`cc-stack`), editor de mapeo táctil (d-pad/zoom), detalle de scouting responsive, matriz 5×5 FUERA del scouting (solo Amazon MGM), footer duplicado, picker de peligros encimado (causa real: `flex-shrink`), auto-scroll a SB132.
+- **Riesgo/Notas:** Solo vistas, sin SQL. Ver [[mobile-responsive-pass]].
+
+### 2026-08-03 — 🗺️ MÓDULO Mapeo de Riesgos y Recursos (delta #50)
+- **Estado:** Hecho (30/30). Commits `309980cf`, `e8bae0d0`, `4f03fce3`, `306b7992`, `8461e83f`.
+- **Qué/Por qué:** editor APARTE que produce un **documento SELLADO** (una página por vista); pines por `x_pct/y_pct` sobre la imagen (sin html2canvas). Verificador `'rmap'`, permiso `riskmap.issue`. Reemplaza los pines (#48) y la galería.
+- **Riesgo/Notas:** **delta #50** (3 tablas InnoDB) + seeder de permisos — ver [[pendientes-prod]]. Ver [[risk-map-module]].
+
+### 2026-08-01 — 🌊 Captura fluida (8 slices, delta #49) · Mapeo como módulo propio (retiro #48)
+- **Estado:** Captura fluida EN PROGRESO por slices. Commits `86ead606`→`adf766de`; `3bb415b5`,`de8ca990`,`8f822bbb`,`610afaa2`,`e352a08a`.
+- **Qué/Por qué:** entrar por ACTIVIDAD + control pre-propuesto, secciones plegables, foto única + HEIC, borrador automático offline. El mapeo se movió fuera del scouting; el **delta #48** (pines sobre lienzos `scouting_canvases`/`canvas_pins`) quedó **retirado/obsoleto**.
+- **Riesgo/Notas:** **delta #49** (`control_measure_es/_en`). Ver [[fluid-capture-block]], [[location-mapping-module]].
+
+### 2026-07-31 — 🚑 MEDEVAC (delta #46) · 🦠 Vigilancia epidemiológica (delta #45)
+- **Estado:** Hecho (35/35, 28/28).
+- **Qué/Por qué:** MEDEVAC = 1ª plantilla del **motor de documentos** (render del scouting → congela+sella → verificador `'mdvc'`, permiso `medevac.issue`). Epi = panel **AGREGADO nunca nominal** (permiso `epi.view`) + `indicator_terms`/`outbreak_studies` + estudio de brote sellado `'brote'`. SILENCIOSO (cero correos/umbrales).
+- **Riesgo/Notas:** **deltas #45, #46**. Ver [[medevac-poster-module]], [[epi-surveillance-module]].
+
+### 2026-07-30 — 📄 Emisión de permisos de trabajo (delta #44)
+- **Estado:** Hecho (50/50).
+- **Qué/Por qué:** ciclo emitir→verificar en sitio→cerrar (`issued_permits`, permiso `permits.issue`, doble firma congelada, autorización externa DECLARADA, cierre con fire-watch, verificador `'perm'` 3-estados).
+- **Riesgo/Notas:** **delta #44**. Ver [[permit-issuance-module]].
+
+### 2026-07-26 — 🔧 Catálogos herramienta/permisos (#41) · Inspección de herramienta (#42) · Inspección preventiva + verificador 3-estados (#43)
+- **Estado:** Hecho (48/48, 44/44, 35/35).
+- **Qué/Por qué:** 12 tablas de catálogo (73 tipos/67 puntos/15 permisos), enforcement de inspección (acta **sellada+congelada**, PARO desbloqueable, aviso HOD), régimen preventivo derivado, verificador **3 estados** (VÁLIDO/RETIRADO/ALTERADO).
+- **Riesgo/Notas:** **deltas #41, #42, #43**. Ver [[tools-permits-catalog-layer]], [[tool-inspection-vertical]], [[inspection-preventive-and-verifier]].
+
+### 2026-07-24/25 — 🧹 BETA eliminado (→ core del medic) · 📋 Wrap report · ♊ Twins Acto/Condición
+- **Estado:** Hecho.
+- **Qué/Por qué:** beta borrado (commit `3b52b69a`), sobrevive como **registro LITE core del `medic`** (trigger XOR, sello versionado v2). **Wrap report** = 8º documento (contraste predicho-vs-real SB132, `WrapReportBuilder` solo-lectura, sellable, cero nombres). **Gemelos Acto/Condición Insegura** (FK al scouting, override de hash null-only).
+- **Riesgo/Notas:** SQL de Wrap + twins (ver memorias). Ver [[beta-modules-lite-patients]], [[wrap-report-final-built]], [[twins-acto-condicion-state]].
+
+### 2026-07-19/22 — 🩺 Identidad médica + Cédula (Paso A+B) · Injury dos salidas · DSR compliance/peso · Consultas médicas · Baseline BD
+- **Estado:** Hecho.
+- **Qué/Por qué:** fuente única `User::isMedic()` (rol Spatie `medic`); `medic_credentials` (badge verificado, whitelist de dominio, antisuplantación, robot `sep_auto` **apagado**). **Injury** LITE (`/accident/{id}`) vs COMPLETA (gateada) + addendum con sello propio + CFDI. **DSR**: compresión de imágenes (GD ~1600px), cierre de hallazgos, normas N:M (`standardables`), safety meeting con foto. **Consultas médicas** (medicamentos contables, bitácora, KEY MEDIC). **Baseline** `mysql-schema.dump` (56 tablas), versión 3.5.
+- **Riesgo/Notas:** varias tablas (`medic_credentials`, `standardables`, consultas). **🔴 el sello SHA es sin clave → re-keyar a HMAC pendiente.** Ver [[medic-identity-and-cedula-foundation]], [[medic-credential-module]], [[injury-doc-two-outputs]], [[dsr-compliance-and-weight]], [[medical-consults-module]], [[code-health-and-db-baseline-plan]], [[sha-seal-vs-handwritten-signature]].
+
+### 2026-07-12/18 — 🗂️ Catálogo de eventos (207) · SDS/RBAC · SPFX · Pilares 1-5 · Notificaciones+materialidad
+- **Estado:** Hecho.
+- **Qué/Por qué:** **catálogo único** de 207 eventos + 83 normas (N:M `hazard_event_standard`), selector compartido en los 5 reportes. **SDS** (fichas nacen pendientes hasta `sds.manage`). **SPFX** (`sfx_effect_types` + HDS 16 secciones). **Pilares 1-5** (captura 2 fases, DSR Master Hub event-driven, SDS/consumibles, override 5×5, Magic Links, Feature Flags). **Notificaciones** de riesgo Alto/Extremo + pestaña Materialidad.
+- **Riesgo/Notas:** varias tablas de catálogo. Ver [[hazard-events-catalog]], [[sds-verification-and-rbac]], [[sfx-effect-types-layer-a]], [[pillars-1-5-safety-ux]], [[notifications-materiality-discovery]].
+
+### 2026-07-06/07 — 🌎 Scouting geo · 📊 Amazon MGM RA
+- **Estado:** Hecho.
+- **Qué/Por qué:** **motor geo** (hospitales privados-primero + ETA + sugerencia de nombre de locación; corre en el NAVEGADOR). **Amazon MGM RA** = scouting al formulario oficial (Prob×Cons, matriz 5×5, riesgo residual, `_risk-matrix` reutilizable, export bilingüe).
+- **Riesgo/Notas:** Ver [[scouting-geo-module]], [[amazon-mgm-ra-module]].
+
 ### 2026-06-28 (tarde, fase 3) — 🏗️ Rediseño de catálogos (paso #2) + God Object `AdminController` ELIMINADO · 📊 Dashboard rediseñado
 - **Estado:** Hecho (verificado). Cierra el **ÚNICO paso restante del strangler** (paso #2, catálogos) **y con él RETIRA el God
   Object `AdminController` por completo** (cero referencias vivas en `route:list`); además moderniza el **dashboard** (rama admin de
