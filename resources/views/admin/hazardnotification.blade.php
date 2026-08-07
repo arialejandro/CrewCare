@@ -51,9 +51,12 @@
             ? 'hazards.update'
             : (\Illuminate\Support\Facades\Route::has('hazard_notifications.update') ? 'hazard_notifications.update' : 'hazards.update');
     @endphp
-    <form action="{{ $isEdit ? route($hzUpdateRoute, $report->id) : route('hazard_notifications.store') }}" method="POST" enctype="multipart/form-data" @if(!$isEdit) data-cc-drafts="hazard-notification" @endif>
+    <form action="{{ $isEdit ? route($hzUpdateRoute, $report->id) : route('hazard_notifications.store') }}" method="POST" enctype="multipart/form-data" @if(!$isEdit) data-cc-drafts="hazard-notification" @endif data-cc-sections>
         @csrf
         @if($isEdit) @method('PUT') @endif
+
+        {{-- (captura fluida · Paso 7) Secciones plegables + estado por sección (no invasivo). --}}
+        @include('componentes._collapsible-sections')
 
         {{-- (captura fluida · Paso A) Borradores en el dispositivo. Solo en alta. --}}
         @if(!$isEdit)

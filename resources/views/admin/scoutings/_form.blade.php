@@ -322,7 +322,7 @@
                 <div class="col-md-3">
                     <label class="form-label fw-semibold">Distancia al hospital (km)</label>
                     <input type="number" step="0.01" min="0" inputmode="decimal" name="hospital_distance_km" class="form-control" placeholder="Ej: 3.2" value="{{ old('hospital_distance_km', $report->hospital_distance_km ?? '') }}">
-                    <small class="cc-muted d-block mt-1">La llena el buscador (ruta real en auto). Ajústala si hace falta.</small>
+                    <small class="cc-muted d-block mt-1">Ajústala si hace falta.</small>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label fw-semibold">Compañía de ambulancia</label>
@@ -543,6 +543,12 @@
                  El <style> de abajo hace que en móvil cada control ocupe el 100% con su
                  etiqueta encima, en vez de compartir renglón (celdas ricas: select+input). --}}
             <style>
+                /* (captura fluida · Paso C) Revelación condicional: el guion se ve mientras
+                   la fila NO está calificada; el control/residual/personal aparecen al calificar
+                   (clase .is-rated puesta por JS). Solo presentación; el POST no cambia. */
+                #hazards-table .hz-locked { display: none; color: var(--text-muted, #6c757d); padding-left: .15rem; }
+                #hazards-table .hz-row:not(.is-rated) .hz-locked { display: inline; }
+                #hazards-table .hz-row:not(.is-rated) .hz-cond { display: none; }
                 @media (max-width: 767px) {
                     #hazards-table.cc-stack td { flex-wrap: wrap; text-align: left; }
                     #hazards-table.cc-stack td::before { flex: 1 1 100%; }
@@ -988,6 +994,20 @@
                 out.removeAttribute('style');
                 out.textContent = '—';
             }
+            stageRow(tr);
+        }
+        // (captura fluida · Paso C) Revela control/residual/personal cuando la fila ya está
+        // calificada (Prob+Cons) o ya trae contenido (medida pre-propuesta / edición / borrador).
+        // Solo alterna la clase .is-rated; el POST sigue enviando todos los campos → sello intacto.
+        function stageRow(tr) {
+            var l = tr.querySelector('.hz-l'), c = tr.querySelector('.hz-c');
+            var rated = !!(l && c && l.value && c.value);
+            var filled = false;
+            ['hz_control[]', 'hz_residual[]', 'hz_personnel[]'].forEach(function (n) {
+                var e = tr.querySelector('[name="' + n + '"]');
+                if (e && e.value && String(e.value).trim() !== '') { filled = true; }
+            });
+            tr.classList.toggle('is-rated', rated || filled);
         }
         var body = document.getElementById('hazards-body');
         if (!body) return;
@@ -1045,6 +1065,7 @@
                 }
             });
             refreshRow(tr, false);
+            stageRow(tr);
         }
         body.querySelectorAll('.hz-row').forEach(wire);
 
@@ -1105,6 +1126,7 @@
             // Vacío = vacío: nunca texto inventado.
             var ctrl = tr.querySelector('input[name="hz_control[]"]');
             if (ctrl && ev && ev.control && !ctrl.value) { ctrl.value = ev.control; }
+            stageRow(tr); // revela control/residual/personal si llegó medida pre-propuesta o P/C sugeridas
             if (activeFrames.length) { applyFacetsAll(tr); }
             contarSinEvento();
             if (tr.scrollIntoView) { tr.scrollIntoView({ block: 'nearest' }); }

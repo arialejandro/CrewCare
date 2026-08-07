@@ -50,9 +50,12 @@
         </div>
     @endif
 
-    <form action="{{ $isEdit ? route('unsafenotifications.update', $report->id) : route('unsafenotifications.store') }}" method="POST" enctype="multipart/form-data" @if(!$isEdit) data-cc-drafts="unsafe-condition" @endif>
+    <form action="{{ $isEdit ? route('unsafenotifications.update', $report->id) : route('unsafenotifications.store') }}" method="POST" enctype="multipart/form-data" @if(!$isEdit) data-cc-drafts="unsafe-condition" @endif data-cc-sections>
         @csrf
         @if($isEdit) @method('PUT') @endif
+
+        {{-- (captura fluida · Paso 7) Secciones plegables + estado por sección (no invasivo). --}}
+        @include('componentes._collapsible-sections')
 
         {{-- (captura fluida · Paso A) Borradores en el dispositivo. Solo en alta. --}}
         @if(!$isEdit)

@@ -75,7 +75,7 @@ return [
     "dsr_meeting_held_no"            => "No se realizó",
     "dsr_meeting_photo_label"        => "Foto del safety meeting",
     "dsr_meeting_photo_hint"         => "Usa una foto en gran angular del crew reunido.",
-    "dsr_meeting_topics_hint"        => "Salen del catálogo de eventos, así que hablan de set y no de fábrica.",
+    "dsr_meeting_topics_hint"        => "Elige o escribe los temas que se trataron.",
     "dsr_ppe_from_findings"          => "Lo resaltado no se previó al abrir el día: lo exigieron los hallazgos de la jornada.",
     // (2026-07-21) Cierre de hallazgos: las dos verdades del acta.
     "dsr_finding_resolved"           => "Hallazgo resuelto",

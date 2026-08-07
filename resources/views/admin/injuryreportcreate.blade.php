@@ -92,11 +92,14 @@
         </div>
     @endif
 
-    <form action="{{ $formAction }}" method="POST" enctype="multipart/form-data" @if(!$isEdit) data-cc-drafts="injury-report" @endif>
+    <form action="{{ $formAction }}" method="POST" enctype="multipart/form-data" @if(!$isEdit) data-cc-drafts="injury-report" @endif data-cc-sections>
         @csrf
         @if($isEdit)
             @method('PUT')
         @endif
+
+        {{-- (captura fluida · Paso 7) Secciones plegables + estado por sección (no invasivo). --}}
+        @include('componentes._collapsible-sections')
 
         {{-- (captura fluida · Paso A) Borradores en el dispositivo. Solo en alta. --}}
         @if(!$isEdit)
