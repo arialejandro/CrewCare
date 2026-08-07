@@ -16,9 +16,6 @@
             @if($canContact)
             <th scope="col">Teléfono</th>
             @endif
-            @if($canPersonal)
-            <th scope="col">Sexo</th>
-            @endif
             @if($canContact)
             <th scope="col">Email</th>
             @endif
@@ -49,11 +46,6 @@
                 @endif
                 @if($canContact)
                 <td class="text-muted" data-label="Teléfono">{{ $user->phone }}</td>
-                @endif
-                @if($canPersonal)
-                <td data-label="Sexo">
-                    <span class="badge rounded-pill crew-badge-soft">{{ $user->sex }}</span>
-                </td>
                 @endif
                 @if($canContact)
                 <td class="text-muted" data-label="Email">{{ $user->email }}</td>
@@ -118,7 +110,7 @@
             </tr>
         @empty
             <tr>
-                <td colspan="7">
+                <td colspan="6">
                     <div class="crew-empty text-center py-5">
                         <div class="crew-empty-icon mx-auto mb-3 d-inline-flex align-items-center justify-content-center rounded-circle">
                             @include('componentes._icon', ['name' => 'users', 'class' => 'cc-ico', 'label' => null])
