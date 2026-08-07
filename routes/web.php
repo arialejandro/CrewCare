@@ -757,6 +757,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/hazard-events/{id}/verify',     [\App\Http\Controllers\HazardEventController::class, 'verify'])->name('hazardevents.verify')->whereNumber('id');
         Route::put('/hazard-events/{id}/deactivate',  [\App\Http\Controllers\HazardEventController::class, 'deactivate'])->name('hazardevents.deactivate')->whereNumber('id');
         Route::put('/hazard-events/{id}/reactivate',  [\App\Http\Controllers\HazardEventController::class, 'reactivate'])->name('hazardevents.reactivate')->whereNumber('id');
+
+        // (captura fluida · Paso 3) Medidas de control por CSV: descarga editable (ordenada por
+        // uso real) e importa idempotente. Segmentos estáticos → no chocan con {id} (whereNumber).
+        Route::get('/hazard-events/control-measures/export',  [\App\Http\Controllers\HazardEventController::class, 'exportControlCsv'])->name('hazardevents.control.export');
+        Route::post('/hazard-events/control-measures/import', [\App\Http\Controllers\HazardEventController::class, 'importControlCsv'])->name('hazardevents.control.import');
     });
 });
 
