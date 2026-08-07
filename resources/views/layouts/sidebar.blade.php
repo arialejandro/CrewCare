@@ -265,12 +265,8 @@
                         @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
                     </button>
                     <div class="cc-sec-body"><div class="cc-sec-body__inner">
-                        @can('users.create')
-                            <a href="/adduser" class="cc-item cc-item--new">
-                                @include('componentes._icon', ['name' => 'user', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ __('nav.crew_new') }}</span>
-                            </a>
-                        @endcan
+                        {{-- (2026-08-07) El "nuevo" se movió a la ACCIÓN PRIMARIA de cada lista
+                             (arriba a la derecha). El menú deja UNA entrada por módulo: la lista. --}}
                         @can('users.view')
                             <a href="{{ route('usuarioscrud') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'users', 'class' => 'cc-item__ico', 'label' => null])
@@ -313,12 +309,6 @@
                                 <span>Mapeo de riesgos</span>
                             </a>
                         @endcan
-                        @can('locations.create')
-                            <a href="{{ route('scoutings.create') }}" class="cc-item cc-item--new">
-                                @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ __('nav.loc_new') }}</span>
-                            </a>
-                        @endcan
                     </div></div>
                 </div>
             @endcanany
@@ -339,22 +329,10 @@
                                 <span>{{ __('nav.safety_daily_reports') }}</span>
                             </a>
                         @endcan
-                        @can('dsr.create')
-                            <a href="{{ route('daily_reports.create') }}" class="cc-item cc-item--new">
-                                @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ __('nav.safety_daily_new') }}</span>
-                            </a>
-                        @endcan
                         @can('hazards.view')
                             <a href="/unsafeconds" class="cc-item">
                                 @include('componentes._icon', ['name' => 'alert-triangle', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.safety_unsafe_conds') }}</span>
-                            </a>
-                        @endcan
-                        @can('hazards.create')
-                            <a href="/unsafenotifications/create" class="cc-item cc-item--new">
-                                @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ __('nav.safety_unsafe_cond') }}</span>
                             </a>
                         @endcan
                         @can('hazards.view')
@@ -363,22 +341,10 @@
                                 <span>{{ __('nav.safety_unsafe_acts') }}</span>
                             </a>
                         @endcan
-                        @can('hazards.create')
-                            <a href="/hazardnotification" class="cc-item cc-item--new">
-                                @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ __('nav.safety_unsafe_act') }}</span>
-                            </a>
-                        @endcan
                         @can('injury.view')
                             <a href="/accidents" class="cc-item">
                                 @include('componentes._icon', ['name' => 'ambulance', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.safety_accidents') }}</span>
-                            </a>
-                        @endcan
-                        @can('injury.create')
-                            <a href="/accident" class="cc-item cc-item--new">
-                                @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ __('nav.safety_accident') }}</span>
                             </a>
                         @endcan
                         {{-- Inspección preventiva de herramienta: entrada PRINCIPAL (no atajo). --}}
@@ -624,12 +590,7 @@
                             @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
                         </button>
                         <div class="cc-sec-body"><div class="cc-sec-body__inner">
-                            @can('users.create')
-                                <a href="/adduser" class="cc-item cc-item--new">
-                                    @include('componentes._icon', ['name' => 'user', 'class' => 'cc-item__ico', 'label' => null])
-                                    <span>{{ __('nav.crew_new') }}</span>
-                                </a>
-                            @endcan
+                            {{-- (2026-08-07) El "nuevo" es la acción primaria de cada lista. --}}
                             @can('users.view')
                                 <a href="{{ route('usuarioscrud') }}" class="cc-item">
                                     @include('componentes._icon', ['name' => 'users', 'class' => 'cc-item__ico', 'label' => null])
@@ -672,12 +633,6 @@
                                     <span>Mapeo de riesgos</span>
                                 </a>
                             @endcan
-                            @can('locations.create')
-                                <a href="{{ route('scoutings.create') }}" class="cc-item cc-item--new">
-                                    @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                    <span>{{ __('nav.loc_new') }}</span>
-                                </a>
-                            @endcan
                         </div></div>
                     </div>
                 @endcanany
@@ -698,22 +653,10 @@
                                     <span>{{ __('nav.safety_daily_reports') }}</span>
                                 </a>
                             @endcan
-                            @can('dsr.create')
-                                <a href="{{ route('daily_reports.create') }}" class="cc-item cc-item--new">
-                                    @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                    <span>{{ __('nav.safety_daily_new') }}</span>
-                                </a>
-                            @endcan
                             @can('hazards.view')
                                 <a href="/unsafeconds" class="cc-item">
                                     @include('componentes._icon', ['name' => 'alert-triangle', 'class' => 'cc-item__ico', 'label' => null])
                                     <span>{{ __('nav.safety_unsafe_conds') }}</span>
-                                </a>
-                            @endcan
-                            @can('hazards.create')
-                                <a href="/unsafenotifications/create" class="cc-item cc-item--new">
-                                    @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                    <span>{{ __('nav.safety_unsafe_cond') }}</span>
                                 </a>
                             @endcan
                             @can('hazards.view')
@@ -722,22 +665,10 @@
                                     <span>{{ __('nav.safety_unsafe_acts') }}</span>
                                 </a>
                             @endcan
-                            @can('hazards.create')
-                                <a href="/hazardnotification" class="cc-item cc-item--new">
-                                    @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                    <span>{{ __('nav.safety_unsafe_act') }}</span>
-                                </a>
-                            @endcan
                             @can('injury.view')
                                 <a href="/accidents" class="cc-item">
                                     @include('componentes._icon', ['name' => 'ambulance', 'class' => 'cc-item__ico', 'label' => null])
                                     <span>{{ __('nav.safety_accidents') }}</span>
-                                </a>
-                            @endcan
-                            @can('injury.create')
-                                <a href="/accident" class="cc-item cc-item--new">
-                                    @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                    <span>{{ __('nav.safety_accident') }}</span>
                                 </a>
                             @endcan
                             {{-- Inspección preventiva de herramienta: entrada PRINCIPAL (no atajo). --}}
@@ -964,6 +895,42 @@
             });
         }
 
+        // ---- 6) MEMORIA de secciones plegables en MÓVIL (localStorage) ----
+        // El escritorio conserva su comportamiento (solo la activa abierta al entrar). En el
+        // offcanvas móvil, en cambio, recordamos qué secciones dejó abiertas el usuario para que
+        // al reabrir el menú no tenga que volver a desplegarlas. Clave = etiqueta de la sección
+        // (respeta el RBAC: si una sección no se renderiza, su clave simplemente no aplica).
+        var MOBILE_KEY = 'cc-sb-open-mobile';
+        function secKey(sec) {
+            var l = sec.querySelector('.cc-sec-head__label');
+            return l ? (l.textContent || '').trim().toLowerCase() : '';
+        }
+        function isMobileSec(sec) { return !!sec.closest('#mobileSidebar'); }
+        function loadMobileState() {
+            try { return JSON.parse(localStorage.getItem(MOBILE_KEY) || '{}') || {}; }
+            catch (e) { return {}; }
+        }
+        function saveMobileSec(sec, open) {
+            if (!isMobileSec(sec)) { return; }
+            var k = secKey(sec); if (!k) { return; }
+            var m = loadMobileState(); m[k] = open;
+            try { localStorage.setItem(MOBILE_KEY, JSON.stringify(m)); } catch (e) {}
+        }
+        // Restaura el estado guardado en las secciones móviles (antes del matcher activo, que
+        // puede reabrir la sección de la pantalla actual por encima de lo guardado).
+        (function () {
+            var saved = loadMobileState();
+            Array.prototype.forEach.call(document.querySelectorAll('#mobileSidebar .cc-sec'), function (sec) {
+                var k = secKey(sec);
+                if (k && Object.prototype.hasOwnProperty.call(saved, k)) {
+                    var open = !!saved[k];
+                    sec.setAttribute('data-open', open.toString());
+                    var h = sec.querySelector('.cc-sec-head');
+                    if (h) { h.setAttribute('aria-expanded', open.toString()); }
+                }
+            });
+        })();
+
         // ---- 1) Colapso/expansión de secciones (ambas superficies) ----
         Array.prototype.forEach.call(document.querySelectorAll('.cc-sec-head'), function (head) {
             head.addEventListener('click', function () {
@@ -972,6 +939,7 @@
                 var open = sec.getAttribute('data-open') === 'true';
                 sec.setAttribute('data-open', (!open).toString());
                 head.setAttribute('aria-expanded', (!open).toString());
+                saveMobileSec(sec, !open);   // solo persiste en el offcanvas móvil
             });
         });
 

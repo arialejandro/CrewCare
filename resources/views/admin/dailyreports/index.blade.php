@@ -50,9 +50,11 @@
             <h1 class="cc-idx-title">Daily Safety Reports</h1>
             <p class="cc-idx-sub">Bitácora de seguridad diaria del proyecto {{ $branding['brand_name'] ?? 'CrewCare' }}.</p>
         </div>
+        @can('dsr.create')
         <a href="{{ route('daily_reports.create') }}" class="cc-idx-cta">
             @include('componentes._icon', ['name' => 'plus']) Nuevo Daily
         </a>
+        @endcan
     </div>
 
     @if(session('success'))

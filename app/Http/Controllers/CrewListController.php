@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use App\Models\BadgeTemplate;
 use App\Models\LitePatient;
+use App\Support\CrewRosterBuilder;
 
 /**
  * CrewListController — PRIMER CORTE del God Object AdminController (strangler, 2026-06-27).
@@ -93,6 +95,27 @@ class CrewListController extends Controller
         $usuarios = (clone $base)->withCount('badgePrint')->orderBy('id', 'desc')->paginate(50);
 
         return view('admin/idcardscrud', compact('usuarios', 'counts'));
+    }
+
+    /**
+     * (2026-08-07) EXPORT del Crew List como DOCUMENTO vertical (reemplaza el CSV genérico
+     * /nophoto, que se conserva como endpoint sin enlace). Agrupa por departamento en el orden
+     * canónico del llamado y, dentro de cada uno, por la jerarquía del puesto (ver CrewRosterBuilder).
+     * Respeta el scope por departamento del visor. El "propósito" opcional se pinta como marca de
+     * agua diagonal (se elige al exportar); vacío = sin marca de agua. Solo presentación + lectura.
+     */
+    public function crewExport(Request $request)
+    {
+        $roster  = CrewRosterBuilder::build(auth()->user());
+
+        $purpose = trim((string) $request->query('purpose', ''));
+        if (function_exists('mb_substr')) {
+            $purpose = mb_substr($purpose, 0, 60);
+        } else {
+            $purpose = substr($purpose, 0, 60);
+        }
+
+        return view('admin.crew-export', compact('roster', 'purpose'));
     }
 
     public function idcard($id){

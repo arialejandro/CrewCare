@@ -43,10 +43,36 @@
                         </div>
                     </form>
                 </div>
-                <a href="/nophoto" class="btn btn-crew-accent text-nowrap d-inline-flex align-items-center gap-1">
-                    @include('componentes._icon', ['name' => 'download', 'class' => 'cc-ico', 'label' => null])
-                    <span>Exportar</span>
+
+                {{-- Exportar como DOCUMENTO (crew list vertical, no CSV). Menú con propósito
+                     opcional de marca de agua elegido al exportar. --}}
+                <div class="dropdown">
+                    <button class="btn btn-crew-soft text-nowrap d-inline-flex align-items-center gap-1 dropdown-toggle"
+                            type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                        @include('componentes._icon', ['name' => 'download', 'class' => 'cc-ico', 'label' => null])
+                        <span>Exportar</span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end shadow-sm p-3" style="min-width: 15rem;" aria-label="Exportar Crew List">
+                        <form method="GET" action="{{ route('crew.export') }}" target="_blank">
+                            <label for="crew-export-purpose" class="form-label small fw-semibold mb-1">Propósito (opcional)</label>
+                            <input type="text" name="purpose" id="crew-export-purpose" class="form-control form-control-sm mb-1"
+                                   maxlength="60" autocomplete="off" placeholder="p. ej. Crew List para créditos">
+                            <div class="form-text small mb-2">Si lo escribes, aparece como marca de agua en el documento.</div>
+                            <button type="submit" class="btn btn-crew-accent btn-sm w-100 d-inline-flex align-items-center justify-content-center gap-1">
+                                @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-ico', 'label' => null])
+                                <span>Abrir documento</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                {{-- ACCIÓN PRIMARIA: crear miembro (antes vivía duplicada en el sidebar). --}}
+                @can('users.create')
+                <a href="/adduser" class="btn btn-crew-accent text-nowrap d-inline-flex align-items-center gap-1">
+                    @include('componentes._icon', ['name' => 'user', 'class' => 'cc-ico', 'label' => null])
+                    <span>Nuevo miembro</span>
                 </a>
+                @endcan
             </div>
         </div>
 
@@ -132,17 +158,13 @@
                                                 </a>
                                             </li>
                                             @endcan
-                                            <li><hr class="dropdown-divider"></li>
-                                            <li>
-                                                @if($user->admin === 0)
-                                                    <form method="POST" action="{{ url('/activaradmin/'.$user->id) }}">@csrf<button type="submit" title="Activar encuesta" class="dropdown-item">@include('componentes._icon', ['name' => 'shield', 'class' => 'cc-ico', 'label' => null]) Convertir Admin</button></form>
-                                                @else
-                                                    <form method="POST" action="{{ url('/desactivaradmin/'.$user->id) }}">@csrf<button type="submit" title="Quit admin" class="dropdown-item">@include('componentes._icon', ['name' => 'shield-alert', 'class' => 'cc-ico', 'label' => null]) Quitar Admin</button></form>
-                                                @endif
-                                            </li>
-
-                                            @include('componentes._group-toggles', ['user' => $user])
-
+                                            {{-- (2026-08-07) RETIRADAS del menú de acciones: "Convertir/Quitar Admin"
+                                                 y "Supervisor" (banderas legacy).
+                                                 · admin (users.admin) SIGUE VIVA — gatea /importcrew (AdminMiddleware),
+                                                   User::canSeePanel() y el rótulo del sidebar; se quitó SOLO del menú, su
+                                                   ruta/controlador/columna se conservan intactos.
+                                                 · "Supervisor" (users.daytest) era bandera MUERTA (nadie leía el valor):
+                                                   se borró su parcial, sus rutas (putsup/putadm) y sus métodos. --}}
                                             <li>
                                                 @if($user->encuestadiaria === 1)
                                                     <form method="post" action="{{ url('/activarencuesta/'.$user->id) }}">

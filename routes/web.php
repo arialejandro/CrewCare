@@ -154,14 +154,15 @@ Route::middleware(['auth','permission:users.deactivate'])->group(function () {
     Route::post('/desactivarusuario/{id}',[App\Http\Controllers\CrewStatusController::class,'desactivarusuario'])->name('desactivarusuario');
 });
 Route::middleware(['auth','permission:users.assign-role'])->group(function () {
-    // Rol legacy `admin` + grupos legacy `daytest` → CrewStatusController (corte #6, 2026-06-28).
+    // Rol legacy `admin` → CrewStatusController (corte #6, 2026-06-28). SIGUE VIVO: la columna
+    // users.admin gatea /importcrew (AdminMiddleware), User::canSeePanel() y el rótulo del sidebar.
+    // Su toggle salió del menú (2026-08-07) pero la ruta se conserva para no romper contrato.
     Route::post('/activaradmin/{id}',[App\Http\Controllers\CrewStatusController::class,'activaradmin'])->name('activaradmin');
     Route::post('/desactivaradmin/{id}',[App\Http\Controllers\CrewStatusController::class,'desactivaradmin'])->name('desactivaradmin');
-    Route::post('/putadm/{id}',[App\Http\Controllers\CrewStatusController::class,'putga'])->name('putga');
-    // PASO A (2026-07-19): ELIMINADA `POST /putmed/{id}` (name 'putgb' → CrewStatusController@putgb,
-    // escribía daytest = 2 como falso marcador de "médico"). "Ser médico" es ahora solo el rol
-    // Spatie `medic` (User::isMedic()); se asigna desde /rolescrud.
-    Route::post('/putsup/{id}',[App\Http\Controllers\CrewStatusController::class,'putgg'])->name('putgg');
+    // (2026-08-07) ELIMINADAS `POST /putadm` (putga) y `POST /putsup` (putgg): escribían el grupo
+    // legacy `daytest`, bandera MUERTA que ningún código leía para decidir nada. Se borraron sus
+    // métodos en CrewStatusController y el parcial componentes/_group-toggles. La columna daytest
+    // se conserva (dato), pendiente de un DROP en owner-apply. (`putgb`/daytest=2 ya se había ido.)
 });
 // LIMPIEZA (2026-07-06): ruta `POST /selectpuesto/{id}` ELIMINADA junto con el método muerto
 // CrewStatusController@selectpuesto (único lector de los modelos legacy puesto/departamento/
@@ -592,6 +593,9 @@ Route::group(['middleware' => 'admin'], function () {
 // aplica el scope por departamento (super-admin ve todo; roles acotados solo su depto). Mismo URI/nombre.
 Route::middleware(['auth','permission:reports.export'])->group(function () {
     Route::get('/nophoto',[App\Http\Controllers\ExportController::class,'expCsv'])->name('expCsv');
+    // (2026-08-07) Export del Crew List como DOCUMENTO vertical (bandas de departamento en orden
+    // canónico). Reemplaza al CSV en la UI; el CSV /nophoto se conserva como endpoint sin enlace.
+    Route::get('/crew/export',[App\Http\Controllers\CrewListController::class,'crewExport'])->name('crew.export');
 });
 
 // SEGURIDAD (2026-06-25): estas rutas estaban SIN `auth` — cualquiera podía cambiar la

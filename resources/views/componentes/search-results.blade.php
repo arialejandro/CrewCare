@@ -81,17 +81,9 @@
                                 </a>
                             </li>
                             @endcan
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                @if($user->admin === 0)
-                                    <form method="POST" action="{{ url('/activaradmin/'.$user->id) }}">@csrf<button type="submit" title="Activar encuesta" class="dropdown-item">@include('componentes._icon', ['name' => 'shield', 'class' => 'cc-ico', 'label' => null]) Convertir Admin</button></form>
-                                @else
-                                    <form method="POST" action="{{ url('/desactivaradmin/'.$user->id) }}">@csrf<button type="submit" title="Quit admin" class="dropdown-item">@include('componentes._icon', ['name' => 'shield-alert', 'class' => 'cc-ico', 'label' => null]) Quitar Admin</button></form>
-                                @endif
-                            </li>
-
-                            @include('componentes._group-toggles', ['user' => $user])
-
+                            {{-- (2026-08-07) Retiradas: "Convertir/Quitar Admin" (admin sigue viva,
+                                 solo fuera del menú) y "Supervisor" (daytest, código muerto borrado).
+                                 Ver nota en admin/usuarioscrud.blade.php. --}}
                             <li>
                                 @if($user->encuestadiaria === 1)
                                     <form method="post" action="{{ url('/activarencuesta/'.$user->id) }}">
