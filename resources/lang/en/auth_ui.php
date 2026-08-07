@@ -6,6 +6,8 @@
  * First surface migrated in the incremental i18n rollout. Used via
  * __('auth_ui.key'). es/ and en/ mirror each other exactly: same keys.
  * (Kept separate from auth.php, which holds Laravel's authentication messages.)
+ *
+ * (2026-08-07) Copyright year is dynamic (:year).
  */
 return [
 
@@ -15,6 +17,9 @@ return [
     'password'        => 'Password',
     'password_ph'     => 'Enter your password',
     'sign_in'         => 'Sign In',
+    'signing_in'      => 'Signing in…',
+    'show_password'   => 'Show password',
+    'hide_password'   => 'Hide password',
     'forgot_password' => 'Forgot your password?',
-    'copyright'       => '© CrewCare 2025 All Rights Reserved',
+    'copyright'       => '© CrewCare :year · All Rights Reserved',
 ];
