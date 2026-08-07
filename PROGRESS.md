@@ -235,6 +235,12 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-07 — 🔐 Auth: layout compartido glass + reset renovado + credenciales en ES
+- **Estado:** Hecho (verificado en navegador: login glass, ambas pantallas de reset renderizan 200, token/email prellenados, 2 toggles, credenciales en ES, 320px sin scroll-h). Commit `f988d08b`.
+- **Archivos:** `layouts/auth.blade.php` (nuevo), `componentes/_auth-password.blade.php` + `_auth-submit.blade.php` (nuevos), `auth/login.blade.php` + `auth/passwords/{email,reset}.blade.php` (a layout), `public/css/login.css` (glass), `lang/es/auth.php` (nuevo), `lang/{es,en}/auth_ui.php`.
+- **Qué / Por qué:** el owner pidió (1) trabajar el password reset, (2) darle al login el **glass** de la app, (3) el aviso de credenciales salía en inglés. Se extrajo un **layout de auth compartido** (login + reset, sin duplicar), tarjeta **glass** (backdrop-filter como `_brand-theme`). **`reset.blade.php` estaba EN BLANCO** (`@section` sin `@extends`) → arreglado. **`lang/es/auth.php` no existía** → `auth.failed` caía al inglés; creado → "Estas credenciales no coinciden…". `confirm.blade.php` NO se tocó (extiende `layouts.app`, contexto con marca).
+- **Riesgo/Notas:** presentación pura (rutas/@csrf/campos sin cambio). SIN SQL. Ver [[login-screen]].
+
 ### 2026-08-07 — 🔐 Login: renovación UI (dark full-height, foco/carga/error, mostrar contraseña, textos ES)
 - **Estado:** Hecho (verificado en navegador: público, sin login → 320px sin scroll-h, error en bloque con mensaje del servidor, toggle, sin errores de consola). Commit `a999df6b`.
 - **Archivos:** `resources/views/auth/login.blade.php`, `public/css/login.css`, `resources/lang/{es,en}/auth_ui.php`.
