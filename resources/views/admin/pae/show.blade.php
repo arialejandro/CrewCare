@@ -74,8 +74,9 @@
         $c = $slot($k);
         if (trim((string) ($c['name'] ?? '')) !== '') { $bigCards[] = $c; }
     }
+    // (spfx_stunts y safety = claves LEGADO de payloads anteriores al split/rename; se leen si existen.)
     $smCards = [];
-    foreach (['locaciones_transporte', 'spfx_stunts', 'brigada_incendios', 'extras_background', 'safety'] as $k) {
+    foreach (['locaciones_transporte', 'spfx', 'stunts', 'brigada_incendios', 'extras_background', 'safety', 'spfx_stunts'] as $k) {
         $c = $slot($k);
         if (trim((string) ($c['name'] ?? '')) !== '') { $smCards[] = $c; }
     }
@@ -86,7 +87,10 @@
     foreach ($locations as $lx) { $nm = trim((string) ($lx['name'] ?? '')); if ($nm !== '') { $locNames[] = $nm; } }
     $locLabel = $locNames ? implode(' · ', $locNames) : ($en ? 'Location' : 'Locación');
 
-    $docVersion = config('crewcare.doc_version');
+    // VERSIÓN: la que se muestra es la del DOCUMENTO (payload congelado, p. ej. "v1.0"), no la de
+    // la aplicación. La de la app queda sólo como sello técnico en el UUID del pie.
+    $appVersion = config('crewcare.doc_version');
+    $docVersion = 'v' . number_format((float) $p->pdata('version', 1), 1);
 
     // Nivel de riesgo → etiqueta + color + rango de orden (E>H>M>L). DERIVADO, no sellado.
     $ratingMeta = function ($r) {
@@ -147,7 +151,7 @@
     $footMeta   = 'Safety' . ($dateStr ? ' · ' . $dateStr : '');
     $footUuid   = 'UUID: ' . $brandName . '-PAE-' . (16210 + (int) $p->id) . '-'
                 . ($p->created_at ? \Carbon\Carbon::parse($p->created_at)->format('dmY') : '')
-                . ' | ' . $docVersion;
+                . ' | ' . $appVersion;
 @endphp
 <!DOCTYPE html>
 <html lang="{{ app()->getLocale() }}">
@@ -160,8 +164,8 @@
     /* Contenido propio del PAE (scoped .pae-*). Hereda los tokens del chrome (claro/oscuro/print). */
 
     /* Encabezado tabular del llamado (SIN repetir proyecto/fecha — ya viven en el hero). */
-    .pae-meta{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:0 0 14px; }
-    .pae-meta .cell{ border:1px solid var(--stroke); border-radius:10px; padding:8px 11px; background:var(--panel); }
+    .pae-meta{ display:flex; flex-wrap:wrap; gap:8px; margin:0 0 14px; }
+    .pae-meta .cell{ flex:1 1 200px; border:1px solid var(--stroke); border-radius:10px; padding:8px 11px; background:var(--panel); }
     .pae-meta .lbl{ font-size:8.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--faint); font-weight:800; }
     .pae-meta .val{ font-size:12.5px; font-weight:700; color:var(--text); margin-top:3px; word-break:break-word; }
 
@@ -339,14 +343,13 @@
     <div class="body">
       <h1 class="restricted" style="position:absolute;left:-9999px">{{ $brandName }} — {{ $heroModule }} — {{ $locLabel }}</h1>
 
-      {{-- ENCABEZADO — sin repetir proyecto/fecha (ya en el hero); solo metadatos del documento --}}
+      {{-- ENCABEZADO — sin repetir proyecto/fecha (ya en el hero) ni "Elaborado por" (ya en el pie) --}}
       <div class="pae-meta">
-        <div class="cell"><div class="lbl">{{ $en ? 'Prepared by' : 'Elaborado por' }}</div><div class="val">{{ $preparedName }}</div></div>
         <div class="cell"><div class="lbl">{{ $en ? 'Emergency coordinator' : 'Coordinador de emergencia' }}</div><div class="val">{{ $coordName !== '' ? $coordName : ($en ? 'Assign on set' : 'Por asignar en set') }}</div></div>
         @if($unit !== '')
         <div class="cell"><div class="lbl">{{ $en ? 'Unit' : 'Unidad' }}</div><div class="val">{{ $unit }}</div></div>
         @endif
-        <div class="cell"><div class="lbl">{{ $en ? 'Version' : 'Versión' }}</div><div class="val">{{ $docVersion }}</div></div>
+        <div class="cell"><div class="lbl">{{ $en ? 'Document version' : 'Versión del documento' }}</div><div class="val">{{ $docVersion }}</div></div>
       </div>
 
       @if($isMove)

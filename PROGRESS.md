@@ -235,6 +235,12 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-06 — 🚑 PAE · ajustes finos: versión del documento, split SPFX/Stunts, radio, quitar "Elaborado por"
+- **Estado:** Hecho (render + checks verificados; PAE-0018 emitido de muestra).
+- **Archivos:** `app/Support/PaeOrgChart.php` (split slot), `resources/views/admin/pae/show.blade.php`.
+- **Qué/Por qué:** feedback del owner. (1) **Versión = del DOCUMENTO** (`"v".payload.version` = v1.0), no la de la app (`config('crewcare.doc_version')`, que queda sólo en el UUID del pie). (2) **SPFX y Stunts SEPARADOS** (`spfx_stunts` → slots `spfx` + `stunts`; el `show` conserva `spfx_stunts`/`safety` como claves legado). (3) **Radio = canal** que teclea el emisor (el "Radio COO" era dato de demo, no del producto). (4) **Se quitó "Elaborado por"** del encabezado (ya está en el pie); meta a **flex** (Coordinador · Unidad · Versión del documento).
+- **Riesgo/Notas:** sin SQL. Los PAE viejos con slot `spfx_stunts` siguen renderizando (clave legado). Render no altera el hash. Ver [[pae-emergency-action-plan]].
+
 ### 2026-08-06 — 🚑 PAE · 2º feedback: header con llamado, organigrama, homologación (3ª pasada)
 - **Estado:** Hecho (render + no-fugas + sello + regresión DSR/MEDEVAC/scouting verificados; screenshot PAE-0017 OK).
 - **Archivos:** `app/Support/{PaeOrgChart,EmergencyActionPlanBuilder}.php`, `app/Http/Controllers/PaeController.php`, `resources/views/componentes/_doc-hero.blade.php` (+`$heroMeta` opcional), `resources/views/admin/pae/{show,create}.blade.php`, `resources/views/admin/scoutings/show.blade.php`. **Sin SQL.**

@@ -40,7 +40,8 @@ class PaeOrgChart
         ['key' => 'produccion_upm',         'label' => 'Producción / UPM'],
         ['key' => 'locaciones_transporte',  'label' => 'Locaciones y transportación'],
         ['key' => 'brigada_incendios',      'label' => 'Brigada contra incendios'],
-        ['key' => 'spfx_stunts',            'label' => 'Seguridad SPFX / Stunts'],
+        ['key' => 'spfx',                   'label' => 'Seguridad SPFX'],
+        ['key' => 'stunts',                 'label' => 'Coordinación de stunts'],
         ['key' => 'extras_background',      'label' => 'Extras / Background'],
     ];
 
