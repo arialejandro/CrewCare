@@ -35,9 +35,9 @@ class PaeOrgChart
      * `resolve` = clave de resolución (role:x / pos / null=manual).
      */
     const SLOTS = [
-        ['key' => 'coordinador_emergencia', 'label' => 'Coordinador de emergencia (Producción / UPM)'],
-        ['key' => 'safety',                 'label' => 'Seguridad en set (Safety)'],
+        ['key' => 'coordinador_emergencia', 'label' => 'Coordinador de emergencia'],   // = Safety (owner 2026-08-06)
         ['key' => 'set_medic',              'label' => 'Coordinación médica (Set Medic)'],
+        ['key' => 'produccion_upm',         'label' => 'Producción / UPM'],
         ['key' => 'locaciones_transporte',  'label' => 'Locaciones y transportación'],
         ['key' => 'brigada_incendios',      'label' => 'Brigada contra incendios'],
         ['key' => 'spfx_stunts',            'label' => 'Seguridad SPFX / Stunts'],
@@ -63,10 +63,11 @@ class PaeOrgChart
         $crewIds = self::crewUserIds($pid);
 
         $picked = [
-            'coordinador_emergencia' => self::firstByPosition($pid, self::COORDINATOR_POSITION_IDS)
-                                        ?: self::firstByRole($crewIds, 'line-producer'),
-            'safety'                 => self::firstByRole($crewIds, 'safety-officer'),
+            // El coordinador de emergencia es el SAFETY (no el UPM) — decisión del owner.
+            'coordinador_emergencia' => self::firstByRole($crewIds, 'safety-officer'),
             'set_medic'              => self::firstByRole($crewIds, 'medic'),
+            'produccion_upm'         => self::firstByPosition($pid, self::COORDINATOR_POSITION_IDS)
+                                        ?: self::firstByRole($crewIds, 'line-producer'),
             // locaciones_transporte, brigada_incendios, spfx_stunts, extras_background → manual
         ];
 
@@ -76,12 +77,25 @@ class PaeOrgChart
             $out[] = [
                 'key'   => $slot['key'],
                 'label' => $slot['label'],
-                'name'  => $u ? trim((string) $u->name) : '',
+                'name'  => $u ? self::displayName($u) : '',
                 'phone' => $u ? trim((string) ($u->phone ?? '')) : '',
                 'radio' => '',
             ];
         }
         return $out;
+    }
+
+    /**
+     * Nombre a mostrar: el NOMBRE EN CRÉDITOS (`users.ncreditos`) cuando existe; si no, el
+     * nombre de pila (parcial, como se hacía). Nunca se inventa. (owner 2026-08-06)
+     */
+    private static function displayName($u): string
+    {
+        $cred = trim((string) ($u->ncreditos ?? ''));
+        if ($cred !== '') {
+            return $cred;
+        }
+        return trim((string) $u->name);
     }
 
     /** IDs de usuario del crew de la producción (pivote production_user). [] si no hay. */

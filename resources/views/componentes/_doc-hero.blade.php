@@ -25,6 +25,9 @@
     // $logoSrc OPCIONAL: se reenvía al parcial del logo para que los documentos sellados puedan
     // pintar el logo CONGELADO en su payload en vez del vivo de Marca. Null = logo vivo (default).
     $logoSrc      = $logoSrc ?? null;
+    // $heroMeta OPCIONAL: sub-línea del "llamado" (tipo Int./Ext. · día/noche · escenas · fecha de
+    // rodaje). Sólo la usa hoy el PAE; si no se pasa, no se pinta (retrocompatible con todos los docs).
+    $heroMeta     = $heroMeta ?? null;
 @endphp
 <div class="doc-hero">
     @if(!empty($heroImage))
@@ -41,6 +44,7 @@
         <div class="hero-callbox">
             <div class="cl-loc" id="heroCall">{{ $heroLocation !== '' ? $heroLocation : '—' }}</div>
             <div class="cl-date">{{ $heroDate ?: 'S/F' }}{{ !empty($heroTime) ? ' | ' . $heroTime . ' HRS' : '' }}</div>
+            @if(!empty($heroMeta))<div class="cl-meta" style="font-size:11px;color:rgba(255,255,255,.82);margin-top:5px;letter-spacing:.02em;line-height:1.35;">{{ $heroMeta }}</div>@endif
         </div>
     </div>
 

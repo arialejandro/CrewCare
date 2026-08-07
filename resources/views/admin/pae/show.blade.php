@@ -4,21 +4,17 @@
      MISMOS tokens; lo único propio del PAE es el título del hero y las secciones .pae-*.
 
      ESTRUCTURA (rediseño 2026-08-06, feedback del owner):
+       HERO: imagen del scouting + proyecto (brand_name en vivo) + locación/fecha + sub-línea de
+             LLAMADO (Int./Ext. · día/noche · escenas · fecha de rodaje, del scouting).
        HOJA DE ACTIVACIÓN — se repite POR LOCACIÓN (company move):
          · Franja de activación (911 · ambulancia · teléfono de emergencia, números display).
-         · Locación y traslado médico (ETA display + km · hospital · reunión/acceso · mapa).
+         · Locación y traslado médico (ETA + km · hospital · reunión/acceso · mapa scouting|MEDEVAC).
        RESTO — UNA sola vez por llamado (mismo crew):
-         · Cadena de mando (TARJETAS: 3 grandes + 4 chicas).
-         · Qué decir al reportar (guion de radio, 5 columnas fijas).
-         · Fases ante una emergencia (3×2, 01–06; texto fijo del MEDEVAC).
-         · Riesgos del día (TARJETAS con filo por nivel + badges de norma del MISMO _standards-chips).
-         · Procedimientos rápidos (2 columnas; evacuación total desde datos reales de la locación).
-         · Sello SHA.
-       NO va acuse de recepción (100+ personas por locación: esa firma no ocurre; el sello se conserva).
-
-     HONESTIDAD: se lee SÓLO del payload congelado; un dato vacío NO se imprime. El nivel/orden de
-     los riesgos y las normas ya vienen resueltos y CONGELADOS por el builder — aquí sólo se pintan.
-     El sello SHA se calcula sobre el DATO, no sobre este render: cambiar la vista NO altera el hash.
+         · Organigrama de emergencia (TARJETAS; se OCULTAN los puestos sin nombre).
+         · Qué decir al reportar (plantilla de radio práctica).
+         · Fases 01–06 (texto fijo del MEDEVAC) · Riesgos del día (tarjetas + badges de norma) ·
+           Procedimientos rápidos · Sello SHA.
+       NO va acuse de recepción. El sello SHA se calcula sobre el DATO, no sobre este render.
 ============================================================================================ --}}
 @php
     use App\Support\SealVerifier;
@@ -40,28 +36,49 @@
     $moveTime  = trim((string) ($move['move_time'] ?? ''));
     $locations = (array) $p->pdata('locations', []);
 
-    $shootDay  = $hd['shoot_day'] ?? null;
     $planDate  = trim((string) ($hd['date'] ?? ''));
     $unit      = trim((string) ($hd['unit'] ?? ''));
     $mainImage = trim((string) ($hd['main_image'] ?? ''));
     $dateStr   = $planDate !== '' ? \Carbon\Carbon::parse($planDate)->format('d/m/Y') : optional($p->issued_at)->format('d/m/Y');
 
-    // Nombre de proyecto EN VIVO = brand_name (misma convención que MEDEVAC y reportes: la marca
-    // es presentación, no dato sellado). Ya NO se lee header.project (era production_name libre → "CrewCare").
+    // Nombre de proyecto EN VIVO = brand_name (misma convención que MEDEVAC y reportes).
     $project   = $brandName;
 
-    // Qué celdas del encabezado imprimir (el emisor las eligió; default = todas).
-    $show      = (array) ($hd['show'] ?? []);
-    $showCell  = function ($k) use ($show) { return ! array_key_exists($k, $show) || ! empty($show[$k]); };
+    // Sub-línea del LLAMADO para el hero (tipo Int./Ext. · día/noche · escenas · fecha de rodaje).
+    $call      = (array) ($hd['call'] ?? []);
+    $cSet      = trim((string) ($call['setting'] ?? ''));
+    $cTime     = trim((string) ($call['shoot_time'] ?? ''));
+    $cScenes   = trim((string) ($call['scenes'] ?? ''));
+    $cShootDt  = trim((string) ($call['shoot_date'] ?? ''));
+    $callType  = implode(' · ', array_filter([$cSet, $cTime]));
+    $heroGroups = array_filter([
+        $callType,
+        $cScenes  !== '' ? (($en ? 'Sc. ' : 'Esc. ') . $cScenes) : '',
+        $cShootDt !== '' ? (($en ? 'Shoot ' : 'Rodaje ') . \Carbon\Carbon::parse($cShootDt)->format('d/m/Y')) : '',
+    ]);
+    $heroMeta  = $heroGroups ? implode('   |   ', $heroGroups) : null;
 
-    // Crew indexado por slot para armar las tarjetas de la cadena de mando.
+    // Crew indexado por slot.
     $crewByKey = [];
     foreach ($crew as $c) { $crewByKey[(string) ($c['key'] ?? '')] = $c; }
     $slot = function ($key) use ($crewByKey) {
         return $crewByKey[$key] ?? ['label' => '', 'name' => '', 'phone' => '', 'radio' => ''];
     };
-    $coord     = $slot('coordinador_emergencia');
+    $coord     = $slot('coordinador_emergencia');   // = Safety (owner 2026-08-06)
     $coordName = trim((string) ($coord['name'] ?? ''));
+
+    // Tarjetas del organigrama: SOLO los puestos con nombre (ocultar > engañar). Big = los 3
+    // clave; small = apoyos. (Compat: si un payload viejo trae el slot 'safety', cae como apoyo.)
+    $bigCards = [];
+    foreach (['coordinador_emergencia', 'set_medic', 'produccion_upm'] as $k) {
+        $c = $slot($k);
+        if (trim((string) ($c['name'] ?? '')) !== '') { $bigCards[] = $c; }
+    }
+    $smCards = [];
+    foreach (['locaciones_transporte', 'spfx_stunts', 'brigada_incendios', 'extras_background', 'safety'] as $k) {
+        $c = $slot($k);
+        if (trim((string) ($c['name'] ?? '')) !== '') { $smCards[] = $c; }
+    }
 
     $preparedName = trim((string) $p->issued_by_name) ?: '—';
 
@@ -82,7 +99,7 @@
         }
     };
 
-    // FASES ante una emergencia — texto FIJO tomado del MEDEVAC vigente (no cambia por locación).
+    // FASES ante una emergencia — texto FIJO tomado del MEDEVAC vigente.
     $fases = [
         ['01', 'Detección', ['Cualquier persona que presencie o sufra un incidente lo reporta de inmediato al personal médico, Health & Safety o Producción.']],
         ['02', 'Alertamiento', ['Comunicar por radio o teléfono: quién reporta, tipo de emergencia, ubicación exacta, estado del paciente y riesgos adicionales presentes.']],
@@ -92,18 +109,9 @@
         ['06', 'Control y cierre', ['Elaboración del reporte.', 'Seguimiento médico.', 'Liberación del área.']],
     ];
 
-    // GUION DE RADIO — "Qué decir al reportar". Bloque FIJO (no depende de datos).
-    $sayScript = [
-        ['Quién habla',              'Tu nombre y puesto. «Aquí [nombre], soy [puesto].»'],
-        ['Qué pasó',                 'El tipo de emergencia en una frase: caída, quemadura, incendio, choque, descarga.'],
-        ['Dónde exactamente',        'Locación y punto preciso: set, piso, acceso o referencia visible.'],
-        ['Cuántos y cómo',           'Número de afectados y su estado: consciente, no responde, sangra, atrapado.'],
-        ['Qué riesgos siguen activos','Peligros aún presentes: fuego, energía, tránsito, altura, químicos.'],
-    ];
-
     // PROCEDIMIENTOS RÁPIDOS — pasos numerados en línea. Los cinco primeros son fijos; la
     // EVACUACIÓN TOTAL se arma con los datos REALES de la(s) locación(es). Si ninguna trae
-    // punto de reunión ni acceso de emergencia, ese procedimiento NO se imprime (nada inventado).
+    // punto de reunión ni acceso de emergencia, ese procedimiento NO se imprime.
     $procs = [
         ['Emergencia médica', ['Avisa por radio al Set Medic', 'Asegura el área', 'Aplica primeros auxilios si estás capacitado', 'Traslada al hospital de referencia si es necesario']],
         ['Incendio', ['Activa la alarma / avisa por radio', 'Corta la energía del área si es seguro', 'Evacúa hacia el punto de reunión', 'Usa el extintor sólo si es seguro']],
@@ -134,8 +142,7 @@
     $identicon = $sig ? SealVerifier::identiconSvg($sig->document_hash, 48) : null;
     $sealedAt  = ($sig && $sig->signed_at) ? \Carbon\Carbon::parse($sig->signed_at)->format('d/m/Y H:i') : null;
 
-    // Hero + pie (misma fórmula que MEDEVAC / reportes v2). heroTime = NULL a propósito: el PAE es
-    // de todo el día, no de una hora de llamado; el día de rodaje vive en el encabezado, no en el hero.
+    // Hero + pie. heroTime = NULL (el PAE es de todo el día; el llamado va en la sub-línea).
     $heroModule = $en ? 'Emergency Action Plan' : 'Plan de Atención a Emergencias';
     $footMeta   = 'Safety' . ($dateStr ? ' · ' . $dateStr : '');
     $footUuid   = 'UUID: ' . $brandName . '-PAE-' . (16210 + (int) $p->id) . '-'
@@ -147,12 +154,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ $brandName }} · {{ $heroModule }} · {{ $shootDay ? ('Día ' . $shootDay) : $dateStr }}</title>
+<title>{{ $brandName }} · {{ $heroModule }} · {{ $locLabel }}</title>
 @include('componentes._report-v2-head')
 <style>
-    /* Contenido propio del PAE (scoped .pae-*). Hereda TODOS los tokens del chrome (claro/oscuro/print). */
+    /* Contenido propio del PAE (scoped .pae-*). Hereda los tokens del chrome (claro/oscuro/print). */
 
-    /* Encabezado tabular del llamado (celdas que el emisor eligió imprimir). */
+    /* Encabezado tabular del llamado (SIN repetir proyecto/fecha — ya viven en el hero). */
     .pae-meta{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:0 0 14px; }
     .pae-meta .cell{ border:1px solid var(--stroke); border-radius:10px; padding:8px 11px; background:var(--panel); }
     .pae-meta .lbl{ font-size:8.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--faint); font-weight:800; }
@@ -172,56 +179,56 @@
     .pae-act-eye .nm{ font-weight:800; font-size:13px; color:var(--text); }
     .pae-act-eye .nm small{ font-weight:400; color:var(--muted); }
 
-    /* Franja de activación: 3 celdas grandes en una línea (números display). */
+    /* Franja de activación: 3 celdas en una línea (números display homologados ~24px). */
     .pae-strip{ display:grid; grid-template-columns:repeat(3,1fr); }
-    .pae-strip .cell{ padding:12px 14px; border-right:1px solid var(--stroke); min-width:0; }
+    .pae-strip .cell{ padding:11px 14px; border-right:1px solid var(--stroke); min-width:0; }
     .pae-strip .cell:last-child{ border-right:0; }
     .pae-strip .k{ font-size:8.5px; text-transform:uppercase; letter-spacing:.12em; color:var(--faint); font-weight:800; }
-    .pae-strip .big{ font-size:30px; font-weight:800; line-height:1.02; color:var(--text); margin-top:3px; letter-spacing:-.01em; word-break:break-word; }
+    .pae-strip .big{ font-size:24px; font-weight:800; line-height:1.05; color:var(--text); margin-top:4px; letter-spacing:-.01em; word-break:break-word; }
     .pae-strip .big.call{ color:var(--danger); }
-    .pae-strip .mid{ font-size:16px; font-weight:800; line-height:1.15; color:var(--text); margin-top:5px; word-break:break-word; }
-    .pae-strip .sub{ font-size:10.5px; color:var(--muted); margin-top:4px; line-height:1.3; word-break:break-word; }
+    .pae-strip .mid{ font-size:15px; font-weight:800; line-height:1.2; color:var(--text); margin-top:6px; word-break:break-word; }
+    .pae-strip .sub{ font-size:10px; color:var(--muted); margin-top:4px; line-height:1.3; word-break:break-word; }
     .pae-strip .none{ font-size:12px; color:var(--faint); font-style:italic; margin-top:6px; }
 
-    /* Locación y traslado médico. */
+    /* Locación y traslado médico. ETA homologada al tamaño de los números de emergencia. */
     .pae-trans{ padding:12px 14px; border-top:1px solid var(--stroke); }
-    .pae-trans-h{ font-weight:800; font-size:12.5px; color:var(--text); }
-    .pae-trans-h small{ font-weight:400; color:var(--muted); }
-    .pae-trans-grid{ display:grid; grid-template-columns:1.25fr 1fr; gap:12px 22px; margin-top:10px; }
-    .pae-eta{ display:flex; align-items:baseline; gap:8px; margin-bottom:8px; }
-    .pae-eta .n{ font-size:34px; font-weight:800; line-height:1; color:var(--brand); }
-    .pae-eta .u{ font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+    .pae-trans-grid{ display:grid; grid-template-columns:1.15fr 1fr; gap:12px 22px; }
+    .pae-eta{ display:flex; align-items:baseline; gap:7px; margin-bottom:8px; flex-wrap:wrap; }
+    .pae-eta .n{ font-size:24px; font-weight:800; line-height:1; color:var(--brand); }
+    .pae-eta .u{ font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
     .pae-eta .km{ font-size:12px; color:var(--muted); }
     .pae-row{ display:flex; gap:9px; padding:2px 0; }
-    .pae-row .k{ flex:none; width:104px; font-weight:700; color:var(--brand); text-transform:uppercase; font-size:9px; letter-spacing:.03em; padding-top:2px; }
+    .pae-row .k{ flex:none; width:96px; font-weight:700; color:var(--brand); text-transform:uppercase; font-size:9px; letter-spacing:.03em; padding-top:2px; }
     .pae-row .v{ font-size:11px; color:var(--text); word-break:break-word; }
     .pae-row a{ color:var(--brand); word-break:break-all; }
     .pae-map{ margin-top:10px; border:1px solid var(--stroke); border-radius:var(--radius-sm); overflow:hidden; }
     .pae-map img{ display:block; width:100%; max-height:52mm; object-fit:cover; }
     .pae-map .cap{ font-size:8.5px; color:var(--muted); padding:3px 8px; background:var(--panel); }
 
-    /* ===== CADENA DE MANDO — tarjetas (3 grandes + 4 chicas) ===== */
+    /* ===== ORGANIGRAMA DE EMERGENCIA — tarjetas (solo las que tienen nombre) ===== */
     .pae-cmd-big{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
     .pae-cmd-sm{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:8px; }
     .pae-card{ border:1px solid var(--stroke); border-radius:12px; padding:11px 12px; background:var(--panel); min-width:0; }
     .pae-card.big{ border-top:3px solid var(--brand); }
     .pae-card .role{ font-size:8.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--faint); font-weight:800; line-height:1.2; }
     .pae-card .name{ font-weight:800; font-size:12.5px; color:var(--text); margin-top:6px; word-break:break-word; }
-    .pae-card.big .name{ font-size:13.5px; }
+    .pae-card.big .name{ font-size:13px; }
     .pae-card .phone{ font-family:var(--mono); font-weight:700; color:var(--text); margin-top:4px; word-break:break-word; }
-    .pae-card.big .phone{ font-size:20px; }
-    .pae-card:not(.big) .phone{ font-size:12.5px; }
+    .pae-card.big .phone{ font-size:15px; }
+    .pae-card:not(.big) .phone{ font-size:12px; }
     .pae-card .radio{ display:inline-block; margin-top:6px; font-size:9px; font-weight:700; color:var(--muted);
         border:1px solid var(--stroke); border-radius:20px; padding:2px 9px; }
-    .pae-card .empty{ color:var(--faint); font-style:italic; font-size:11px; margin-top:6px; }
+    .pae-org-empty{ color:var(--faint); font-style:italic; font-size:11px; }
 
-    /* ===== GUION DE RADIO — 5 columnas numeradas ===== */
-    .pae-say{ display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
-    .pae-say .col{ border:1px solid var(--stroke); border-radius:11px; padding:10px 11px; background:var(--panel); min-width:0; }
-    .pae-say .n{ width:22px; height:22px; border-radius:50%; background:var(--brand); color:#fff; font-weight:800;
-        font-size:11px; display:flex; align-items:center; justify-content:center; }
-    .pae-say .h{ font-weight:800; font-size:10.5px; color:var(--text); text-transform:uppercase; letter-spacing:.02em; margin:7px 0 4px; line-height:1.15; }
-    .pae-say .b{ font-size:10.5px; color:var(--muted); line-height:1.35; }
+    /* ===== QUÉ DECIR AL REPORTAR — plantilla de radio práctica ===== */
+    .pae-say-tpl{ font-size:14px; line-height:1.7; color:var(--text); border-left:3px solid var(--brand);
+        padding:10px 14px; background:var(--panel); border-radius:0 var(--radius-sm) var(--radius-sm) 0; }
+    .pae-say-tpl b{ color:var(--brand); font-weight:800; }
+    .pae-say-keys{ display:flex; flex-wrap:wrap; gap:7px; margin-top:9px; }
+    .pae-say-keys span{ display:inline-flex; align-items:baseline; gap:6px; font-size:10px; font-weight:700;
+        text-transform:uppercase; letter-spacing:.03em; color:var(--muted); border:1px solid var(--stroke);
+        border-radius:20px; padding:4px 11px; }
+    .pae-say-keys span i{ font-style:normal; font-weight:800; color:var(--brand); }
 
     /* ===== FASES 3×2 (número fantasma detrás) ===== */
     .pae-fases{ display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
@@ -263,7 +270,7 @@
         border-radius:50%; background:color-mix(in srgb, var(--brand) 16%, transparent); color:var(--brand);
         font-size:8.5px; font-weight:800; margin-right:3px; vertical-align:middle; }
 
-    /* Sello (calca del Mapa / MEDEVAC). */
+    /* Sello. */
     .pae-seal{ display:flex; align-items:center; gap:12px; padding:12px 14px; border:1px solid var(--stroke); border-radius:var(--radius-sm); background:var(--panel); }
     .pae-seal .qr{ flex:none; width:82px; height:82px; background:#fff; padding:4px; border:1px solid var(--stroke); border-radius:6px; }
     .pae-seal .qr svg{ width:100%; height:100%; display:block; }
@@ -277,7 +284,7 @@
 
     @media print{
         .pae-act{ break-inside:avoid; }
-        .pae-cmd-big, .pae-cmd-sm, .pae-say, .pae-fase, .pae-risk, .pae-proc{ break-inside:avoid; }
+        .pae-cmd-big, .pae-cmd-sm, .pae-say-tpl, .pae-fase, .pae-risk, .pae-proc{ break-inside:avoid; }
     }
     @media (max-width:720px){
         .pae-meta{ grid-template-columns:repeat(2,1fr); }
@@ -285,7 +292,7 @@
         .pae-strip .cell{ border-right:0; border-bottom:1px solid var(--stroke); }
         .pae-strip .cell:last-child{ border-bottom:0; }
         .pae-trans-grid{ grid-template-columns:1fr; }
-        .pae-cmd-big, .pae-cmd-sm, .pae-say, .pae-fases, .pae-risks, .pae-proc-grid{ grid-template-columns:1fr; }
+        .pae-cmd-big, .pae-cmd-sm, .pae-fases, .pae-risks, .pae-proc-grid{ grid-template-columns:1fr; }
     }
 </style>
 </head>
@@ -307,6 +314,7 @@
         'heroLocation' => $locLabel,
         'heroDate'     => $dateStr,
         'heroTime'     => null,
+        'heroMeta'     => $heroMeta,
         'heroModule'   => $heroModule,
       ])
     </td></tr></thead>
@@ -331,22 +339,13 @@
     <div class="body">
       <h1 class="restricted" style="position:absolute;left:-9999px">{{ $brandName }} — {{ $heroModule }} — {{ $locLabel }}</h1>
 
-      {{-- ENCABEZADO DEL LLAMADO (celdas que el emisor eligió imprimir + metadatos fijos) --}}
+      {{-- ENCABEZADO — sin repetir proyecto/fecha (ya en el hero); solo metadatos del documento --}}
       <div class="pae-meta">
-        @if($showCell('project'))
-        <div class="cell"><div class="lbl">{{ $en ? 'Project' : 'Proyecto' }}</div><div class="val">{{ $project }}</div></div>
-        @endif
-        @if($showCell('shoot_day') && $shootDay)
-        <div class="cell"><div class="lbl">{{ $en ? 'Shoot day' : 'Día de rodaje' }}</div><div class="val">{{ $shootDay }}</div></div>
-        @endif
-        @if($showCell('date') && $dateStr)
-        <div class="cell"><div class="lbl">{{ $en ? 'Date' : 'Fecha' }}</div><div class="val">{{ $dateStr }}</div></div>
-        @endif
-        @if($showCell('unit') && $unit !== '')
-        <div class="cell"><div class="lbl">{{ $en ? 'Unit' : 'Unidad' }}</div><div class="val">{{ $unit }}</div></div>
-        @endif
         <div class="cell"><div class="lbl">{{ $en ? 'Prepared by' : 'Elaborado por' }}</div><div class="val">{{ $preparedName }}</div></div>
         <div class="cell"><div class="lbl">{{ $en ? 'Emergency coordinator' : 'Coordinador de emergencia' }}</div><div class="val">{{ $coordName !== '' ? $coordName : ($en ? 'Assign on set' : 'Por asignar en set') }}</div></div>
+        @if($unit !== '')
+        <div class="cell"><div class="lbl">{{ $en ? 'Unit' : 'Unidad' }}</div><div class="val">{{ $unit }}</div></div>
+        @endif
         <div class="cell"><div class="lbl">{{ $en ? 'Version' : 'Versión' }}</div><div class="val">{{ $docVersion }}</div></div>
       </div>
 
@@ -375,7 +374,6 @@
           $ambul    = trim((string) ($loc['ambulance_company'] ?? ''));
           $ephone   = trim((string) ($loc['emergency_phone'] ?? ''));
           $rmap     = trim((string) ($loc['route_map'] ?? ''));
-          // Teléfono de emergencia + quién contesta (coordinador de emergencia).
           $callPhone = $ephone !== '' ? $ephone : trim((string) ($coord['phone'] ?? ''));
           $callRadio = trim((string) ($coord['radio'] ?? ''));
         @endphp
@@ -385,7 +383,7 @@
             <span class="nm">{{ $lname !== '' ? $lname : ($en ? 'Location' : 'Locación') }}@if($laddr !== '') <small>· {{ $laddr }}</small>@endif</span>
           </div>
 
-          {{-- Franja de activación: 911 · ambulancia · teléfono de emergencia (números display) --}}
+          {{-- Franja de activación: 911 · ambulancia · teléfono de emergencia --}}
           <div class="pae-strip">
             <div class="cell">
               <div class="k">{{ $en ? 'Emergency · dial' : 'Emergencias · marca' }}</div>
@@ -406,9 +404,8 @@
             </div>
           </div>
 
-          {{-- Locación y traslado médico: ETA display + km · hospital · reunión/acceso · mapa --}}
+          {{-- Locación y traslado médico --}}
           <div class="pae-trans">
-            <div class="pae-trans-h">{{ $lname !== '' ? $lname : ($en ? 'Location' : 'Locación') }}@if($laddr !== '') <small>· {{ $laddr }}</small>@endif</div>
             <div class="pae-trans-grid">
               <div>
                 @if($hEta !== '' || $hDist !== '')
@@ -434,56 +431,51 @@
         </div>
       @endforeach
 
-      {{-- ============ CADENA DE MANDO EN EMERGENCIA (una vez — mismo crew) ============ --}}
+      {{-- ============ ORGANIGRAMA DE EMERGENCIA (una vez — solo puestos con nombre) ============ --}}
       <section class="sec">
-        <div class="sec-h"><span class="bar"></span><h2>{{ $en ? 'Emergency chain of command' : 'Cadena de mando en emergencia' }}</h2><span class="line"></span></div>
-        @php
-          $bigSlots = ['coordinador_emergencia', 'set_medic', 'safety'];
-          $smSlots  = ['locaciones_transporte', 'spfx_stunts', 'brigada_incendios', 'extras_background'];
-        @endphp
-        <div class="pae-cmd-big">
-          @foreach($bigSlots as $k)
-            @php $c = $slot($k); $cn = trim((string) ($c['name'] ?? '')); $cp = trim((string) ($c['phone'] ?? '')); $cr = trim((string) ($c['radio'] ?? '')); @endphp
-            <div class="pae-card big">
-              <div class="role">{{ $c['label'] ?? '' }}</div>
-              @if($cn !== '')
+        <div class="sec-h"><span class="bar"></span><h2>{{ $en ? 'Emergency org chart' : 'Organigrama de emergencia' }}</h2><span class="line"></span></div>
+        @if(count($bigCards) || count($smCards))
+          @if(count($bigCards))
+          <div class="pae-cmd-big">
+            @foreach($bigCards as $c)
+              @php $cn = trim((string) ($c['name'] ?? '')); $cp = trim((string) ($c['phone'] ?? '')); $cr = trim((string) ($c['radio'] ?? '')); @endphp
+              <div class="pae-card big">
+                <div class="role">{{ $c['label'] ?? '' }}</div>
                 <div class="name">{{ $cn }}</div>
                 @if($cp !== '')<div class="phone">{{ $cp }}</div>@endif
                 @if($cr !== '')<span class="radio">{{ $en ? 'Radio' : 'Radio' }} {{ $cr }}</span>@endif
-              @else
-                <div class="empty">{{ $en ? 'Assign on set' : 'Por asignar en set' }}</div>
-              @endif
-            </div>
-          @endforeach
-        </div>
-        <div class="pae-cmd-sm">
-          @foreach($smSlots as $k)
-            @php $c = $slot($k); $cn = trim((string) ($c['name'] ?? '')); $cp = trim((string) ($c['phone'] ?? '')); $cr = trim((string) ($c['radio'] ?? '')); @endphp
-            <div class="pae-card">
-              <div class="role">{{ $c['label'] ?? '' }}</div>
-              @if($cn !== '')
+              </div>
+            @endforeach
+          </div>
+          @endif
+          @if(count($smCards))
+          <div class="pae-cmd-sm">
+            @foreach($smCards as $c)
+              @php $cn = trim((string) ($c['name'] ?? '')); $cp = trim((string) ($c['phone'] ?? '')); $cr = trim((string) ($c['radio'] ?? '')); @endphp
+              <div class="pae-card">
+                <div class="role">{{ $c['label'] ?? '' }}</div>
                 <div class="name">{{ $cn }}</div>
                 @if($cp !== '')<div class="phone">{{ $cp }}</div>@endif
                 @if($cr !== '')<span class="radio">{{ $en ? 'Radio' : 'Radio' }} {{ $cr }}</span>@endif
-              @else
-                <div class="empty">{{ $en ? 'Assign on set' : 'Por asignar en set' }}</div>
-              @endif
-            </div>
-          @endforeach
-        </div>
+              </div>
+            @endforeach
+          </div>
+          @endif
+        @else
+          <div class="pae-org-empty">{{ $en ? 'Emergency roster to be captured on set.' : 'Organigrama de emergencia por capturar en set.' }}</div>
+        @endif
       </section>
 
-      {{-- ============ QUÉ DECIR AL REPORTAR (guion de radio, fijo) ============ --}}
+      {{-- ============ QUÉ DECIR AL REPORTAR (plantilla de radio) ============ --}}
       <section class="sec">
         <div class="sec-h"><span class="bar"></span><h2>{{ $en ? 'What to say when reporting' : 'Qué decir al reportar' }}</h2><span class="line"></span></div>
-        <div class="pae-say">
-          @foreach($sayScript as $i => $s)
-            <div class="col">
-              <span class="n">{{ $i + 1 }}</span>
-              <div class="h">{{ $s[0] }}</div>
-              <div class="b">{{ $s[1] }}</div>
-            </div>
-          @endforeach
+        <div class="pae-say-tpl">«{{ $en ? 'This is' : 'Aquí' }} <b>[{{ $en ? 'name / role' : 'nombre y puesto' }}]</b>. {{ $en ? 'There is' : 'Hay' }} <b>[{{ $en ? 'what happened' : 'qué pasó' }}]</b> {{ $en ? 'at' : 'en' }} <b>[{{ $en ? 'exact location' : 'dónde exactamente' }}]</b>. <b>[{{ $en ? 'how many' : 'cuántos' }}]</b> {{ $en ? 'affected' : 'afectados' }}, <b>[{{ $en ? 'condition' : 'cómo están' }}]</b>. {{ $en ? 'Active hazards' : 'Riesgos activos' }}: <b>[{{ $en ? 'which ones' : 'cuáles' }}]</b>.»</div>
+        <div class="pae-say-keys">
+          <span><i>1</i>{{ $en ? 'Who' : 'Quién habla' }}</span>
+          <span><i>2</i>{{ $en ? 'What' : 'Qué pasó' }}</span>
+          <span><i>3</i>{{ $en ? 'Where' : 'Dónde exactamente' }}</span>
+          <span><i>4</i>{{ $en ? 'How many / condition' : 'Cuántos y cómo' }}</span>
+          <span><i>5</i>{{ $en ? 'Active hazards' : 'Riesgos activos' }}</span>
         </div>
       </section>
 
@@ -514,7 +506,6 @@
           @php
             $lname = trim((string) ($loc['name'] ?? ''));
             $risks = (array) ($loc['risks'] ?? []);
-            // Ordenar por nivel (E>H>M>L). Sólo render — no toca el payload ni el hash.
             usort($risks, function ($a, $b) use ($ratingMeta) {
                 return $ratingMeta($a['rating'] ?? '')[2] <=> $ratingMeta($b['rating'] ?? '')[2];
             });
@@ -532,7 +523,6 @@
                 $rkCtrl = trim((string) ($rk['control'] ?? ''));
                 $rkResp = trim((string) ($rk['responsable'] ?? ''));
                 $rkMore = (int) ($rk['standards_more'] ?? 0);
-                // Normas CONGELADAS del evento → objetos para el MISMO parcial que el DSR.
                 $stdObjs = collect((array) ($rk['standards'] ?? []))->map(function ($s) {
                     $o = new \stdClass();
                     $o->regulation_badge = (string) ($s['badge'] ?? '');
@@ -573,7 +563,7 @@
         @endforeach
       </section>
 
-      {{-- ============ PROCEDIMIENTOS RÁPIDOS (2 columnas, pasos numerados en línea) ============ --}}
+      {{-- ============ PROCEDIMIENTOS RÁPIDOS ============ --}}
       <section class="sec">
         <div class="sec-h"><span class="bar"></span><h2>{{ $en ? 'Quick response procedures' : 'Procedimientos rápidos de respuesta' }}</h2><span class="line"></span></div>
         <div class="pae-proc-grid">

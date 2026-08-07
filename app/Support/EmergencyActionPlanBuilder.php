@@ -70,6 +70,18 @@ class EmergencyActionPlanBuilder
         // propia ficha). '' si no hay → el hero sale sin fondo (nunca se inventa una imagen).
         $mainImage = ! empty($list) ? self::str($list[0]->main_image_path) : '';
 
+        // Datos del LLAMADO para el hero (del 1er scouting): tipo (Int./Ext. + día/noche),
+        // escenas y fecha de rodaje — como la cabecera del scouting. Vacío = no se imprime.
+        $call = ['setting' => '', 'shoot_time' => '', 'scenes' => '', 'shoot_date' => ''];
+        if (! empty($list)) {
+            $s0 = $list[0];
+            $call['setting']    = self::str($s0->loc_setting);
+            $call['shoot_time'] = self::str($s0->shoot_time);
+            $call['scenes']     = self::str($s0->scene);
+            $call['shoot_date'] = $s0->date_shoot
+                ? \Illuminate\Support\Carbon::parse($s0->date_shoot)->toDateString() : '';
+        }
+
         $locations = [];
         $seq = 0;
         foreach ($list as $s) {
@@ -87,8 +99,7 @@ class EmergencyActionPlanBuilder
                 'project'    => $project,
                 'unit'       => self::str($opts['unit_name'] ?? ''),
                 'main_image' => $mainImage,
-                // Qué celdas del encabezado se imprimen (el emisor las elige; default = todas).
-                'show'       => self::headerShow($opts['header_show'] ?? null),
+                'call'       => $call,   // tipo de llamado + escenas + fecha de rodaje (del 1er scouting)
             ],
 
             // 2 · ORGANIGRAMA DE EMERGENCIA (una sola vez — mismo crew ese día).
@@ -247,23 +258,6 @@ class EmergencyActionPlanBuilder
     }
 
     /**
-     * Celdas del encabezado que el emisor decidió imprimir. null = todas (default). Un
-     * arreglo activa sólo las claves presentes y truthy. Se congela en el payload.
-     */
-    private static function headerShow($sel): array
-    {
-        $keys = ['project', 'unit', 'shoot_day', 'date'];
-        if (! is_array($sel)) {
-            return array_fill_keys($keys, true);
-        }
-        $out = [];
-        foreach ($keys as $k) {
-            $out[$k] = ! empty($sel[$k]);
-        }
-        return $out;
-    }
-
-    /**
      * Referencia al MAPA DE RIESGOS sellado de esta locación (por scouting). null si no
      * hay ninguno. Si $embed, además congela las VISTAS anotadas como data-URIs.
      */
@@ -305,8 +299,24 @@ class EmergencyActionPlanBuilder
      */
     private static function routeMap(ScoutingReport $s): string
     {
+        // 1) Mapa de la ruta guardado en el scouting.
         $candidate = self::str($s->hospital_map ?? '');
-        return strpos($candidate, 'data:image') === 0 ? $candidate : '';
+        if (strpos($candidate, 'data:image') === 0) {
+            return $candidate;
+        }
+        // 2) Si no, el mapa del MEDEVAC sellado de esta locación (owner 2026-08-06:
+        //    "si hay mapa en el MEDEVAC lo colocamos"). Se congela igual que todo lo demás.
+        if (\Illuminate\Support\Facades\Schema::hasTable('medevac_posters')) {
+            $poster = \App\Models\MedevacPoster::where('scouting_report_id', $s->id)
+                ->where('is_active', 1)->latest('id')->first();
+            if ($poster) {
+                $mi = self::str($poster->pdata('map_image', ''));
+                if (strpos($mi, 'data:image') === 0) {
+                    return $mi;
+                }
+            }
+        }
+        return '';
     }
 
     /**

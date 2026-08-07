@@ -92,6 +92,16 @@
     $heroProject = $brandName;
     $heroDate    = $report->date_shoot ? $report->date_shoot->format('d M Y') : null;
 
+    // ---- Sub-línea del LLAMADO en el hero (homologada con el PAE): tipo Int./Ext. · día/noche · escenas ----
+    $heroCallType = implode(' · ', array_filter([
+        $report->loc_setting ? ($report->loc_setting === 'Mixto' ? 'Int./Ext.' : $report->loc_setting) : '',
+        trim((string) $report->shoot_time),
+    ]));
+    $heroMeta = implode('   |   ', array_filter([
+        $heroCallType,
+        trim((string) $report->scene) !== '' ? ('Esc. ' . trim((string) $report->scene)) : '',
+    ])) ?: null;
+
     // ---- Rango de fechas (prep · shoot · wrap) para la banda y la ficha ----
     $dtParts = [];
     if ($report->date_prep)  { $dtParts[] = $report->date_prep->format('d M'); }
@@ -259,6 +269,7 @@
         'heroLocation' => $report->location_name,
         'heroDate'     => $heroDate,
         'heroTime'     => null,
+        'heroMeta'     => $heroMeta,
         'heroModule'   => __('reports.scouting_title'),
       ])
       @if($report->status !== 'final')

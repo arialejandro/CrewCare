@@ -91,8 +91,6 @@ class PaeController extends Controller
             'unit_name'        => 'nullable|string|max:255',
             'move_time'        => 'nullable|string|max:50',
             'embed_map_views'  => 'nullable|boolean',
-            'header_show'      => 'nullable|array',
-            'header_show.*'    => 'nullable|boolean',
             'contacts'         => 'nullable|array',
             'contacts.*.name'  => 'nullable|string|max:255',
             'contacts.*.phone' => 'nullable|string|max:50',
@@ -130,16 +128,12 @@ class PaeController extends Controller
         $planDate = trim((string) ($data['plan_date'] ?? '')) ?: now()->toDateString();
         $shootDay = self::resolveShootDay($data['shoot_day'] ?? null, $planDate);
 
-        // Celdas del encabezado a imprimir (checkboxes; si NO viene el arreglo → todas).
-        $headerShow = $request->has('header_show') ? (array) $request->input('header_show', []) : null;
-
         $opts = [
             'shoot_day'       => $shootDay,
             'plan_date'       => $planDate,
             'unit_name'       => trim((string) ($data['unit_name'] ?? '')),
             'move_time'       => trim((string) ($data['move_time'] ?? '')),
             'embed_map_views' => ! empty($data['embed_map_views']),
-            'header_show'     => $headerShow,
             'contacts'        => $contacts,
         ];
 
