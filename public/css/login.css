@@ -9,10 +9,10 @@
     --cc-blue:        #1161ee;
     --cc-blue-hover:  #2f78f2;
     --cc-blue-press:  #0d51c9;
-    --cc-bg:          #090c14;   /* fondo página: casi negro azulado */
-    --cc-surface:     #141a27;   /* tarjeta */
-    --cc-input:       rgba(255,255,255,.05);
-    --cc-input-focus: rgba(255,255,255,.08);
+    --cc-bg:          #0a0f1a;   /* fondo página: dark de la app */
+    --cc-surface:     rgba(255,255,255,.055);   /* tarjeta GLASS (como dentro de la app) */
+    --cc-input:       rgba(255,255,255,.045);
+    --cc-input-focus: rgba(255,255,255,.075);
     --cc-text:        #f3f6fc;
     --cc-muted:       #9aa4b8;
     --cc-stroke:      rgba(255,255,255,.10);
@@ -53,20 +53,29 @@ img { display: block; }
     padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
              max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
     background:
-        radial-gradient(900px 520px at 50% -8%, rgba(17,97,238,.14), transparent 62%),
-        radial-gradient(760px 480px at 50% 112%, rgba(17,97,238,.07), transparent 60%),
+        radial-gradient(820px 520px at 50% -6%, rgba(17,97,238,.28), transparent 60%),
+        radial-gradient(680px 460px at 14% 108%, rgba(17,97,238,.16), transparent 60%),
+        radial-gradient(620px 500px at 92% 102%, rgba(80,140,255,.12), transparent 60%),
         var(--cc-bg);
 }
 
+/* Tarjeta GLASS: translúcida + blur (mismo lenguaje que el interior de la app,
+   tokens --glass/--glass-blur de _brand-theme). Fallback opaco si el navegador
+   no soporta backdrop-filter (si no, sobre el fondo oscuro casi no se vería). */
 .login-card {
     margin: auto;                /* centra V+H, tolerante a poca altura */
     width: 100%;
     max-width: 400px;
     padding: 28px 26px 24px;
     background: var(--cc-surface);
-    border: 1px solid var(--cc-stroke);
+    border: 1px solid rgba(255,255,255,.13);
     border-radius: var(--radius-lg);
-    box-shadow: 0 24px 70px -28px rgba(0,0,0,.75), inset 0 1px 0 rgba(255,255,255,.04);
+    box-shadow: 0 30px 80px -30px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.10);
+    -webkit-backdrop-filter: blur(20px) saturate(1.35);
+    backdrop-filter: blur(20px) saturate(1.35);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .login-card { background: rgba(23, 30, 46, .93); }
 }
 
 /* ── Selector de idioma (arriba a la derecha). Autoestilado para no depender de
@@ -103,6 +112,21 @@ img { display: block; }
     font-size: 1.02rem; font-weight: 600; letter-spacing: .01em;
     color: var(--cc-text);
 }
+.login-tagline {
+    margin: .5rem auto 0; max-width: 30ch;
+    font-size: .84rem; line-height: 1.4; color: var(--cc-muted);
+}
+
+/* Nota de estado del servidor (p. ej. "te enviamos el enlace") */
+.login-note {
+    display: flex; align-items: flex-start; gap: .55rem;
+    margin-bottom: 16px; padding: .7rem .85rem;
+    border: 1px solid rgba(46,204,113,.38);
+    border-radius: var(--radius);
+    background: rgba(46,204,113,.12);
+    color: #c8f5da; font-size: .86rem; line-height: 1.35;
+}
+.login-note-ico { width: 18px; height: 18px; flex: none; margin-top: 1px; color: #43d17e; }
 
 /* ── Error dentro del bloque ── */
 .login-alert {

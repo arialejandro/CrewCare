@@ -22,4 +22,22 @@ return [
     'hide_password'   => 'Hide password',
     'forgot_password' => 'Forgot your password?',
     'copyright'       => '© CrewCare :year · All Rights Reserved',
+
+    // Password recovery (auth/passwords/email + reset).
+    'reset_link_title'    => 'Reset your password',
+    'reset_link_subtitle' => 'Enter your email and we\'ll send you a link to set a new one.',
+    'send_reset_link'     => 'Send link',
+    'sending'             => 'Sending…',
+    'reset_title'         => 'New password',
+    'reset_subtitle'      => 'Choose a new password for your account.',
+    'new_password'        => 'New password',
+    'new_password_ph'     => 'Create a password',
+    'confirm_password'    => 'Confirm password',
+    'confirm_password_ph' => 'Repeat the password',
+    'save_password'       => 'Save password',
+    'saving'              => 'Saving…',
+    'back_to_login'       => 'Back to sign in',
+    'confirm_title'       => 'Confirm your password',
+    'confirm_subtitle'    => 'For your security, re-enter your password to continue.',
+    'confirm_btn'         => 'Confirm',
 ];

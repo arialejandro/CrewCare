@@ -23,4 +23,22 @@ return [
     'hide_password'   => 'Ocultar contraseña',
     'forgot_password' => '¿Olvidaste tu contraseña?',
     'copyright'       => '© CrewCare :year · Todos los derechos reservados',
+
+    // Recuperación de contraseña (auth/passwords/email + reset).
+    'reset_link_title'    => 'Recuperar contraseña',
+    'reset_link_subtitle' => 'Escribe tu correo y te enviamos un enlace para crear una nueva.',
+    'send_reset_link'     => 'Enviar enlace',
+    'sending'             => 'Enviando…',
+    'reset_title'         => 'Nueva contraseña',
+    'reset_subtitle'      => 'Elige una contraseña nueva para tu cuenta.',
+    'new_password'        => 'Nueva contraseña',
+    'new_password_ph'     => 'Crea una contraseña',
+    'confirm_password'    => 'Confirmar contraseña',
+    'confirm_password_ph' => 'Repite la contraseña',
+    'save_password'       => 'Guardar contraseña',
+    'saving'              => 'Guardando…',
+    'back_to_login'       => 'Volver a iniciar sesión',
+    'confirm_title'       => 'Confirma tu contraseña',
+    'confirm_subtitle'    => 'Por seguridad, vuelve a escribir tu contraseña para continuar.',
+    'confirm_btn'         => 'Confirmar',
 ];
