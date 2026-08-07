@@ -50,9 +50,14 @@
         </div>
     @endif
 
-    <form action="{{ $isEdit ? route('unsafenotifications.update', $report->id) : route('unsafenotifications.store') }}" method="POST" enctype="multipart/form-data" data-cc-autosave="unsafe-condition">
+    <form action="{{ $isEdit ? route('unsafenotifications.update', $report->id) : route('unsafenotifications.store') }}" method="POST" enctype="multipart/form-data" @if(!$isEdit) data-cc-drafts="unsafe-condition" @endif>
         @csrf
         @if($isEdit) @method('PUT') @endif
+
+        {{-- (captura fluida · Paso A) Borradores en el dispositivo. Solo en alta. --}}
+        @if(!$isEdit)
+            @include('componentes._drafts-tray', ['draftType' => 'unsafe-condition'])
+        @endif
 
         {{-- ============ SECCIÓN: GENERAL Y LOCACIÓN ============ --}}
         <div class="card shadow-sm mb-4">

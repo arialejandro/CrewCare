@@ -29,8 +29,13 @@
     </div>
 @endif
 
-            <form action="{{ route('daily_reports.store') }}" method="POST" enctype="multipart/form-data" data-cc-autosave="daily-report">
+            <form action="{{ route('daily_reports.store') }}" method="POST" enctype="multipart/form-data" data-cc-drafts="daily-report">
                 @csrf
+
+                {{-- (captura fluida · Paso A) Borradores en el dispositivo. El reconstructor
+                     de sus chips (_catalog-tags) vive en window.CCDraftRehydrate['daily-report'],
+                     registrado al final de la vista. --}}
+                @include('componentes._drafts-tray', ['draftType' => 'daily-report'])
 
                 @php
                     // Repoblado tras un rebote de validación (ahora el EPP puede fallar → módulo 8).
@@ -570,4 +575,23 @@
 {{-- HEIC (iPhone): conversión a JPEG en el navegador antes de subir (el servidor no decodifica HEIC). --}}
 <script src="/js/cc-photo.js"></script>
 <script src="/js/cc-photo-auto.js"></script>
+@endpush
+
+@push('scripts')
+{{-- (captura fluida · Paso A) RECONSTRUCTOR de borrador del DSR: sus temas/factores/EPP se
+     capturan como chips (_catalog-tags) con inputs ocultos name[]. Al retomar un borrador,
+     reponemos cada chip disparando su hook cc:catalog-add por valor; luego CCDrafts.restore
+     reasigna (idempotente). Cada [data-catalog-tags] tiene data-name = base del POST. --}}
+<script>
+    window.CCDraftRehydrate = window.CCDraftRehydrate || {};
+    window.CCDraftRehydrate['daily-report'] = function (buckets, form) {
+        form.querySelectorAll('[data-catalog-tags]').forEach(function (root) {
+            var vals = buckets[root.getAttribute('data-name') + '[]'];
+            if (!vals) { return; }
+            vals.forEach(function (p) {
+                root.dispatchEvent(new CustomEvent('cc:catalog-add', { detail: { value: p.v } }));
+            });
+        });
+    };
+</script>
 @endpush

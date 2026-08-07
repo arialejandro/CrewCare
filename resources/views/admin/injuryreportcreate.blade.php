@@ -92,10 +92,15 @@
         </div>
     @endif
 
-    <form action="{{ $formAction }}" method="POST" enctype="multipart/form-data" data-cc-autosave="injury-report">
+    <form action="{{ $formAction }}" method="POST" enctype="multipart/form-data" @if(!$isEdit) data-cc-drafts="injury-report" @endif>
         @csrf
         @if($isEdit)
             @method('PUT')
+        @endif
+
+        {{-- (captura fluida · Paso A) Borradores en el dispositivo. Solo en alta. --}}
+        @if(!$isEdit)
+            @include('componentes._drafts-tray', ['draftType' => 'injury-report'])
         @endif
 
         {{-- ============ SECCIÓN: DATOS GENERALES Y LOCACIÓN ============ --}}

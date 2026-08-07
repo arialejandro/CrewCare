@@ -142,7 +142,7 @@
     <div class="alert alert-danger">{{ session('error') }}</div>
 @endif
 
-<form action="{{ $isEdit ? route('scoutings.update', $report->id) : route('scoutings.store') }}" method="POST" enctype="multipart/form-data" data-cc-autosave="scouting-report" data-cc-sections>
+<form action="{{ $isEdit ? route('scoutings.update', $report->id) : route('scoutings.store') }}" method="POST" enctype="multipart/form-data" @if(!$isEdit) data-cc-drafts="scouting-report" @endif data-cc-sections>
     @csrf
 
     {{-- (2026-08-01 · captura fluida, Paso 7) Secciones plegables + estado por sección.
@@ -153,6 +153,14 @@
     @include('componentes._collapsible-sections')
     @if($isEdit)
         @method('PUT')
+    @endif
+
+    {{-- (captura fluida · Paso A) BORRADORES en el dispositivo. Solo en ALTA: al editar,
+         el reporte ya vive en el servidor. Varios a la vez, sobreviven al cierre y a la
+         falta de red; se retoma cualquiera. El scouting registra abajo su reconstructor
+         de filas de peligro (window.CCDraftRehydrate['scouting-report']). --}}
+    @if(!$isEdit)
+        @include('componentes._drafts-tray', ['draftType' => 'scouting-report', 'formSel' => 'form[data-cc-drafts]'])
     @endif
 
     {{-- ============ SECCIÓN: GENERAL ============ --}}
@@ -182,7 +190,7 @@
                 </div>
                 <div class="col-md-8">
                     <label for="location_name" class="form-label fw-semibold">Locación <span class="text-danger">*</span></label>
-                    <input type="text" id="location_name" name="location_name" class="form-control @error('location_name') is-invalid @enderror" value="{{ old('location_name', $report->location_name ?? '') }}" required>
+                    <input type="text" id="location_name" name="location_name" data-draft-title class="form-control @error('location_name') is-invalid @enderror" value="{{ old('location_name', $report->location_name ?? '') }}" required>
                     @error('location_name')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
 
@@ -1142,6 +1150,30 @@
                 setTimeout(contarSinEvento, 0);
             }
         });
+
+        // (captura fluida · Paso A) RECONSTRUCTOR de la tabla de peligros para retomar un
+        // borrador: crea tantas filas VACÍAS como valores guardados haya; luego CCDrafts.restore
+        // asigna cada valor por orden del DOM (el change del evento repone norma y sugiere
+        // Prob/Cons, que restore sobrescribe con lo guardado por venir después en el DOM).
+        window.CCDraftRehydrate = window.CCDraftRehydrate || {};
+        window.CCDraftRehydrate['scouting-report'] = function (buckets) {
+            if (!tpl || !tpl.content) { return; }
+            var need = 0;
+            ['hz_event_id[]', 'hz_hazard[]', 'hz_likelihood[]', 'hz_consequence[]',
+             'hz_control[]', 'hz_residual[]', 'hz_personnel[]'].forEach(function (n) {
+                if (buckets[n]) { need = Math.max(need, buckets[n].length); }
+            });
+            var have = body.querySelectorAll('.hz-row').length;
+            for (var i = have; i < need; i++) {
+                body.appendChild(tpl.content.cloneNode(true));
+                var rows = body.querySelectorAll('.hz-row');
+                var tr = rows[rows.length - 1];
+                wire(tr);
+                if (window.CCTypeahead) { window.CCTypeahead.enhanceAll(tr); }
+            }
+            setTimeout(contarSinEvento, 0);
+        };
+
         contarSinEvento();
     })();
 

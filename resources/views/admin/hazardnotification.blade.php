@@ -51,9 +51,14 @@
             ? 'hazards.update'
             : (\Illuminate\Support\Facades\Route::has('hazard_notifications.update') ? 'hazard_notifications.update' : 'hazards.update');
     @endphp
-    <form action="{{ $isEdit ? route($hzUpdateRoute, $report->id) : route('hazard_notifications.store') }}" method="POST" enctype="multipart/form-data" data-cc-autosave="hazard-notification">
+    <form action="{{ $isEdit ? route($hzUpdateRoute, $report->id) : route('hazard_notifications.store') }}" method="POST" enctype="multipart/form-data" @if(!$isEdit) data-cc-drafts="hazard-notification" @endif>
         @csrf
         @if($isEdit) @method('PUT') @endif
+
+        {{-- (captura fluida · Paso A) Borradores en el dispositivo. Solo en alta. --}}
+        @if(!$isEdit)
+            @include('componentes._drafts-tray', ['draftType' => 'hazard-notification'])
+        @endif
 
         {{-- ============ SECCIÓN: GENERAL Y LOCACIÓN ============ --}}
         <div class="card shadow-sm mb-4">
