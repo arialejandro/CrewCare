@@ -84,13 +84,19 @@ class EmergencyActionPlanBuilder
 
         $locations = [];
         $seq = 0;
+        $scoutingIds = [];
         foreach ($list as $s) {
             $seq++;
+            $scoutingIds[] = (int) $s->id;
             $locations[] = self::locationBlock($s, $seq, $embed);
         }
 
         return [
             'version' => self::VERSION,
+
+            // Insumos de la EMISIÓN (para poder RE-EMITIR/editar: se releen frescos al versionar).
+            'scouting_ids'    => $scoutingIds,
+            'embed_map_views' => $embed,
 
             // 1 · CABECERA DEL LLAMADO.
             'header' => [

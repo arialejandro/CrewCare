@@ -235,6 +235,12 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-06 — 🚑 PAE · VERSIONADO (editar = nueva revisión sellada que reemplaza)
+- **Estado:** Hecho (E2E verificado: v1→editar→v2 supersede, folio estable, ambos sellos válidos, index/prefill/render; delta aplicado local).
+- **Archivos:** NUEVO `database/owner-apply/2026-08-06-pae-versioning.sql`. EDITADOS `app/Models/EmergencyActionPlan.php`, `app/Http/Controllers/PaeController.php`, `app/Support/EmergencyActionPlanBuilder.php`, `routes/web.php` (pae.edit), `resources/views/componentes/_report-v2-toolbar.blade.php` (+botón editar opt-in), `resources/views/admin/pae/{show,create,index}.blade.php`.
+- **Qué/Por qué:** el owner pidió poder EDITAR para versionar de verdad (antes todos caían en v1 porque la versión era la del *formato*). Como el PAE es sellado/inmutable, **editar emite una REVISIÓN NUEVA** (doc sellado aparte con su hash/QR/uuid) que **supersede** a la anterior. Delta: `revision`+`supersedes_id`+`root_id`. **Folio ESTABLE** anclado a `root_id` (v1/v2/v3 = mismo `PAE-####`); versión visible = `v{revision}.0`. Flujo: botón "Nueva versión" → `pae.edit` prellena el form (contactos+scoutings+opciones del payload) → `store` con `supersedes_uuid` sube la revisión, sella y apaga la anterior (`is_active=0`). Index lista sólo la vigente; una versión vieja muestra aviso "reemplazada".
+- **Riesgo/Notas:** **delta SQL nuevo** → [[pendientes-prod]]. El sello no se rompe al superseder (`is_active` fuera del hash). ⚠ `plan_label` SÍ entra al hash: no editarlo tras sellar. Reversa la decisión previa de "emisiones independientes". Ver [[pae-emergency-action-plan]].
+
 ### 2026-08-06 — 🚑 PAE · ajustes finos: versión del documento, split SPFX/Stunts, radio, quitar "Elaborado por"
 - **Estado:** Hecho (render + checks verificados; PAE-0018 emitido de muestra).
 - **Archivos:** `app/Support/PaeOrgChart.php` (split slot), `resources/views/admin/pae/show.blade.php`.

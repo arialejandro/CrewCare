@@ -37,6 +37,7 @@
                 @foreach($plans as $pl)
                     <a class="pae-row" href="{{ route('pae.show', $pl->uuid) }}">
                         <span class="pae-folio">{{ $pl->folio() }}</span>
+                        <span class="pae-ver">{{ $pl->versionLabel() }}</span>
                         <span class="pae-label">{{ $pl->plan_label ?: ($pl->shoot_day ? ('Día ' . $pl->shoot_day) : 'PAE') }}</span>
                         <span class="pae-when">{{ optional($pl->issued_at)->format('d/m/Y H:i') }}</span>
                         <span class="pae-by">{{ $pl->issued_by_name }}</span>
@@ -62,6 +63,7 @@
     .cc-pae .pae-row:hover{background:var(--surface-2,rgba(0,0,0,.03));}
     .cc-pae .pae-row + .pae-row{border-top:1px solid var(--stroke,rgba(0,0,0,.07));}
     .cc-pae .pae-folio{font-weight:800;font-family:var(--mono,monospace);flex:none;min-width:88px;}
+    .cc-pae .pae-ver{flex:none;font-size:.72rem;font-weight:800;color:var(--brand,#ff9900);border:1px solid var(--stroke,rgba(0,0,0,.12));border-radius:20px;padding:2px 9px;}
     .cc-pae .pae-label{font-weight:600;flex:1;min-width:0;}
     .cc-pae .pae-when{font-size:.85rem;color:var(--muted,#6b7280);}
     .cc-pae .pae-by{font-size:.85rem;color:var(--muted,#6b7280);min-width:110px;text-align:right;}

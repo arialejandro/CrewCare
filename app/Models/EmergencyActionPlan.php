@@ -23,10 +23,13 @@ use Illuminate\Support\Facades\Schema;
  * como se emitió. Si mañana cambia el scouting o el mapa, el PAE sigue diciendo lo
  * que dijo y el sello SHA-256 lo prueba.
  *
- * ── EMISIONES INDEPENDIENTES (decisión del owner) ───────────────────────────────
- * Cada emisión es un documento NUEVO y SIN RELACIÓN con los anteriores: sin cadena
- * de versiones, sin vínculo "sustituye a". Por eso NO implementa sealRetirement():
- * el verificador lo lee en dos estados (vigente / alterado), nunca "retirado".
+ * ── VERSIONADO (owner 2026-08-06, REEMPLAZA la decisión previa de "independientes") ─
+ * El PAE se puede EDITAR: cada edición emite una REVISIÓN nueva (documento sellado
+ * aparte, con su propio hash/QR/uuid) que SUPERSEDE a la anterior (`supersedes_id`) y
+ * apaga la vieja del listado (`is_active=0`, sin borrarla). `revision` arranca en 1 y
+ * sube +1 por edición; la versión visible del documento es v{revision}.0. El sello no
+ * se rompe al superseder porque `is_active` está FUERA del hash. Cada versión sigue
+ * siendo verificable por su uuid (vigente / alterado); no hay estado "retirado".
  *
  * ── SELLO ───────────────────────────────────────────────────────────────────────
  * Se firma sobre el DATO (attributesToArray ksorteado: payload + shoot_day +
@@ -43,7 +46,7 @@ class EmergencyActionPlan extends Model
 
     protected $fillable = [
         'uuid', 'production_id',
-        'shoot_day', 'plan_date', 'unit_name', 'plan_label',
+        'shoot_day', 'revision', 'supersedes_id', 'root_id', 'plan_date', 'unit_name', 'plan_label',
         'payload',
         'issued_by_id', 'issued_by_name', 'issued_at', 'is_active',
     ];
@@ -54,6 +57,7 @@ class EmergencyActionPlan extends Model
         'issued_at'  => 'datetime',
         'is_active'  => 'boolean',
         'shoot_day'  => 'integer',
+        'revision'   => 'integer',
     ];
 
     /**
@@ -90,10 +94,48 @@ class EmergencyActionPlan extends Model
         return $this->belongsTo(User::class, 'issued_by_id');
     }
 
-    /** Folio estable para el verificador público y la cadena CFDI. */
+    /**
+     * Folio ESTABLE del documento (mismo para todas sus versiones): usa `root_id` — la
+     * primera versión de la cadena — y cae al id propio cuando es la v1 (root_id NULL) o
+     * cuando el delta de versionado no está aplicado. Así v1/v2/v3 comparten PAE-####.
+     */
     public function folio(): string
     {
-        return 'PAE-' . str_pad((string) $this->getKey(), 4, '0', STR_PAD_LEFT);
+        $anchor = (int) ($this->root_id ?? 0) ?: (int) $this->getKey();
+        return 'PAE-' . str_pad((string) $anchor, 4, '0', STR_PAD_LEFT);
+    }
+
+    /** ¿Está aplicado el delta de versionado (columna `revision`)? Degrade-safe. */
+    public static function supportsVersioning(): bool
+    {
+        static $memo = null;
+        if ($memo === null) {
+            try {
+                $memo = Schema::hasColumn('emergency_action_plans', 'revision');
+            } catch (\Throwable $e) {
+                $memo = false;
+            }
+        }
+        return $memo;
+    }
+
+    /** Número de revisión (>=1). 1 si el delta de versionado no está aplicado. */
+    public function revisionNumber(): int
+    {
+        $r = (int) ($this->revision ?? 1);
+        return $r >= 1 ? $r : 1;
+    }
+
+    /** Versión visible del DOCUMENTO: v{revision}.0 (v1.0, v2.0, …). */
+    public function versionLabel(): string
+    {
+        return 'v' . $this->revisionNumber() . '.0';
+    }
+
+    /** La versión ANTERIOR que este documento reemplaza (null si es la v1). FK-soft. */
+    public function supersedesPlan(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'supersedes_id');
     }
 
     /**

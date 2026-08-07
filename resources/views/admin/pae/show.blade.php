@@ -87,10 +87,14 @@
     foreach ($locations as $lx) { $nm = trim((string) ($lx['name'] ?? '')); if ($nm !== '') { $locNames[] = $nm; } }
     $locLabel = $locNames ? implode(' · ', $locNames) : ($en ? 'Location' : 'Locación');
 
-    // VERSIÓN: la que se muestra es la del DOCUMENTO (payload congelado, p. ej. "v1.0"), no la de
-    // la aplicación. La de la app queda sólo como sello técnico en el UUID del pie.
+    // VERSIÓN: la que se muestra es la del DOCUMENTO (deriva de la REVISIÓN: v1.0, v2.0, …), no la
+    // de la aplicación. La de la app queda sólo como sello técnico en el UUID del pie.
     $appVersion = config('crewcare.doc_version');
-    $docVersion = 'v' . number_format((float) $p->pdata('version', 1), 1);
+    $docVersion = $p->versionLabel();
+
+    // Editar (= emitir una revisión nueva): sólo la versión VIGENTE y sólo quien puede emitir.
+    $canEdit = $p->is_active && $p->supportsVersioning() && optional(auth()->user())->can('pae.issue');
+    $editUrl = $canEdit ? route('pae.edit', $p->uuid) : null;
 
     // Nivel de riesgo → etiqueta + color + rango de orden (E>H>M>L). DERIVADO, no sellado.
     $ratingMeta = function ($r) {
@@ -306,6 +310,8 @@
     'backRoute'   => route('pae.index'),
     'backLabel'   => $en ? 'Back' : 'Volver',
     'exportLabel' => $en ? 'Export PDF' : 'Imprimir / PDF',
+    'editRoute'   => $editUrl,
+    'editLabel'   => $en ? 'New version' : 'Nueva versión',
 ])
 
 <div class="stage">
@@ -342,6 +348,12 @@
 
     <div class="body">
       <h1 class="restricted" style="position:absolute;left:-9999px">{{ $brandName }} — {{ $heroModule }} — {{ $locLabel }}</h1>
+
+      @if(! $p->is_active)
+      <div class="no-print" style="margin:0 0 14px;padding:9px 12px;border-radius:9px;border:1px solid var(--stroke);background:color-mix(in srgb,var(--danger) 8%,var(--panel));color:var(--danger);font-size:12px;font-weight:700">
+        {{ $en ? 'This version was superseded by a newer one.' : 'Esta versión fue reemplazada por una versión más reciente.' }}
+      </div>
+      @endif
 
       {{-- ENCABEZADO — sin repetir proyecto/fecha (ya en el hero) ni "Elaborado por" (ya en el pie) --}}
       <div class="pae-meta">

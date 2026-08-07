@@ -10,16 +10,32 @@
 @section('content')
 @include('componentes._form-kit')
 
-@php $en = app()->getLocale() === 'en'; @endphp
+@php
+    $en      = app()->getLocale() === 'en';
+    $source  = $source ?? null;
+    $editing = (bool) $source;
+    $prefill = ($prefill ?? []) + [
+        'scoutings' => [], 'plan_date' => now()->toDateString(),
+        'shoot_day' => $shootDay ?? null, 'unit_name' => '', 'move_time' => '', 'embed' => false,
+    ];
+    $cancelUrl = $editing ? route('pae.show', $source->uuid) : route('pae.index');
+    $nextVer   = $editing ? ('v' . ($source->revisionNumber() + 1) . '.0') : 'v1.0';
+@endphp
 
 <div class="cc-pae container-fluid" style="max-width:1000px;margin:0 auto;padding:18px 14px 60px;">
 
     <div class="cc-page-head">
         <div>
-            <h1 class="cc-h1">{{ $en ? 'Issue an emergency action plan' : 'Emitir un plan de atención a emergencias' }}</h1>
-            <p class="cc-sub">{{ $en ? 'One per call sheet. It can cover two locations (company move).' : 'Uno por llamado. Puede cubrir dos locaciones (company move).' }}</p>
+            <h1 class="cc-h1">{{ $editing ? ($en ? 'New version of the plan' : 'Nueva versión del plan') : ($en ? 'Issue an emergency action plan' : 'Emitir un plan de atención a emergencias') }}</h1>
+            <p class="cc-sub">
+                @if($editing)
+                    {{ $en ? 'Editing' : 'Editas' }} <strong>{{ $source->folio() }} {{ $source->versionLabel() }}</strong> → {{ $en ? 'a new sealed version' : 'se emite una versión sellada nueva' }} <strong>{{ $nextVer }}</strong> {{ $en ? 'that replaces it.' : 'que la reemplaza.' }}
+                @else
+                    {{ $en ? 'One per call sheet. It can cover two locations (company move).' : 'Uno por llamado. Puede cubrir dos locaciones (company move).' }}
+                @endif
+            </p>
         </div>
-        <a class="cc-btn-ghost" href="{{ route('pae.index') }}">{{ $en ? 'Cancel' : 'Cancelar' }}</a>
+        <a class="cc-btn-ghost" href="{{ $cancelUrl }}">{{ $en ? 'Cancel' : 'Cancelar' }}</a>
     </div>
 
     @if($errors->any())
@@ -39,6 +55,7 @@
 
     <form method="POST" action="{{ route('pae.store') }}">
         @csrf
+        @if($editing)<input type="hidden" name="supersedes_uuid" value="{{ $source->uuid }}">@endif
 
         {{-- 1 · CABECERA DEL LLAMADO --}}
         <div class="cc-form-card">
@@ -52,12 +69,12 @@
                 </label>
                 <label class="cc-field">
                     <span class="cc-label">{{ $en ? 'Date' : 'Fecha' }}</span>
-                    <input type="date" class="cc-control" name="plan_date" value="{{ old('plan_date', now()->toDateString()) }}">
+                    <input type="date" class="cc-control" name="plan_date" value="{{ old('plan_date', $prefill['plan_date']) }}">
                 </label>
                 <label class="cc-field">
                     <span class="cc-label">{{ $en ? 'Unit' : 'Unidad' }}</span>
                     <input type="text" class="cc-control" name="unit_name" maxlength="255"
-                           value="{{ old('unit_name') }}" placeholder="{{ $en ? 'Main Unit / 2nd Unit…' : 'Unidad principal / 2.ª unidad…' }}">
+                           value="{{ old('unit_name', $prefill['unit_name']) }}" placeholder="{{ $en ? 'Main Unit / 2nd Unit…' : 'Unidad principal / 2.ª unidad…' }}">
                 </label>
             </div>
         </div>
@@ -69,7 +86,7 @@
                 {{ $en ? 'Pick the location for the day. Add a second one only for a company move — the order below is the order of the day.' : 'Elige la locación del día. Agrega una segunda solo si hay company move — el orden de abajo es el orden de la jornada.' }}
             </p>
             @php
-                $old = (array) old('scoutings', []);
+                $old = (array) old('scoutings', $prefill['scoutings']);
                 $optLabel = function ($s) { $n = trim((string) $s->location_name); return ($n !== '' ? $n : ('Locación #' . $s->id)); };
             @endphp
             <div class="cc-grid-3">
@@ -94,13 +111,13 @@
                 <label class="cc-field">
                     <span class="cc-label">{{ $en ? 'Estimated move time' : 'Hora estimada del movimiento' }}</span>
                     <input type="text" class="cc-control" name="move_time" maxlength="50"
-                           value="{{ old('move_time') }}" placeholder="{{ $en ? 'e.g. 14:30' : 'p. ej. 14:30' }}">
+                           value="{{ old('move_time', $prefill['move_time']) }}" placeholder="{{ $en ? 'e.g. 14:30' : 'p. ej. 14:30' }}">
                     <small class="cc-hint">{{ $en ? 'Only used when there are two locations.' : 'Solo se usa cuando hay dos locaciones.' }}</small>
                 </label>
             </div>
 
             <label class="cc-check">
-                <input type="checkbox" name="embed_map_views" value="1" {{ old('embed_map_views') ? 'checked' : '' }}>
+                <input type="checkbox" name="embed_map_views" value="1" {{ old('embed_map_views', $prefill['embed'] ? '1' : '') ? 'checked' : '' }}>
                 <span>{{ $en ? 'Include the risk map views (if a sealed map exists for the location)' : 'Incluir las vistas del mapa de riesgos (si la locación tiene un mapa sellado)' }}</span>
             </label>
             <small class="cc-hint" style="display:block;margin-top:4px;">
@@ -136,15 +153,15 @@
         <p class="cc-signnote">
             @include('componentes._icon', ['name' => 'shield-check', 'class' => 'cc-ico-16'])
             {{ $en
-                ? 'Emitting freezes the header, org chart and each location block (hospital, risks, map) and seals it (SHA-256). Each emission is an independent document with its own QR verifier.'
-                : 'Emitir CONGELA la cabecera, el organigrama y cada bloque de locación (hospital, riesgos, mapa) y lo sella (SHA-256). Cada emisión es un documento INDEPENDIENTE con su propio verificador QR.' }}
+                ? 'Emitting freezes the header, org chart and each location block (hospital, risks, map) and seals it (SHA-256). Editing issues a NEW VERSION that replaces the previous one; each version keeps its own QR verifier.'
+                : 'Emitir CONGELA la cabecera, el organigrama y cada bloque de locación (hospital, riesgos, mapa) y lo sella (SHA-256). Al editar se emite una VERSIÓN NUEVA que reemplaza a la anterior; cada versión conserva su propio verificador QR.' }}
         </p>
 
         <div class="cc-form-actions">
-            <a class="cc-btn-ghost" href="{{ route('pae.index') }}">{{ $en ? 'Cancel' : 'Cancelar' }}</a>
+            <a class="cc-btn-ghost" href="{{ $cancelUrl }}">{{ $en ? 'Cancel' : 'Cancelar' }}</a>
             <button type="submit" class="btn btn-primary cc-cta" {{ $scoutings->isEmpty() ? 'disabled' : '' }}>
                 @include('componentes._icon', ['name' => 'file-check', 'class' => 'cc-ico-16'])
-                {{ $en ? 'Emit and seal' : 'Emitir y sellar' }}
+                {{ $editing ? ($en ? 'Issue new version' : 'Emitir nueva versión') : ($en ? 'Emit and seal' : 'Emitir y sellar') }}
             </button>
         </div>
     </form>

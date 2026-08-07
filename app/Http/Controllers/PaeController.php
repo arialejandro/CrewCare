@@ -47,14 +47,68 @@ class PaeController extends Controller
         return view('admin.pae.index', compact('plans'));
     }
 
-    /** Formulario de emisión. Prellena día de rodaje y organigrama; lista las locaciones. */
+    /** Formulario de emisión NUEVA (v1). Prellena día de rodaje y organigrama del crew. */
     public function create()
     {
         abort_unless(EmergencyActionPlan::supported(), 404);
 
-        $pid = CurrentProduction::id();
+        return view('admin.pae.create', $this->formData(null));
+    }
 
-        // Locaciones elegibles: scouting de la producción vigente; si no hay, los más recientes.
+    /**
+     * Formulario de EDICIÓN: mismo form prellenado con el PAE fuente. Al enviar se emite una
+     * REVISIÓN nueva que lo supersede. Sólo se edita la versión VIGENTE (la última activa).
+     */
+    public function edit(EmergencyActionPlan $pae)
+    {
+        abort_unless(EmergencyActionPlan::supported() && EmergencyActionPlan::supportsVersioning(), 404);
+
+        if (! $pae->is_active) {
+            return redirect()->route('pae.index')
+                ->with('success', 'Esa versión ya fue reemplazada; edita la vigente.');
+        }
+
+        return view('admin.pae.create', $this->formData($pae));
+    }
+
+    /** Datos del formulario: crear (source=null) o editar (source=plan a versionar). */
+    protected function formData(?EmergencyActionPlan $source): array
+    {
+        $pid       = CurrentProduction::id();
+        $scoutings = $this->eligibleScoutings($pid);
+
+        if ($source) {
+            $hd       = (array) $source->pdata('header', []);
+            $move     = (array) $source->pdata('company_move', []);
+            $contacts = $this->contactsFromPlan($source);
+            $prefill  = [
+                'scoutings' => array_values(array_map('intval', (array) $source->pdata('scouting_ids', []))),
+                'plan_date' => (trim((string) ($hd['date'] ?? '')) ?: optional($source->plan_date)->toDateString()) ?: now()->toDateString(),
+                'shoot_day' => $source->shoot_day,
+                'unit_name' => (string) ($source->unit_name ?? ''),
+                'move_time' => trim((string) ($move['move_time'] ?? '')),
+                'embed'     => (bool) $source->pdata('embed_map_views', false),
+            ];
+        } else {
+            $contacts = PaeOrgChart::resolve($pid);
+            $prefill  = [
+                'scoutings' => [],
+                'plan_date' => now()->toDateString(),
+                'shoot_day' => ProductionCalendar::shootDayFor(now()->toDateString()),
+                'unit_name' => '',
+                'move_time' => '',
+                'embed'     => false,
+            ];
+        }
+
+        $shootDay = $prefill['shoot_day'];
+
+        return compact('scoutings', 'contacts', 'shootDay', 'source', 'prefill');
+    }
+
+    /** Locaciones elegibles: scouting de la producción vigente; si no hay, los más recientes. */
+    protected function eligibleScoutings($pid)
+    {
         $scoutings = ScoutingReport::query()
             ->when($pid, fn ($q) => $q->where('production_id', $pid))
             ->orderByDesc('id')
@@ -62,11 +116,30 @@ class PaeController extends Controller
         if ($scoutings->isEmpty()) {
             $scoutings = ScoutingReport::orderByDesc('id')->limit(30)->get();
         }
+        return $scoutings;
+    }
 
-        $contacts  = PaeOrgChart::resolve($pid);
-        $shootDay  = ProductionCalendar::shootDayFor(now()->toDateString());   // derivación editable
+    /** Organigrama tomado del payload del plan fuente, remapeado a los slots ACTUALES. */
+    protected function contactsFromPlan(EmergencyActionPlan $source): array
+    {
+        $crew  = (array) (($source->pdata('org', []) ?: [])['crew'] ?? []);
+        $byKey = [];
+        foreach ($crew as $c) {
+            if (! empty($c['key'])) { $byKey[(string) $c['key']] = $c; }
+        }
 
-        return view('admin.pae.create', compact('scoutings', 'contacts', 'shootDay'));
+        $out = [];
+        foreach (PaeOrgChart::SLOTS as $slot) {
+            $c = $byKey[$slot['key']] ?? [];
+            $out[] = [
+                'key'   => $slot['key'],
+                'label' => $slot['label'],
+                'name'  => trim((string) ($c['name'] ?? '')),
+                'phone' => trim((string) ($c['phone'] ?? '')),
+                'radio' => trim((string) ($c['radio'] ?? '')),
+            ];
+        }
+        return $out;
     }
 
     /** Emite: valida, construye el payload congelado, crea y sella con la firma del safety. */
@@ -91,6 +164,7 @@ class PaeController extends Controller
             'unit_name'        => 'nullable|string|max:255',
             'move_time'        => 'nullable|string|max:50',
             'embed_map_views'  => 'nullable|boolean',
+            'supersedes_uuid'  => 'nullable|string',   // presente = EDICIÓN → nueva revisión
             'contacts'         => 'nullable|array',
             'contacts.*.name'  => 'nullable|string|max:255',
             'contacts.*.phone' => 'nullable|string|max:50',
@@ -147,7 +221,23 @@ class PaeController extends Controller
             $label .= ' · ' . implode(' → ', $names);
         }
 
-        $plan = EmergencyActionPlan::create([
+        // VERSIONADO: si se está EDITANDO (supersedes_uuid), la nueva es una REVISIÓN que
+        // reemplaza a la anterior; hereda su folio (root) y sube la revisión.
+        $source   = null;
+        $revision = 1;
+        $rootId   = null;
+        if (EmergencyActionPlan::supportsVersioning()) {
+            $su = trim((string) ($data['supersedes_uuid'] ?? ''));
+            if ($su !== '') {
+                $source = EmergencyActionPlan::where('uuid', $su)->first();
+                if ($source) {
+                    $revision = $source->revisionNumber() + 1;
+                    $rootId   = (int) ($source->root_id ?? 0) ?: (int) $source->id;   // ancla el folio a la v1
+                }
+            }
+        }
+
+        $attrs = [
             'production_id'  => $ordered[0]->production_id ?: CurrentProduction::id(),
             'shoot_day'      => $shootDay,
             'plan_date'      => $planDate,
@@ -158,15 +248,31 @@ class PaeController extends Controller
             'issued_by_name' => optional(auth()->user())->name,
             'issued_at'      => now(),
             'is_active'      => 1,
-        ]);
+        ];
+        if (EmergencyActionPlan::supportsVersioning()) {
+            $attrs['revision']      = $revision;
+            $attrs['supersedes_id'] = $source ? $source->id : null;
+            $attrs['root_id']       = $rootId;   // NULL en la v1 → folio() usa su propio id
+        }
+
+        $plan = EmergencyActionPlan::create($attrs);
 
         // Sellar sobre el estado CANÓNICO en BD (refresh → hash → firma): así el recompute del
         // verificador, que carga fresco, casa exactamente. Firma el safety que emite.
         $plan->refresh();
         $plan->signDocument(auth()->user(), $request);
 
-        return redirect()->route('pae.show', $plan->uuid)
-            ->with('success', 'PAE emitido y sellado (' . $plan->folio() . ').');
+        // Reemplaza: apaga la versión anterior del listado (NO se borra; su sello sigue verificable
+        // por su propio uuid). is_active está FUERA del hash, así que apagarla no la marca alterada.
+        if ($source) {
+            $source->update(['is_active' => 0]);
+        }
+
+        $msg = $source
+            ? ('Nueva versión emitida: ' . $plan->folio() . ' ' . $plan->versionLabel() . ' (reemplaza a ' . $source->versionLabel() . ').')
+            : ('PAE emitido y sellado (' . $plan->folio() . ').');
+
+        return redirect()->route('pae.show', $plan->uuid)->with('success', $msg);
     }
 
     /** El PAE sellado (ligado por uuid, no por id secuencial). Se lee del payload congelado. */
