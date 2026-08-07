@@ -298,6 +298,20 @@
   .report-wrap>thead>tr>td,.report-wrap>tbody>tr>td,.report-wrap>tfoot>tr>td{padding:0;border:0}
   .footer-spacer{height:0}
   .print-foot{display:none}
+
+  /* ===== NORMAS DEL HALLAZGO/RIESGO (N:M) — chips de componentes/_standards-chips =====
+     (2026-08-06) EXTRAÍDO del DSR al chrome compartido cuando el PAE se volvió el 2º
+     adoptante del parcial (el DSR ya lo anticipaba en su comentario). Valores IDÉNTICOS a
+     los que tenía el DSR: mover al chrome no cambia un solo pixel de su render. */
+  .std-row{display:flex;flex-wrap:wrap;gap:6px}
+  .std-stack{display:flex;flex-direction:column;gap:5px;align-items:flex-end}
+  .std-one{display:inline-flex;align-items:center;gap:6px;font-size:.62rem;line-height:1.25;
+    border:1px solid var(--stroke);border-radius:7px;padding:3px 7px;max-width:100%}
+  .std-code{font-family:var(--mono);color:var(--muted);white-space:nowrap}
+  .std-cat{color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .std-link{font-weight:700;color:var(--brand);text-decoration:none;white-space:nowrap}
+  /* En la tarjeta basta marco + código: el nombre de la categoría satura la rejilla. */
+  .std-row .std-cat{display:none}
 </style>
 {{-- Tokens de color de los chips .badge-XXX (fuera de <style>: el parcial trae el suyo con @once). --}}
 @include('componentes._badge-tokens')

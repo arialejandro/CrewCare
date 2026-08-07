@@ -60,6 +60,31 @@
                            value="{{ old('unit_name') }}" placeholder="{{ $en ? 'Main Unit / 2nd Unit…' : 'Unidad principal / 2.ª unidad…' }}">
                 </label>
             </div>
+
+            {{-- Mapeo del encabezado: elige qué celdas se imprimen (todo o parcial). El centinela
+                 _present garantiza que una selección parcial (o vacía) siempre viaje en el POST. --}}
+            @php
+                $hs    = old('header_show');
+                $hsChk = function ($k) use ($hs) { return ($hs === null) ? true : ! empty($hs[$k]); };
+                $hsOpts = [
+                    'project'   => $en ? 'Project'   : 'Proyecto',
+                    'shoot_day' => $en ? 'Shoot day' : 'Día de rodaje',
+                    'date'      => $en ? 'Date'      : 'Fecha',
+                    'unit'      => $en ? 'Unit'      : 'Unidad',
+                ];
+            @endphp
+            <div class="pae-hdr-map">
+                <span class="cc-label">{{ $en ? 'Show in the document header' : 'Mostrar en el encabezado del documento' }}</span>
+                <input type="hidden" name="header_show[_present]" value="1">
+                <div class="pae-hdr-checks">
+                    @foreach($hsOpts as $k => $lbl)
+                        <label class="cc-chip-check">
+                            <input type="checkbox" name="header_show[{{ $k }}]" value="1" {{ $hsChk($k) ? 'checked' : '' }}>
+                            <span>{{ $lbl }}</span>
+                        </label>
+                    @endforeach
+                </div>
+            </div>
         </div>
 
         {{-- 2 · LOCACIONES (1 ó 2 — company move) --}}
@@ -162,6 +187,11 @@
     .cc-pae .cc-grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 18px;}
     .cc-pae .cc-check{display:flex;align-items:flex-start;gap:9px;font-size:.92rem;cursor:pointer;margin-top:12px;}
     .cc-pae .cc-check input{margin-top:3px;flex:none;width:17px;height:17px;}
+    .cc-pae .pae-hdr-map{margin-top:14px;}
+    .cc-pae .pae-hdr-checks{display:flex;flex-wrap:wrap;gap:8px;margin-top:7px;}
+    .cc-pae .cc-chip-check{display:inline-flex;align-items:center;gap:7px;font-size:.86rem;cursor:pointer;
+        border:1px solid var(--stroke,rgba(0,0,0,.12));border-radius:20px;padding:6px 13px;user-select:none;}
+    .cc-pae .cc-chip-check input{flex:none;width:15px;height:15px;margin:0;}
     .cc-pae .cc-alert{padding:11px 13px;border-radius:11px;margin-bottom:14px;font-size:.92rem;}
     .cc-pae .cc-alert--bad{background:rgba(220,38,38,.10);border:1px solid rgba(220,38,38,.35);}
     .cc-pae .cc-alert--warn{background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.35);}

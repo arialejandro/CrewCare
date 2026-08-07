@@ -214,19 +214,10 @@
   /* Controles de cierre: fuera del papel (el PDF firmable no lleva botones). */
   .dsr-pdca-ops{margin-top:6px;padding-top:6px;border-top:1px dashed var(--stroke);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 
-  /* ===== NORMAS DEL HALLAZGO (N:M) — ver componentes/_standards-chips =====
-     Estas reglas viven AQUÍ y no en el chrome compartido a propósito: hoy el parcial
-     sólo lo usa el DSR y el chrome lo comparten los 5 reportes. Cuando los otros 4
-     adopten el parcial, MOVER este bloque a _report-v2-head y borrarlo de aquí. */
-  .std-row{display:flex;flex-wrap:wrap;gap:6px}
-  .std-stack{display:flex;flex-direction:column;gap:5px;align-items:flex-end}
-  .std-one{display:inline-flex;align-items:center;gap:6px;font-size:.62rem;line-height:1.25;
-    border:1px solid var(--stroke);border-radius:7px;padding:3px 7px;max-width:100%}
-  .std-code{font-family:var(--mono);color:var(--muted);white-space:nowrap}
-  .std-cat{color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .std-link{font-weight:700;color:var(--brand);text-decoration:none;white-space:nowrap}
-  /* En la tarjeta basta marco + código: el nombre de la categoría satura la rejilla. */
-  .std-row .std-cat{display:none}
+  /* ===== NORMAS DEL HALLAZGO (N:M) — componentes/_standards-chips =====
+     (2026-08-06) Las reglas .std-* se MOVIERON al chrome compartido (_report-v2-head) al
+     adoptar el parcial un 2º reporte (el PAE). El DSR las recibe ahí, con valores idénticos:
+     su render no cambia. Aquí sólo queda esta nota; no dupliques el bloque. */
 
   /* EPP heredado del evento, dentro de la tarjeta del hallazgo. Discreto: es contexto,
      no el titular — el titular es qué pasó. */

@@ -53,7 +53,10 @@ class EmergencyActionPlanBuilder
         $embed  = ! empty($opts['embed_map_views']);
         $isMove = count($list) > 1;
 
-        // Proyecto: el del primer scouting si lo trae; si no, la producción vigente.
+        // Proyecto: el del primer scouting si lo trae; si no, la producción vigente. Se
+        // CONGELA como respaldo, pero la vista lo presenta EN VIVO con brand_name (misma
+        // convención que el MEDEVAC y los reportes: el nombre de proyecto puede cambiar por
+        // confidencialidad y debe reflejarse en TODO documento; el sello protege el contenido).
         $project = '';
         if (! empty($list)) {
             $project = self::str($list[0]->production_name);
@@ -62,6 +65,10 @@ class EmergencyActionPlanBuilder
             $prod = CurrentProduction::get();
             $project = $prod ? self::str($prod->name) : '';
         }
+
+        // Imagen principal del hero: la foto de portada del PRIMER scouting (misma que su
+        // propia ficha). '' si no hay → el hero sale sin fondo (nunca se inventa una imagen).
+        $mainImage = ! empty($list) ? self::str($list[0]->main_image_path) : '';
 
         $locations = [];
         $seq = 0;
@@ -75,10 +82,13 @@ class EmergencyActionPlanBuilder
 
             // 1 · CABECERA DEL LLAMADO.
             'header' => [
-                'shoot_day' => isset($opts['shoot_day']) && $opts['shoot_day'] !== '' ? (int) $opts['shoot_day'] : null,
-                'date'      => self::str($opts['plan_date'] ?? ''),
-                'project'   => $project,
-                'unit'      => self::str($opts['unit_name'] ?? ''),
+                'shoot_day'  => isset($opts['shoot_day']) && $opts['shoot_day'] !== '' ? (int) $opts['shoot_day'] : null,
+                'date'       => self::str($opts['plan_date'] ?? ''),
+                'project'    => $project,
+                'unit'       => self::str($opts['unit_name'] ?? ''),
+                'main_image' => $mainImage,
+                // Qué celdas del encabezado se imprimen (el emisor las elige; default = todas).
+                'show'       => self::headerShow($opts['header_show'] ?? null),
             ],
 
             // 2 · ORGANIGRAMA DE EMERGENCIA (una sola vez — mismo crew ese día).
@@ -155,6 +165,22 @@ class EmergencyActionPlanBuilder
             return [];
         }
 
+        // Normas por evento resueltas en UNA sola consulta (mismo camino que el scouting:
+        // HazardEvent::with('standards')). Sólo las filas con event_id llevan norma; el
+        // texto libre NO adivina norma por su nombre (regla de honestidad del owner).
+        $eventIds = [];
+        foreach ($rows as $r) {
+            if (is_array($r) && ! empty($r['event_id'])) {
+                $eventIds[(int) $r['event_id']] = (int) $r['event_id'];
+            }
+        }
+        $eventsById = collect();
+        if ($eventIds && \Illuminate\Support\Facades\Schema::hasTable('hazard_events')) {
+            $eventsById = \App\Models\HazardEvent::with('standards')
+                ->whereIn('id', array_values($eventIds))
+                ->get()->keyBy('id');
+        }
+
         $out = [];
         foreach ($rows as $r) {
             if (! is_array($r)) {
@@ -165,6 +191,12 @@ class EmergencyActionPlanBuilder
             if ($hazard === '' && $cat === '') {
                 continue;   // fila vacía → no se inventa
             }
+
+            $eventId = ! empty($r['event_id']) ? (int) $r['event_id'] : null;
+            [$standards, $overflow] = ($eventId && $eventsById->has($eventId))
+                ? self::resolveStandards($eventsById->get($eventId))
+                : [[], 0];
+
             $out[] = [
                 'hazard'         => $hazard,
                 'category'       => $cat,
@@ -173,11 +205,60 @@ class EmergencyActionPlanBuilder
                 'residual'       => self::str($r['residual'] ?? ''),
                 'control'        => self::str($r['control'] ?? ''),       // Medida de control (del scouting)
                 'responsable'    => self::str($r['personnel'] ?? ''),     // Responsable (del scouting)
-                'badge'          => self::str($r['badge'] ?? ''),
-                'code'           => self::str($r['code'] ?? ''),
-                'url'            => self::str($r['url'] ?? ''),
+                'event_id'       => $eventId,
+                // Normas N:M del evento, CONGELADAS (CSATF primero, tope 3). Vacío sin evento.
+                'standards'      => $standards,
+                'standards_more' => $overflow,   // cuántas quedaron fuera del tope de 3 (0 normalmente)
+                // Snapshot plano de la norma principal (compat/legado). Sólo con evento;
+                // sin event_id se deja vacío para no pintar un badge que nadie clasificó.
+                'badge'          => $eventId ? self::str($r['badge'] ?? '') : '',
+                'code'           => $eventId ? self::str($r['code'] ?? '') : '',
+                'url'            => $eventId ? self::str($r['url'] ?? '') : '',
                 'unclassified'   => ! empty($r['unclassified']),
             ];
+        }
+        return $out;
+    }
+
+    /**
+     * Normas del evento → lista congelada [ ['badge','code','url'], ... ] con CSATF PRIMERO
+     * y tope de 3. Devuelve [lista, sobrantes]. Mismo origen que el scouting ($event->standards).
+     * Partición manual (no usort): PHP 7.4 no garantiza orden estable en usort.
+     */
+    private static function resolveStandards(\App\Models\HazardEvent $event): array
+    {
+        $csatf = [];
+        $rest  = [];
+        foreach ($event->standards as $std) {
+            $row = [
+                'badge' => self::str($std->regulation_badge),
+                'code'  => self::str($std->regulation_code),
+                'url'   => self::str($std->reference_url ?? ''),
+            ];
+            if ($row['badge'] === 'CSATF') {
+                $csatf[] = $row;
+            } else {
+                $rest[] = $row;
+            }
+        }
+        $all      = array_merge($csatf, $rest);
+        $overflow = max(0, count($all) - 3);
+        return [array_slice($all, 0, 3), $overflow];
+    }
+
+    /**
+     * Celdas del encabezado que el emisor decidió imprimir. null = todas (default). Un
+     * arreglo activa sólo las claves presentes y truthy. Se congela en el payload.
+     */
+    private static function headerShow($sel): array
+    {
+        $keys = ['project', 'unit', 'shoot_day', 'date'];
+        if (! is_array($sel)) {
+            return array_fill_keys($keys, true);
+        }
+        $out = [];
+        foreach ($keys as $k) {
+            $out[$k] = ! empty($sel[$k]);
         }
         return $out;
     }
