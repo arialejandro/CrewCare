@@ -235,6 +235,12 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-07 — 🔐 Login: renovación UI (dark full-height, foco/carga/error, mostrar contraseña, textos ES)
+- **Estado:** Hecho (verificado en navegador: público, sin login → 320px sin scroll-h, error en bloque con mensaje del servidor, toggle, sin errores de consola). Commit `a999df6b`.
+- **Archivos:** `resources/views/auth/login.blade.php`, `public/css/login.css`, `resources/lang/{es,en}/auth_ui.php`.
+- **Qué / Por qué:** el login (única superficie sin marca de cliente, azul CrewCare fijo) se veía inacabado en escritorio (degradado a gris, tarjeta anclada arriba). Ahora: pantalla completa centrada (`flex`+`margin:auto` → tolera teclado móvil), superficie oscura pareja, **foto de fondo retirada** (glow azul sutil), **autocontenido** (fuera jQuery/Bootstrap/FontAwesome/4 fuentes/`http` inseguro → solo Poppins+login.css), foco visible, estado cargando, errores dentro del bloque, mostrar/ocultar contraseña, táctiles 40–52px, `type=email`/`inputmode`. Textos ES: Correo/Contraseña; copyright año dinámico + "Rights".
+- **Riesgo/Notas:** presentación pura (auth/rutas/mensajes del servidor sin cambio). SIN SQL. `auth.failed` sigue en inglés (mensaje del servidor, fuera de alcance). Ver [[login-screen]].
+
 ### 2026-08-07 — 📝 Captura fluida: borradores múltiples offline + CSV de medidas + fila condicional + textos
 - **Estado:** Hecho (verificado en navegador SIN login: round-trip + IndexedDB PASS; CSV con rollback; regresión de sellos). Commits `4b434d43` (A), `e082e6f4` (B+C+D), `6fc6800a` (CSV) en `clean-main`.
 - **Archivos:** `public/js/cc-drafts.js` (nuevo), `resources/views/componentes/_drafts-tray.blade.php` (nuevo), `public/serviceworker.js`, `admin/scoutings/_form.blade.php` + `_hazard-row.blade.php`, `admin/dailyreports/create.blade.php`, `admin/injuryreportcreate.blade.php`, `admin/hazardnotification.blade.php`, `admin/unsafecondnotification.blade.php`, `lang/es|en/reports.php`, `app/Http/Controllers/HazardEventController.php`, `routes/web.php`, `admin/hazard-events/index.blade.php`.
