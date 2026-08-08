@@ -74,6 +74,10 @@
   .amb-note{ font-size:.74rem; color:var(--muted); margin:0 0 16px; line-height:1.5; }
   .amb-note.tight{ margin:9px 0 0; }
 
+  /* El owner marcó el borde IZQUIERDO amarillo del cintillo como defecto: se retira SOLO en el
+     acta (este <style> va después del chrome → gana sin tocar los demás documentos). */
+  .band .lead{ border-left:0; }
+
   /* Veredicto — banda de color DERIVADA del dato (paro/no-exec/apta). Imprimible. */
   .amb-verdict{ display:flex; align-items:center; gap:14px; margin:0 0 8px; padding:15px 18px;
     border:1px solid var(--stroke); border-left:5px solid var(--vc); border-radius:var(--radius-sm);
@@ -114,16 +118,23 @@
   .amb-state.open{ color:var(--warn); border-color:color-mix(in srgb, var(--warn) 40%, transparent); }
   .amb-state.closed{ color:var(--ok); border-color:color-mix(in srgb, var(--ok) 40%, transparent); }
 
-  /* Checklist congelado — tabla con las COMPUERTAS destacadas. Es LARGO (todos los puntos del
-     tipo), así que DEBE fluir entre hojas: el chrome pone .sec{break-inside:avoid} y eso lo
-     empujaría entero a la 2ª hoja, dejando la 1ª cortada con un hueco en blanco. Aquí se libera
-     el corte de la sección, se protege cada fila y se repite el encabezado por hoja. */
+  /* Checklist congelado — LISTA DE DIVS (no tabla). Es LARGO (todos los puntos del tipo) y cruza
+     varias hojas. Antes era una <table> ANIDADA dentro de la celda del report-wrap: Chrome NO
+     respeta break-inside en filas de tablas anidadas dentro de una celda paginada → recortaba
+     filas (y arrastraba el corte hasta el sello). Con DIVS, break-inside:avoid SÍ se respeta:
+     cada fila salta entera a la hoja siguiente en vez de partirse. La sección fluye (break-inside
+     auto); cada fila se protege. El encabezado de columnas sale una vez (no se repite, pero las
+     columnas se leen solas). */
   .amb-chk{ break-inside:auto; }
-  .amb-chk .tbl tr{ break-inside:avoid; }
-  .amb-chk .tbl thead{ display:table-header-group; }
-  .amb-chk .tbl td,.amb-chk .tbl th{ vertical-align:top; }
-  .amb-chk .tbl tr.gate td{ background:color-mix(in srgb, var(--brand) 6%, transparent);
+  .amb-chk-list{ display:block; }
+  .amb-chk-row{ display:grid; grid-template-columns:1fr 132px 82px; gap:10px; align-items:start;
+    padding:8px 10px; border-bottom:1px solid var(--stroke); break-inside:avoid; page-break-inside:avoid;
+    font-size:.8rem; color:var(--text); }
+  .amb-chk-row.head{ font-size:.58rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); font-weight:700; }
+  .amb-chk-row.gate{ background:color-mix(in srgb, var(--brand) 6%, transparent);
     -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .amb-chk-row .c2{ font-family:var(--mono); font-size:.74rem; }
+  .amb-chk-row .c3{ text-align:right; }
   .amb-tag{ display:inline-block; font-size:.58rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
     color:var(--muted); border:1px solid var(--stroke); border-radius:20px; padding:2px 8px; margin:2px 4px 0 0; }
   .amb-tag.gate{ color:var(--brand); border-color:color-mix(in srgb, var(--brand) 40%, transparent); }
@@ -290,7 +301,7 @@
           @if ($inspection->inspector_cedula)
             <div class="fact"><div class="k">Cédula</div><div class="v mono">{{ $inspection->inspector_cedula }}</div></div>
           @endif
-          <div class="fact"><div class="k">Fecha</div><div class="v">{{ optional($inspection->created_at)->format('d/m/Y H:i') ?: '—' }}</div></div>
+          {{-- La fecha/hora ya vive en el cintillo (arriba): no se repite aquí. --}}
         </div>
       </section>
 
@@ -326,30 +337,28 @@
       @if (count($snap))
       <section class="sec amb-chk">
         <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'clipboard-check'])<h2>Checklist ejecutado</h2><span class="line"></span></div>
-        <table class="tbl">
-          <thead>
-            <tr><th>Punto</th><th>Norma</th><th style="text-align:right">Resultado</th></tr>
-          </thead>
-          <tbody>
-            @foreach ($snap as $s)
-              @php $isGate = ! empty($s['is_gate']); $fail = ($s['answer'] ?? '') === 'fail'; @endphp
-              <tr class="{{ $isGate ? 'gate' : '' }}">
-                <td>
-                  {{ $s['text'] ?? '' }}
-                  @if ($isGate)<span class="amb-tag gate">Compuerta</span>@endif
-                  @if (! empty($s['requires_document']))<span class="amb-tag">Documento</span>@endif
-                </td>
-                <td class="mono">
-                  {{ $s['code'] ?? '' }}
-                  @if (! empty($s['norm']))<span class="amb-tag">{{ $s['norm'] }}</span>@endif
-                </td>
-                <td style="text-align:right">
-                  @if ($fail)<span class="amb-res bad">FALLA</span>@else<span class="amb-res ok">Cumple</span>@endif
-                </td>
-              </tr>
-            @endforeach
-          </tbody>
-        </table>
+        <div class="amb-chk-list">
+          <div class="amb-chk-row head">
+            <div class="c1">Punto</div><div class="c2">Norma</div><div class="c3">Resultado</div>
+          </div>
+          @foreach ($snap as $s)
+            @php $isGate = ! empty($s['is_gate']); $fail = ($s['answer'] ?? '') === 'fail'; @endphp
+            <div class="amb-chk-row {{ $isGate ? 'gate' : '' }}">
+              <div class="c1">
+                {{ $s['text'] ?? '' }}
+                @if ($isGate)<span class="amb-tag gate">Compuerta</span>@endif
+                @if (! empty($s['requires_document']))<span class="amb-tag">Documento</span>@endif
+              </div>
+              <div class="c2">
+                {{ $s['code'] ?? '' }}
+                @if (! empty($s['norm']))<span class="amb-tag">{{ $s['norm'] }}</span>@endif
+              </div>
+              <div class="c3">
+                @if ($fail)<span class="amb-res bad">FALLA</span>@else<span class="amb-res ok">Cumple</span>@endif
+              </div>
+            </div>
+          @endforeach
+        </div>
       </section>
       @endif
 

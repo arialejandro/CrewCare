@@ -244,6 +244,16 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
   3. **PAE** (builder v1→**v2**): nuevo `App\Support\AmbulanceResourceBadge` (snapshot congelado del recurso del día: ambulancia en sitio con su acta+veredicto / medio declarado / hueco). El PAE lo embebe y lo pinta como tarjeta con tono por veredicto. **No sobreclama:** el cotejo de tripulación se declara "documentos revisados", NUNCA "verificado contra registro" (esa capacidad no existe).
 - **Riesgo/Notas:** Regresión de sellos LIMPIA respecto a Parte D — MEDEVAC 16/16 y PAE 1/1 válidos; los 3 scoutings ALTERADOS (id 25/26/27) traen firmas VIEJAS (204-206) y ya estaban rotos por drift local previo (la bandera está excluida del hash, no puede causarlo; prod arranca vacío). Cambios de builder solo afectan emisiones NUEVAS (payload congelado). Aplicar en prod: delta #54. Ver [[ambulance-verification-module]].
 
+### 2026-08-08 — 🚑 Acta de ambulancia: 3ª ronda de ajustes del owner (nombre, paginación, cintillo)
+- **Estado:** Hecho (verificado por harness: render TODO OK; sello intacto; AMBU-0005 sigue válida). Demo = **AMBU-0014**. SIN SQL nuevo.
+- **Archivos:** `resources/views/ambulance/acta.blade.php`, `app/Http/Controllers/AmbulanceController.php`, `app/Http/Controllers/InspectionController.php`.
+- **Qué / Por qué (feedback del owner):**
+  1. **"Reporte elaborado por" salía solo "Ari"** → `inspector_name = User::shortName($author)` (nombre de pila + 1er apellido → "Ari Rómulo"). La ronda 2 usó `->name` que se quedaba en "Ari". Igualado en la inspección de herramienta. Afecta footer **y** el Inspector de "Datos".
+  2. **Se perdía información en los saltos de página (incluido el sello):** el checklist era una `<table>` ANIDADA dentro de la celda del `report-wrap`; Chrome NO respeta `break-inside` en filas de tablas anidadas dentro de una celda paginada → recortaba filas. Se reescribió como **lista de DIVS** (`.amb-chk-row`, grid 3 col) que SÍ respeta `break-inside:avoid` → cada fila salta entera de hoja. (El owner separó fecha/hora con `|` en el cintillo; se conserva.)
+  3. **Datos duplicaba la fecha** (ya está en el cintillo "Fecha y hora") y se veía amontonada → se **quitó** la fact "Fecha" de Datos.
+  4. **Borde izquierdo amarillo del cintillo** marcado como defecto → override `.band .lead{border-left:0}` en el `<style>` del acta (después del chrome → solo afecta al acta).
+- **Riesgo/Notas:** SIN SQL, SIN cambio de sello (todo lo del hash intacto; nombre corto solo en actas NUEVAS). La paginación por DIVS es el arreglo robusto conocido para el recorte de tablas anidadas en Chrome; **el owner debe re-verificar el PDF impreso**. Ver [[doc-hero-band-homologation]] y [[ambulance-verification-module]].
+
 ### 2026-08-08 — 🚑 Acta de ambulancia: 2ª ronda de ajustes del owner + locación GPS (delta #55)
 - **Estado:** Hecho (verificado por harness: render + aserciones TODO OK; sello íntegro; AMBU-0005 sigue válida). Delta #55 aplicado local. Demo = **AMBU-0013**.
 - **Archivos:** `resources/views/ambulance/acta.blade.php`, `resources/views/ambulance/execute.blade.php`, `app/Http/Controllers/AmbulanceController.php`, `app/Models/AmbulanceInspection.php`, `database/owner-apply/2026-08-08-ambulance-location.sql` (nuevo).
