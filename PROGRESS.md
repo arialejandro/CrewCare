@@ -235,6 +235,16 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-07 — 👥 Crew List (seguimientos): quita Sexo + Apellido, nombre a mostrar unificado, buscador móvil
+- **Estado:** Hecho (verificado: blades compilan, `php -l` limpio, helpers probados en datos reales, densidad/buscador medidos en navegador). Commits `fc358ec7`, `d04036a2`, `fab32600`, `e6ee91c0` en `clean-main`.
+- **Archivos:** `admin/usuarioscrud.blade.php`, `componentes/search-results.blade.php`, `componentes/_crew-list-styles.blade.php`, `app/Models/User.php`, `app/Support/CrewRosterBuilder.php`, `app/Support/PaeOrgChart.php`, `admin/badge/_card.blade.php`, `componentes/_idcard-row.blade.php`.
+- **Qué / Por qué:** peticiones del owner sobre el Crew List tras el bloque de usabilidad.
+  1. **Sexo fuera** (1 letra, se veía mal apilada en móvil). `colspan` 7→6. `users.sex` intacta.
+  2. **Apellido fuera** + **nombre a mostrar**: nuevos helpers `User::shortName()` (1ª palabra de `name` + 1er `lname`) y `User::displayName()` (Nombre en Créditos `ncreditos` si tiene letras → ignora basura "0"/"-"; si no, `shortName`). La celda "Miembro" usa `displayName` (antes solo `->name`, parcial) → el apellido no se pierde de vista. `colspan` 6→5.
+  3. **Regla unificada** en las superficies de "cómo se llama": gafete `_card` (displayName, arregla bug de imprimir crédito "0"), lista de gafetes `_idcard-row` (shortName principal, el crédito ya va de subtítulo), organigrama del PAE (`PaeOrgChart::displayName` delega; solo prefill de PAE nuevo, los sellados no cambian), export `CrewRosterBuilder` ("Nombre" = displayName + `ncreditos` al select). **EXCLUIDOS:** clínicos + sellados + correos personales + saludo del sidebar (ahí va nombre completo/legal o trato personal).
+  4. **Buscador móvil**: compartía renglón con Exportar+Nuevo y se aplastaba a "Busc". Ahora la barra envuelve y en <576px el buscador va al 100% + botones 50/50 debajo.
+- **Riesgo/Notas:** **SIN SQL** (solo lee `ncreditos`/`name`/`lname`). Permisos sin cambio. **Decisión abierta:** el export ahora muestra crédito-o-corto (ya no el 2º apellido); si se prefiere nombre legal completo en ese documento formal, es 1 línea. Ver [[sidebar-topbar-crew-density]].
+
 ### 2026-08-07 — 🧭 Usabilidad: sidebar 1-entrada-por-módulo · topbar móvil · densidad Crew List · export documento
 - **Estado:** Hecho (verificado: 10 blades compilan, `php -l` limpio, ruta `crew.export` alta y `putga/putgg` fuera, roster 92/92 en orden canónico, densidad móvil 324→160px medida en navegador). Sin commit aún al escribir esto.
 - **Archivos:** `layouts/sidebar.blade.php`, `layouts/header.blade.php`, `admin/usuarioscrud.blade.php`, `componentes/search-results.blade.php`, `componentes/_crew-list-styles.blade.php`, `admin/{unsafeconds,hazards,injuryreports}.blade.php`, `admin/dailyreports/index.blade.php`, `routes/web.php`, `app/Http/Controllers/{CrewListController,CrewStatusController}.php`, **NUEVOS** `app/Support/CrewRosterBuilder.php` + `resources/views/admin/crew-export.blade.php`, **BORRADO** `componentes/_group-toggles.blade.php`.
