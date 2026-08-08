@@ -156,6 +156,19 @@
                             <label class="form-label small fw-semibold">{{ __('Número económico') }}</label>
                             <input type="text" name="economic_number" class="form-control" maxlength="60" value="{{ old('economic_number') }}">
                         </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">{{ __('Locación de la verificación') }}</label>
+                            <input type="text" name="location_label" id="ambLocation" class="form-control" maxlength="255"
+                                   value="{{ old('location_label') }}" placeholder="{{ __('Dónde se verificó') }}">
+                            <small id="ambLocationNote" class="form-text">{{ __('Se sugiere sola por GPS; puedes ajustarla.') }}</small>
+                            {{-- GPS-back SILENCIOSO: capta la posición por detrás (lat/lng ocultos) y, si hay
+                                 un scouting cercano, sugiere su NOMBRE en la Locación. Ver [[scouting-geo-module]]. --}}
+                            @include('componentes._geo-capture', [
+                                'mode'          => 'silent',
+                                'suggestTarget' => '#ambLocation',
+                                'noteTarget'    => '#ambLocationNote',
+                            ])
+                        </div>
                         <div class="col-12">
                             <label class="form-label small fw-semibold">{{ __('Foto de la unidad (opcional)') }}</label>
                             <input type="file" name="unit_photo" class="form-control" accept="image/*,.heic,.heif" capture="environment" data-cc-photo>

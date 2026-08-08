@@ -391,6 +391,10 @@ class AmbulanceController extends Controller
             'new_provider_name'    => 'nullable|string|max:255',
             'plates'               => 'nullable|string|max:40',
             'economic_number'      => 'nullable|string|max:60',
+            // Locación de la verificación (GPS-back): lat/lng ocultos + nombre sugerido/ajustable.
+            'latitude'             => 'nullable|numeric|between:-90,90',
+            'longitude'            => 'nullable|numeric|between:-180,180',
+            'location_label'       => 'nullable|string|max:255',
             'unit_photo'           => $photoRule,                 // TODA foto del checklist es OPCIONAL
             'evidence_photos'      => 'nullable|array|max:20',     // evidencia adicional (varias) para sostener la decisión
             'evidence_photos.*'    => $photoRule,
@@ -615,6 +619,10 @@ class AmbulanceController extends Controller
             'provider_name'      => $provider->name,
             'plates'             => $data['plates'] ?? null,
             'economic_number'    => $data['economic_number'] ?? null,
+            // Locación de la verificación (GPS-back). Hash-excluida (contexto/provenencia).
+            'latitude'           => $data['latitude'] ?? null,
+            'longitude'          => $data['longitude'] ?? null,
+            'location_label'     => trim((string) ($data['location_label'] ?? '')) ?: null,
             'unit_photo_path'    => $photoPath,
             'evidence_photos'    => $evidencePaths ?: null,
             'crew_snapshot'      => $crewSnapshot,

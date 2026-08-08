@@ -244,6 +244,16 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
   3. **PAE** (builder v1→**v2**): nuevo `App\Support\AmbulanceResourceBadge` (snapshot congelado del recurso del día: ambulancia en sitio con su acta+veredicto / medio declarado / hueco). El PAE lo embebe y lo pinta como tarjeta con tono por veredicto. **No sobreclama:** el cotejo de tripulación se declara "documentos revisados", NUNCA "verificado contra registro" (esa capacidad no existe).
 - **Riesgo/Notas:** Regresión de sellos LIMPIA respecto a Parte D — MEDEVAC 16/16 y PAE 1/1 válidos; los 3 scoutings ALTERADOS (id 25/26/27) traen firmas VIEJAS (204-206) y ya estaban rotos por drift local previo (la bandera está excluida del hash, no puede causarlo; prod arranca vacío). Cambios de builder solo afectan emisiones NUEVAS (payload congelado). Aplicar en prod: delta #54. Ver [[ambulance-verification-module]].
 
+### 2026-08-08 — 🚑 Acta de ambulancia: 2ª ronda de ajustes del owner + locación GPS (delta #55)
+- **Estado:** Hecho (verificado por harness: render + aserciones TODO OK; sello íntegro; AMBU-0005 sigue válida). Delta #55 aplicado local. Demo = **AMBU-0013**.
+- **Archivos:** `resources/views/ambulance/acta.blade.php`, `resources/views/ambulance/execute.blade.php`, `app/Http/Controllers/AmbulanceController.php`, `app/Models/AmbulanceInspection.php`, `database/owner-apply/2026-08-08-ambulance-location.sql` (nuevo).
+- **Qué / Por qué (feedback del owner sobre la 1ª hoja):**
+  1. **Proyecto y proveedor cambian de lugar:** hero = **proyecto** (`brand_name`); banda lead = **proveedor**. (La ronda anterior los tenía al revés.)
+  2. **Cintillo:** se **quita "Veredicto"** (se repetía muy cerca del grande de abajo); "Fecha" → **"Fecha y hora"**; sub del lead = **solo el folio** (se quitó el nombre del tipo, que ya está en Datos → sin duplicar).
+  3. **Locación por GPS-back:** nueva captura de dónde se verificó. `_geo-capture` en modo **silent** en el form (capta lat/lng por detrás y sugiere el nombre del scouting cercano; editable), columnas `latitude/longitude/location_label` (delta #55), se muestra en el cintillo. **Hash-excluida** (contexto/provenencia añadida después de que ya había actas → si entrara al sello, AMBU-0005 saldría ALTERADA por drift de esquema; probado que excluirla la mantiene válida).
+  4. **Rama/Nivel** ya no inicia en minúscula (`ucfirst`).
+- **Riesgo/Notas:** SIN cambio de sello para actas viejas (locación excluida; verificado AMBU-0005 válida). Aplicar en prod: **delta #55**. Ver [[ambulance-verification-module]] y [[scouting-geo-module]] (GPS en el navegador).
+
 ### 2026-08-08 — 🚑 Acta de ambulancia: 6 ajustes de diseño del owner (post-homologación)
 - **Estado:** Hecho (verificado por harness: crea acta demo sellada, renderiza y afirma cada arreglo; sello íntegro tras render, ALTERADO al manipular). Demo corregida = **AMBU-0010** (clones de prueba borrados).
 - **Archivos:** `resources/views/componentes/_doc-hero.blade.php` (+`$heroHideCallbox`), `resources/views/ambulance/acta.blade.php`, `app/Http/Controllers/AmbulanceController.php`, `app/Http/Controllers/InspectionController.php`, `resources/views/ambulance/execute.blade.php`.

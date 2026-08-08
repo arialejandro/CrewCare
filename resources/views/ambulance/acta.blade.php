@@ -50,8 +50,8 @@
     ];
     $riskLabels = [1 => 'Muy bajo', 2 => 'Bajo', 3 => 'Medio', 4 => 'Alto', 5 => 'Muy alto'];
 
-    // Display del tipo (nombre + código) y de rama/nivel.
-    $ramaNivel = ($inspection->rama ?: '—') . ($inspection->type_level ? ' · Nivel ' . $inspection->type_level : '');
+    // Display del tipo (nombre + código) y de rama/nivel. La rama viene en minúscula del catálogo.
+    $ramaNivel = ($inspection->rama ? ucfirst($inspection->rama) : '—') . ($inspection->type_level ? ' · Nivel ' . $inspection->type_level : '');
 
     // Hero + pie. El pie del hero ya antepone "CrewCare"; el módulo NO lo repite.
     $heroModule = 'Verificación de ambulancia';
@@ -153,26 +153,27 @@
     <thead><tr><td>
       @include('componentes._doc-hero', [
         'heroImage'       => $inspection->unitPhotoUrl(),
-        'heroProject'     => ($inspection->provider_name ?: $brandName),
+        'heroProject'     => $brandName,
         'heroHideCallbox' => true,
         'heroModule'      => $heroModule,
       ])
     </td></tr></thead>
     <tbody><tr><td>
 
-    {{-- BANDA: identidad del documento + vistazo rápido (veredicto + fecha). --}}
+    {{-- BANDA: identidad + vistazo rápido. El PROVEEDOR va aquí (el proyecto está en el hero);
+         el veredicto NO se repite aquí (sale grande abajo); el tipo tampoco (está en Datos). --}}
     <div class="band">
       <div class="lead">
         <span class="ic">@include('componentes._icon', ['name' => 'ambulance'])</span>
         <span class="who">
           <span class="lbl">Verificación de recurso de emergencia</span>
-          <span class="val">{{ $brandName }}</span>
-          <span class="sub">{{ $inspection->folio() }} · {{ $inspection->type_name }}</span>
+          <span class="val">{{ $inspection->provider_name ?: '—' }}</span>
+          <span class="sub">{{ $inspection->folio() }}</span>
         </span>
       </div>
       <div class="stats">
-        <div class="cell"><span class="lbl">Veredicto</span><span class="v {{ $v['band'] }}">{{ $v['title'] }}</span></div>
-        <div class="cell"><span class="lbl">Fecha</span><span class="v">{{ optional($inspection->created_at)->format('d/m/Y') ?: '—' }}</span></div>
+        <div class="cell"><span class="lbl">Fecha y hora</span><span class="v">{{ optional($inspection->created_at)->format('d/m/Y | H:i') ?: '—' }}</span></div>
+        <div class="cell"><span class="lbl">Locación</span><span class="v">{{ $inspection->location_label ?: '—' }}</span></div>
       </div>
     </div>
 

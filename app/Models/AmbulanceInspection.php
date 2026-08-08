@@ -52,7 +52,9 @@ class AmbulanceInspection extends Model
     protected $fillable = [
         'uuid', 'production_id', 'shoot_day', 'trigger_scope',
         'ambulance_type_id', 'type_code', 'type_name', 'rama', 'type_level', 'capacity_level',
-        'provider_id', 'provider_name', 'plates', 'economic_number', 'unit_photo_path', 'evidence_photos',
+        'provider_id', 'provider_name', 'plates', 'economic_number',
+        'latitude', 'longitude', 'location_label',   // (Parte D+) locación del GPS-back — hash-excluida
+        'unit_photo_path', 'evidence_photos',
         'crew_snapshot', 'checklist_snapshot',
         'verdict', 'resolution_path', 'observations',
         'day_risk_level', 'correspondence_ok',
@@ -77,11 +79,20 @@ class AmbulanceInspection extends Model
 
     /**
      * Columnas de ESTADO fuera del hash: retirar/desactivar/sustituir NO re-sella
-     * (el acta retirada sigue ÍNTEGRA; cambió el estado, no la integridad). TODO lo
-     * demás (incluidas placas, serie, foto, tripulación, veredicto, unblocked_*) SÍ
-     * entra al sello. Mismo conjunto que ToolInspection.
+     * (el acta retirada sigue ÍNTEGRA; cambió el estado, no la integridad). Placas, serie,
+     * foto, tripulación, veredicto, unblocked_* SÍ entran al sello. Mismo conjunto base que
+     * ToolInspection.
+     *
+     * EXCEPCIÓN (2026-08-08, delta #55): la LOCACIÓN del GPS-back (latitude/longitude/
+     * location_label) también se excluye. Es CONTEXTO/provenencia añadido DESPUÉS de que ya
+     * había actas selladas: si entrara al hash, esas actas saldrían ALTERADAS por puro drift
+     * de esquema (columnas null nuevas), no por manipulación. Además puede corregirse (el
+     * nombre lo sugiere el GPS y a veces hay que ajustarlo). Ver [[ambulance-verification-module]].
      */
-    protected $signatureExcludes = ['is_active', 'retired_at', 'retired_by_id', 'retired_reason', 'superseded_by_id'];
+    protected $signatureExcludes = [
+        'is_active', 'retired_at', 'retired_by_id', 'retired_reason', 'superseded_by_id',
+        'latitude', 'longitude', 'location_label',
+    ];
 
     // ── Relaciones (todas FK-soft: documento histórico) ──────────────────────
     public function ambulanceType(): BelongsTo
