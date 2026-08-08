@@ -235,6 +235,16 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-08 — 🔧 Inspección: unidad física (serie + dueño) + foto real + consulta de actas + imagen de tipo
+- **Estado:** Hecho (verificado: 6 blades compilan sin fuga, `php -l` limpio, rutas registradas, **sello incluye la unidad física y detecta el alterado**, delta aplicado local). Commit `92c5e232` en `clean-main`.
+- **Archivos:** `database/owner-apply/2026-08-08-tool-inspection-serial-owner-photo.sql` (NEW, delta **#47**), `app/Models/ToolInspection.php`, `app/Models/Tool.php`, `app/Http/Controllers/InspectionController.php`, `routes/web.php`, `resources/views/inspection/{execute,acta,index,show}.blade.php`, `resources/views/inspection/{records,tool-images}.blade.php` (NEW).
+- **Qué / Por qué (petición del owner):** HER-001… es un TIPO de referencia, pero hay VARIAS herramientas del mismo tipo; el acta no distinguía la unidad, ni dueño, ni foto, y no había forma de consultar inspecciones.
+  1. **Tres niveles de identidad:** TIPO (`tools.image_path`, imagen genérica) · UNIDAD (emerge del **N.º de serie**, sin tabla nueva) · ACTA (congela marca/serie + dueño + foto real).
+  2. **Captura en la inspección:** marca, modelo, **serie**, **dueño** (crew o texto libre, nombre congelado con `User::displayName`), **foto real** (`ImageCompressor` + `data-cc-photo`, HEIC en el navegador). Todo entra al **sello** (columnas de contenido, sin `signatureExcludes` nuevo).
+  3. **Consulta (lo que faltaba):** `/inspeccion/actas` (`records`) — busca por serie/dueño/tipo/folio y **agrupa por serie**; `?serial=` = línea de tiempo de esa unidad. Enlace desde el índice.
+  4. **Imagen del tipo:** `/inspeccion/imagenes` (`tool-images`) — grid para subir/reemplazar con el tiempo; placeholder mientras no haya. Se muestra en form, ficha y grid.
+- **Riesgo/Notas:** **Aplicar delta #47 en prod** (SQL owner-apply; prod se levanta fresco desde el repo). Gate reutilizado `tools.inspect` (imagen de tipo = dato de referencia; se puede endurecer). Foto sellada por RUTA (doctrina DSR). SVG permitido en imagen de tipo (subida por usuarios de confianza). Ver [[tool-physical-unit-and-consult]].
+
 ### 2026-08-08 — 🐛 Código Blade filtrándose a pantalla (Inspección de herramientas + Permisos)
 - **Estado:** Hecho (verificado: 6 blades compilan sin fuga, 28 directivas → 28 `echo`, render real alterna `checked`, `php -l` limpio, `view:clear`). 1 solo archivo tocado.
 - **Archivos:** `app/Providers/AppServiceProvider.php`.
