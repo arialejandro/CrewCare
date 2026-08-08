@@ -390,6 +390,31 @@ Route::middleware(['auth','permission:permits.issue'])->group(function () {
     Route::post('/permisos/{issued:uuid}/suspender', [App\Http\Controllers\PermitController::class, 'suspend'])->name('permits.suspend')->where('issued', '[0-9a-fA-F-]{36}');
 });
 
+// ---- VERIFICACIÓN DE AMBULANCIAS (2026-08-08 · deltas #51/#52) ----
+// Recurso de traslado del DÍA (3 estados; solo el 1 lleva badge) + proveedor/padrón/documentos
+// (validación MANUAL con quién-validó, como la cédula) + ACTA sellada en sitio (verificador PÚBLICO
+// 'ambu', cuya ruta va sin sesión más abajo). TODO POR EL SAFETY: gate único ambulance.manage.
+// Los prefijos fijos van ANTES de los {param} para desambiguar; el acta se liga por uuid.
+Route::middleware(['auth','permission:ambulance.manage'])->group(function () {
+    Route::get('/ambulancia', [App\Http\Controllers\AmbulanceController::class, 'index'])->name('ambulance.index');
+    // Recurso del día (Parte A)
+    Route::get('/ambulancia/recurso', [App\Http\Controllers\AmbulanceController::class, 'dayResourceForm'])->name('ambulance.day.form');
+    Route::post('/ambulancia/recurso', [App\Http\Controllers\AmbulanceController::class, 'storeDayResource'])->name('ambulance.day.store');
+    // Verificación en sitio + acta (Parte C)
+    Route::get('/ambulancia/verificar', [App\Http\Controllers\AmbulanceController::class, 'inspectForm'])->name('ambulance.inspect.form');
+    Route::post('/ambulancia/verificar', [App\Http\Controllers\AmbulanceController::class, 'storeInspection'])->name('ambulance.inspect.store');
+    Route::get('/ambulancia/actas', [App\Http\Controllers\AmbulanceController::class, 'records'])->name('ambulance.records');
+    Route::get('/ambulancia/acta/{inspection:uuid}', [App\Http\Controllers\AmbulanceController::class, 'actaShow'])->name('ambulance.acta')->where('inspection', '[0-9a-fA-F-]{36}');
+    Route::post('/ambulancia/acta/{inspection:uuid}/desbloquear', [App\Http\Controllers\AmbulanceController::class, 'unblock'])->name('ambulance.unblock')->where('inspection', '[0-9a-fA-F-]{36}');
+    // Proveedor / padrón / documentos (Parte B)
+    Route::get('/ambulancia/proveedores', [App\Http\Controllers\AmbulanceController::class, 'providers'])->name('ambulance.providers');
+    Route::post('/ambulancia/proveedores', [App\Http\Controllers\AmbulanceController::class, 'storeProvider'])->name('ambulance.provider.store');
+    Route::post('/ambulancia/documento', [App\Http\Controllers\AmbulanceController::class, 'storeDocument'])->name('ambulance.document.store');
+    Route::post('/ambulancia/documento/{doc}/validar', [App\Http\Controllers\AmbulanceController::class, 'validateDocument'])->name('ambulance.document.validate')->whereNumber('doc');
+    Route::get('/ambulancia/proveedor/{provider}', [App\Http\Controllers\AmbulanceController::class, 'providerShow'])->name('ambulance.provider.show')->whereNumber('provider');
+    Route::post('/ambulancia/proveedor/{provider}/tripulante', [App\Http\Controllers\AmbulanceController::class, 'storeCrew'])->name('ambulance.crew.store')->whereNumber('provider');
+});
+
 // ---- VIGILANCIA EPIDEMIOLÓGICA: panel silencioso + estudio de brote (2026-07-31 · delta #45) ----
 // SILENCIOSO: no manda correos, no alerta, no declara brotes. Solo LEE consultas selladas y muestra
 // conteos AGREGADOS (nunca nombres). Gate único epi.view (solo safety y médico). El estudio de brote

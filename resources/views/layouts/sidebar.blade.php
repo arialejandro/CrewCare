@@ -314,7 +314,7 @@
             @endcanany
 
             {{-- ===== SEGURIDAD (H&S) ===== --}}
-            @canany(['dsr.view', 'dsr.create', 'hazards.view', 'hazards.create', 'injury.view', 'injury.create', 'tools.inspect', 'permits.issue', 'pae.issue', 'epi.view'])
+            @canany(['dsr.view', 'dsr.create', 'hazards.view', 'hazards.create', 'injury.view', 'injury.create', 'tools.inspect', 'permits.issue', 'pae.issue', 'epi.view', 'ambulance.manage'])
                 <div class="cc-sec" data-open="false">
                     <button type="button" class="cc-sec-head" aria-expanded="false">
                         @include('componentes._icon', ['name' => 'shield-alert', 'class' => 'cc-sec-head__ico', 'label' => null])
@@ -366,6 +366,13 @@
                             <a href="{{ route('pae.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'ambulance', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>PAE · Emergencias</span>
+                            </a>
+                        @endcan
+                        {{-- Verificación de ambulancias (deltas #51/#52): recurso del día, docs del proveedor, acta sellada. --}}
+                        @can('ambulance.manage')
+                            <a href="{{ route('ambulance.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'heart-pulse', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>Ambulancias</span>
                             </a>
                         @endcan
                         {{-- Vigilancia epidemiológica (delta #45): panel silencioso, safety + médico. --}}
@@ -638,7 +645,7 @@
                 @endcanany
 
                 {{-- ===== SEGURIDAD (H&S) ===== --}}
-                @canany(['dsr.view', 'dsr.create', 'hazards.view', 'hazards.create', 'injury.view', 'injury.create', 'tools.inspect', 'permits.issue', 'pae.issue', 'epi.view'])
+                @canany(['dsr.view', 'dsr.create', 'hazards.view', 'hazards.create', 'injury.view', 'injury.create', 'tools.inspect', 'permits.issue', 'pae.issue', 'epi.view', 'ambulance.manage'])
                     <div class="cc-sec" data-open="false">
                         <button type="button" class="cc-sec-head" aria-expanded="false">
                             @include('componentes._icon', ['name' => 'shield-alert', 'class' => 'cc-sec-head__ico', 'label' => null])
@@ -692,7 +699,14 @@
                                     <span>PAE · Emergencias</span>
                                 </a>
                             @endcan
-                            {{-- Vigilancia epidemiológica (delta #45): panel silencioso, safety + médico. --}}
+                            {{-- Verificación de ambulancias (deltas #51/#52): recurso del día, docs del proveedor, acta sellada. --}}
+                        @can('ambulance.manage')
+                            <a href="{{ route('ambulance.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'heart-pulse', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>Ambulancias</span>
+                            </a>
+                        @endcan
+                        {{-- Vigilancia epidemiológica (delta #45): panel silencioso, safety + médico. --}}
                             @can('epi.view')
                                 <a href="{{ route('epi.index') }}" class="cc-item">
                                     @include('componentes._icon', ['name' => 'activity', 'class' => 'cc-item__ico', 'label' => null])
