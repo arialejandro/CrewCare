@@ -122,7 +122,11 @@
                 <div class="col-md-6"><span class="text-muted d-block">{{ __('Herramienta') }}</span>
                     <strong>{{ $inspection->tool_name }}</strong> <span class="text-muted">({{ $inspection->tool_code }})</span></div>
                 <div class="col-md-6"><span class="text-muted d-block">{{ __('Marca / modelo') }}</span>
-                    {{ $inspection->tool_model ?: '—' }}</div>
+                    {{ trim(($inspection->tool_brand ? $inspection->tool_brand.' ' : '').($inspection->tool_model ?? '')) ?: '—' }}</div>
+                <div class="col-md-6"><span class="text-muted d-block">{{ __('N.º de serie') }}</span>
+                    {{ $inspection->tool_serial ?: '—' }}</div>
+                <div class="col-md-6"><span class="text-muted d-block">{{ __('Dueño') }}</span>
+                    {{ $inspection->ownerLabel() ?: '—' }}</div>
                 <div class="col-md-6"><span class="text-muted d-block">{{ __('Departamento') }}</span>
                     {{ $inspection->department_name ?: '—' }}</div>
                 <div class="col-md-6"><span class="text-muted d-block">{{ __('Checklist') }}</span>
@@ -145,6 +149,17 @@
                 <div style="white-space: pre-line;">{{ $inspection->observations }}</div>
             @endif
         </div>
+
+        {{-- Foto REAL de la unidad (sellada con el acta). --}}
+        @if ($inspection->toolPhotoUrl())
+            <div class="card border-0 shadow-sm rounded-3 p-3 p-md-4 mb-3">
+                <span class="text-muted small d-block mb-2">{{ __('Foto de la herramienta') }}</span>
+                <a href="{{ $inspection->toolPhotoUrl() }}" target="_blank" rel="noopener">
+                    <img src="{{ $inspection->toolPhotoUrl() }}" alt="{{ $inspection->tool_name }}"
+                         style="max-width:100%;max-height:360px;border-radius:.5rem;object-fit:contain;">
+                </a>
+            </div>
+        @endif
 
         {{-- Checklist ejecutado, congelado (texto, norma y respuesta como estaban) --}}
         <div class="card border-0 shadow-sm rounded-3 p-3 p-md-4 mb-3">

@@ -59,11 +59,15 @@ class ToolInspection extends Model
 
     protected $fillable = [
         'uuid', 'production_id', 'shoot_day',
-        'tool_id', 'tool_code', 'tool_name', 'tool_family_key', 'tool_model', 'tool_standards_snapshot',
+        'tool_id', 'tool_code', 'tool_name', 'tool_family_key',
+        // Unidad FÍSICA (delta #47): marca/modelo/serie + foto real. La serie es la llave con
+        // que la consulta agrupa por unidad. Todo esto es CONTENIDO → entra al sello.
+        'tool_model', 'tool_brand', 'tool_serial', 'tool_photo_path', 'tool_standards_snapshot',
         'checklist_mode', 'checklist_snapshot',
         'inspection_moment', 'origin_type', 'origin_id',
         'verdict', 'resolution_path', 'observations',
         'department_id', 'department_name',
+        'owner_user_id', 'owner_name',            // dueño de la herramienta (crew o texto libre), CONGELADO
         'inspector_user_id', 'inspector_name', 'inspector_role', 'inspector_cedula',
         'unblocked_by_id', 'unblocked_by_name', 'unblocked_at',
         'is_active', 'retired_at', 'retired_by_id', 'retired_reason', 'superseded_by_id',
@@ -99,6 +103,29 @@ class ToolInspection extends Model
     public function inspector(): BelongsTo
     {
         return $this->belongsTo(User::class, 'inspector_user_id');
+    }
+
+    /** Dueño de la herramienta cuando es crew (FK-soft; el nombre ya quedó congelado en owner_name). */
+    public function owner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_user_id');
+    }
+
+    /** Etiqueta del dueño para mostrar: el nombre congelado (crew o texto libre) o null. */
+    public function ownerLabel(): ?string
+    {
+        $n = trim((string) $this->owner_name);
+        return $n !== '' ? $n : null;
+    }
+
+    /**
+     * URL pública de la foto REAL de la unidad (disco 'public'), o null si no se subió.
+     * La ruta es la que devolvió ImageCompressor::store() (misma forma que las fotos del DSR).
+     */
+    public function toolPhotoUrl(): ?string
+    {
+        $p = trim((string) $this->tool_photo_path);
+        return $p !== '' ? \Illuminate\Support\Facades\Storage::url($p) : null;
     }
 
     public function unblockedBy(): BelongsTo

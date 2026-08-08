@@ -361,12 +361,17 @@ Route::middleware(['auth','permission:dsr.view'])->group(function () {
 Route::middleware(['auth','permission:tools.inspect'])->group(function () {
     Route::get('/inspeccion', [App\Http\Controllers\InspectionController::class, 'index'])->name('tools.index');
     Route::get('/inspeccion/buscar/{q?}', [App\Http\Controllers\InspectionController::class, 'search'])->name('tools.search');
+    // Consulta del histórico de actas (delta #47) + admin de imágenes genéricas del tipo.
+    // Prefijos fijos → van ANTES de las rutas herramienta/{tool} numéricas (mismo criterio del grupo).
+    Route::get('/inspeccion/actas', [App\Http\Controllers\InspectionController::class, 'records'])->name('tools.records');
+    Route::get('/inspeccion/imagenes', [App\Http\Controllers\InspectionController::class, 'toolImages'])->name('tools.images');
     Route::get('/inspeccion/acta/{inspection:uuid}', [App\Http\Controllers\InspectionController::class, 'acta'])->name('tools.inspection.show');
     Route::post('/inspeccion/acta/{inspection:uuid}/desbloquear', [App\Http\Controllers\InspectionController::class, 'unblock'])->name('tools.inspection.unblock');
     Route::post('/inspeccion/acta/{inspection:uuid}/retirar', [App\Http\Controllers\InspectionController::class, 'retire'])->name('tools.inspection.retire');
     Route::get('/inspeccion/herramienta/{tool}', [App\Http\Controllers\InspectionController::class, 'show'])->name('tools.show')->whereNumber('tool');
     Route::get('/inspeccion/herramienta/{tool}/inspeccionar', [App\Http\Controllers\InspectionController::class, 'create'])->name('tools.inspect.form')->whereNumber('tool');
     Route::post('/inspeccion/herramienta/{tool}/inspeccionar', [App\Http\Controllers\InspectionController::class, 'store'])->name('tools.inspect.store')->whereNumber('tool');
+    Route::post('/inspeccion/herramienta/{tool}/imagen', [App\Http\Controllers\InspectionController::class, 'storeToolImage'])->name('tools.image.store')->whereNumber('tool');
 });
 
 // ---- EMISIÓN DE PERMISOS DE TRABAJO (2026-07-30 · delta #44) ----

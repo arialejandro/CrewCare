@@ -31,6 +31,16 @@
             </div>
         </div>
 
+        {{-- Consulta del histórico + admin de imágenes de referencia (delta #47). --}}
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <a href="{{ route('tools.records') }}" class="btn btn-sm btn-crew-soft d-inline-flex align-items-center gap-1">
+                @include('componentes._icon', ['name' => 'clipboard-list', 'label' => null]) {{ __('Actas de inspección') }}
+            </a>
+            <a href="{{ route('tools.images') }}" class="btn btn-sm btn-crew-soft d-inline-flex align-items-center gap-1">
+                @include('componentes._icon', ['name' => 'camera', 'label' => null]) {{ __('Imágenes de referencia') }}
+            </a>
+        </div>
+
         {{-- Puerta (A4): inspección ligada a un reporte de origen. --}}
         @if (! empty($launch['origin']))
             <div class="alert alert-info d-flex align-items-center gap-2 py-2">

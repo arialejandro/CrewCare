@@ -21,9 +21,15 @@
         </a>
 
         <div class="d-flex align-items-start gap-3 mb-3">
-            <span class="crew-header-icon d-inline-flex align-items-center justify-content-center rounded-3">
-                @include('componentes._icon', ['name' => 'wrench', 'class' => 'cc-ico', 'label' => null])
-            </span>
+            {{-- Imagen GENÉRICA del tipo (referencia). Si aún no se sube, cae al icono (placeholder). --}}
+            @if ($tool->imageUrl())
+                <img src="{{ $tool->imageUrl() }}" alt="{{ $tool->name }}"
+                     class="rounded-3" style="width:56px;height:56px;object-fit:contain;background:var(--surface-2);padding:4px;">
+            @else
+                <span class="crew-header-icon d-inline-flex align-items-center justify-content-center rounded-3">
+                    @include('componentes._icon', ['name' => 'wrench', 'class' => 'cc-ico', 'label' => null])
+                </span>
+            @endif
             <div>
                 <h1 class="crew-title mb-0">{{ $tool->name }}</h1>
                 <p class="text-muted mb-0 small">{{ $tool->code }} @if($tool->name_en) · {{ $tool->name_en }} @endif</p>
@@ -98,7 +104,7 @@
                 @if ($isWildcard)<span class="insp-tag">{{ __('Familia') }}: {{ $familyKey }}</span>@endif
             </div>
 
-            <form method="post" action="{{ route('tools.inspect.store', $tool->id) }}">
+            <form method="post" action="{{ route('tools.inspect.store', $tool->id) }}" enctype="multipart/form-data">
                 @csrf
                 @if ($isWildcard)<input type="hidden" name="family_key" value="{{ $familyKey }}">@endif
                 @if (! empty($origin))<input type="hidden" name="origin" value="{{ $origin }}"><input type="hidden" name="origin_id" value="{{ $originId }}">@endif
@@ -132,9 +138,39 @@
                             <div class="form-text">{{ __('El HOD de este depto recibe aviso si hay PARO.') }}</div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small fw-semibold">{{ __('Marca / modelo') }}</label>
+                            <label class="form-label small fw-semibold">{{ __('Marca') }}</label>
+                            <input type="text" name="tool_brand" class="form-control" value="{{ old('tool_brand') }}"
+                                   maxlength="120" placeholder="{{ __('opcional') }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">{{ __('Modelo') }}</label>
                             <input type="text" name="tool_model" class="form-control" value="{{ old('tool_model') }}"
-                                   placeholder="{{ __('opcional — dato de la herramienta física') }}">
+                                   maxlength="255" placeholder="{{ __('opcional') }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">{{ __('N.º de serie') }}</label>
+                            <input type="text" name="tool_serial" class="form-control" value="{{ old('tool_serial') }}"
+                                   maxlength="120" placeholder="{{ __('identifica la unidad física') }}">
+                            <div class="form-text">{{ __('Con la serie se agrupa el historial de ESTA herramienta.') }}</div>
+                        </div>
+                        {{-- Dueño / responsable de la herramienta (más allá del departamento):
+                             crew de la lista, o texto libre para renta / externo. Si eliges crew,
+                             ese nombre manda; si no, se usa el texto. --}}
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">{{ __('Dueño (responsable)') }}</label>
+                            <select name="owner_user_id" class="form-select">
+                                <option value="">{{ __('— Miembro de crew —') }}</option>
+                                @foreach ($crew as $c)
+                                    <option value="{{ $c->id }}" @selected((int) old('owner_user_id') === (int) $c->id)>{{ \App\Models\User::displayName($c) }}</option>
+                                @endforeach
+                            </select>
+                            <input type="text" name="owner_name" class="form-control mt-2" value="{{ old('owner_name') }}"
+                                   maxlength="160" placeholder="{{ __('o escribe (casa de renta / externo)') }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">{{ __('Foto de la herramienta (opcional)') }}</label>
+                            <input type="file" name="tool_photo" class="form-control" accept="image/*,.heic,.heif" capture="environment" data-cc-photo>
+                            <div class="form-text">{{ __('La unidad real; queda sellada en el acta.') }}</div>
                         </div>
                         @if ($tool->requires_designated_operator)
                         <div class="col-12">
@@ -222,6 +258,10 @@
 
     </div>
 </div>
+
+{{-- Cámara del set: convierte HEIC (iPad/iPhone) a JPEG y comprime EN EL NAVEGADOR antes de subir. --}}
+<script src="/js/cc-photo.js"></script>
+<script src="/js/cc-photo-auto.js"></script>
 
 @push('styles')
     @include('componentes._crew-list-styles')
