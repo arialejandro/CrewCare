@@ -49,27 +49,12 @@
             </div>
         @endif
 
-        {{-- LA LISTA DEL DÍA: la DEUDA. Corta por diseño (solo por_jornada sin acta vigente hoy). --}}
-        @if ($dayList->isNotEmpty())
-            <div class="card border-0 shadow-sm rounded-3 mb-4" style="border-left:4px solid #b45309 !important;">
-                <div class="p-3">
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        @include('componentes._icon', ['name' => 'clock', 'class' => 'cc-ico', 'label' => null])
-                        <strong>{{ __('Pendiente de inspección hoy') }}</strong>
-                        <span class="insp-tag">{{ $dayList->count() }}</span>
-                    </div>
-                    <div class="d-flex flex-wrap gap-2">
-                        @foreach ($dayList as $t)
-                            <a href="{{ route('tools.inspect.form', array_merge([$t->id], $launch)) }}"
-                               class="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-1">
-                                @include('componentes._icon', ['name' => 'wrench', 'label' => null])
-                                {{ $t->name }}
-                            </a>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
-        @endif
+        {{-- (2026-08-08) RETIRADA "Pendiente de inspección hoy": se derivaba de un atributo ESTÁTICO
+             del catálogo (inspection_regime = por_jornada), NO de lo que realmente llega al set.
+             Listar herramientas "por poner" es peligroso: hace creer que eso es todo lo que hay que
+             revisar, o que llegará algo que quizá no llega. Una lista real de arribos tendría que
+             venir de una fuente que DECLARE qué llega (p. ej. un scouting), no de una suposición del
+             catálogo. Hasta que exista esa fuente, no se muestra ninguna deuda inventada. --}}
 
         <div id="toolgrid" aria-live="polite" data-launch="{{ http_build_query($launch) }}">
             @if ($tools->count() === 0)

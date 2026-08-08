@@ -56,14 +56,13 @@ class InspectionController extends Controller
 
         $wildcard = Tool::where('is_wildcard', 1)->first();
 
-        // LA LISTA DEL DÍA (A3): la DEUDA — qué exige inspección hoy. Solo `por_jornada`
-        // sin acta vigente para el shoot_day actual. Corta por diseño.
-        $dayList = $this->dayList();
+        // (2026-08-08) Se retiró "la lista del día" (deuda por_jornada): era una suposición del
+        // catálogo, no lo que realmente llega al set → engañosa. Ver inspection/index.blade.php.
 
         // Puerta (A4): si se llegó desde un hallazgo/DSR/accidente, se arrastra el vínculo.
         $launch = $this->launchParams($request);
 
-        return view('inspection.index', compact('tools', 'wildcard', 'dayList', 'launch'));
+        return view('inspection.index', compact('tools', 'wildcard', 'launch'));
     }
 
     /** Parámetros de "puerta" (origen + momento) que sobreviven del reporte al acta. */
@@ -513,19 +512,6 @@ class InspectionController extends Controller
         // por_colocacion y por_evento: no caducan por día → la última vigente vale.
         $acta = $q->first();
         return ($acta && $acta->isVigente()) ? $acta : null;
-    }
-
-    /** LA LISTA DEL DÍA (A3): tipos por_jornada sin acta vigente para el shoot_day actual. */
-    private function dayList(): \Illuminate\Support\Collection
-    {
-        $shootDay = $this->currentShootDay();
-        return Tool::active()->where('is_wildcard', 0)->where('inspection_regime', 'por_jornada')
-            ->orderBy('code')->get()
-            ->filter(function ($tool) use ($shootDay) {
-                $acta = ToolInspection::where('tool_id', $tool->id)->where('shoot_day', $shootDay)
-                    ->latest('id')->first();
-                return ! ($acta && $acta->isVigente()); // sin acta vigente HOY → aparece en la lista
-            })->values();
     }
 
     /** A5: crea el action item de la obligación (PDCA existente), ligado al acta, con vía y plazo. */
