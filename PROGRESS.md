@@ -235,6 +235,12 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-08 — ⚡ Inspección: selects de crew/depto ahora buscables (typeahead)
+- **Estado:** Hecho (verificado: `execute.blade.php` y `_typeahead.blade.php` compilan, `php -l` limpio, ambos selects llevan `js-typeahead` y el componente se incluye). Solo presentación, sin SQL.
+- **Archivos:** `resources/views/inspection/execute.blade.php`.
+- **Qué / Por qué (petición del owner):** los `<select>` de **Departamento** y **Dueño** listaban cientos de crew en un dropdown crudo → lento de capturar. El owner pidió "campo vacío que llama a la persona desde la BD (autocompletar)". Se les puso `class="… js-typeahead"` y se incluyó `componentes._typeahead` (mejora progresiva ya usada en scouting/event-picker): el input se vuelve un buscador **escribe-y-filtra** (sin acentos) sobre las opciones ya renderizadas; el `<select>` nativo sigue siendo el control real (su `name` se envía) y es el **fallback sin JS**. No necesita AJAX porque las opciones ya vienen de la BD.
+- **Riesgo/Notas:** SIN SQL, SIN endpoint nuevo. El `required` del depto lo mueve el typeahead a server-side (el Form Request ya lo exige). **Regla del owner (feedback):** de aquí en adelante, todo `<select>` largo de personas/catálogo debe ser buscable → aplicar el mismo patrón. Ver [[selects-largos-typeahead]].
+
 ### 2026-08-08 — 🧹 Inspección: retirada "Pendiente de inspección hoy" (deuda inventada)
 - **Estado:** Hecho (verificado: sin referencias a `dayList`, `php -l` limpio, index compila). Commit `de53462b` en `clean-main`.
 - **Archivos:** `app/Http/Controllers/InspectionController.php`, `resources/views/inspection/index.blade.php`.

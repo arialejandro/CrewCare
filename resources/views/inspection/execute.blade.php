@@ -129,7 +129,7 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold">{{ __('Departamento a notificar') }} *</label>
-                            <select name="department_id" class="form-select" required>
+                            <select name="department_id" class="form-select js-typeahead" required>
                                 <option value="">{{ __('— Departamento —') }}</option>
                                 @foreach ($departments as $d)
                                     <option value="{{ $d->id }}" @selected(old('department_id') == $d->id)>{{ $d->name }}</option>
@@ -158,7 +158,7 @@
                              ese nombre manda; si no, se usa el texto. --}}
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold">{{ __('Dueño (responsable)') }}</label>
-                            <select name="owner_user_id" class="form-select">
+                            <select name="owner_user_id" class="form-select js-typeahead">
                                 <option value="">{{ __('— Miembro de crew —') }}</option>
                                 @foreach ($crew as $c)
                                     <option value="{{ $c->id }}" @selected((int) old('owner_user_id') === (int) $c->id)>{{ \App\Models\User::displayName($c) }}</option>
@@ -262,6 +262,10 @@
 {{-- Cámara del set: convierte HEIC (iPad/iPhone) a JPEG y comprime EN EL NAVEGADOR antes de subir. --}}
 <script src="/js/cc-photo.js"></script>
 <script src="/js/cc-photo-auto.js"></script>
+
+{{-- Buscador "escribe-y-filtra" para los <select> largos de crew/depto (Dueño, Departamento):
+     el <select> nativo sigue siendo el control real (su name se envía) y el fallback sin JS. --}}
+@include('componentes._typeahead')
 
 @push('styles')
     @include('componentes._crew-list-styles')
