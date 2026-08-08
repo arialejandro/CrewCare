@@ -235,6 +235,12 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-08 — 🧹 Inspección: retirada "Pendiente de inspección hoy" (deuda inventada)
+- **Estado:** Hecho (verificado: sin referencias a `dayList`, `php -l` limpio, index compila). Commit `de53462b` en `clean-main`.
+- **Archivos:** `app/Http/Controllers/InspectionController.php`, `resources/views/inspection/index.blade.php`.
+- **Qué / Por qué (owner):** la "lista del día" se derivaba de un atributo ESTÁTICO del catálogo (`inspection_regime = por_jornada`), NO de lo que realmente llega al set → es un *bluff* peligroso (hace creer que eso es todo lo que hay que revisar, o que llegará algo que quizá no llega). Una deuda real de arribos tendría que venir de una fuente que DECLARE qué llega (p. ej. un scouting), no del catálogo. Se retira el bloque de la vista, el `$dayList` del `index()` y el método `dayList()`.
+- **Riesgo/Notas:** `inspection_regime` SIGUE gobernando la **vigencia** de un acta (`vigenteFor`: un acta de ayer de un por_jornada no vale hoy) — eso es legítimo y no se toca. Sin SQL. Ver [[tool-physical-unit-and-consult]] / [[inspection-preventive-and-verifier]].
+
 ### 2026-08-08 — 🔧 Inspección: unidad física (serie + dueño) + foto real + consulta de actas + imagen de tipo
 - **Estado:** Hecho (verificado: 6 blades compilan sin fuga, `php -l` limpio, rutas registradas, **sello incluye la unidad física y detecta el alterado**, delta aplicado local). Commit `92c5e232` en `clean-main`.
 - **Archivos:** `database/owner-apply/2026-08-08-tool-inspection-serial-owner-photo.sql` (NEW, delta **#47**), `app/Models/ToolInspection.php`, `app/Models/Tool.php`, `app/Http/Controllers/InspectionController.php`, `routes/web.php`, `resources/views/inspection/{execute,acta,index,show}.blade.php`, `resources/views/inspection/{records,tool-images}.blade.php` (NEW).
