@@ -289,7 +289,7 @@
                                     {{ __('No corresponde') }}
                                 </label>
                             </div>
-                            <div class="form-text">{{ __('Si no corresponde, se registra como observación en el acta.') }}</div>
+                            <div class="form-text">{{ __('Queda registrado en el acta como dato de la verificación.') }}</div>
                         </div>
                     </div>
                 </div>

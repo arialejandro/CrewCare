@@ -235,6 +235,19 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-08 — 🚑 Acta de ambulancia: 6 ajustes de diseño del owner (post-homologación)
+- **Estado:** Hecho (verificado por harness: crea acta demo sellada, renderiza y afirma cada arreglo; sello íntegro tras render, ALTERADO al manipular). Demo corregida = **AMBU-0010** (clones de prueba borrados).
+- **Archivos:** `resources/views/componentes/_doc-hero.blade.php` (+`$heroHideCallbox`), `resources/views/ambulance/acta.blade.php`, `app/Http/Controllers/AmbulanceController.php`, `app/Http/Controllers/InspectionController.php`, `resources/views/ambulance/execute.blade.php`.
+- **Qué / Por qué (feedback del owner sobre el PDF):**
+  1. **Hero ya no duplica "CrewCare"** — el pie del hero antepone "CrewCare"; el módulo pasó de `'CrewCare · Verificación de ambulancia'` a `'Verificación de ambulancia'`.
+  2. **Se quitó el cuadro negro** (locación/fecha): nuevo flag `$heroHideCallbox` en `_doc-hero` (retrocompatible; default lo muestra). La fecha vive en la banda.
+  3. **Hero muestra el PROVEEDOR, no el proyecto** — `heroProject = provider_name` (el proyecto sigue en el logo + banda).
+  4. **Fotos sin pie de foto** — se quitaron los `.cap` ("Unidad"/"Evidencia N"): no aportaban.
+  5. **Observaciones = SOLO el campo libre** — el controlador dejó de auto-volcar las fallas del checklist y la correspondencia (ya viven en su tabla/campo); `observations = note ?: null`.
+  6. **Footer con nombre corto** — `inspector_name = $author->name` (como DSR/Injury/Scouting), no `fullName()` → "Ari Rómulo", no "Ari Rómulo Romulo". Igualado en la inspección de herramienta.
+  - **Extra:** el checklist (largo) ahora **fluye entre hojas** (`.amb-chk{break-inside:auto}` + filas protegidas + encabezado repetido) → mata el hueco en blanco de la página 1.
+- **Riesgo/Notas:** SIN SQL. Cambios de vista aplican a actas ya selladas al abrirlas; los cambios de DATO (observaciones/nombre) solo afectan actas NUEVAS (las selladas conservan su valor congelado, es correcto). Sello intacto (se firma sobre el dato). Ver [[ambulance-verification-module]].
+
 ### 2026-08-08 — 🎨 Actas homologadas al chrome v2 + Exportar PDF (ambulancia + herramienta)
 - **Estado:** Hecho (verificado: ambas vistas compilan y **renderizan** con acta sellada real → documento standalone `<!DOCTYPE>`+`report-wrap`, botón `#pdfBtn` (Exportar PDF = `window.print()`), **sin** el layout de la app (no `cc-sec` de sidebar), sello CFDI presente, y **sello íntegro tras render** —no toca el dato—). Construido con 2 subagentes en paralelo (archivos disjuntos).
 - **Archivos:** `resources/views/ambulance/acta.blade.php`, `resources/views/inspection/acta.blade.php` (ambas reescritas). SIN cambios de controlador/rutas/modelo/SQL.

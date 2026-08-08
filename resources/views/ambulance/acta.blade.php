@@ -53,8 +53,8 @@
     // Display del tipo (nombre + código) y de rama/nivel.
     $ramaNivel = ($inspection->rama ?: '—') . ($inspection->type_level ? ' · Nivel ' . $inspection->type_level : '');
 
-    // Hero + pie.
-    $heroModule = 'CrewCare · Verificación de ambulancia';
+    // Hero + pie. El pie del hero ya antepone "CrewCare"; el módulo NO lo repite.
+    $heroModule = 'Verificación de ambulancia';
     $footMeta   = implode(' · ', array_filter([
         $inspection->inspector_role ?: null,
         optional($inspection->created_at)->format('d/m/Y H:i'),
@@ -114,7 +114,13 @@
   .amb-state.open{ color:var(--warn); border-color:color-mix(in srgb, var(--warn) 40%, transparent); }
   .amb-state.closed{ color:var(--ok); border-color:color-mix(in srgb, var(--ok) 40%, transparent); }
 
-  /* Checklist congelado — tabla con las COMPUERTAS destacadas. */
+  /* Checklist congelado — tabla con las COMPUERTAS destacadas. Es LARGO (todos los puntos del
+     tipo), así que DEBE fluir entre hojas: el chrome pone .sec{break-inside:avoid} y eso lo
+     empujaría entero a la 2ª hoja, dejando la 1ª cortada con un hueco en blanco. Aquí se libera
+     el corte de la sección, se protege cada fila y se repite el encabezado por hoja. */
+  .amb-chk{ break-inside:auto; }
+  .amb-chk .tbl tr{ break-inside:avoid; }
+  .amb-chk .tbl thead{ display:table-header-group; }
   .amb-chk .tbl td,.amb-chk .tbl th{ vertical-align:top; }
   .amb-chk .tbl tr.gate td{ background:color-mix(in srgb, var(--brand) 6%, transparent);
     -webkit-print-color-adjust:exact; print-color-adjust:exact; }
@@ -146,12 +152,10 @@
     <table class="report-wrap">
     <thead><tr><td>
       @include('componentes._doc-hero', [
-        'heroImage'    => $inspection->unitPhotoUrl(),
-        'heroProject'  => $brandName,
-        'heroLocation' => ($inspection->provider_name ?: '—'),
-        'heroDate'     => optional($inspection->created_at)->format('d M Y'),
-        'heroTime'     => optional($inspection->created_at)->format('H:i'),
-        'heroModule'   => $heroModule,
+        'heroImage'       => $inspection->unitPhotoUrl(),
+        'heroProject'     => ($inspection->provider_name ?: $brandName),
+        'heroHideCallbox' => true,
+        'heroModule'      => $heroModule,
       ])
     </td></tr></thead>
     <tbody><tr><td>
@@ -358,7 +362,6 @@
               <a href="{{ $inspection->unitPhotoUrl() }}" target="_blank" rel="noopener">
                 <img src="{{ $inspection->unitPhotoUrl() }}" alt="{{ $inspection->type_name }}">
               </a>
-              <span class="cap">Unidad</span>
             </div>
           @endif
           @foreach ($evidence as $i => $url)
@@ -366,7 +369,6 @@
               <a href="{{ $url }}" target="_blank" rel="noopener">
                 <img src="{{ $url }}" alt="Evidencia {{ $i + 1 }}">
               </a>
-              <span class="cap">Evidencia {{ $i + 1 }}</span>
             </div>
           @endforeach
         </div>

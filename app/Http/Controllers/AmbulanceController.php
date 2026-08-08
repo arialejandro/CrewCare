@@ -476,29 +476,19 @@ class AmbulanceController extends Controller
 
         $result = AmbulanceVerdict::compute($executed);
 
-        // Observaciones = fallas NO-compuerta (condicionadas) + correspondencia negada + nota.
-        $obsLines = [];
-        foreach ($snapshot as $s) {
-            if ($s['answer'] === 'fail' && ! $s['is_gate']) {
-                $obsLines[] = $s['text'];
-            }
-        }
-
         // Correspondencia tipo↔riesgo del día (OPCIONAL; la fija el criterio del safety, no el
-        // catálogo). Solo cuenta si se declaró el nivel de riesgo del día.
+        // catálogo). Solo cuenta si se declaró el nivel de riesgo del día. Vive en su PROPIO campo
+        // (correspondence_ok) y se muestra en la sección de datos del acta, no en observaciones.
         $dayRisk          = isset($data['day_risk_level']) ? (int) $data['day_risk_level'] : null;
         $correspondenceOk = null;
         if ($dayRisk !== null && $request->has('correspondence_ok')) {
             $correspondenceOk = $request->boolean('correspondence_ok');
-            if ($correspondenceOk === false) {
-                $obsLines[] = 'El tipo de ambulancia NO corresponde al riesgo del día (juicio del responsable de seguridad).';
-            }
         }
 
-        if (! empty($data['note'])) {
-            $obsLines[] = trim($data['note']);
-        }
-        $observations = $obsLines ? implode("\n", $obsLines) : null;
+        // Observaciones = SOLO lo que el responsable escriba en el campo. NO se auto-rellena con las
+        // fallas del checklist (ya salen como FALLA en su tabla) ni con la correspondencia (vive en
+        // su propio campo): duplicarlo no dice nada nuevo y ensucia el acta.
+        $observations = ! empty($data['note']) ? trim($data['note']) : null;
 
         // TRIPULACIÓN → snapshot CONGELADO. El padrón por id (checkbox) trae su cotejo CONOCER
         // ya guardado; las altas nuevas se crean bajo la empresa y su TAMP se COTEJA como
@@ -635,7 +625,9 @@ class AmbulanceController extends Controller
             'day_risk_level'     => $dayRisk,
             'correspondence_ok'  => $correspondenceOk,
             'inspector_user_id'  => $author ? $author->id : null,
-            'inspector_name'     => $author ? $author->fullName() : null,
+            // Nombre del que firma: mismo criterio que el resto de documentos (DSR/Injury/Scouting
+            // usan ->name), no el nombre completo con apellidos → "Ari Rómulo", no "Ari Rómulo Romulo".
+            'inspector_name'     => $author ? $author->name : null,
             'inspector_role'     => $author ? optional($author->getRoleNames())->first() : null,
             'inspector_cedula'   => $cred ? $cred->cedula : null,
             'is_active'          => 1,

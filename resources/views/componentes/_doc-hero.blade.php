@@ -28,6 +28,9 @@
     // $heroMeta OPCIONAL: sub-línea del "llamado" (tipo Int./Ext. · día/noche · escenas · fecha de
     // rodaje). Sólo la usa hoy el PAE; si no se pasa, no se pinta (retrocompatible con todos los docs).
     $heroMeta     = $heroMeta ?? null;
+    // $heroHideCallbox OPCIONAL: oculta el recuadro negro de locación/fecha. Lo usa el acta de
+    // ambulancia (la fecha vive en la banda y el hero destaca al proveedor). Default: se muestra.
+    $heroHideCallbox = $heroHideCallbox ?? false;
 @endphp
 <div class="doc-hero">
     @if(!empty($heroImage))
@@ -41,11 +44,13 @@
     {{-- Nombre del proyecto + cuadro de locación/fecha/hora (auto-ajustados al ancho de la caja) --}}
     <div class="hero-side">
         <div class="hero-project" id="heroProject" style="font-size:46px;">{{ $heroProject }}</div>
+        @unless($heroHideCallbox)
         <div class="hero-callbox">
             <div class="cl-loc" id="heroCall">{{ $heroLocation !== '' ? $heroLocation : '—' }}</div>
             <div class="cl-date">{{ $heroDate ?: 'S/F' }}{{ !empty($heroTime) ? ' | ' . $heroTime . ' HRS' : '' }}</div>
             @if(!empty($heroMeta))<div class="cl-meta" style="font-size:11px;color:rgba(255,255,255,.82);margin-top:5px;letter-spacing:.02em;line-height:1.35;">{{ $heroMeta }}</div>@endif
         </div>
+        @endunless
     </div>
 
     {{-- CrewCare + módulo (pie del hero): blanco esmerilado + esquinas superiores redondeadas + negro. --}}

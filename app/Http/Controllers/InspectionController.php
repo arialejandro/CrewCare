@@ -350,7 +350,9 @@ class InspectionController extends Controller
             'owner_user_id'           => $ownerId ?: null,
             'owner_name'              => $ownerName !== '' ? $ownerName : null,
             'inspector_user_id'       => $author ? $author->id : null,
-            'inspector_name'          => $author ? $author->fullName() : null,
+            // Nombre del que firma: mismo criterio que el resto de documentos (->name), no el
+            // nombre completo con apellidos → "Ari Rómulo", no "Ari Rómulo Romulo".
+            'inspector_name'          => $author ? $author->name : null,
             'inspector_role'          => $author ? optional($author->getRoleNames())->first() : null,
             'inspector_cedula'        => $cred ? $cred->cedula : null,
             'is_active'               => 1,
