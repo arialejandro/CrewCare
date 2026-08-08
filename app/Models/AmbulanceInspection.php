@@ -52,7 +52,7 @@ class AmbulanceInspection extends Model
     protected $fillable = [
         'uuid', 'production_id', 'shoot_day', 'trigger_scope',
         'ambulance_type_id', 'type_code', 'type_name', 'rama', 'type_level', 'capacity_level',
-        'provider_id', 'provider_name', 'plates', 'economic_number', 'unit_photo_path',
+        'provider_id', 'provider_name', 'plates', 'economic_number', 'unit_photo_path', 'evidence_photos',
         'crew_snapshot', 'checklist_snapshot',
         'verdict', 'resolution_path', 'observations',
         'day_risk_level', 'correspondence_ok',
@@ -65,6 +65,7 @@ class AmbulanceInspection extends Model
     protected $casts = [
         'crew_snapshot'      => 'array',
         'checklist_snapshot' => 'array',
+        'evidence_photos'    => 'array',
         'type_level'         => 'integer',
         'capacity_level'     => 'integer',
         'day_risk_level'     => 'integer',
@@ -168,6 +169,25 @@ class AmbulanceInspection extends Model
     {
         $p = trim((string) $this->unit_photo_path);
         return $p !== '' ? Storage::url($p) : null;
+    }
+
+    /**
+     * URLs de la evidencia fotográfica adicional (sellada). Cada ruta se guardó como la
+     * devuelve ImageCompressor::store() sobre el disco 'public'. Sirve para sostener la
+     * decisión (revocar/autorizar) después del hecho.
+     *
+     * @return array<int,string>
+     */
+    public function evidencePhotoUrls(): array
+    {
+        $out = [];
+        foreach ((array) $this->evidence_photos as $p) {
+            $p = trim((string) $p);
+            if ($p !== '') {
+                $out[] = Storage::url($p);
+            }
+        }
+        return $out;
     }
 
     /**

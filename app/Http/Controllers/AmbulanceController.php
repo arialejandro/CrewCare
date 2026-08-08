@@ -392,6 +392,8 @@ class AmbulanceController extends Controller
             'plates'               => 'nullable|string|max:40',
             'economic_number'      => 'nullable|string|max:60',
             'unit_photo'           => $photoRule,                 // TODA foto del checklist es OPCIONAL
+            'evidence_photos'      => 'nullable|array|max:20',     // evidencia adicional (varias) para sostener la decisión
+            'evidence_photos.*'    => $photoRule,
             // Checklist COMPLETO (todos los puntos del tipo).
             'answers'              => 'nullable|array',
             'answers.*'            => 'in:ok,fail',
@@ -594,6 +596,20 @@ class AmbulanceController extends Controller
             ? ImageCompressor::store($request->file('unit_photo'), 'ambulance/units')
             : null;
 
+        // Evidencia fotográfica adicional (varias, opcional): pruebas para sostener la
+        // decisión —revocar (paro) o autorizar (apta)— después del hecho. Sus rutas entran
+        // al sello (evidencia inmutable; cambiar la lista de un acta sellada = ALTERADO).
+        $evidencePaths = [];
+        foreach ((array) $request->file('evidence_photos', []) as $file) {
+            if (! $file) {
+                continue;
+            }
+            $stored = ImageCompressor::store($file, 'ambulance/evidence');
+            if ($stored) {
+                $evidencePaths[] = $stored;
+            }
+        }
+
         $payload = [
             'production_id'      => CurrentProduction::id(),
             'shoot_day'          => $this->currentShootDay(),
@@ -610,6 +626,7 @@ class AmbulanceController extends Controller
             'plates'             => $data['plates'] ?? null,
             'economic_number'    => $data['economic_number'] ?? null,
             'unit_photo_path'    => $photoPath,
+            'evidence_photos'    => $evidencePaths ?: null,
             'crew_snapshot'      => $crewSnapshot,
             'checklist_snapshot' => $snapshot,
             'verdict'            => $result['verdict'],

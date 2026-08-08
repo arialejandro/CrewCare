@@ -164,6 +164,25 @@
                     </div>
                 </div>
 
+                {{-- (a2) EVIDENCIA FOTOGRÁFICA (varias, opcional) ─────────────── --}}
+                <div class="card border-0 shadow-sm rounded-3 p-3 p-md-4 mb-3">
+                    <h5 class="mb-1">{{ __('Evidencia fotográfica (opcional)') }}</h5>
+                    <p class="text-muted small">{{ __('Agrega las fotos que necesites como prueba de lo verificado: sostienen tanto una revocación (paro) como una autorización (apta) después del hecho. Quedan selladas en el acta.') }}</p>
+                    <div id="evidenceRows">
+                        <div class="mb-2 evidence-row">
+                            <input type="file" name="evidence_photos[]" class="form-control" accept="image/*,.heic,.heif" capture="environment" data-cc-photo>
+                        </div>
+                    </div>
+                    <button type="button" id="addEvidence" class="btn btn-sm btn-crew-soft d-inline-flex align-items-center gap-1">
+                        @include('componentes._icon', ['name' => 'plus', 'label' => null]) {{ __('Agregar otra foto') }}
+                    </button>
+                    <template id="evidenceTpl">
+                        <div class="mb-2 evidence-row">
+                            <input type="file" name="evidence_photos[]" class="form-control" accept="image/*,.heic,.heif" capture="environment" data-cc-photo>
+                        </div>
+                    </template>
+                </div>
+
                 {{-- (b) TRIPULACIÓN + COTEJO CONOCER ───────────────────────────── --}}
                 <div class="card border-0 shadow-sm rounded-3 p-3 p-md-4 mb-3">
                     <h5 class="mb-1">{{ __('Tripulación') }}</h5>
@@ -321,6 +340,19 @@
                             holder.innerHTML = html.trim();
                             rows.appendChild(holder.firstElementChild);
                             idx++;
+                        });
+                    }
+
+                    // Agrega más inputs de evidencia fotográfica (cada uno lo cablea
+                    // cc-photo-auto.js por delegación).
+                    var eBtn = document.getElementById('addEvidence');
+                    var eRows = document.getElementById('evidenceRows');
+                    var eTpl = document.getElementById('evidenceTpl');
+                    if (eBtn && eRows && eTpl) {
+                        eBtn.addEventListener('click', function () {
+                            var holder = document.createElement('div');
+                            holder.innerHTML = eTpl.innerHTML.trim();
+                            eRows.appendChild(holder.firstElementChild);
                         });
                     }
                 })();

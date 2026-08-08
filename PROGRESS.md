@@ -235,6 +235,12 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-08 — 🚑 Ambulancias (3c/n): evidencia fotográfica múltiple sellada (delta #53)
+- **Estado:** Hecho (verificado: delta #53 aplicado local, controlador `php -l` limpio, `execute`/`acta` compilan, y **la evidencia entra al sello**: acta con 3 fotos íntegra → quitar una = ALTERADO en el verificador). Sube 0 riesgo a sellos viejos (no hay actas en prod).
+- **Archivos:** `database/owner-apply/2026-08-08-ambulance-evidence-photos.sql` (NEW, delta **#53**), `app/Models/AmbulanceInspection.php` (+`evidence_photos` fillable/cast/`evidencePhotoUrls()`), `app/Http/Controllers/AmbulanceController.php` (guarda varias `evidence_photos[]`), `resources/views/ambulance/execute.blade.php` (+sección repetible), `resources/views/ambulance/acta.blade.php` (+galería).
+- **Qué / Por qué (petición del owner):** poder **adjuntar varias fotos como PRUEBA** de lo verificado — para sostener una **revocación** (paro / no autorizado) o para **argumentar una autorización** (apta) después del hecho. Columna `ambulance_inspections.evidence_photos` JSON (lista de rutas, disco 'public'); es **contenido → entra al hash** (evidencia inmutable; cambiarla en un acta sellada = ALTERADO). Captura repetible ("agregar otra foto"), opcional; se comprime en el navegador (HEIC) como el resto.
+- **Riesgo/Notas:** **Aplicar delta #53 en prod** (ADD COLUMN idempotente, requiere el #52). Sin permiso/lang nuevos. Ver [[ambulance-verification-module]].
+
 ### 2026-08-08 — 🚑 Ambulancias (3b/n · AJUSTES del owner): un solo checklist + TAMP/CONOCER + términos
 - **Estado:** Hecho (verificado: controlador `php -l` limpio, 14 rutas intactas, 5 vistas compilan, y simulación del flujo nuevo: alta empresa + TAMP CONOCER cotejado + **checklist COMPLETO AMB-02=67 puntos** → apta, sello íntegro, `trigger_scope='completa'`, crew cotejado en snapshot).
 - **Archivos:** `app/Http/Controllers/AmbulanceController.php` (inspectForm/storeInspection reescritos, helper muerto retirado), `app/Models/AmbulanceInspection.php` (+const `TRIGGER_FULL='completa'`), `resources/views/ambulance/execute.blade.php` (reescrita), `resources/views/ambulance/partials/_crew-new-row.blade.php` (NEW), `resources/views/ambulance/acta.blade.php` (ajustes).

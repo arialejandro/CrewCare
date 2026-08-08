@@ -193,6 +193,22 @@
             </div>
         @endif
 
+        {{-- Evidencia fotográfica adicional (sellada): sostiene la decisión de revocar o autorizar. --}}
+        @php $evidence = $inspection->evidencePhotoUrls(); @endphp
+        @if (count($evidence))
+            <div class="card border-0 shadow-sm rounded-3 p-3 p-md-4 mb-3">
+                <span class="text-muted small d-block mb-2">{{ __('Evidencia fotográfica') }} ({{ count($evidence) }})</span>
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach ($evidence as $url)
+                        <a href="{{ $url }}" target="_blank" rel="noopener">
+                            <img src="{{ $url }}" alt="{{ __('Evidencia') }}"
+                                 style="width:140px;height:140px;border-radius:.5rem;object-fit:cover;background:var(--surface-2);">
+                        </a>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
         {{-- Checklist ejecutado, congelado (texto, norma y respuesta como estaban) --}}
         @if (count($snap))
             <div class="card border-0 shadow-sm rounded-3 p-3 p-md-4 mb-3">
