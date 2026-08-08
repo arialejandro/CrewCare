@@ -267,4 +267,16 @@
         }
         .crew-page .crew-table.cc-stack td.text-end::before { content: ""; }
     }
+
+    /* ── Barra de acciones en TELÉFONO (2026-08-07) ────────────────────────────────
+       Antes el buscador compartía renglón con "Exportar" + "Nuevo miembro" y quedaba
+       aplastado a ~"Busc". Ahora el buscador toma su PROPIA fila (100%) y los dos
+       botones envuelven debajo al 50/50, con objetivos táctiles parejos. Solo <576px;
+       de sm en adelante la barra vuelve a ir en línea. */
+    @media (max-width: 575.98px) {
+        .crew-page .crew-actions-bar .crew-search { flex: 1 1 100%; }
+        .crew-page .crew-actions-bar > .dropdown { flex: 1 1 0; }
+        .crew-page .crew-actions-bar > .dropdown > .dropdown-toggle { width: 100%; justify-content: center; }
+        .crew-page .crew-actions-bar > .btn { flex: 1 1 0; justify-content: center; }
+    }
 </style>

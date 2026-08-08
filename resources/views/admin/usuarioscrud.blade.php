@@ -31,7 +31,7 @@
                 </div>
             </div>
 
-            <div class="d-flex align-items-center gap-2 flex-grow-1 flex-lg-grow-0">
+            <div class="crew-actions-bar d-flex align-items-center gap-2 flex-grow-1 flex-lg-grow-0 flex-wrap">
                 <div class="crew-search flex-grow-1">
                     <label for="search" class="visually-hidden">Buscar por nombre, apellido o email</label>
                     <form onsubmit="return false;">
