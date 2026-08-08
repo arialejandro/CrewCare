@@ -30,6 +30,21 @@ class AppServiceProvider extends ServiceProvider
             return \App\Support\Features::enabled($key);
         });
 
+        // DIRECTIVAS DE ATRIBUTO (2026-08-08): @checked / @selected / @disabled / @readonly /
+        // @required existen en Laravel 9+, pero este proyecto corre en Laravel 8. Sin registrarlas,
+        // Blade NO las compila y las escupe como TEXTO: como `old('answers.'.$p->code)` lleva un `->`,
+        // ese `>` cerraba el <input> antes de tiempo y dejaba a la vista basura tipo `code) === 'ok'>`
+        // (bug visible en Inspección de herramientas y Permisos). En los <select> el estropicio era
+        // silencioso: la preselección y el old() de rebote no funcionaban. Se replican con la MISMA
+        // semántica que el core de Laravel 9 ($expression ya trae los paréntesis).
+        // OJO: Blade::directive quita los paréntesis exteriores antes de invocar el callback (a
+        // diferencia de las directivas del core), así que hay que reponerlos: `if ({$expression})`.
+        foreach (['checked', 'selected', 'disabled', 'readonly', 'required'] as $attr) {
+            \Illuminate\Support\Facades\Blade::directive($attr, function ($expression) use ($attr) {
+                return "<?php if ({$expression}): echo '{$attr}'; endif; ?>";
+            });
+        }
+
         // HEIC/HEIF (fotos de iPhone/iPad). Regla 'heic_ok': deja pasar cualquier imagen que NO
         // sea HEIC, y sólo acepta un HEIC cuando ESTE servidor puede convertirlo (Imagick+libheif).
         // Si no puede, el mensaje dice QUÉ HACER (cambiar a JPG) en vez de un error genérico —

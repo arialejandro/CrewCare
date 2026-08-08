@@ -235,6 +235,14 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-08 — 🐛 Código Blade filtrándose a pantalla (Inspección de herramientas + Permisos)
+- **Estado:** Hecho (verificado: 6 blades compilan sin fuga, 28 directivas → 28 `echo`, render real alterna `checked`, `php -l` limpio, `view:clear`). 1 solo archivo tocado.
+- **Archivos:** `app/Providers/AppServiceProvider.php`.
+- **Qué / Por qué:** el owner vio texto crudo tipo `code) === 'ok'>` bajo los botones **Cumple/Falla**. Causa raíz: las plantillas usan `@checked` / `@selected` / `@disabled` / `@readonly` / `@required`, **directivas de Laravel 9+**, y este proyecto es **Laravel 8.83**. Sin registrar, Blade las escupe como texto; el `->` dentro de `old('answers.'.$p->code)` metía un `>` que cerraba el `<input>` antes de tiempo y volcaba la cola a la vista. En los `<select>` (epi, gafetes, alta de usuario) el daño era **silencioso**: la preselección y el `old()` de rebote no funcionaban.
+- **Fix:** se **registran las 5 directivas** en `AppServiceProvider::boot()` con la MISMA semántica del core de Laravel 9 (`<?php if (…): echo 'checked'; endif; ?>`). Arregla de golpe los 6 archivos (inspección, permisos, epi×2, gafete designer, alta de usuario) y cualquier uso futuro.
+- **Gotcha aprendido:** `Blade::directive` **quita los paréntesis exteriores** antes de invocar el callback (las directivas del core NO) → hay que reponerlos: `if ({$expression})`, no `if{$expression}`. Detectado al verificar el PHP compilado (daba `ifold(...)`).
+- **Riesgo/Notas:** **SIN SQL.** Toma efecto al recompilar las vistas (prod se levanta fresco desde el repo → sin caché vieja). Ver [[laravel8-missing-attribute-directives]].
+
 ### 2026-08-07 — 👥 Crew List (seguimientos): quita Sexo + Apellido, nombre a mostrar unificado, buscador móvil
 - **Estado:** Hecho (verificado: blades compilan, `php -l` limpio, helpers probados en datos reales, densidad/buscador medidos en navegador). Commits `fc358ec7`, `d04036a2`, `fab32600`, `e6ee91c0` en `clean-main`.
 - **Archivos:** `admin/usuarioscrud.blade.php`, `componentes/search-results.blade.php`, `componentes/_crew-list-styles.blade.php`, `app/Models/User.php`, `app/Support/CrewRosterBuilder.php`, `app/Support/PaeOrgChart.php`, `admin/badge/_card.blade.php`, `componentes/_idcard-row.blade.php`.
