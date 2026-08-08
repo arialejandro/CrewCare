@@ -244,6 +244,14 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
   3. **PAE** (builder v1→**v2**): nuevo `App\Support\AmbulanceResourceBadge` (snapshot congelado del recurso del día: ambulancia en sitio con su acta+veredicto / medio declarado / hueco). El PAE lo embebe y lo pinta como tarjeta con tono por veredicto. **No sobreclama:** el cotejo de tripulación se declara "documentos revisados", NUNCA "verificado contra registro" (esa capacidad no existe).
 - **Riesgo/Notas:** Regresión de sellos LIMPIA respecto a Parte D — MEDEVAC 16/16 y PAE 1/1 válidos; los 3 scoutings ALTERADOS (id 25/26/27) traen firmas VIEJAS (204-206) y ya estaban rotos por drift local previo (la bandera está excluida del hash, no puede causarlo; prod arranca vacío). Cambios de builder solo afectan emisiones NUEVAS (payload congelado). Aplicar en prod: delta #54. Ver [[ambulance-verification-module]].
 
+### 2026-08-08 — 🖨️ Fix de impresión: `.sheet overflow:visible` (texto cortado) + nombre = créditos
+- **Estado:** Hecho (verificado por harness: render TODO OK). Demo = **AMBU-0015**. SIN SQL. **Toca el chrome COMPARTIDO** (beneficia a todos los reportes largos).
+- **Archivos:** `resources/views/componentes/_report-v2-head.blade.php` (chrome), `app/Http/Controllers/AmbulanceController.php`, `app/Http/Controllers/InspectionController.php`.
+- **Qué / Por qué (feedback del owner: "se sigue cortando el texto"):**
+  1. **CAUSA REAL del texto cortado:** el chrome ponía `.sheet{overflow:hidden}` (para las esquinas redondeadas en pantalla) y **NUNCA lo reseteaba en impresión**. Un contenedor `overflow:hidden` hace que Chrome trate la hoja como UN fragmento y **recorte** el contenido en los saltos de página en vez de fluirlo — por eso ni los divs ni el papel Oficio lo arreglaban. Fix: `overflow:visible` en `.sheet` en `@media print` y en `:root[data-view="print"]`. Papel ya era **Oficio** (216×340mm). Aplica a TODOS los reportes largos.
+  2. **Nombre del firmante = NOMBRE DE CRÉDITOS** (`User::displayName` → `ncreditos`), no `shortName`. Da "Ari Rómulo" CON acento (el crédito real); `shortName` daba "Ari Romulo" sin acento (del `lname`). Footer + Inspector de Datos. Igualado en inspección de herramienta.
+- **Riesgo/Notas:** SIN SQL, SIN cambio de sello (nombre solo en actas NUEVAS). El `overflow:visible` en print es inocuo para reportes de 1 hoja y correcto para los largos. **El owner debe re-verificar el PDF** (ahora sí debería fluir sin cortar). Ver [[doc-hero-band-homologation]].
+
 ### 2026-08-08 — 🚑 Acta de ambulancia: 3ª ronda de ajustes del owner (nombre, paginación, cintillo)
 - **Estado:** Hecho (verificado por harness: render TODO OK; sello intacto; AMBU-0005 sigue válida). Demo = **AMBU-0014**. SIN SQL nuevo.
 - **Archivos:** `resources/views/ambulance/acta.blade.php`, `app/Http/Controllers/AmbulanceController.php`, `app/Http/Controllers/InspectionController.php`.

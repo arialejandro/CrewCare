@@ -88,7 +88,10 @@
   :root[data-view="print"] .stage{padding:0}
   .sheet{width:100%;max-width:860px;background:var(--sheet);border:1px solid var(--stroke);border-radius:var(--radius);
     overflow:hidden;box-shadow:0 40px 90px -30px rgba(0,0,0,.7);backdrop-filter:blur(22px) saturate(1.25);-webkit-backdrop-filter:blur(22px) saturate(1.25)}
-  :root[data-view="print"] .sheet{max-width:none;border:0;border-radius:0;box-shadow:none;backdrop-filter:none}
+  /* overflow:visible en modo papel: con overflow:hidden Chrome trata la hoja como UN fragmento
+     y RECORTA el contenido en los saltos de página (en vez de fluirlo). Es la causa del texto
+     cortado en documentos largos (p.ej. el acta de ambulancia). */
+  :root[data-view="print"] .sheet{max-width:none;border:0;border-radius:0;box-shadow:none;backdrop-filter:none;overflow:visible}
 
   /* hero */
   .hero{position:relative;height:196px;overflow:hidden;background:#0c1119}
@@ -268,7 +271,8 @@
     .toolbar,.caption,.ambient,.docfoot,.no-print,.ops,.alert{display:none!important}
     body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .stage{padding:0}
-    .sheet{max-width:none;border:0;border-radius:0;box-shadow:none;backdrop-filter:none}
+    /* overflow:visible → la hoja fluye entre páginas en vez de recortarse (ver nota arriba). */
+    .sheet{max-width:none;border:0;border-radius:0;box-shadow:none;backdrop-filter:none;overflow:visible}
     .sec{break-inside:avoid}
     /* Repetición por hoja: hero (thead) + espaciador de pie (tfoot). */
     .report-wrap>thead{display:table-header-group}

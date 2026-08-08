@@ -633,9 +633,9 @@ class AmbulanceController extends Controller
             'day_risk_level'     => $dayRisk,
             'correspondence_ok'  => $correspondenceOk,
             'inspector_user_id'  => $author ? $author->id : null,
-            // Nombre del que firma: nombre CORTO (nombre de pila + 1er apellido) → "Ari Rómulo".
-            // `->name` a secas se quedaba en "Ari" (sin apellido); fullName() traía los 2 apellidos.
-            'inspector_name'     => $author ? User::shortName($author) : null,
+            // Nombre del que firma: NOMBRE DE CRÉDITOS (User::displayName → ncreditos si existe,
+            // si no cae al nombre corto). Es como se acredita a la persona en la producción.
+            'inspector_name'     => $author ? User::displayName($author) : null,
             'inspector_role'     => $author ? optional($author->getRoleNames())->first() : null,
             'inspector_cedula'   => $cred ? $cred->cedula : null,
             'is_active'          => 1,

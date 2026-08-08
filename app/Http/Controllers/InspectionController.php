@@ -350,8 +350,9 @@ class InspectionController extends Controller
             'owner_user_id'           => $ownerId ?: null,
             'owner_name'              => $ownerName !== '' ? $ownerName : null,
             'inspector_user_id'       => $author ? $author->id : null,
-            // Nombre del que firma: nombre CORTO (nombre de pila + 1er apellido) → "Ari Rómulo".
-            'inspector_name'          => $author ? User::shortName($author) : null,
+            // Nombre del que firma: NOMBRE DE CRÉDITOS (User::displayName → ncreditos si existe,
+            // si no cae al nombre corto). Como se acredita a la persona en la producción.
+            'inspector_name'          => $author ? User::displayName($author) : null,
             'inspector_role'          => $author ? optional($author->getRoleNames())->first() : null,
             'inspector_cedula'        => $cred ? $cred->cedula : null,
             'is_active'               => 1,
