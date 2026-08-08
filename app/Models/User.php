@@ -160,6 +160,34 @@ class User extends Authenticatable
     }
 
     /**
+     * NOMBRE A MOSTRAR de un integrante de crew. Fuente única para las superficies que
+     * enseñan "cómo se llama" esta persona (Crew List, gafete, PAE…).
+     *
+     * Regla (owner 2026-08-07): el **Nombre en Créditos** (`ncreditos`) cuando existe DE VERDAD
+     * —tiene al menos una letra, para ignorar basura de semilla tipo "0" o "-"—; si no, un
+     * **nombre corto** = 1ª palabra del `name` + 1er apellido (`lname`). Como `name`/`lname`
+     * están poblados en el 100% del crew, siempre da un resultado usable. NUNCA inventa: usa lo
+     * que hay. Reemplaza el uso directo de `->name` (parcial: enseñaba solo el nombre de pila) y
+     * permite quitar la columna "Apellido" de la lista sin perder el apellido de vista.
+     *
+     * Acepta un modelo Eloquent o una fila cruda (stdClass) — ambas superficies conviven: la lista
+     * itera `DB::table('users')`. Solo lee `ncreditos`, `name`, `lname`.
+     */
+    public static function displayName($user): string
+    {
+        $cred = trim((string) ($user->ncreditos ?? ''));
+        if ($cred !== '' && preg_match('/\p{L}/u', $cred)) {
+            return $cred;
+        }
+
+        $name  = trim((string) ($user->name ?? ''));
+        $first = $name === '' ? '' : preg_split('/\s+/', $name)[0];
+        $short = trim($first . ' ' . trim((string) ($user->lname ?? '')));
+
+        return $short !== '' ? $short : $name;
+    }
+
+    /**
      * Valor de una columna del pivote de la producción VIGENTE para un usuario (por id), o null.
      * Espeja la lectura del write-path (CrewController::useredit). Cachea TODO el pivote de la
      * producción una sola vez por petición → evita el N+1 cuando una lista (usuarioscrud,

@@ -9,7 +9,6 @@
     <thead>
         <tr>
             <th scope="col" class="ps-4">Miembro</th>
-            <th scope="col">Apellido</th>
             @if($canPersonal)
             <th scope="col">F.Nac.</th>
             @endif
@@ -35,12 +34,12 @@
                             </span>
                         @endif
                         <div class="crew-name-cell">
-                            <span class="crew-name d-block">{{ $user->name }}</span>
+                            {{-- Nombre a mostrar: crédito o nombre corto (ver User::displayName). --}}
+                            <span class="crew-name d-block">{{ \App\Models\User::displayName($user) }}</span>
                             <span class="crew-sub d-block text-muted small">{{ \App\Models\User::positionNameFor($user->id ?? null, $user->puestodepartamento ?? null) }}</span>
                         </div>
                     </div>
                 </td>
-                <td data-label="Apellido">{{ $user->lname }}</td>
                 @if($canPersonal)
                 <td class="text-muted" data-label="F.Nac.">{{ $user->borndate }}</td>
                 @endif
@@ -110,7 +109,7 @@
             </tr>
         @empty
             <tr>
-                <td colspan="6">
+                <td colspan="5">
                     <div class="crew-empty text-center py-5">
                         <div class="crew-empty-icon mx-auto mb-3 d-inline-flex align-items-center justify-content-center rounded-circle">
                             @include('componentes._icon', ['name' => 'users', 'class' => 'cc-ico', 'label' => null])
