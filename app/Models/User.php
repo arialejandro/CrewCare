@@ -160,18 +160,35 @@ class User extends Authenticatable
     }
 
     /**
-     * NOMBRE A MOSTRAR de un integrante de crew. Fuente única para las superficies que
-     * enseñan "cómo se llama" esta persona (Crew List, gafete, PAE…).
+     * NOMBRE CORTO de un integrante de crew: 1ª palabra del `name` + 1er apellido (`lname`).
+     * P.ej. "Hugo Jacobo" + "Baus" → "Hugo Baus". Como `name`/`lname` están poblados en el 100%
+     * del crew, siempre da un resultado usable. NUNCA inventa: usa lo que hay. Si por alguna razón
+     * no hay apellido, cae al `name` tal cual.
      *
-     * Regla (owner 2026-08-07): el **Nombre en Créditos** (`ncreditos`) cuando existe DE VERDAD
-     * —tiene al menos una letra, para ignorar basura de semilla tipo "0" o "-"—; si no, un
-     * **nombre corto** = 1ª palabra del `name` + 1er apellido (`lname`). Como `name`/`lname`
-     * están poblados en el 100% del crew, siempre da un resultado usable. NUNCA inventa: usa lo
-     * que hay. Reemplaza el uso directo de `->name` (parcial: enseñaba solo el nombre de pila) y
-     * permite quitar la columna "Apellido" de la lista sin perder el apellido de vista.
+     * Acepta un modelo Eloquent o una fila cruda (stdClass): la lista itera `DB::table('users')`.
+     */
+    public static function shortName($user): string
+    {
+        $name  = trim((string) ($user->name ?? ''));
+        $first = $name === '' ? '' : preg_split('/\s+/', $name)[0];
+        $short = trim($first . ' ' . trim((string) ($user->lname ?? '')));
+
+        return $short !== '' ? $short : $name;
+    }
+
+    /**
+     * NOMBRE A MOSTRAR de un integrante de crew. Fuente única para las superficies que enseñan
+     * "cómo se llama" esta persona SIN un campo de crédito aparte (Crew List, gafete, organigrama
+     * del PAE…). Regla (owner 2026-08-07):
+     *   1) el **Nombre en Créditos** (`ncreditos`) cuando existe DE VERDAD —tiene al menos una
+     *      letra, para ignorar basura de semilla tipo "0" o "-"—;
+     *   2) si no, el **nombre corto** ([[shortName]]).
      *
-     * Acepta un modelo Eloquent o una fila cruda (stdClass) — ambas superficies conviven: la lista
-     * itera `DB::table('users')`. Solo lee `ncreditos`, `name`, `lname`.
+     * ⚠ En superficies que YA muestran el crédito por separado (p. ej. la lista de gafetes lo pone
+     * de subtítulo) usar [[shortName]] para el nombre PRINCIPAL, no este método, o se duplicaría.
+     *
+     * NO usar en expedientes clínicos ni documentos sellados: ahí va el nombre COMPLETO/legal (o
+     * no va ningún nombre). Solo lee `ncreditos`, `name`, `lname`.
      */
     public static function displayName($user): string
     {
@@ -180,11 +197,7 @@ class User extends Authenticatable
             return $cred;
         }
 
-        $name  = trim((string) ($user->name ?? ''));
-        $first = $name === '' ? '' : preg_split('/\s+/', $name)[0];
-        $short = trim($first . ' ' . trim((string) ($user->lname ?? '')));
-
-        return $short !== '' ? $short : $name;
+        return self::shortName($user);
     }
 
     /**

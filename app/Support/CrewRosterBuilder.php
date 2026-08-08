@@ -65,7 +65,7 @@ class CrewRosterBuilder
 
         // --- Crew activo, ACOTADO por el scope del visor (misma regla que usuarioscrud) ---
         $query = User::applyDepartmentScope(DB::table('users')->where('activo', 1), $viewer);
-        $users = $query->get(['id', 'name', 'lname', 'lname2', 'email', 'phone', 'zone', 'puestodepartamento']);
+        $users = $query->get(['id', 'name', 'lname', 'lname2', 'ncreditos', 'email', 'phone', 'zone', 'puestodepartamento']);
 
         $groups = []; // deptKey => ['label', 'sort', 'people'=>[]]
         foreach ($users as $u) {
@@ -95,12 +95,11 @@ class CrewRosterBuilder
                 $posName = $u->puestodepartamento;
             }
 
-            $fullName = trim(preg_replace('/\s+/', ' ',
-                ($u->name ?? '') . ' ' . ($u->lname ?? '') . ' ' . ($u->lname2 ?? '')));
-
             $person = [
                 'cargo'    => $posName ?? '',
-                'name'     => $fullName,
+                // Nombre a mostrar = crédito (si es real) o nombre corto — misma regla que la app
+                // (User::displayName). Antes armaba el nombre COMPLETO ignorando el crédito.
+                'name'     => User::displayName($u),
                 'email'    => $u->email ?? '',
                 'phone'    => $u->phone ?? '',
                 '_posSort' => $posSort,

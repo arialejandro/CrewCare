@@ -87,16 +87,13 @@ class PaeOrgChart
     }
 
     /**
-     * Nombre a mostrar: el NOMBRE EN CRÉDITOS (`users.ncreditos`) cuando existe; si no, el
-     * nombre de pila (parcial, como se hacía). Nunca se inventa. (owner 2026-08-06)
+     * Nombre a mostrar: fuente ÚNICA `User::displayName` (crédito con letras, si no nombre corto
+     * = 1ª palabra + 1er apellido). Antes caía solo al nombre de pila (parcial). Solo alimenta el
+     * PREFILL de un PAE NUEVO; los PAE ya sellados conservan su payload congelado. (owner 2026-08-07)
      */
     private static function displayName($u): string
     {
-        $cred = trim((string) ($u->ncreditos ?? ''));
-        if ($cred !== '') {
-            return $cred;
-        }
-        return trim((string) $u->name);
+        return \App\Models\User::displayName($u);
     }
 
     /** IDs de usuario del crew de la producción (pivote production_user). [] si no hay. */
