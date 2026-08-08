@@ -824,6 +824,13 @@ class ScoutingReportController extends Controller
             $data['required_ppe'] = $this->buildRequiredPpe($request);
         }
 
+        // (2026-08-08 · Parte D) Bandera "¿habrá ambulancia?" — tri-estado (null/1/0). Guarda
+        // defensiva por columna (prod puede no tener el delta #54 aún). Vacío = sin declarar → null.
+        if (Schema::hasColumn('scouting_reports', 'has_ambulance')) {
+            $ha = $request->input('has_ambulance');
+            $data['has_ambulance'] = ($ha === null || $ha === '') ? null : (bool) $ha;
+        }
+
         return $data;
     }
 

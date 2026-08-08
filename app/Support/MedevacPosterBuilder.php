@@ -28,8 +28,10 @@ class MedevacPosterBuilder
     /**
      * Versión del cálculo. Viaja en el payload congelado para saber qué lógica lo produjo.
      * Subirla cuando cambie el SIGNIFICADO de algún campo del payload.
+     *   v2 (2026-08-08 · Parte D): +has_ambulance (bandera de planeación del scouting). Additivo:
+     *   los pósters v1 no la traen y la vista cae a null (no se pinta la línea).
      */
-    const VERSION = 1;
+    const VERSION = 2;
 
     /**
      * Construye el payload congelado.
@@ -90,6 +92,9 @@ class MedevacPosterBuilder
 
             // Datos de emergencia extra (ya existentes; el bloque vacío no aparece).
             'ambulance_company' => self::str($s->ambulance_company),
+            // (Parte D) Bandera de planeación del scouting: true/false/null (null = no declarada
+            // → la vista no pinta la línea). Es planeación, no verificación en sitio.
+            'has_ambulance'     => $s->has_ambulance,
             'emergency_phone'   => self::str($s->emergency_phone),
             'assembly_point'    => self::str($s->assembly_point),
             'emergency_access'  => self::str($s->emergency_access),

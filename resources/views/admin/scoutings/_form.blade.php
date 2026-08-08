@@ -325,6 +325,19 @@
                     <small class="cc-muted d-block mt-1">Ajústala si hace falta.</small>
                 </div>
                 <div class="col-md-3">
+                    <label class="form-label fw-semibold">¿Habrá ambulancia?</label>
+                    @php
+                        $haVal = old('has_ambulance', (isset($report) && $report->has_ambulance !== null) ? (int) $report->has_ambulance : '');
+                        $haVal = ($haVal === '' || $haVal === null) ? '' : (string) $haVal;
+                    @endphp
+                    <select name="has_ambulance" class="form-select">
+                        <option value="" @selected($haVal === '')>— Sin declarar —</option>
+                        <option value="1" @selected($haVal === '1')>Sí</option>
+                        <option value="0" @selected($haVal === '0')>No</option>
+                    </select>
+                    <small class="cc-muted d-block mt-1">Planeación; la unidad se verifica aparte.</small>
+                </div>
+                <div class="col-md-3">
                     <label class="form-label fw-semibold">Compañía de ambulancia</label>
                     <input type="text" name="ambulance_company" class="form-control" value="{{ old('ambulance_company', $report->ambulance_company ?? '') }}">
                 </div>

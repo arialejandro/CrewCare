@@ -43,6 +43,7 @@
     $access    = trim((string) $p->pdata('emergency_access', ''));
     $emPhone   = trim((string) $p->pdata('emergency_phone', ''));
     $ambulance = trim((string) $p->pdata('ambulance_company', ''));
+    $hasAmb    = $p->pdata('has_ambulance', null);   // (Parte D) null = no declarada; true/false
 
     $dateStr   = $p->issued_at ? \Carbon\Carbon::parse($p->issued_at)->format('d/m/Y') : '';
     $mapImg    = trim((string) $p->pdata('map_image', ''));   // data-URI congelado (o vacío)
@@ -298,6 +299,7 @@
             @if($hospName !== '')<div class="mdv-row"><span class="k">Hospital</span><span class="v">{{ $hospName }}</span></div>@endif
             @if($hospAddr !== '')<div class="mdv-row"><span class="k">Dirección</span><span class="v">{{ $hospAddr }}</span></div>@endif
             @if($hospMaps !== '')<div class="mdv-row"><span class="k">Link Google</span><span class="v"><a href="{{ $hospMaps }}" target="_blank" rel="noopener">Ruta locación → hospital (Google Maps)</a></span></div>@endif
+            @if($hasAmb !== null)<div class="mdv-row"><span class="k">Ambulancia prevista</span><span class="v">{{ $hasAmb ? 'Sí' : 'No' }}</span></div>@endif
             @if($ambulance !== '')<div class="mdv-row"><span class="k">Ambulancia</span><span class="v">{{ $ambulance }}</span></div>@endif
             @if($emPhone !== '')<div class="mdv-row"><span class="k">Tel. emergencia</span><span class="v">{{ $emPhone }}</span></div>@endif
         </div>

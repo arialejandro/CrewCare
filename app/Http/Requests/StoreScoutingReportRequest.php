@@ -76,6 +76,7 @@ class StoreScoutingReportRequest extends FormRequest
             'emergency_access'    => 'nullable|string|max:500',
             'assembly_point'      => 'nullable|string|max:255',
             'ambulance_company'   => 'nullable|string|max:255',
+            'has_ambulance'       => 'nullable|in:0,1',   // Parte D: tri-estado (vacío=sin declarar)
             'emergency_phone'     => 'nullable|string|max:50',
 
             // Capa (2) Peligros — tabla de riesgo 5×5 (arrays repetibles)

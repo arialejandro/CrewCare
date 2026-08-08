@@ -31,8 +31,10 @@ use App\Models\ScoutingReport;
  */
 class EmergencyActionPlanBuilder
 {
-    /** Versión del cálculo. Viaja en el payload congelado. Subirla si cambia el SIGNIFICADO. */
-    const VERSION = 1;
+    /** Versión del cálculo. Viaja en el payload congelado. Subirla si cambia el SIGNIFICADO.
+     *   v2 (2026-08-08 · Parte D): +day_resource (badge del recurso de traslado del día). Additivo:
+     *   los PAE v1 no lo traen y la vista cae a null (no se pinta la tarjeta). */
+    const VERSION = 2;
 
     /**
      * Construye el payload congelado del PAE.
@@ -119,6 +121,14 @@ class EmergencyActionPlanBuilder
                 'is_move'   => $isMove,
                 'move_time' => $isMove ? self::str($opts['move_time'] ?? '') : '',
             ],
+
+            // (Parte D) RECURSO DE TRASLADO DEL DÍA — badge congelado (ambulancia en sitio con su
+            // acta/veredicto, medio declarado, o hueco). Uno por producción+día; NO sobreclama el
+            // cotejo de tripulación ("documentos revisados", nunca "contra registro").
+            'day_resource' => AmbulanceResourceBadge::forDay(
+                ! empty($list) ? $list[0]->production_id : null,
+                (isset($opts['shoot_day']) && $opts['shoot_day'] !== '') ? (int) $opts['shoot_day'] : null
+            ),
 
             // 3 · UN BLOQUE POR LOCACIÓN (se repite; en el orden capturado).
             'locations' => $locations,

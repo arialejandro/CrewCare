@@ -497,7 +497,7 @@
       </section>
 
       {{-- PLAN DE EMERGENCIA --}}
-      @php $hasEmergency = $report->nearest_hospital || $report->hospital_address || $report->hospital_eta || $report->emergency_access || $report->assembly_point || $report->ambulance_company || $report->emergency_phone; @endphp
+      @php $hasEmergency = $report->nearest_hospital || $report->hospital_address || $report->hospital_eta || $report->emergency_access || $report->assembly_point || $report->ambulance_company || $report->has_ambulance !== null || $report->emergency_phone; @endphp
       @if($hasEmergency)
       <section class="sec">
         <div class="sec-h"><span class="bar"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2v2M5 2v2M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/></svg><h2>{{ __('reports.scouting_section_emergency') }}</h2></div>
@@ -505,6 +505,9 @@
           <div class="fact"><div class="k">{{ __('reports.label_hospital') }}</div><div class="v">{{ $report->nearest_hospital ?: '—' }}{{ $report->hospital_eta ? ' · ETA ' . $report->hospital_eta : '' }}</div></div>
           @if($report->hospital_address)
           <div class="fact"><div class="k">{{ __('reports.scouting_label_address') }}</div><div class="v">{{ $report->hospital_address }}</div></div>
+          @endif
+          @if($report->has_ambulance !== null)
+          <div class="fact"><div class="k">{{ __('reports.scouting_label_has_ambulance') }}</div><div class="v">{{ $report->has_ambulance ? __('reports.scouting_yes') : __('reports.scouting_no') }}</div></div>
           @endif
           @if($report->ambulance_company)
           <div class="fact"><div class="k">{{ __('reports.scouting_label_support') }}</div><div class="v">{{ $report->ambulance_company }}</div></div>

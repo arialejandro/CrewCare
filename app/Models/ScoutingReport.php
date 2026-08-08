@@ -29,6 +29,15 @@ class ScoutingReport extends Model
     protected $table = 'scouting_reports';
 
     /**
+     * (2026-08-08 · Parte D) Columnas EXCLUIDAS del hash de firma. `has_ambulance` es una
+     * bandera de PLANEACIÓN añadida DESPUÉS de que ya había scoutings sellados: si entrara
+     * al payload canónico, attributesToArray la incluiría (como null) en esos documentos y
+     * su hash dejaría de casar → saldrían ALTERADOS. Excluyéndola, los sellos existentes
+     * siguen válidos y la bandera vive como dato editable no sellado. Ver [[ambulance-verification-module]].
+     */
+    protected $signatureExcludes = ['has_ambulance'];
+
+    /**
      * $fillable explícito: solo estas columnas son asignables en masa.
      * Las columnas JSON se asignan como ARRAY de PHP; el cast 'array' las
      * serializa una sola vez (NO usar json_encode al guardar).
@@ -60,6 +69,7 @@ class ScoutingReport extends Model
         'emergency_access',
         'assembly_point',
         'ambulance_company',
+        'has_ambulance',     // (2026-08-08 · Parte D) tri-estado planeación: null/1/0 — NO entra al sello
         'emergency_phone',
 
         // Capa (2) Evaluación de riesgos H&S
@@ -104,6 +114,7 @@ class ScoutingReport extends Model
         'agreements'              => 'array',
         'additional_images_paths' => 'array',
         'requires_specific_ra'    => 'boolean',
+        'has_ambulance'           => 'boolean',   // null se conserva (tri-estado); solo 1/0 castean
         'sb132_details'           => 'array',
         // (2026-07-12) Nuevos JSON de cimientos módulos 6-14.
         'required_ppe'                  => 'array',
