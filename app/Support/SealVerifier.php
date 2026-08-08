@@ -90,6 +90,12 @@ class SealVerifier
         // folio lo calcula EmergencyActionPlan::folio() (PAE-####). Emisiones INDEPENDIENTES (sin
         // cadena/sustituye-a) → sin concepto de retiro: dos estados, vigente / alterado.
         'pae'    => ['App\Models\EmergencyActionPlan',    'Plan de Atención a Emergencias', 'PAE', 'CREWCARE-PAE'],
+        // (2026-08-08 · delta #52) Acta de verificación de ambulancia en sitio. Etiqueta genérica
+        // para el acuse público: dice que es un acta de verificación de ambulancia, nunca de qué
+        // unidad ni el veredicto. El folio lo calcula AmbulanceInspection::folio() (AMBU-####).
+        // Vigencia de 3 estados: vigente / RETIRADO (con fecha y, si existe, folio que sustituye,
+        // vía sealRetirement()) / ALTERADO (solo si el hash no coincide). Retirar ≠ alterar.
+        'ambu'   => ['App\Models\AmbulanceInspection',    'Acta de verificación de ambulancia', 'AMBU', 'CREWCARE-AMBU'],
     ];
 
     /**
