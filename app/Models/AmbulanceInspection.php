@@ -38,7 +38,10 @@ class AmbulanceInspection extends Model
     const PATH_SAME_DAY = 'correccion_mismo_dia';
     const PATH_REPLACE  = 'reemplazo';
 
-    // Los 4 disparadores/alcances: cada uno abre solo su parte del formulario.
+    // Un SOLO checklist: cada vez que hay ambulancia en set se abre la inspección y se corre
+    // COMPLETO (como herramienta/maquinaria). `trigger_scope` guarda 'completa'. Las constantes
+    // de disparador por evento quedan para lectura histórica, pero el flujo ya no las usa.
+    const TRIGGER_FULL     = 'completa';
     const TRIGGER_IDENTITY = 'identidad';
     const TRIGGER_PERSON   = 'persona';
     const TRIGGER_UNIT     = 'unidad';

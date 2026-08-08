@@ -16,6 +16,7 @@
         'correccion_mismo_dia'  => __('Corrección el mismo día; vuelve si se corrige y se reverifica.'),
     ];
     $triggerLabels = [
+        'completa'  => __('Verificación completa'),
         'identidad' => __('Identidad'),
         'persona'   => __('Persona / tripulación'),
         'unidad'    => __('Unidad'),
@@ -141,9 +142,9 @@
                     {{ $inspection->plates ?: '—' }}</div>
                 <div class="col-md-6"><span class="text-muted d-block">{{ __('N.º económico') }}</span>
                     {{ $inspection->economic_number ?: '—' }}</div>
-                @if ($inspection->trigger_scope === 'riesgo')
+                @if ($inspection->day_risk_level !== null)
                     <div class="col-md-6"><span class="text-muted d-block">{{ __('Riesgo del día') }}</span>
-                        @if($inspection->day_risk_level){{ $inspection->day_risk_level }} · {{ $riskLabels[$inspection->day_risk_level] ?? '' }}@else — @endif</div>
+                        {{ $inspection->day_risk_level }} · {{ $riskLabels[$inspection->day_risk_level] ?? '' }}</div>
                     <div class="col-md-6"><span class="text-muted d-block">{{ __('¿Corresponde al riesgo?') }}</span>
                         {{ $inspection->correspondence_ok ? __('Sí') : __('No') }}</div>
                 @endif
@@ -161,11 +162,17 @@
                 <span class="text-muted small d-block mb-2">{{ __('Tripulación') }}</span>
                 <div class="d-flex flex-wrap gap-2">
                     @foreach ($crewSnap as $m)
-                        <span class="insp-tag">
-                            {{ $m['name'] ?? ($m['full_name'] ?? '—') }}@php $r = $m['role'] ?? ($m['crew_role'] ?? null); @endphp@if($r) · {{ $r }}@endif
+                        @php $r = $m['role'] ?? ($m['crew_role'] ?? null); $ver = ! empty($m['verified']); $folio = $m['conocer_folio'] ?? null; @endphp
+                        <span class="insp-tag {{ $ver ? 'insp-tag--gate' : '' }}">
+                            {{ $m['name'] ?? ($m['full_name'] ?? '—') }}@if($r) · {{ $r }}@endif
+                            @if($folio) · {{ __('CONOCER') }} {{ $folio }}@endif
+                            @if($ver)
+                                · @include('componentes._icon', ['name' => 'circle-check', 'label' => null]) {{ __('cotejado') }}
+                            @elseif($folio) · {{ __('sin cotejar') }}@endif
                         </span>
                     @endforeach
                 </div>
+                <div class="form-text mt-1">{{ __('TAMP = Técnico en Atención Médica Prehospitalaria. "Cotejado" = folio CONOCER con foto del certificado y de la persona.') }}</div>
             @endif
 
             @if ($inspection->observations)

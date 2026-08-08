@@ -235,6 +235,17 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-08 — 🚑 Ambulancias (3b/n · AJUSTES del owner): un solo checklist + TAMP/CONOCER + términos
+- **Estado:** Hecho (verificado: controlador `php -l` limpio, 14 rutas intactas, 5 vistas compilan, y simulación del flujo nuevo: alta empresa + TAMP CONOCER cotejado + **checklist COMPLETO AMB-02=67 puntos** → apta, sello íntegro, `trigger_scope='completa'`, crew cotejado en snapshot).
+- **Archivos:** `app/Http/Controllers/AmbulanceController.php` (inspectForm/storeInspection reescritos, helper muerto retirado), `app/Models/AmbulanceInspection.php` (+const `TRIGGER_FULL='completa'`), `resources/views/ambulance/execute.blade.php` (reescrita), `resources/views/ambulance/partials/_crew-new-row.blade.php` (NEW), `resources/views/ambulance/acta.blade.php` (ajustes).
+- **Qué / Por qué (feedback del owner):**
+  1. **UN SOLO CHECKLIST completo**, como herramienta/maquinaria: cada ambulancia en set abre la inspección y se corre entera. **Fuera los 4 disparadores** (identidad/unidad/consumo/riesgo); el checklist = `applicablePoints()` completo del tipo. `trigger_scope` guarda `'completa'`.
+  2. **Términos SIN abreviar**: rol "Técnico en Atención Médica Prehospitalaria (TAMP)"; glosa TAMP/RPBI/DEA junto al checklist y en el acta.
+  3. **TAMP cotejado con folio CONOCER** + **sustento fotográfico del certificado Y de la persona** (no solo el papel: el certificado puede ser de otra persona). Se crea `AmbulanceCrew` + `ExternalAuthorization`(CONOCER) validado (manual, atestado) bajo la empresa; `verified=true` solo con folio+2 fotos.
+  4. **Todas las fotos del checklist OPCIONALES** (unidad + fotos del TAMP); sin las 2 fotos, el TAMP queda registrado "sin cotejar".
+  5. **Alta de proveedor en el mismo apartado**: en el form eliges empresa existente o das una de alta inline; cada ambulancia se enlaza a su empresa; **misma empresa reusa, empresa distinta = alta nueva**.
+- **Riesgo/Notas:** SIN SQL nuevo (columnas del #52 ya lo soportan; `trigger_scope` seguía en el esquema). Correspondencia tipo↔riesgo ahora es sección OPCIONAL del mismo checklist (no un disparador). **Sigue pendiente Parte D** (badge en MEDEVAC/PAE + flag scouting, seal-sensitive). Ver [[ambulance-verification-module]].
+
 ### 2026-08-08 — 🚑 Ambulancias (3/n · MÓDULO): controlador + 9 vistas + veredicto + rutas + sidebar
 - **Estado:** Hecho (verificado: `php -l` controlador+veredicto limpio, **14 rutas registran**, **9 vistas Blade compilan**, `AmbulanceVerdict` fail-safe probado con catálogo real —AMB-02/unidad 63 puntos→apta, AMBV-012 paro_inmediato→PARO, compuerta sin outcome→no_exec nunca apta—, sidebar entrada+guard en ambas copias). Falta prueba HTTP con sesión (owner). **Construido con 3 subagentes en paralelo** (archivos disjuntos) + integración manual de los compartidos.
 - **Archivos:** `app/Http/Controllers/AmbulanceController.php` (NEW, 14 métodos), `app/Support/AmbulanceVerdict.php` (NEW), `resources/views/ambulance/{index,day-resource,execute,acta,records,providers,provider-show}.blade.php` + `ambulance/partials/{_doc-row,_doc-form}.blade.php` (9 NEW), `routes/web.php` (+grupo `ambulance.manage`), `resources/views/layouts/sidebar.blade.php` (+entrada `heart-pulse` en 2 copias).

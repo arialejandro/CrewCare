@@ -348,32 +348,30 @@ class AmbulanceController extends Controller
         $types = AmbulanceType::active()->orderBy('code')->get();
 
         $typeId        = $request->query('type_id');
-        $trigger       = $request->query('trigger');
         $capacityLevel = $request->query('capacity_level');
         $capacityLevel = ($capacityLevel !== null && $capacityLevel !== '') ? (int) $capacityLevel : null;
 
         $type   = null;
         $points = collect();
 
-        if ($typeId && in_array($trigger, AmbulanceInspection::TRIGGERS, true)) {
+        // UN SOLO CHECKLIST: al elegir el tipo se carga COMPLETO (todos los puntos que le
+        // tocan por rama+nivel). No hay disparador por evento; cada ambulancia en set se
+        // verifica entera, como una herramienta.
+        if ($typeId) {
             $type = AmbulanceType::active()->find($typeId);
-            if ($type && $this->triggerHasChecklist($trigger)) {
-                $points = $type->applicablePoints($capacityLevel)
-                    ->filter(function ($p) use ($trigger) {
-                        return $p->triggersOn($trigger);
-                    })
-                    ->values();
+            if ($type) {
+                $points = $type->applicablePoints($capacityLevel);
             }
         }
 
-        // Proveedores activos con su padrón, para elegir la tripulación presente hoy.
+        // Proveedores activos con su padrón, para elegir la empresa/tripulación (o dar de alta).
         $providers = AmbulanceProvider::active()->orderBy('name')
             ->with(['crew' => function ($q) {
                 $q->where('is_active', 1)->orderBy('full_name');
             }])
             ->get();
 
-        return view('ambulance.execute', compact('types', 'type', 'trigger', 'capacityLevel', 'points', 'providers'));
+        return view('ambulance.execute', compact('types', 'type', 'capacityLevel', 'points', 'providers'));
     }
 
     /**
@@ -384,49 +382,67 @@ class AmbulanceController extends Controller
      */
     public function storeInspection(Request $request)
     {
+        $photoRule = 'nullable|mimes:jpeg,png,jpg,gif,webp,heic,heif|heic_ok|max:12288';
         $data = $request->validate([
-            'type_id'           => 'required|integer|exists:ambulance_types,id',
-            'trigger_scope'     => 'required|in:' . implode(',', AmbulanceInspection::TRIGGERS),
-            'capacity_level'    => 'nullable|integer|min:1|max:4',
-            'provider_id'       => 'nullable|integer|exists:ambulance_providers,id',
-            'provider_name'     => 'nullable|string|max:255',
-            'plates'            => 'nullable|string|max:40',
-            'economic_number'   => 'nullable|string|max:60',
-            'unit_photo'        => 'nullable|mimes:jpeg,png,jpg,gif,webp,heic,heif|heic_ok|max:12288',
-            'crew'              => 'nullable|array',
-            'crew.*.name'       => 'nullable|string|max:255',
-            'crew.*.role'       => 'nullable|string|max:120',
-            'crew_ids'          => 'nullable|array',
-            'crew_ids.*'        => 'integer|exists:ambulance_crew,id',
-            'answers'           => 'nullable|array',
-            'answers.*'         => 'in:ok,fail',
-            'day_risk_level'    => 'nullable|integer|min:1|max:5',
-            'correspondence_ok' => 'nullable|boolean',
-            'note'              => 'nullable|string|max:2000',
+            'type_id'              => 'required|integer|exists:ambulance_types,id',
+            'capacity_level'       => 'nullable|integer|min:1|max:4',
+            // Empresa: existente, o ALTA NUEVA en este mismo apartado.
+            'provider_id'          => 'nullable|integer|exists:ambulance_providers,id',
+            'new_provider_name'    => 'nullable|string|max:255',
+            'plates'               => 'nullable|string|max:40',
+            'economic_number'      => 'nullable|string|max:60',
+            'unit_photo'           => $photoRule,                 // TODA foto del checklist es OPCIONAL
+            // Checklist COMPLETO (todos los puntos del tipo).
+            'answers'              => 'nullable|array',
+            'answers.*'            => 'in:ok,fail',
+            // Tripulación: padrón existente + altas nuevas con cotejo CONOCER.
+            'crew_ids'             => 'nullable|array',
+            'crew_ids.*'           => 'integer|exists:ambulance_crew,id',
+            'crew'                 => 'nullable|array',
+            'crew.*.name'          => 'nullable|string|max:255',
+            'crew.*.role'          => 'nullable|string|max:120',
+            'crew.*.conocer_folio' => 'nullable|string|max:120',
+            'crew.*.standard_code' => 'nullable|string|max:60',
+            'crew.*.standard_name' => 'nullable|string|max:255',
+            'crew.*.cert_photo'    => $photoRule,                 // sustento: foto del certificado CONOCER
+            'crew.*.person_photo'  => $photoRule,                 // sustento: foto de la persona (no solo el papel)
+            // Correspondencia tipo↔riesgo del día (opcional; criterio del safety).
+            'day_risk_level'       => 'nullable|integer|min:1|max:5',
+            'correspondence_ok'    => 'nullable|boolean',
+            'note'                 => 'nullable|string|max:2000',
         ]);
 
-        $trigger       = $data['trigger_scope'];
         $capacityLevel = (isset($data['capacity_level']) && $data['capacity_level'] !== null)
             ? (int) $data['capacity_level'] : null;
 
         $type = AmbulanceType::active()->find($data['type_id']);
         if (! $type) {
-            return back()->withInput()->with('error', 'El tipo de recurso no está disponible.');
+            return back()->withInput()->with('error', 'El tipo de ambulancia no está disponible.');
         }
 
-        // Puntos AUTORITATIVOS del servidor. Solo los disparadores con checklist
-        // (unidad/persona/consumo) los tienen; 'riesgo' e 'identidad' no llevan.
-        $hasChecklist = $this->triggerHasChecklist($trigger);
-        $points = $hasChecklist
-            ? $type->applicablePoints($capacityLevel)
-                ->filter(function ($p) use ($trigger) {
-                    return $p->triggersOn($trigger);
-                })
-                ->values()
-            : collect();
+        $author = auth()->user();
 
-        if ($hasChecklist && $points->isEmpty()) {
-            return back()->withInput()->with('error', 'No hay puntos que verificar para este tipo y disparador.');
+        // PROVEEDOR (empresa): existente, o ALTA NUEVA en este mismo apartado. Cada ambulancia
+        // se enlaza a su empresa; si es de la MISMA empresa se reusa, si es de otra se da de alta.
+        $provider = null;
+        if (! empty($data['provider_id'])) {
+            $provider = AmbulanceProvider::find($data['provider_id']);
+        } elseif (trim((string) ($data['new_provider_name'] ?? '')) !== '') {
+            $provider = AmbulanceProvider::create([
+                'name'          => trim($data['new_provider_name']),
+                'created_by_id' => $author ? $author->id : null,
+                'is_active'     => 1,
+            ]);
+        }
+        if (! $provider) {
+            return back()->withInput()->with('error', 'Elige la empresa proveedora o da una de alta: cada ambulancia se enlaza a su empresa.');
+        }
+
+        // CHECKLIST COMPLETO del tipo (autoritativo del servidor: is_gate/outcome nunca del
+        // cliente). Un solo checklist, se corre entero como con herramienta/maquinaria.
+        $points = $type->applicablePoints($capacityLevel);
+        if ($points->isEmpty()) {
+            return back()->withInput()->with('error', 'Este tipo de ambulancia no tiene puntos de verificación.');
         }
 
         // Cruzar respuestas contra los puntos reales; armar la lista ejecutada + snapshot.
@@ -466,14 +482,14 @@ class AmbulanceController extends Controller
             }
         }
 
-        // 'riesgo': se captura el juicio del safety sobre la correspondencia tipo↔riesgo.
-        $dayRisk          = null;
+        // Correspondencia tipo↔riesgo del día (OPCIONAL; la fija el criterio del safety, no el
+        // catálogo). Solo cuenta si se declaró el nivel de riesgo del día.
+        $dayRisk          = isset($data['day_risk_level']) ? (int) $data['day_risk_level'] : null;
         $correspondenceOk = null;
-        if ($trigger === AmbulanceInspection::TRIGGER_RIESGO) {
-            $dayRisk          = isset($data['day_risk_level']) ? (int) $data['day_risk_level'] : null;
+        if ($dayRisk !== null && $request->has('correspondence_ok')) {
             $correspondenceOk = $request->boolean('correspondence_ok');
-            if (! $correspondenceOk) {
-                $obsLines[] = 'El tipo de recurso NO corresponde al riesgo del día (juicio del responsable de seguridad).';
+            if ($correspondenceOk === false) {
+                $obsLines[] = 'El tipo de ambulancia NO corresponde al riesgo del día (juicio del responsable de seguridad).';
             }
         }
 
@@ -482,41 +498,96 @@ class AmbulanceController extends Controller
         }
         $observations = $obsLines ? implode("\n", $obsLines) : null;
 
-        // Tripulación presente hoy → snapshot CONGELADO (nombre + rol). Se acepta el padrón
-        // por id (checkbox) y/o filas de texto libre; en ambos casos se congela el nombre.
+        // TRIPULACIÓN → snapshot CONGELADO. El padrón por id (checkbox) trae su cotejo CONOCER
+        // ya guardado; las altas nuevas se crean bajo la empresa y su TAMP se COTEJA como
+        // verificado cuando trae folio CONOCER + foto del certificado + foto de la persona
+        // (sustento fotográfico, no solo del papel). Sin ese sustento queda registrado sin cotejar.
         $crewSnapshot = [];
         foreach ((array) ($data['crew_ids'] ?? []) as $cid) {
-            $member = AmbulanceCrew::find($cid);
-            if ($member) {
-                $crewSnapshot[] = [
-                    'name'    => $member->full_name,
-                    'role'    => $member->crew_role,
-                    'crew_id' => $member->id,
-                ];
+            $member = AmbulanceCrew::with('authorizations')->find($cid);
+            if (! $member) {
+                continue;
             }
+            $conocer = $member->authorizations->firstWhere('document_type', 'CONOCER');
+            $crewSnapshot[] = [
+                'name'          => $member->full_name,
+                'role'          => $member->crew_role,
+                'crew_id'       => $member->id,
+                'conocer_folio' => $conocer ? $conocer->folio : null,
+                'verified'      => (bool) ($conocer && $conocer->isValidated()),
+            ];
         }
-        foreach (($data['crew'] ?? []) as $member) {
+        foreach (($data['crew'] ?? []) as $i => $member) {
             $name = trim((string) ($member['name'] ?? ''));
             if ($name === '') {
                 continue;
             }
+            $role = trim((string) ($member['role'] ?? '')) ?: null;
+
+            // Foto de la PERSONA (cara) → id_photo del padrón; opcional.
+            $personPhoto = $request->hasFile("crew.$i.person_photo")
+                ? ImageCompressor::store($request->file("crew.$i.person_photo"), 'ambulance/crew')
+                : null;
+            $crewMember = AmbulanceCrew::create([
+                'provider_id'   => $provider->id,
+                'full_name'     => $name,
+                'crew_role'     => $role,
+                'id_photo_path' => $personPhoto,
+                'created_by_id' => $author ? $author->id : null,
+                'is_active'     => 1,
+            ]);
+
+            $folio     = trim((string) ($member['conocer_folio'] ?? ''));
+            $certPhoto = $request->hasFile("crew.$i.cert_photo")
+                ? ImageCompressor::store($request->file("crew.$i.cert_photo"), 'ambulance/docs')
+                : null;
+            $verified  = false;
+            if ($folio !== '') {
+                $doc = ExternalAuthorization::create([
+                    'holder_type'   => AmbulanceCrew::class,
+                    'holder_id'     => $crewMember->id,
+                    'level'         => ExternalAuthorization::LEVEL_PERSON,
+                    'document_type' => 'CONOCER',
+                    'authority'     => 'CONOCER',
+                    'folio'         => $folio,
+                    'photo_path'    => $certPhoto,
+                    'standard_code' => trim((string) ($member['standard_code'] ?? '')) ?: null,
+                    'standard_name' => trim((string) ($member['standard_name'] ?? '')) ?: null,
+                    'origen'        => 'normativo',
+                    'is_gate'       => 0,
+                    'status'        => ExternalAuthorization::STATUS_PRESENTED,
+                    'created_by_id' => $author ? $author->id : null,
+                    'is_active'     => 1,
+                ]);
+                // COTEJO = folio + certificado + persona. Solo entonces se da por VERIFICADO.
+                if ($certPhoto && $personPhoto) {
+                    $doc->validation_method  = ExternalAuthorization::METHOD_DOCS;
+                    $doc->validated_at       = now();
+                    $doc->validated_by_id    = $author ? $author->id : null;
+                    $doc->validated_snapshot = [
+                        'attested'      => true,
+                        'validated_by'  => $author ? $author->fullName() : null,
+                        'attested_role' => $author ? optional($author->getRoleNames())->first() : null,
+                        'attested_ip'   => $request->ip(),
+                        'checked_at'    => now()->toDateTimeString(),
+                        'basis'         => 'folio CONOCER + foto del certificado + foto de la persona',
+                    ];
+                    $doc->save();
+                    $verified = true;
+                }
+            }
+
             $crewSnapshot[] = [
-                'name' => $name,
-                'role' => trim((string) ($member['role'] ?? '')) ?: null,
+                'name'          => $name,
+                'role'          => $role,
+                'crew_id'       => $crewMember->id,
+                'conocer_folio' => $folio ?: null,
+                'verified'      => $verified,
             ];
         }
 
-        // Proveedor: se CONGELA el nombre a mostrar (del catálogo si es conocido, o texto libre).
-        $providerId   = $data['provider_id'] ?? null;
-        $providerName = trim((string) ($data['provider_name'] ?? ''));
-        if ($providerId) {
-            $prov = AmbulanceProvider::find($providerId);
-            $providerName = $prov ? $prov->name : $providerName;
-        }
-
         // Inspector (doctrina de congelamiento) + cédula si el módulo está disponible.
-        $author = auth()->user();
-        $cred   = ($author && MedicCredential::supportsCredentials()) ? $author->medicCredential : null;
+        $cred = ($author && MedicCredential::supportsCredentials()) ? $author->medicCredential : null;
 
         // Foto REAL de la unidad ANTES de sellar (su RUTA entra en el hash).
         $photoPath = $request->hasFile('unit_photo')
@@ -526,7 +597,7 @@ class AmbulanceController extends Controller
         $payload = [
             'production_id'      => CurrentProduction::id(),
             'shoot_day'          => $this->currentShootDay(),
-            'trigger_scope'      => $trigger,
+            'trigger_scope'      => AmbulanceInspection::TRIGGER_FULL,
             'ambulance_type_id'  => $type->id,
             'type_code'          => $type->code,
             'type_name'          => $type->name_es,
@@ -534,8 +605,8 @@ class AmbulanceController extends Controller
             'type_level'         => $type->level,
             // La capacidad resolutiva solo aplica a aérea/marítima; la terrestre la deriva del tipo.
             'capacity_level'     => $type->isTerrestre() ? null : $capacityLevel,
-            'provider_id'        => $providerId ?: null,
-            'provider_name'      => $providerName !== '' ? $providerName : null,
+            'provider_id'        => $provider->id,
+            'provider_name'      => $provider->name,
             'plates'             => $data['plates'] ?? null,
             'economic_number'    => $data['economic_number'] ?? null,
             'unit_photo_path'    => $photoPath,
@@ -545,7 +616,7 @@ class AmbulanceController extends Controller
             'resolution_path'    => $result['resolution_path'], // null: no hay vía de salida
             'observations'       => $observations,
             'day_risk_level'     => $dayRisk,
-            'correspondence_ok'  => $trigger === AmbulanceInspection::TRIGGER_RIESGO ? $correspondenceOk : null,
+            'correspondence_ok'  => $correspondenceOk,
             'inspector_user_id'  => $author ? $author->id : null,
             'inspector_name'     => $author ? $author->fullName() : null,
             'inspector_role'     => $author ? optional($author->getRoleNames())->first() : null,
@@ -630,15 +701,6 @@ class AmbulanceController extends Controller
     }
 
     /* ============================ Helpers ============================ */
-
-    /** 'riesgo' e 'identidad' NO llevan checklist; unidad/persona/consumo sí. */
-    private function triggerHasChecklist(?string $trigger): bool
-    {
-        return ! in_array($trigger, [
-            AmbulanceInspection::TRIGGER_RIESGO,
-            AmbulanceInspection::TRIGGER_IDENTITY,
-        ], true);
-    }
 
     /** El shoot day de hoy (blindado: nunca rompe el guardado). */
     private function currentShootDay()
