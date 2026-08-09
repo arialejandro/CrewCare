@@ -80,8 +80,14 @@
     .insp-answer input { position: absolute; opacity: 0; pointer-events: none; }
     .insp-answer .btn-ans { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 46px;
         border-radius: 10px; border: 1.5px solid var(--border, #e5e7eb); font-weight: 650; cursor: pointer; width: 100%; }
-    .insp-answer input[value="ok"]:checked + .btn-ans   { background: #dcfce7; border-color: #16a34a; color: #166534; }
-    .insp-answer input[value="fail"]:checked + .btn-ans { background: #fee2e2; border-color: #dc2626; color: #991b1b; }
+    /* Valores de TOOL inspection (ok/fail) Y de PERMISOS (cumple/no_cumple): el radio está oculto
+       (opacity:0) y el feedback visual sale de este `:checked + .btn-ans`. Sin la variante de
+       permisos, al hacer clic el radio SÍ se selecciona pero no cambia nada → parecía "no se puede
+       seleccionar" (bug reportado por el owner en la emisión de permisos). */
+    .insp-answer input[value="ok"]:checked + .btn-ans,
+    .insp-answer input[value="cumple"]:checked + .btn-ans    { background: #dcfce7; border-color: #16a34a; color: #166534; }
+    .insp-answer input[value="fail"]:checked + .btn-ans,
+    .insp-answer input[value="no_cumple"]:checked + .btn-ans { background: #fee2e2; border-color: #dc2626; color: #991b1b; }
 
     .insp-scope-head { font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted, #94a3b8);
         margin: 1.1rem 0 .5rem; }
