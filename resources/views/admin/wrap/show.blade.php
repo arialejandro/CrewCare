@@ -25,6 +25,16 @@
     $primary   = isset($brand['primary_color']) ? $brand['primary_color'] : '#ff9900';
     $esBorrador = isset($borrador) ? (bool) $borrador : false;
 
+    // Membrete VIVO: el nombre del proyecto se toma de la Marca en CADA visita, nunca del payload
+    // congelado. El proyecto puede renombrarse (p.ej. QMAS → QPCS → QAAS) y eso debe reflejarse en
+    // TODO documento, incluso ya emitido — igual que los demás reportes ($heroProject = $brandName).
+    // El sello protege el CONTENIDO (las cifras del payload), no el membrete. Misma nota en
+    // admin/medevac/show.blade.php.
+    $brandName = isset($brand['brand_name']) && $brand['brand_name'] !== '' ? $brand['brand_name'] : 'CrewCare';
+    // ¿Hay una tira superior (borrador o mensaje de sesión)? Si la hay, la hoja de abajo no repite
+    // el respiro de 74px que deja para el toolbar (lo puso ya la tira).
+    $hasTop = $esBorrador || session('status');
+
     $P  = is_array($payload) ? $payload : [];
     $s1 = isset($P['s1_alcance'])      ? $P['s1_alcance']      : [];
     $s2 = isset($P['s2_anticipado'])   ? $P['s2_anticipado']   : [];
@@ -181,6 +191,41 @@
     .wkpi{grid-template-columns:repeat(2,1fr)}
     .wtli{grid-template-columns:1fr}
   }
+
+  /* ===== CUERPO EN FLUJO DE BLOQUES (no tabla) — reemplaza el motor `report-wrap` =============
+     El cuerpo vivía en UNA celda <td> del tbody, y Chrome IGNORA break-inside dentro de una celda
+     que pagina → cortaba texto/gráficas a media hoja en documentos largos. En FLUJO NORMAL (divs)
+     Chrome SÍ respeta break-inside:avoid, así que los saltos caen ENTRE bloques, nunca dentro.
+     Costo: el hero ya no se repite por hoja (dependía del <thead> de la tabla); sale en la 1ª.
+     El pie fijo (.print-foot) SÍ se repite y el @page da respiro arriba y sitio abajo. ============ */
+  .doc-body{padding:var(--pad)}
+  /* Tira superior (borrador / mensaje): NO es un .stage de 100vh — antes empujaba el documento una
+     pantalla completa hacia abajo y parecía que "no se renderizaba nada". Es compacta. */
+  .wrap-controls{padding:86px 20px 0}
+  .stage.below-controls{padding-top:16px}
+
+  @media print{
+    /* Oficio con respiro arriba (13mm) y sitio para el pie fijo abajo (16mm). */
+    @page{size:216mm 340mm;margin:13mm 0 16mm 0}
+    .doc-body{padding:6mm 12mm 0}
+    /* Las secciones LARGAS (cronología, predicho-vs-real) SÍ pueden partirse entre hojas; lo que
+       nunca se parte es cada bloque atómico de adentro (.wtli/.wloc/.wkpi/.wchart/.wnote, ya
+       protegidos arriba). Sin esto, una sección más alta que una hoja se recorta. */
+    .sec{break-inside:auto!important;page-break-inside:auto!important}
+  }
+
+  @media (max-width:720px){
+    .wrap-controls{padding:78px 14px 0}
+    /* Tablas anchas: desplazables en horizontal en vez de desbordar la hoja (una sola tabla, las
+       columnas siguen alineadas; nowrap conserva su ancho y activa el scroll). */
+    .doc-body .tbl{display:block;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch}
+  }
+  @media (max-width:640px){
+    /* Hero en móvil: la caja del proyecto tiene ancho definido (56vw) para que el auto-ajuste del
+       nombre lo encoja al ancho en vez de recortarlo, y no desborde el logo. */
+    .doc-hero{height:160px}
+    .doc-hero .hero-side{width:56vw;left:auto;right:12px;top:12px}
+  }
 </style>
 </head>
 <body>
@@ -190,14 +235,16 @@
 @include('componentes._report-v2-toolbar', ['backRoute' => route('wrap.index')])
 
 @if(session('status'))
-  <div class="stage"><div class="alert ok no-print">@include('componentes._icon', ['name' => 'check-circle']) {{ session('status') }}</div></div>
+<div class="wrap-controls no-print">
+  <div class="alert ok">@include('componentes._icon', ['name' => 'check-circle']) {{ session('status') }}</div>
+</div>
 @endif
 
 @if($esBorrador)
 @php $emitBloqueado = isset($emitBloqueado) ? $emitBloqueado : null; @endphp
-<div class="stage">
-  <div class="wops no-print">
-    <div class="ops-note">Borrador en vivo. Al emitirlo, el cálculo se congela y se sella.</div>
+<div class="wrap-controls no-print">
+  <div class="wops">
+    <div class="ops-note">Borrador en vivo. Debajo se ve el documento completo, tal como se emitirá. Al emitirlo, el cálculo se congela y se sella.</div>
     @if($emitBloqueado)
       {{-- Ventana de emisión CERRADA: el botón NO se pinta. El congelamiento no puede dispararse
            antes de la fecha de finalización — ni por accidente ni a propósito. Se explica el porqué
@@ -215,26 +262,23 @@
 </div>
 @endif
 
-<div class="stage">
+<div class="stage {{ $hasTop ? 'below-controls' : '' }}">
   <article class="sheet">
-    {{-- Motor de paginación: <thead> (hero) y <tfoot> (espaciador) se REPITEN en cada hoja. --}}
-    <table class="report-wrap">
-    <thead><tr><td>
-      @include('componentes._doc-hero', [
-        'heroImage'    => null,
-        'heroProject'  => $v($s1, 'produccion', '—'),
-        'heroLocation' => $v($s1, 'casa_productora') ?: 'Reporte final de producción',
-        'heroDate'     => $heroDate,
-        'heroTime'     => null,
-        'heroModule'   => $wrap->isAddendum() ? 'Anexo al reporte de wrap' : 'Wrap Report',
-      ])
-      @if($esBorrador)
-      <div class="wdraft">@include('componentes._icon', ['name' => 'alert-triangle'])
-        <div><b>BORRADOR — sin emitir</b> <span class="n">Las cifras se recalculan en cada visita y el documento no está sellado. No entregar en este estado.</span></div>
-      </div>
-      @endif
-    </td></tr></thead>
-    <tbody><tr><td>
+    {{-- CUERPO EN FLUJO DE BLOQUES (no tabla): el hero sale en la 1ª hoja; el pie fijo se repite
+         (ver la nota de CSS arriba). Sin el <td> que recortaba, los saltos caen entre bloques. --}}
+    @include('componentes._doc-hero', [
+      'heroImage'    => null,
+      'heroProject'  => $brandName,
+      'heroLocation' => $v($s1, 'casa_productora') ?: 'Reporte final de producción',
+      'heroDate'     => $heroDate,
+      'heroTime'     => null,
+      'heroModule'   => $wrap->isAddendum() ? 'Anexo al reporte de wrap' : 'Wrap Report',
+    ])
+    @if($esBorrador)
+    <div class="wdraft">@include('componentes._icon', ['name' => 'alert-triangle'])
+      <div><b>BORRADOR — sin emitir</b> <span class="n">Las cifras se recalculan en cada visita y el documento no está sellado. No entregar en este estado.</span></div>
+    </div>
+    @endif
 
     {{-- ══ BANDA DE LECTURA RÁPIDA ═══════════════════════════════════════════════════════ --}}
     <div class="band">
@@ -253,14 +297,14 @@
       </div>
     </div>
 
-    <div class="body">
+    <div class="doc-body">
 
     {{-- ══ 1 · IDENTIFICACIÓN Y ALCANCE ═════════════════════════════════════════════════ --}}
     <section class="sec">
       <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'film'])<h2>1 · Identificación y alcance</h2><span class="line"></span></div>
 
       <div class="facts">
-        <div class="fact"><div class="k">Producción</div><div class="v">{{ $v($s1, 'produccion', '—') }}</div></div>
+        <div class="fact"><div class="k">Producción</div><div class="v">{{ $brandName }}</div></div>
         <div class="fact"><div class="k">Clave</div><div class="v mono">{{ $v($s1, 'codigo') ?: '—' }}</div></div>
         <div class="fact"><div class="k">Casa productora</div><div class="v">{{ $v($s1, 'casa_productora') ?: 'No registrada' }}</div></div>
         <div class="fact"><div class="k">Periodo cubierto</div><div class="v">{{ $fmt($periodoIni) }} — {{ $fmt($periodoFin) }}</div></div>
@@ -733,10 +777,7 @@
       @endif
     </section>
 
-    </div>{{-- /.body --}}
-    </td></tr></tbody>
-    <tfoot><tr><td><div class="footer-spacer"></div></td></tr></tfoot>
-    </table>
+    </div>{{-- /.doc-body --}}
 
     {{-- El pie NO lleva nombre de persona: este documento lo calcula la app desde reportes que ya
          venían sellados, no lo redacta alguien. Atribuirlo a quien apretó el botón sería falso. --}}
