@@ -60,6 +60,17 @@
     $omit    = array_values(array_filter((array) $v($editor, 'omit', [])));
     $notes   = (array) $v($editor, 'notes', []);
     $secNote = function ($k) use ($notes) { return isset($notes[$k]) ? trim((string) $notes[$k]) : ''; };
+
+    // --- Corrección NARRATIVA (arreglar un texto redactado impreciso). Override congelado o auto. ---
+    // Los CONTEOS no se editan; sólo la narrativa. En BORRADOR los textos son editables in-place
+    // (contenteditable, el JS los recoge al emitir); en el SELLADO son texto plano (override o auto).
+    $overrides = (array) $v($editor, 'overrides', []);
+    $ov = function ($key, $auto) use ($overrides) {
+        return array_key_exists($key, $overrides) && $overrides[$key] !== '' ? $overrides[$key] : $auto;
+    };
+    $editAttr = function ($key) use ($esBorrador) {
+        return $esBorrador ? ' contenteditable="true" data-edit="' . $key . '" spellcheck="false"' : '';
+    };
     // Apartados y si son OMITIBLES (s1 y el sello son fijos). Rótulos para el panel del borrador.
     $sectionMeta = [
         's1' => ['1 · Identificación y alcance', false],
@@ -273,6 +284,13 @@
     white-space:pre-wrap;overflow-wrap:break-word;break-inside:avoid}
   .wsec-note::before{content:"Nota del editor — ";font-weight:700;color:var(--brand)}
   .wsec-note.is-empty{display:none}
+
+  /* Edición NARRATIVA in-place (sólo borrador): los textos editables se marcan con un filo tenue
+     y realce al enfocar. En papel NO se marca nada. */
+  [contenteditable="true"]{outline:1px dashed color-mix(in srgb,var(--brand) 45%,transparent);outline-offset:2px;border-radius:3px;cursor:text}
+  [contenteditable="true"]:hover{outline-color:var(--brand)}
+  [contenteditable="true"]:focus{outline:2px solid var(--brand);background:color-mix(in srgb,var(--brand) 7%,transparent)}
+  @media print{ [contenteditable]{outline:none !important;background:none !important} }
 </style>
 @if(!empty($omit))
 {{-- Omisión SILENCIOSA (elección del owner): los apartados omitidos se ocultan por CSS → no salen
@@ -304,6 +322,8 @@
     @csrf
     <input type="hidden" name="desde" value="{{ request('desde') }}">
     <input type="hidden" name="hasta" value="{{ request('hasta') }}">
+    {{-- Correcciones narrativas: el JS vuelca aquí (JSON) el texto de los bloques contenteditable al emitir. --}}
+    <input type="hidden" name="editor_overrides" id="editorOverrides">
   @endif
 
     <div class="wops">
@@ -342,20 +362,34 @@
 {{-- Previsualización EN VIVO del panel (sólo borrador): ocultar/mostrar apartados y volcar notas. --}}
 <script>
 (function(){
-  var panel = document.querySelector('.weditor'); if (!panel) return;
-  panel.addEventListener('change', function(e){
-    var cb = e.target.closest('input[type=checkbox][data-sec]'); if (!cb) return;
-    var b = document.querySelector('[data-sec-block="' + cb.value + '"]');
-    if (b) b.style.display = cb.checked ? '' : 'none';
-  });
-  panel.addEventListener('input', function(e){
-    var inp = e.target.closest('[data-note]'); if (!inp) return;
-    var out = document.querySelector('[data-note-out="' + inp.getAttribute('data-note') + '"]');
-    if (!out) return;
-    var val = (inp.value || '').trim();
-    out.textContent = val;
-    out.classList.toggle('is-empty', val === '');
-  });
+  var panel = document.querySelector('.weditor');
+  if (panel) {
+    panel.addEventListener('change', function(e){
+      var cb = e.target.closest('input[type=checkbox][data-sec]'); if (!cb) return;
+      var b = document.querySelector('[data-sec-block="' + cb.value + '"]');
+      if (b) b.style.display = cb.checked ? '' : 'none';
+    });
+    panel.addEventListener('input', function(e){
+      var inp = e.target.closest('[data-note]'); if (!inp) return;
+      var out = document.querySelector('[data-note-out="' + inp.getAttribute('data-note') + '"]');
+      if (!out) return;
+      var val = (inp.value || '').trim();
+      out.textContent = val;
+      out.classList.toggle('is-empty', val === '');
+    });
+  }
+  // Al EMITIR: recoger las correcciones narrativas (bloques contenteditable) en el hidden JSON.
+  var form = document.getElementById('wrapEmit');
+  if (form) {
+    form.addEventListener('submit', function(){
+      var map = {};
+      document.querySelectorAll('[data-edit]').forEach(function(el){
+        map[el.getAttribute('data-edit')] = (el.innerText || el.textContent || '').trim();
+      });
+      var hid = document.getElementById('editorOverrides');
+      if (hid) hid.value = JSON.stringify(map);
+    });
+  }
 })();
 </script>
 @endif
@@ -661,7 +695,7 @@
       <div class="wchart-note" style="margin-bottom:10px">{{ $num($v($s5, 'total')) }} asuntos registrados, en orden. Se identifica el departamento involucrado; nunca a la persona.</div>
 
       <div class="wtl">
-      @forelse((array) $v($s5, 'entradas', []) as $e)
+      @forelse((array) $v($s5, 'entradas', []) as $ei => $e)
         <div class="wtli">
           <div class="when">{{ $fmt($v($e, 'fecha')) }}<span class="d">{{ $v($e, 'dia', '—') }}</span></div>
           <div class="what">
@@ -675,10 +709,10 @@
               @if($v($e, 'evento'))<span class="chip">{{ $v($e, 'evento') }}</span>@endif
               @if($v($e, 'norma'))<span class="chip">{{ $v($e, 'norma') }}</span>@endif
             </div>
-            @if($v($e, 'hallazgo'))<p><b>Qué se encontró:</b> {{ $v($e, 'hallazgo') }}</p>@endif
-            @if($v($e, 'causa'))<p><b>Por qué ocurrió:</b> {{ $v($e, 'causa') }}</p>@endif
-            @if($v($e, 'decision'))<p><b>Qué se decidió:</b> {{ $v($e, 'decision') }}</p>@endif
-            @if($v($e, 'repercusion'))<p><b>Repercusión:</b> {{ $v($e, 'repercusion') }}</p>@endif
+            @if($v($e, 'hallazgo'))<p><b>Qué se encontró:</b> <span{!! $editAttr("s5.$ei.h") !!}>{{ $ov("s5.$ei.h", $v($e, 'hallazgo')) }}</span></p>@endif
+            @if($v($e, 'causa'))<p><b>Por qué ocurrió:</b> <span{!! $editAttr("s5.$ei.c") !!}>{{ $ov("s5.$ei.c", $v($e, 'causa')) }}</span></p>@endif
+            @if($v($e, 'decision'))<p><b>Qué se decidió:</b> <span{!! $editAttr("s5.$ei.d") !!}>{{ $ov("s5.$ei.d", $v($e, 'decision')) }}</span></p>@endif
+            @if($v($e, 'repercusion'))<p><b>Repercusión:</b> <span{!! $editAttr("s5.$ei.r") !!}>{{ $ov("s5.$ei.r", $v($e, 'repercusion')) }}</span></p>@endif
           </div>
         </div>
       @empty
@@ -810,11 +844,11 @@
       @foreach(['corto', 'medio', 'largo'] as $pz)
         @php $lista = array_filter((array) $v($s8, 'recomendaciones', []), function ($r) use ($pz) { return isset($r['plazo']) && $r['plazo'] === $pz; }); @endphp
         @if($lista)
-          @foreach($lista as $r)
+          @foreach($lista as $ri => $r)
             <div class="wreco">
-              <h5>{{ $v($r, 'titulo') }}<span class="wplazo">{{ $plazoTxt[$pz] }}</span></h5>
-              <p class="ev">{{ $v($r, 'evidencia') }}</p>
-              <p class="ac">{{ $v($r, 'accion') }}</p>
+              <h5><span{!! $editAttr("s8.$pz.$ri.t") !!}>{{ $ov("s8.$pz.$ri.t", $v($r, 'titulo')) }}</span><span class="wplazo">{{ $plazoTxt[$pz] }}</span></h5>
+              <p class="ev"{!! $editAttr("s8.$pz.$ri.e") !!}>{{ $ov("s8.$pz.$ri.e", $v($r, 'evidencia')) }}</p>
+              <p class="ac"{!! $editAttr("s8.$pz.$ri.a") !!}>{{ $ov("s8.$pz.$ri.a", $v($r, 'accion')) }}</p>
             </div>
           @endforeach
         @endif

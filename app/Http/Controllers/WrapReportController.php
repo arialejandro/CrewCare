@@ -132,10 +132,12 @@ class WrapReportController extends Controller
         $payload = WrapReportBuilder::build($produccion, $desde, $hasta);
         $periodo = $this->periodoDe($payload, $desde, $hasta);
 
-        // Elecciones del editor (apartados a omitir + notas por apartado). Van DENTRO del payload a
-        // propósito: son parte del documento que se entrega, así que las protege el mismo sello. El
-        // borrador NO las lleva (se previsualizan en vivo); aquí, en la emisión, se congelan.
-        $payload['editor'] = $this->editorChoices($request);
+        // Elecciones del editor (apartados a omitir + notas por apartado + CORRECCIONES de texto).
+        // Van DENTRO del payload a propósito: son parte del documento que se entrega, así que las
+        // protege el mismo sello. El borrador NO las lleva (se editan en vivo); aquí se congelan.
+        $editor = $this->editorChoices($request);
+        $editor['overrides'] = $this->editorOverrides($request);
+        $payload['editor'] = $editor;
 
         $wrap = WrapReport::create([
             'production_id' => $produccion->id,
@@ -321,5 +323,42 @@ class WrapReportController extends Controller
         }
 
         return ['omit' => $omit, 'notes' => $notes];
+    }
+
+    /**
+     * Correcciones NARRATIVAS del editor (arreglar un texto que la app redactó mal o impreciso).
+     *
+     * Llegan como un JSON en `editor_overrides`, que el JS del borrador arma leyendo los bloques
+     * `contenteditable` (cada uno con su `data-edit="clave"`). Se SANEA fuerte:
+     *   · sólo TEXTO PLANO (strip_tags) — nunca HTML, para que no se pueda inyectar marcado al doc;
+     *   · clave limitada a un patrón conocido `s1..s8[.…]` (identifica el campo narrativo);
+     *   · tope de largo por campo.
+     * Los CONTEOS/estadísticas NO se editan aquí — sólo la narrativa (recomendaciones, notas,
+     * descripciones). La vista aplica el override congelado o, si no hay, el valor automático.
+     *
+     * @return array<string,string>
+     */
+    private function editorOverrides(Request $request)
+    {
+        $raw = $request->input('editor_overrides');
+        if (! is_string($raw) || $raw === '') {
+            return [];
+        }
+        $decoded = json_decode($raw, true);
+        if (! is_array($decoded)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($decoded as $key => $val) {
+            if (! is_string($key) || ! preg_match('/^s[1-8][a-z0-9._-]*$/i', $key)) {
+                continue;
+            }
+            $t = trim(strip_tags((string) $val));
+            if ($t !== '') {
+                $out[$key] = mb_substr($t, 0, 2000);
+            }
+        }
+        return $out;
     }
 }
