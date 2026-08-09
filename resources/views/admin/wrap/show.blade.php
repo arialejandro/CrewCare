@@ -245,12 +245,10 @@
   .stage.below-controls{padding-top:16px}
 
   @media print{
-    /* CARTA. (2026-08-09) Se retiró el pie hundido (bottom:-16mm) que introduje hoy: en la
-       impresora del owner desaparecía el pie de cada hoja. El pie vuelve a su posición del chrome
-       (visible en cada hoja). NOTA: el wrap sigue en flujo de bloques (a diferencia de los otros
-       reportes, ya revertidos al motor de tabla) porque hospeda el editor — pendiente su misma
-       conversión a full-page. */
-    @page{size:letter;margin:12mm 0 15mm 0}
+    /* MOTOR DE TABLA (2026-08-09): hereda @page{margin:0} del chrome (_report-v2-head) → el hero
+       (<thead>) y el pie (fixed + <tfoot> espaciador) van a sangre y se REPITEN en CADA hoja, sin
+       bandas en blanco. Aquí sólo el padding lateral del cuerpo (12mm) y que las secciones largas
+       puedan partirse entre hojas. */
     .doc-body{padding:6mm 12mm 0}
     /* Las secciones LARGAS (cronología, predicho-vs-real) SÍ pueden partirse entre hojas; lo que
        nunca se parte es cada bloque atómico de adentro (.wtli/.wloc/.wkpi/.wchart/.wnote, ya
@@ -469,16 +467,22 @@
 
 <div class="stage {{ $hasTop ? 'below-controls' : '' }}">
   <article class="sheet">
-    {{-- CUERPO EN FLUJO DE BLOQUES (no tabla): el hero sale en la 1ª hoja; el pie fijo se repite
-         (ver la nota de CSS arriba). Sin el <td> que recortaba, los saltos caen entre bloques. --}}
-    @include('componentes._doc-hero', [
-      'heroImage'    => $imgMain ?: null,
-      'heroProject'  => $brandName,
-      'heroLocation' => $v($s1, 'casa_productora') ?: 'Reporte final de producción',
-      'heroDate'     => $heroDate,
-      'heroTime'     => null,
-      'heroModule'   => $wrap->isAddendum() ? 'Anexo al reporte de wrap' : 'Wrap Report',
-    ])
+    {{-- MOTOR DE TABLA (report-wrap): <thead>=hero y <tfoot>=espaciador que Chrome REPITE por hoja
+         → hero y pie en CADA página, full-bleed, sin bandas en blanco. El editor (contenteditable
+         + [data-edit]) vive DENTRO del cuerpo y NO depende de este envoltorio. (Se revirtió el
+         flujo de bloques por pedido del owner; ver [[doc-hero-band-homologation]].) --}}
+    <table class="report-wrap">
+    <thead><tr><td>
+      @include('componentes._doc-hero', [
+        'heroImage'    => $imgMain ?: null,
+        'heroProject'  => $brandName,
+        'heroLocation' => $v($s1, 'casa_productora') ?: 'Reporte final de producción',
+        'heroDate'     => $heroDate,
+        'heroTime'     => null,
+        'heroModule'   => $wrap->isAddendum() ? 'Anexo al reporte de wrap' : 'Wrap Report',
+      ])
+    </td></tr></thead>
+    <tbody><tr><td>
     @if($esBorrador)
     <div class="wdraft">@include('componentes._icon', ['name' => 'alert-triangle'])
       <div><b>BORRADOR — sin emitir</b> <span class="n">Las cifras se recalculan en cada visita y el documento no está sellado. No entregar en este estado.</span></div>
@@ -1006,6 +1010,9 @@
     </section>
 
     </div>{{-- /.doc-body --}}
+    </td></tr></tbody>
+    <tfoot><tr><td><div class="footer-spacer"></div></td></tr></tfoot>
+    </table>
 
     {{-- El pie NO lleva nombre de persona: este documento lo calcula la app desde reportes que ya
          venían sellados, no lo redacta alguien. Atribuirlo a quien apretó el botón sería falso. --}}
