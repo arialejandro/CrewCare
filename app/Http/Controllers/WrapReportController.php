@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\WrapReport;
 use App\Support\CurrentProduction;
+use App\Support\ImageCompressor;
 use App\Support\WrapReportBuilder;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * WrapReportController — REPORTE FINAL DE WRAP (2026-07-24).
@@ -137,6 +139,7 @@ class WrapReportController extends Controller
         // protege el mismo sello. El borrador NO las lleva (se editan en vivo); aquí se congelan.
         $editor = $this->editorChoices($request);
         $editor['overrides'] = $this->editorOverrides($request);
+        $editor['images'] = $this->editorImages($request);
         $payload['editor'] = $editor;
 
         $wrap = WrapReport::create([
@@ -359,6 +362,63 @@ class WrapReportController extends Controller
                 $out[$key] = mb_substr($t, 0, 2000);
             }
         }
+        return $out;
+    }
+
+    /**
+     * IMÁGENES del documento, subidas en el borrador y CONGELADAS al emitir: una imagen principal
+     * (fondo del encabezado) y varias adicionales (evidencia).
+     *
+     * Van DENTRO del payload —igual que las notas y las correcciones narrativas— así que el MISMO
+     * sello las cubre: cambiar la imagen de un wrap ya sellado lo marca ALTERADO, que es justo lo
+     * que se quiere para evidencia. No necesitan $signatureExcludes: son contenido legítimo del doc.
+     *
+     * CONVENCIÓN IDÉNTICA a los demás reportes con foto (injury/scouting/ambulance): ImageCompressor
+     * (GD, reduce el lado mayor y re-codifica; HEIC→JPEG si el servidor puede) al disco 'public', y
+     * se guarda la ruta RAÍZ-RELATIVA (/storage/...) vía Storage::url() — NUNCA asset()/url(), que
+     * fuera de una petición caen a APP_URL y romperían el <img> de un documento standalone.
+     *
+     * Se VALIDA (rebota al borrador si un archivo no es imagen o pesa de más) y se SANEA: lo que
+     * ImageCompressor no pudo guardar (HEIC sin soporte, contenido no-imagen) se descarta en
+     * silencio para no reventar la emisión por un archivo suelto. Sin imágenes → main null, extra [].
+     *
+     * @return array{main: string|null, extra: array<string>}
+     */
+    private function editorImages(Request $request)
+    {
+        // Mismo juego de reglas que injury/ambulance (mimes cubre jpg/png/webp + HEIC de iPhone; la
+        // regla 'heic_ok' rechaza el HEIC sólo si el servidor no puede convertirlo). 8 MB por archivo.
+        $regla = 'nullable|mimes:jpeg,png,jpg,webp,heic,heif|heic_ok|max:8192';
+        $request->validate([
+            'main_image'     => $regla,
+            'extra_images.*' => $regla,
+        ], [], [
+            'main_image'     => 'imagen principal',
+            'extra_images.*' => 'imagen adicional',
+        ]);
+
+        $out = ['main' => null, 'extra' => []];
+
+        if ($request->hasFile('main_image')) {
+            $rel = ImageCompressor::store($request->file('main_image'), 'wrap_images');
+            if ($rel !== null) {
+                $out['main'] = Storage::url($rel);
+            }
+        }
+
+        if ($request->hasFile('extra_images')) {
+            $tope = 8;   // tope sensato de adicionales: un wrap no es un álbum.
+            foreach ((array) $request->file('extra_images') as $file) {
+                if (! $file || count($out['extra']) >= $tope) {
+                    continue;
+                }
+                $rel = ImageCompressor::store($file, 'wrap_images');
+                if ($rel !== null) {
+                    $out['extra'][] = Storage::url($rel);
+                }
+            }
+        }
+
         return $out;
     }
 }

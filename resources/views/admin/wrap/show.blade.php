@@ -71,6 +71,14 @@
     $editAttr = function ($key) use ($esBorrador) {
         return $esBorrador ? ' contenteditable="true" data-edit="' . $key . '" spellcheck="false"' : '';
     };
+
+    // --- Imágenes del documento: congeladas en el payload al emitir (ver editorImages() en el
+    // controlador). En el BORRADOR aún no existen (se eligen en el panel y se suben al emitir). La
+    // principal es el fondo del encabezado; las adicionales pintan la sección Evidencia. Rutas
+    // raíz-relativas (/storage/...) para que el <img> funcione en el documento standalone. ---
+    $images   = (array) $v($editor, 'images', []);
+    $imgMain  = $v($images, 'main');
+    $imgExtra = (array) $v($images, 'extra', []);
     // Apartados y si son OMITIBLES (s1 y el sello son fijos). Rótulos para el panel del borrador.
     $sectionMeta = [
         's1' => ['1 · Identificación y alcance', false],
@@ -277,6 +285,13 @@
   .weditor-foot{padding:0 14px 12px;font:500 .72rem/1.45 var(--font);color:var(--faint)}
   @media (max-width:620px){ .weditor-row{grid-template-columns:1fr;gap:5px} }
 
+  /* Miniaturas EN VIVO de las imágenes elegidas en el borrador (FileReader; sólo pantalla). */
+  .wimg-in{width:100%}
+  .wimg-previews{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px;grid-column:1/-1}
+  .wimg-previews figure{margin:0;width:88px}
+  .wimg-previews img{width:88px;height:62px;object-fit:cover;border-radius:6px;border:1px solid var(--stroke);display:block;background:#141a26}
+  .wimg-previews figcaption{margin-top:3px;font:600 .58rem/1.2 var(--font);color:var(--faint);text-align:center;text-transform:uppercase;letter-spacing:.05em}
+
   /* Nota del editor por apartado: cinta discreta bajo el encabezado de su sección (imprimible). El
      rótulo "Nota del editor —" es ::before para que el JS del borrador sobrescriba sólo el texto. */
   .wsec-note{margin:0 0 12px;padding:9px 13px;border-left:3px solid var(--brand);border-radius:0 var(--radius-sm) var(--radius-sm) 0;
@@ -318,7 +333,7 @@
        emitir. Si la ventana está cerrada no hay form (no se puede emitir), pero el panel sí se
        muestra para previsualizar en vivo. --}}
   @if(! $emitBloqueado)
-  <form method="POST" action="{{ route('wrap.store') }}" id="wrapEmit">
+  <form method="POST" action="{{ route('wrap.store') }}" id="wrapEmit" enctype="multipart/form-data">
     @csrf
     <input type="hidden" name="desde" value="{{ request('desde') }}">
     <input type="hidden" name="hasta" value="{{ request('hasta') }}">
@@ -353,6 +368,27 @@
       </div>
       <div class="weditor-foot">Los apartados desmarcados no aparecerán en el documento emitido. Las notas se sellan junto con el documento.</div>
     </details>
+
+    {{-- Imágenes del documento. Sólo tiene sentido cuando SÍ se puede emitir (si la ventana está
+         cerrada no hay <form> abierto, así que estos inputs no viajarían). Se suben al emitir y se
+         congelan en el payload; la principal es el fondo del encabezado, las adicionales la evidencia. --}}
+    @if(! $emitBloqueado)
+    <details class="weditor" open>
+      <summary class="weditor-h">@include('componentes._icon', ['name' => 'camera']) Imágenes del documento (opcional)</summary>
+      <div class="weditor-grid">
+        <div class="weditor-row">
+          <label class="weditor-inc" for="wrapMainImage"><span>Imagen principal (fondo del encabezado)</span></label>
+          <input type="file" id="wrapMainImage" class="field wimg-in" name="main_image" accept="image/*">
+        </div>
+        <div class="weditor-row">
+          <label class="weditor-inc" for="wrapExtraImages"><span>Imágenes adicionales (evidencia)</span></label>
+          <input type="file" id="wrapExtraImages" class="field wimg-in" name="extra_images[]" accept="image/*" multiple>
+        </div>
+        <div class="wimg-previews" id="wrapImgPreviews"></div>
+      </div>
+      <div class="weditor-foot">JPG, PNG o WEBP, hasta 8 MB cada una (máx. 8 adicionales). Se comprimen al subir y se sellan junto con el documento.</div>
+    </details>
+    @endif
 
   @if(! $emitBloqueado)
   </form>
@@ -392,6 +428,39 @@
   }
 })();
 </script>
+
+{{-- Miniaturas EN VIVO de las imágenes elegidas (mejora progresiva; sin FileReader el <input>
+     nativo sigue funcionando y las imágenes se suben igual al emitir). --}}
+<script>
+(function(){
+  var box = document.getElementById('wrapImgPreviews');
+  if (!box || typeof FileReader === 'undefined') return;
+  var main  = document.getElementById('wrapMainImage');
+  var extra = document.getElementById('wrapExtraImages');
+  function collect(){
+    var out = [];
+    if (main && main.files)  { for (var i = 0; i < main.files.length; i++)  { out.push({ f: main.files[i],  tag: 'Principal' }); } }
+    if (extra && extra.files){ for (var j = 0; j < extra.files.length; j++) { out.push({ f: extra.files[j], tag: 'Evidencia' }); } }
+    return out;
+  }
+  function render(){
+    box.innerHTML = '';
+    collect().forEach(function(item){
+      if (!item.f || !item.f.type || item.f.type.indexOf('image/') !== 0) return; // HEIC no previsualiza; se sube igual
+      var fig = document.createElement('figure');
+      var img = document.createElement('img');
+      var cap = document.createElement('figcaption');
+      cap.textContent = item.tag;
+      var r = new FileReader();
+      r.onload = function(e){ img.src = e.target.result; };
+      r.readAsDataURL(item.f);
+      fig.appendChild(img); fig.appendChild(cap); box.appendChild(fig);
+    });
+  }
+  if (main)  main.addEventListener('change', render);
+  if (extra) extra.addEventListener('change', render);
+})();
+</script>
 @endif
 
 <div class="stage {{ $hasTop ? 'below-controls' : '' }}">
@@ -399,7 +468,7 @@
     {{-- CUERPO EN FLUJO DE BLOQUES (no tabla): el hero sale en la 1ª hoja; el pie fijo se repite
          (ver la nota de CSS arriba). Sin el <td> que recortaba, los saltos caen entre bloques. --}}
     @include('componentes._doc-hero', [
-      'heroImage'    => null,
+      'heroImage'    => $imgMain ?: null,
       'heroProject'  => $brandName,
       'heroLocation' => $v($s1, 'casa_productora') ?: 'Reporte final de producción',
       'heroDate'     => $heroDate,
@@ -883,6 +952,21 @@
         </tbody>
       </table>
       <div class="wchart-note">Cada anexo tiene su propio sello y se verifica por separado.</div>
+    </section>
+    @endif
+
+    {{-- ══ EVIDENCIA ════════════════════════════════════════════════════════════════════
+         Imágenes adicionales que el editor adjuntó y se congelaron en el payload. NO es un
+         apartado omitible por checkbox (no va en $sectionMeta); el data-sec-block sólo evita que
+         el JS de omitir/ocultar tropiece. Se pinta sólo si de verdad hay imágenes. --}}
+    @if(count($imgExtra) > 0)
+    <section class="sec" data-sec-block="s_evi">
+      <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'camera'])<h2>Evidencia</h2><span class="line"></span></div>
+      <div class="photos">
+        @foreach($imgExtra as $ei => $ruta)
+          <div class="photo"><img src="{{ $ruta }}" loading="lazy" alt="Evidencia {{ $ei + 1 }}"><span class="cap">Evidencia {{ $ei + 1 }}</span></div>
+        @endforeach
+      </div>
     </section>
     @endif
 
