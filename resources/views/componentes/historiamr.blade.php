@@ -92,14 +92,30 @@
     .cfdi-meta .mono{font-family:var(--mono,ui-monospace,Menlo,monospace);font-size:.6rem;word-break:break-all}
     @media (max-width:720px){ .cfdi{flex-direction:column} .cfdi-mark{width:74px;height:74px} .cfdi-mark--qr{width:106px;height:106px} .cfdi-verify{width:auto} }
 
-    /* Aislar el reporte al imprimir (window.print) sin tocar el layout. */
+    /* ===== Impresión (window.print sobre esta misma vista) =====
+       La app YA oculta header, sidebar y paleta de comandos en papel (.no-print, en
+       public/css/form-register.css). Antes esta vista usaba `body *{visibility:hidden}`
+       + `#hm-report{position:absolute}`: el absoluto SACA el reporte del flujo y Chrome
+       lo RECORTA a la 1ª hoja → los expedientes largos perdían páginas. Ahora el reporte
+       se queda EN FLUJO, a todo el ancho de la hoja, y pagina en varias páginas. */
     @media print {
-        body * { visibility: hidden !important; }
-        #hm-report, #hm-report * { visibility: visible !important; }
-        #hm-report { position: absolute; left: 0; top: 0; width: 100%; }
+        @page { size: letter; margin: 14mm 12mm; }
+        .cc-amb { display: none !important; }                 /* luz ambiental (no lleva .no-print) */
         .hm-no-print { display: none !important; }
-        .cc-form-card { break-inside: avoid; box-shadow: none !important; }
+        /* Neutraliza el encuadre col-md-10 (sidebar) para que el reporte ocupe toda la hoja. */
+        .container-fluid, .container-fluid > .row, main.cc-main, #app {
+            width: 100% !important; max-width: none !important; flex: 0 0 100% !important;
+            margin: 0 !important; padding: 0 !important; background: #fff !important;
+            min-height: 0 !important;   /* main.cc-main trae min-height:100vh → hoja alta vacía en papel */
+        }
+        #hm-report { max-width: none !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+        /* Tarjetas: sin sombra; PUEDEN partirse entre hojas (una tarjeta más alta que una
+           hoja —consultas, sellos— no debe recortarse). Lo ATÓMICO de adentro sí se protege. */
+        .cc-form-card { box-shadow: none !important; break-inside: auto; }
         #hm-report .collapse { display: block !important; height: auto !important; } /* abre todo en papel */
+        .table-responsive { overflow: visible !important; }
+        .hm-med-table { min-width: 0 !important; }             /* la tabla no fuerza 640px en papel */
+        .hm-med-table tr, .cc-info-item, .hm-chips .cc-chip, .cfdi, .hm-seal-item, .seal { break-inside: avoid; }
     }
 </style>
 @endpush
@@ -120,13 +136,13 @@
                 <div class="cc-muted small">{{ __('Expediente clínico — uso interno') }}</div>
             </div>
         </div>
-        {{-- Salida imprimible funcional: la vista de IMPRESIÓN standalone (chrome v2, papel CARTA,
-             botón Exportar PDF), como los demás documentos. Reemplaza el window.print() sobre esta
-             pantalla (dependía de un truco de `visibility` dentro de layouts.app). --}}
-        <a href="{{ route('historialwr.imprimir', $target->id) }}" class="cc-btn-ghost hm-no-print" aria-label="{{ __('Imprimir historial médico') }}">
+        {{-- Impresión de ESTA misma vista (su formato en pantalla YA es el correcto): window.print()
+             sobre #hm-report. El @media print de abajo aísla el reporte sin sacarlo del flujo, para
+             que pagine en varias hojas (la app ya oculta header/sidebar/paleta con .no-print). --}}
+        <button type="button" onclick="window.print()" class="cc-btn-ghost hm-no-print" aria-label="{{ __('Imprimir historial médico') }}">
             @include('componentes._icon', ['name' => 'printer', 'class' => 'cc-ico-16', 'label' => null])
             <span>{{ __('Imprimir') }}</span>
-        </a>
+        </button>
     </div>
 
 {{-- (2026-07-24 · PASO 3/3, item 1) La persona puede tener consultas SIN haber llenado el
