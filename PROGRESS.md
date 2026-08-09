@@ -235,6 +235,14 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-09 — 🤖 Lote en subagentes: imágenes Wrap + accidente demo + fotos permisos + impresión historial
+- **Estado:** Hecho (4 subagentes en paralelo; cada uno verificó por harness). Commits en `clean-main`, pusheados.
+- **1) Wrap: imágenes editables** (`d98dbf87`) — `WrapReportController@editorImages()` + vista. En el borrador se sube imagen **principal** (fondo del hero) + **adicionales** (sección Evidencia), miniatura en vivo; se congelan en `payload.editor.images` (las cubre el sello). Convención `ImageCompressor::store()` → `/storage/wrap_images/…`. Verificado (sello válido, hero+evidencia). **Prod: requiere `storage:link` (ya lo necesitan injury/scouting/DSR).**
+- **2) Accidente de prueba con imágenes** (SIN git, dato local) — `InjuryReport` **id=13** (`/accident/13/completo`), sellado, 3 imágenes (principal+2), registrable OSHA, `risk_level=Medio` a propósito (no dispara el mail de alto riesgo). Para que el owner valide el PDF de Injury (Carta+flujo de bloques).
+- **3) Fotos en permisos** (`a40ecf7a`) — delta **`database/owner-apply/2026-08-09-permit-photos.sql`** (`issued_permits.photos JSON NULL`, idempotente, **aplicado local**). Subida en el form de emisión + rejilla en el documento. **Sello:** override **null-only** de `canonicalSignaturePayload()` (como `evidence_photos` del acta de ambulancia): con fotos, sus rutas entran al hash; sin fotos, la clave se retira → los permisos ya sellados NO se rompen. Verificado.
+- **4) Impresión del historial médico** (`1abaf634`) — el show ya se veía bien pero imprimía con `visibility:hidden` frágil; se agregó vista standalone sobre chrome v2 (`componentes/historiamr-print`, CARTA, `window.print`, sello CFDI) + ruta `GET /historialWR/{id}/imprimir` (`historialwr.imprimir`) en el MISMO grupo `permission:medical.view` + candado por departamento. Sin SQL, cero edición del dato (expediente inmutable/sellado).
+- **Riesgo/Notas:** Prod pendiente: correr el delta `2026-08-09-permit-photos.sql` + `storage:link`. Falta (mismo framework `$ov`/`$editAttr`): notas libres/resumen editables del Wrap. Ver [[wrap-report-final-built]], [[permit-issuance-module]], [[health-record-module]], [[pendientes-prod]].
+
 ### 2026-08-09 — ✏️ Wrap editable V1: corrección NARRATIVA in-place (commit `af19bc75`)
 - **Estado:** Hecho (verificado por harness: saneo de overrides, borrador editable, sellado pinta el override, sello VÁLIDO). SIN SQL (va en `payload.editor.overrides`).
 - **Archivos:** `app/Http/Controllers/WrapReportController.php` (+`editorOverrides()`), `resources/views/admin/wrap/show.blade.php`.
