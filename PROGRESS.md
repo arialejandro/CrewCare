@@ -235,6 +235,12 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-09 — ✏️ Wrap editable V1: corrección NARRATIVA in-place (commit `af19bc75`)
+- **Estado:** Hecho (verificado por harness: saneo de overrides, borrador editable, sellado pinta el override, sello VÁLIDO). SIN SQL (va en `payload.editor.overrides`).
+- **Archivos:** `app/Http/Controllers/WrapReportController.php` (+`editorOverrides()`), `resources/views/admin/wrap/show.blade.php`.
+- **Qué / Por qué:** el owner pidió poder EDITAR el contenido generado (antes sólo se podía OMITIR el bloque). Alcance elegido: **narrativa editable; conteos derivados (no editables)**. En el borrador los textos narrativos son `contenteditable` (filo tenue); al emitir un JS recoge los `[data-edit]` en un hidden JSON → el controlador SANEA (strip_tags, clave `s1..s8[.]`, tope 2000) → congela en `payload.editor.overrides` → lo cubre el sello. La vista pinta override-o-auto (`$ov`/`$editAttr`). **V1 cablea recomendaciones (s8) + cronología (s5).**
+- **Riesgo/Notas:** SIN SQL/modelo. WRAP-0002 (sin overrides) igual. **Faltan (mismo framework):** notas libres/resumen editables + **IMÁGENES** (principal + adicionales). Ver [[wrap-report-final-built]].
+
 ### 2026-08-09 — 🖨️ Papel CARTA + fix de emisión de permisos (feedback owner)
 - **Estado:** Hecho. Commits `fed2d2ed` (Carta) + `f00c6c57` (permisos). SIN SQL/modelo.
 - **Archivos:** `componentes/_report-v2-blockflow`, `componentes/_report-v2-head`, `ambulance/acta`, `admin/wrap/show` (papel) · `componentes/_inspection-styles` (permisos).
