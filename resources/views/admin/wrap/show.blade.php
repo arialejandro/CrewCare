@@ -521,7 +521,7 @@
         <div class="k"><div class="n">{{ $num(isset($s1['crew']['maximo']) ? $s1['crew']['maximo'] : null) }}</div><div class="l">Crew máximo</div><div class="s">Promedio {{ $num(isset($s1['crew']['promedio']) ? $s1['crew']['promedio'] : null) }}</div></div>
       </div>
 
-      @if($v($s1, 'nota_dias'))<div class="wnote">{{ $v($s1, 'nota_dias') }}</div>@endif
+      @if($v($s1, 'nota_dias'))<div class="wnote"{!! $editAttr("s1.notadias") !!}>{{ $ov("s1.notadias", $v($s1, 'nota_dias')) }}</div>@endif
 
       <div class="facts">
         <div class="fact"><div class="k">Locaciones evaluadas</div><div class="v">{{ $num($v($s1, 'locaciones_evaluadas')) }}</div></div>
@@ -554,7 +554,7 @@
           <div class="l">Sin clasificar</div><div class="s">{{ $num($v($s2, 'sin_clasificar')) }} declarados</div></div>
       </div>
 
-      @if($v($s2, 'nota_clasificacion'))<div class="wnote">{{ $v($s2, 'nota_clasificacion') }}</div>@endif
+      @if($v($s2, 'nota_clasificacion'))<div class="wnote"{!! $editAttr("s2.notaclas") !!}>{{ $ov("s2.notaclas", $v($s2, 'nota_clasificacion')) }}</div>@endif
 
       <h3 class="sec-sub" style="margin:12px 0 6px;font:700 .82rem/1 var(--font);color:var(--muted)">Distribución por nivel de riesgo previsto</h3>
       @php $pn = $v($s2, 'por_nivel', []); $pnTot = max(1, array_sum(array_map('intval', (array) $pn))); @endphp
@@ -622,7 +622,7 @@
         <div class="fact"><div class="k">Registrables / 100 persona-día</div><div class="v mono">{{ isset($t['registrables']) && $t['registrables'] !== null ? $t['registrables'] : 'sin dato' }}</div></div>
       </div>
 
-      @if($v($s3, 'nota_tasa'))<div class="wnote">{{ $v($s3, 'nota_tasa') }}</div>@endif
+      @if($v($s3, 'nota_tasa'))<div class="wnote"{!! $editAttr("s3.notatasa") !!}>{{ $ov("s3.notatasa", $v($s3, 'nota_tasa')) }}</div>@endif
 
       @if($v($s3, 'departamentos'))
       <h3 style="margin:14px 0 5px;font:700 .82rem/1 var(--font);color:var(--muted)">Departamentos involucrados</h3>
@@ -664,7 +664,7 @@
       @php $mu = $v($s4, 'muestra', []); @endphp
       <div class="wnote {{ $v($mu, 'fuerza') === 'suficiente' ? '' : 'strong' }}">
         @include('componentes._icon', ['name' => 'info'])
-        <b>Tamaño de muestra:</b> {{ $v($mu, 'texto', '—') }}
+        <b>Tamaño de muestra:</b> <span{!! $editAttr("s4.muestra") !!}>{{ $ov("s4.muestra", $v($mu, 'texto', '—')) }}</span>
       </div>
 
       <div class="wkpi">
@@ -675,7 +675,7 @@
           <div class="l">Sin locación evaluada</div><div class="s">No cruzables</div></div>
       </div>
 
-      @if($v($s4, 'nota_no_materializados'))<div class="wnote">{{ $v($s4, 'nota_no_materializados') }}</div>@endif
+      @if($v($s4, 'nota_no_materializados'))<div class="wnote"{!! $editAttr("s4.notanomat") !!}>{{ $ov("s4.notanomat", $v($s4, 'nota_no_materializados')) }}</div>@endif
 
       {{-- (a) POR LOCACIÓN --}}
       <h3 style="margin:14px 0 8px;font:700 .86rem/1 var(--font);color:var(--text)">a · Por locación</h3>
