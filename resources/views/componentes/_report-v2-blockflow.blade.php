@@ -17,9 +17,9 @@
 <style>
   .doc-body{padding:var(--pad)}
   @media print{
-    /* Oficio con respiro arriba (13mm) y sitio para el pie fijo abajo (16mm). Gana sobre el
+    /* CARTA (Letter). Respiro arriba (12mm) y sitio para el pie fijo abajo (15mm). Gana sobre el
        @page{margin:0} del chrome por orden de fuente (este parcial va después de _report-v2-head). */
-    @page{size:216mm 340mm;margin:13mm 0 16mm 0}
+    @page{size:letter;margin:12mm 0 15mm 0}
     .doc-body{padding:6mm 12mm 0}
     /* Las secciones LARGAS pueden partirse entre hojas; los bloques atómicos de adentro
        (.cfdi/.panel/.wkpi/.wloc/.photo/…) ya traen su propio break-inside:avoid. */

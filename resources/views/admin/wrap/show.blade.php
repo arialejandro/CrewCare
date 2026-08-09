@@ -227,7 +227,7 @@
 
   @media print{
     /* Oficio con respiro arriba (13mm) y sitio para el pie fijo abajo (16mm). */
-    @page{size:216mm 340mm;margin:13mm 0 16mm 0}
+    @page{size:letter;margin:12mm 0 15mm 0}
     .doc-body{padding:6mm 12mm 0}
     /* Las secciones LARGAS (cronología, predicho-vs-real) SÍ pueden partirse entre hojas; lo que
        nunca se parte es cada bloque atómico de adentro (.wtli/.wloc/.wkpi/.wchart/.wnote, ya

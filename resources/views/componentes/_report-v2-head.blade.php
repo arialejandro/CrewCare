@@ -262,8 +262,10 @@
 
   @media print{
     /* @page margin:0 → el hero (thead) y el pie (fixed) van a sangre en cada hoja.
-       Hoja OFICIO (Oficio MX 216×340mm): más alto vertical que Carta → menos cortes/huecos. */
-    @page{size:216mm 340mm;margin:0}
+       CARTA (Letter). El tamaño declarado DEBE coincidir con el papel real del navegador: si se
+       declara Oficio (340mm) pero se imprime en Carta (279mm), el navegador calcula los saltos para
+       una hoja más alta y el contenido se CORTA al caer en papel más corto. */
+    @page{size:letter;margin:0}
     /* Modo papel forzado aunque el JS no corra. Incluye los semánticos oscuros para papel
        (ver el bloque :root[data-view="print"] de arriba): sin esto, un Ctrl+P directo sin pasar
        por el botón "Vista impresión" imprimiría --ok/--warn/--danger de pantalla (ilegibles). */
