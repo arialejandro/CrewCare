@@ -132,6 +132,11 @@ class WrapReportController extends Controller
         $payload = WrapReportBuilder::build($produccion, $desde, $hasta);
         $periodo = $this->periodoDe($payload, $desde, $hasta);
 
+        // Elecciones del editor (apartados a omitir + notas por apartado). Van DENTRO del payload a
+        // propósito: son parte del documento que se entrega, así que las protege el mismo sello. El
+        // borrador NO las lleva (se previsualizan en vivo); aquí, en la emisión, se congelan.
+        $payload['editor'] = $this->editorChoices($request);
+
         $wrap = WrapReport::create([
             'production_id' => $produccion->id,
             'kind'          => WrapReport::KIND_FINAL,
@@ -284,5 +289,37 @@ class WrapReportController extends Controller
             isset($p['desde']) ? $p['desde'] : $desde,
             isset($p['hasta']) ? $p['hasta'] : $hasta,
         ];
+    }
+
+    /**
+     * Elecciones del editor en el borrador, saneadas y listas para congelar en el payload.
+     *
+     * `include[]` trae los apartados MARCADOS (los checkbox no marcados no viajan), así que lo
+     * omitido = los apartados omitibles que NO están en include. `note[sN]` trae la nota por
+     * apartado. Se SANEA (no se valida-para-fallar): la emisión de un wrap no debe reventar por un
+     * campo suelto; lo que no reconoce, lo ignora.
+     *
+     * Apartados: s1 (identificación) y el sello son FIJOS — no se pueden omitir. s2..s8 sí.
+     *
+     * @return array{omit: array<string>, notes: array<string,string>}
+     */
+    private function editorChoices(Request $request)
+    {
+        $omitibles = ['s2', 's3', 's4', 's5', 's6', 's7', 's8'];
+        $todos     = array_merge(['s1'], $omitibles);
+
+        $incluir = array_values(array_intersect((array) $request->input('include', []), $omitibles));
+        $omit    = array_values(array_diff($omitibles, $incluir));
+
+        $notasIn = (array) $request->input('note', []);
+        $notes = [];
+        foreach ($todos as $k) {
+            $t = isset($notasIn[$k]) ? trim((string) $notasIn[$k]) : '';
+            if ($t !== '') {
+                $notes[$k] = mb_substr($t, 0, 500);
+            }
+        }
+
+        return ['omit' => $omit, 'notes' => $notes];
     }
 }

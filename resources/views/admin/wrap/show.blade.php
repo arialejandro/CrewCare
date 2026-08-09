@@ -51,6 +51,27 @@
     $v = function ($arr, $k, $def = null) { return isset($arr[$k]) ? $arr[$k] : $def; };
     $num = function ($n) { return $n === null ? '—' : number_format((float) $n, (floor((float) $n) == (float) $n) ? 0 : 2); };
 
+    // --- Bloque 2: elecciones del editor CONGELADAS en el payload (omitir apartados / notas). ---
+    // En el BORRADOR el payload aún no las trae → se ven todos los apartados y las notas se
+    // previsualizan EN VIVO por JS. En el SELLADO, el payload manda: los apartados omitidos se
+    // ocultan con un <style> generado (display:none = fuera del PDF, omisión "silenciosa") y las
+    // notas frozen se pintan dentro de su apartado. Al emitir, el controlador las sella.
+    $editor  = $v($P, 'editor', []);
+    $omit    = array_values(array_filter((array) $v($editor, 'omit', [])));
+    $notes   = (array) $v($editor, 'notes', []);
+    $secNote = function ($k) use ($notes) { return isset($notes[$k]) ? trim((string) $notes[$k]) : ''; };
+    // Apartados y si son OMITIBLES (s1 y el sello son fijos). Rótulos para el panel del borrador.
+    $sectionMeta = [
+        's1' => ['1 · Identificación y alcance', false],
+        's2' => ['2 · Lo que se anticipó',       true],
+        's3' => ['3 · Lo que realmente pasó',    true],
+        's4' => ['4 · Predicho vs. real',        true],
+        's5' => ['5 · Desglose cronológico',     true],
+        's6' => ['6 · Cumplimiento',             true],
+        's7' => ['7 · Tendencias',               true],
+        's8' => ['8 · Continuidad',              true],
+    ];
+
     $folio = $wrap->exists ? $wrap->folio() : 'BORRADOR';
     $periodoIni = $v($s1, 'periodo_desde');
     $periodoFin = $v($s1, 'periodo_hasta');
@@ -226,7 +247,39 @@
     .doc-hero{height:160px}
     .doc-hero .hero-side{width:56vw;left:auto;right:12px;top:12px}
   }
+
+  /* ===== Panel de ajuste del BORRADOR (Bloque 2): omitir apartados + notas por apartado ========
+     No se imprime (vive en .wrap-controls .no-print). El <details> colapsa sin JS. ============= */
+  .weditor{max-width:860px;margin:10px auto 0;border:1px solid var(--stroke);border-radius:var(--radius-sm);background:var(--panel)}
+  .weditor-h{cursor:pointer;list-style:none;padding:11px 14px;font:700 .82rem/1.2 var(--font);color:var(--text);display:flex;align-items:center;gap:8px}
+  .weditor-h::-webkit-details-marker{display:none}
+  .weditor-h svg{width:15px;height:15px;color:var(--brand)}
+  .weditor[open] .weditor-h{border-bottom:1px solid var(--stroke)}
+  .weditor-grid{display:flex;flex-direction:column;gap:8px;padding:12px 14px}
+  .weditor-row{display:grid;grid-template-columns:minmax(160px,230px) 1fr;gap:10px;align-items:center}
+  .weditor-inc{display:flex;align-items:center;gap:8px;font:600 .8rem/1.2 var(--font);color:var(--text);cursor:pointer;min-width:0}
+  .weditor-inc input{width:16px;height:16px;flex:none;accent-color:var(--brand)}
+  .weditor-inc.fixed{color:var(--muted);cursor:default}
+  .weditor-inc.fixed .dot{width:8px;height:8px;border-radius:50%;background:var(--stroke-2);flex:none}
+  .weditor-inc em{font-style:normal;font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}
+  .weditor-note-in{width:100%;height:36px}
+  .weditor-foot{padding:0 14px 12px;font:500 .72rem/1.45 var(--font);color:var(--faint)}
+  @media (max-width:620px){ .weditor-row{grid-template-columns:1fr;gap:5px} }
+
+  /* Nota del editor por apartado: cinta discreta bajo el encabezado de su sección (imprimible). El
+     rótulo "Nota del editor —" es ::before para que el JS del borrador sobrescriba sólo el texto. */
+  .wsec-note{margin:0 0 12px;padding:9px 13px;border-left:3px solid var(--brand);border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+    background:color-mix(in srgb,var(--brand) 7%,var(--panel));font:500 .82rem/1.5 var(--font);color:var(--text);
+    white-space:pre-wrap;overflow-wrap:break-word;break-inside:avoid}
+  .wsec-note::before{content:"Nota del editor — ";font-weight:700;color:var(--brand)}
+  .wsec-note.is-empty{display:none}
 </style>
+@if(!empty($omit))
+{{-- Omisión SILENCIOSA (elección del owner): los apartados omitidos se ocultan por CSS → no salen
+     en el PDF exportado. No se @unless en el markup para no reordenar la vista; el efecto entregado
+     (el PDF) es idéntico: el apartado no existe en el papel. --}}
+<style>@foreach($omit as $wk)[data-sec-block="{{ $wk }}"]{display:none!important}@endforeach</style>
+@endif
 </head>
 <body>
 
@@ -243,23 +296,68 @@
 @if($esBorrador)
 @php $emitBloqueado = isset($emitBloqueado) ? $emitBloqueado : null; @endphp
 <div class="wrap-controls no-print">
-  <div class="wops">
-    <div class="ops-note">Borrador en vivo. Debajo se ve el documento completo, tal como se emitirá. Al emitirlo, el cálculo se congela y se sella.</div>
-    @if($emitBloqueado)
-      {{-- Ventana de emisión CERRADA: el botón NO se pinta. El congelamiento no puede dispararse
-           antes de la fecha de finalización — ni por accidente ni a propósito. Se explica el porqué
-           y hasta cuándo, en vez de un botón muerto que invite a insistir. --}}
-      <div class="wlock">@include('componentes._icon', ['name' => 'lock']) <span>{{ $emitBloqueado }}</span></div>
-    @else
-    <form method="POST" action="{{ route('wrap.store') }}">
-      @csrf
-      <input type="hidden" name="desde" value="{{ request('desde') }}">
-      <input type="hidden" name="hasta" value="{{ request('hasta') }}">
-      <button class="btn brand" type="submit">@include('componentes._icon', ['name' => 'shield']) Emitir y sellar</button>
-    </form>
-    @endif
-  </div>
+  {{-- El panel de ajuste + el botón viven en el MISMO form para que los checkbox/notas viajen al
+       emitir. Si la ventana está cerrada no hay form (no se puede emitir), pero el panel sí se
+       muestra para previsualizar en vivo. --}}
+  @if(! $emitBloqueado)
+  <form method="POST" action="{{ route('wrap.store') }}" id="wrapEmit">
+    @csrf
+    <input type="hidden" name="desde" value="{{ request('desde') }}">
+    <input type="hidden" name="hasta" value="{{ request('hasta') }}">
+  @endif
+
+    <div class="wops">
+      <div class="ops-note">Borrador en vivo. Debajo se ve el documento completo, tal como se emitirá. Ajusta qué apartados incluir y añade notas; al emitir se congela y se sella.</div>
+      @if($emitBloqueado)
+        {{-- Ventana CERRADA: sin botón (no se puede congelar antes de la fecha de finalización); se
+             explica el porqué y hasta cuándo, en vez de un botón muerto que invite a insistir. --}}
+        <div class="wlock">@include('componentes._icon', ['name' => 'lock']) <span>{{ $emitBloqueado }}</span></div>
+      @else
+        <button class="btn brand" type="submit">@include('componentes._icon', ['name' => 'shield']) Emitir y sellar</button>
+      @endif
+    </div>
+
+    <details class="weditor" open>
+      <summary class="weditor-h">@include('componentes._icon', ['name' => 'list']) Ajustar documento (opcional)</summary>
+      <div class="weditor-grid">
+        @foreach($sectionMeta as $key => $meta)
+          <div class="weditor-row">
+            @if($meta[1])
+              <label class="weditor-inc"><input type="checkbox" name="include[]" value="{{ $key }}" checked data-sec="{{ $key }}"><span>{{ $meta[0] }}</span></label>
+            @else
+              <span class="weditor-inc fixed"><span class="dot"></span><span>{{ $meta[0] }}</span> <em>fijo</em></span>
+            @endif
+            <input type="text" class="field weditor-note-in" name="note[{{ $key }}]" data-note="{{ $key }}" maxlength="500" autocomplete="off" placeholder="Nota para este apartado (opcional)…">
+          </div>
+        @endforeach
+      </div>
+      <div class="weditor-foot">Los apartados desmarcados no aparecerán en el documento emitido. Las notas se sellan junto con el documento.</div>
+    </details>
+
+  @if(! $emitBloqueado)
+  </form>
+  @endif
 </div>
+
+{{-- Previsualización EN VIVO del panel (sólo borrador): ocultar/mostrar apartados y volcar notas. --}}
+<script>
+(function(){
+  var panel = document.querySelector('.weditor'); if (!panel) return;
+  panel.addEventListener('change', function(e){
+    var cb = e.target.closest('input[type=checkbox][data-sec]'); if (!cb) return;
+    var b = document.querySelector('[data-sec-block="' + cb.value + '"]');
+    if (b) b.style.display = cb.checked ? '' : 'none';
+  });
+  panel.addEventListener('input', function(e){
+    var inp = e.target.closest('[data-note]'); if (!inp) return;
+    var out = document.querySelector('[data-note-out="' + inp.getAttribute('data-note') + '"]');
+    if (!out) return;
+    var val = (inp.value || '').trim();
+    out.textContent = val;
+    out.classList.toggle('is-empty', val === '');
+  });
+})();
+</script>
 @endif
 
 <div class="stage {{ $hasTop ? 'below-controls' : '' }}">
@@ -300,8 +398,9 @@
     <div class="doc-body">
 
     {{-- ══ 1 · IDENTIFICACIÓN Y ALCANCE ═════════════════════════════════════════════════ --}}
-    <section class="sec">
+    <section class="sec" data-sec-block="s1">
       <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'film'])<h2>1 · Identificación y alcance</h2><span class="line"></span></div>
+      @include('admin.wrap._editor-note', ['wnKey' => 's1', 'wnTxt' => $secNote('s1')])
 
       <div class="facts">
         <div class="fact"><div class="k">Producción</div><div class="v">{{ $brandName }}</div></div>
@@ -339,8 +438,9 @@
     </section>
 
     {{-- ══ 2 · LO QUE SE ANTICIPÓ ═══════════════════════════════════════════════════════ --}}
-    <section class="sec">
+    <section class="sec" data-sec-block="s2">
       <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'map-pin'])<h2>2 · Lo que se anticipó</h2><span class="line"></span></div>
+      @include('admin.wrap._editor-note', ['wnKey' => 's2', 'wnTxt' => $secNote('s2')])
 
       <div class="wkpi">
         <div class="k"><div class="n">{{ $num($v($s2, 'scoutings')) }}</div><div class="l">Scoutings</div></div>
@@ -397,8 +497,9 @@
     </section>
 
     {{-- ══ 3 · LO QUE REALMENTE PASÓ ════════════════════════════════════════════════════ --}}
-    <section class="sec">
+    <section class="sec" data-sec-block="s3">
       <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'activity'])<h2>3 · Lo que realmente pasó</h2><span class="line"></span></div>
+      @include('admin.wrap._editor-note', ['wnKey' => 's3', 'wnTxt' => $secNote('s3')])
 
       <div class="wkpi">
         <div class="k"><div class="n">{{ $num($v($s3, 'hallazgos_dsr')) }}</div><div class="l">Hallazgos de bitácora</div></div>
@@ -451,8 +552,9 @@
     </section>
 
     {{-- ══ 4 · PREDICHO vs. REAL ════════════════════════════════════════════════════════ --}}
-    <section class="sec">
+    <section class="sec" data-sec-block="s4">
       <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'git-compare'])<h2>4 · Lo que se predijo contra lo que pasó</h2><span class="line"></span></div>
+      @include('admin.wrap._editor-note', ['wnKey' => 's4', 'wnTxt' => $secNote('s4')])
 
       {{-- HONESTIDAD OBLIGATORIA: el tamaño de muestra va ARRIBA de los porcentajes, no al pie.
            Un lector que ve primero "87.5 %" y después la advertencia ya se formó la conclusión. --}}
@@ -553,8 +655,9 @@
     </section>
 
     {{-- ══ 5 · DESGLOSE CRONOLÓGICO ═════════════════════════════════════════════════════ --}}
-    <section class="sec">
+    <section class="sec" data-sec-block="s5">
       <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'list'])<h2>5 · Desglose cronológico y sus conclusiones</h2><span class="line"></span></div>
+      @include('admin.wrap._editor-note', ['wnKey' => 's5', 'wnTxt' => $secNote('s5')])
       <div class="wchart-note" style="margin-bottom:10px">{{ $num($v($s5, 'total')) }} asuntos registrados, en orden. Se identifica el departamento involucrado; nunca a la persona.</div>
 
       <div class="wtl">
@@ -585,8 +688,9 @@
     </section>
 
     {{-- ══ 6 · CUMPLIMIENTO ═════════════════════════════════════════════════════════════ --}}
-    <section class="sec">
+    <section class="sec" data-sec-block="s6">
       <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'shield-check'])<h2>6 · Cumplimiento</h2><span class="line"></span></div>
+      @include('admin.wrap._editor-note', ['wnKey' => 's6', 'wnTxt' => $secNote('s6')])
 
       @php $ju = $v($s6, 'juntas', []); $ac = $v($s6, 'acciones', []); @endphp
 
@@ -634,8 +738,9 @@
     </section>
 
     {{-- ══ 7 · TENDENCIAS ═══════════════════════════════════════════════════════════════ --}}
-    <section class="sec">
+    <section class="sec" data-sec-block="s7">
       <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'trending-up'])<h2>7 · Tendencias</h2><span class="line"></span></div>
+      @include('admin.wrap._editor-note', ['wnKey' => 's7', 'wnTxt' => $secNote('s7')])
 
       @php
         $serie = (array) $v($s7, 'serie_dias', []);
@@ -694,8 +799,9 @@
     </section>
 
     {{-- ══ 8 · CONTINUIDAD ══════════════════════════════════════════════════════════════ --}}
-    <section class="sec">
+    <section class="sec" data-sec-block="s8">
       <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'compass'])<h2>8 · Continuidad</h2><span class="line"></span></div>
+      @include('admin.wrap._editor-note', ['wnKey' => 's8', 'wnTxt' => $secNote('s8')])
       <div class="wchart-note" style="margin-bottom:10px">Cada recomendación nace de una cifra de este reporte y la cita. No son buenas intenciones: son conclusiones con evidencia detrás.</div>
 
       @php
