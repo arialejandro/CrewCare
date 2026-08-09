@@ -245,12 +245,13 @@
   .stage.below-controls{padding-top:16px}
 
   @media print{
-    /* CARTA. El pie es position:fixed y el @page margin-bottom NO le reserva flujo → pisaba las
-       últimas filas de cada hoja. Fix (verificado con PDF real): margen inferior 18mm + bajar el
-       pie a la zona de margen (bottom:-16mm !important) → no tapa contenido; arriba 8mm. */
-    @page{size:letter;margin:8mm 0 18mm 0}
-    .doc-body{padding:4mm 12mm 0}
-    .print-foot{bottom:-16mm!important}
+    /* CARTA. (2026-08-09) Se retiró el pie hundido (bottom:-16mm) que introduje hoy: en la
+       impresora del owner desaparecía el pie de cada hoja. El pie vuelve a su posición del chrome
+       (visible en cada hoja). NOTA: el wrap sigue en flujo de bloques (a diferencia de los otros
+       reportes, ya revertidos al motor de tabla) porque hospeda el editor — pendiente su misma
+       conversión a full-page. */
+    @page{size:letter;margin:12mm 0 15mm 0}
+    .doc-body{padding:6mm 12mm 0}
     /* Las secciones LARGAS (cronología, predicho-vs-real) SÍ pueden partirse entre hojas; lo que
        nunca se parte es cada bloque atómico de adentro (.wtli/.wloc/.wkpi/.wchart/.wnote, ya
        protegidos arriba). Sin esto, una sección más alta que una hoja se recorta. */

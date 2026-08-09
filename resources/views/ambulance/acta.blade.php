@@ -118,31 +118,22 @@
   .amb-state.open{ color:var(--warn); border-color:color-mix(in srgb, var(--warn) 40%, transparent); }
   .amb-state.closed{ color:var(--ok); border-color:color-mix(in srgb, var(--ok) 40%, transparent); }
 
-  /* ===== PAGINACIÓN A PRUEBA DE CORTES (2026-08-08, definitiva) =====
-     El cuerpo NO va dentro de una tabla (report-wrap) sino en FLUJO DE BLOQUES (.doc-body). Dentro
-     de una celda paginada Chrome ignora break-inside (parte el texto); en flujo normal SÍ lo respeta
-     → los saltos caen ENTRE puntos, nunca dentro. El hero y el cintillo van full-bleed arriba; el pie
-     fijo (.print-foot) se repite por hoja gracias al margen inferior del @page. El @page deja además
-     un margen SUPERIOR de respiro en cada hoja (buffer para el encabezado). */
-  .doc-body{ padding:18px var(--pad) 0; }
-  .doc-body > .sec{ break-inside:avoid; page-break-inside:avoid; }
-  @media print{
-    /* El pie es position:fixed y el @page margin-bottom NO le reserva flujo → pisaba las últimas
-       filas de cada hoja. Fix (verificado con PDF real): margen inferior 18mm + bajar el pie a la
-       zona de margen (bottom:-16mm !important) → no tapa contenido; arriba 8mm (seguro impresora). */
-    @page{ size:letter; margin:8mm 0 18mm 0; }
-    .doc-body{ padding:4mm 12mm 0; }
-    .print-foot{ bottom:-16mm !important; }
-  }
+  /* ===== PAGINACIÓN A PRUEBA DE CORTES (2026-08-08) =====
+     Todo el cuerpo va como FILAS de la tabla report-wrap: una <tr> por sección y una <tr> por
+     punto del checklist. Chrome NUNCA parte una fila de tabla entre hojas (pero SÍ ignora
+     break-inside dentro de una celda paginada — por eso ni divs ni overflow lo arreglaban).
+     .acell da el padding horizontal del cuerpo; el hero (thead) y el pie (tfoot) siguen
+     repitiéndose por hoja igual que antes. */
+  .report-wrap>tbody>tr{ break-inside:avoid; page-break-inside:avoid; }
+  .report-wrap td.acell{ padding:0 var(--pad); }
+  .report-wrap td.acell-top{ padding-top:var(--pad); }
+  @media print{ .report-wrap td.acell{ padding:0 12mm; } .report-wrap td.acell-top{ padding-top:10mm; } }
 
-  /* Checklist: sección que FLUYE + cada punto atómico (una fila no se parte en flujo de bloques). */
-  .amb-chk{ break-inside:auto !important; page-break-inside:auto !important; }
-  .amb-chk-list{ display:block; }
+  /* Checklist: cada punto es una celda .chkcell (padding horizontal del cuerpo) con el grid dentro. */
   .amb-chk-row{ display:grid; grid-template-columns:1fr 132px 82px; gap:10px; align-items:start;
-    padding:8px 10px; border-bottom:1px solid var(--stroke); break-inside:avoid; page-break-inside:avoid;
-    font-size:.8rem; color:var(--text); }
+    padding:8px 0; border-bottom:1px solid var(--stroke); font-size:.8rem; color:var(--text); }
   .amb-chk-row.head{ font-size:.58rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); font-weight:700; }
-  .amb-chk-row.gate{ background:color-mix(in srgb, var(--brand) 6%, transparent);
+  .report-wrap td.chkcell.gate{ background:color-mix(in srgb, var(--brand) 6%, transparent);
     -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   .amb-chk-row .c2{ font-family:var(--mono); font-size:.74rem; }
   .amb-chk-row .c3{ text-align:right; }
@@ -171,34 +162,38 @@
 
 <div class="stage">
   <article class="sheet">
-    @include('componentes._doc-hero', [
-      'heroImage'       => $inspection->unitPhotoUrl(),
-      'heroProject'     => $brandName,
-      'heroHideCallbox' => true,
-      'heroModule'      => $heroModule,
-    ])
+    <table class="report-wrap">
+    <thead><tr><td>
+      @include('componentes._doc-hero', [
+        'heroImage'       => $inspection->unitPhotoUrl(),
+        'heroProject'     => $brandName,
+        'heroHideCallbox' => true,
+        'heroModule'      => $heroModule,
+      ])
+    </td></tr></thead>
+    <tbody>
 
     {{-- BANDA (full-bleed): el PROVEEDOR va aquí (el proyecto está en el hero); el veredicto NO
          se repite aquí (sale grande abajo); el tipo tampoco (está en Datos). --}}
-    <div class="band">
-      <div class="lead">
-        <span class="ic">@include('componentes._icon', ['name' => 'ambulance'])</span>
-        <span class="who">
-          <span class="lbl">Verificación de recurso de emergencia</span>
-          <span class="val">{{ $inspection->provider_name ?: '—' }}</span>
-          <span class="sub">{{ $inspection->folio() }}</span>
-        </span>
+    <tr><td>
+      <div class="band">
+        <div class="lead">
+          <span class="ic">@include('componentes._icon', ['name' => 'ambulance'])</span>
+          <span class="who">
+            <span class="lbl">Verificación de recurso de emergencia</span>
+            <span class="val">{{ $inspection->provider_name ?: '—' }}</span>
+            <span class="sub">{{ $inspection->folio() }}</span>
+          </span>
+        </div>
+        <div class="stats">
+          <div class="cell"><span class="lbl">Fecha y hora</span><span class="v">{{ optional($inspection->created_at)->format('d/m/Y | H:i') ?: '—' }}</span></div>
+          <div class="cell"><span class="lbl">Locación</span><span class="v">{{ $inspection->location_label ?: '—' }}</span></div>
+        </div>
       </div>
-      <div class="stats">
-        <div class="cell"><span class="lbl">Fecha y hora</span><span class="v">{{ optional($inspection->created_at)->format('d/m/Y | H:i') ?: '—' }}</span></div>
-        <div class="cell"><span class="lbl">Locación</span><span class="v">{{ $inspection->location_label ?: '—' }}</span></div>
-      </div>
-    </div>
+    </td></tr>
 
-    {{-- CUERPO EN FLUJO DE BLOQUES (no tabla): los saltos de página caen ENTRE puntos, nunca
-         dentro (en flujo normal Chrome SÍ respeta break-inside). --}}
-    <div class="doc-body">
-
+    {{-- Encabezado a11y + mensajes de sesión + estado RETIRADO + encuadre. --}}
+    <tr><td class="acell acell-top">
       <h1 class="restricted" style="position:absolute;left:-9999px">{{ $brandName }} — Constancia de verificación de recurso de emergencia en sitio — {{ $inspection->folio() }}</h1>
 
       {{-- Mensajes de sesión (no se imprimen). --}}
@@ -218,9 +213,11 @@
       @endif
 
       {{-- Encuadre: constancia de verificación en sitio, NO inspección sanitaria. --}}
-      <p class="amb-note">Registra que el recurso de emergencia se verificó en sitio. No sustituye el dictamen de la autoridad sanitaria.</p>
+      <p class="amb-note" style="margin-bottom:0">Registra que el recurso de emergencia se verificó en sitio. No sustituye el dictamen de la autoridad sanitaria.</p>
+    </td></tr>
 
       {{-- ============ VEREDICTO (derivado del dato) ============ --}}
+      <tr><td class="acell">
       <section class="sec">
         <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => $v['icon']])<h2>Veredicto</h2><span class="line"></span></div>
         <div class="amb-verdict {{ $v['ck'] }}">
@@ -258,10 +255,12 @@
         </div>
         @endif
       </section>
+      </td></tr>
 
       {{-- ============ ACCIÓN CORRECTIVA (obligación PDCA ligada al acta) ============ --}}
       @if (! empty($actionItem))
         @php $aiClosed = $actionItem->status === \App\Models\ActionItem::STATUS_CLOSED; @endphp
+        <tr><td class="acell">
         <section class="sec">
           <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => $aiClosed ? 'clipboard-check' : 'clipboard-list'])<h2>Acción correctiva</h2><span class="line"></span></div>
           <div class="amb-ai {{ $aiClosed ? 'closed' : '' }}">
@@ -288,9 +287,11 @@
             @endif
           </div>
         </section>
+        </td></tr>
       @endif
 
       {{-- ============ DATOS CONGELADOS ============ --}}
+      <tr><td class="acell">
       <section class="sec">
         <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'file-check'])<h2>Datos de la verificación</h2><span class="line"></span></div>
         <div class="facts">
@@ -314,9 +315,11 @@
           {{-- La fecha/hora ya vive en el cintillo (arriba): no se repite aquí. --}}
         </div>
       </section>
+      </td></tr>
 
       {{-- ============ TRIPULACIÓN CONGELADA ============ --}}
       @if (count($crewSnap))
+      <tr><td class="acell">
       <section class="sec">
         <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'heart-pulse'])<h2>Tripulación</h2><span class="line"></span></div>
         <div class="chips">
@@ -341,39 +344,42 @@
         </div>
         <p class="amb-note tight">TAMP = Técnico en Atención Médica Prehospitalaria. «Cotejado» = folio CONOCER con foto del certificado y de la persona.</p>
       </section>
+      </td></tr>
       @endif
 
-      {{-- ============ CHECKLIST EJECUTADO (congelado) ============ --}}
+      {{-- ============ CHECKLIST EJECUTADO (congelado) — título + una <tr> POR PUNTO ============ --}}
       @if (count($snap))
-      <section class="sec amb-chk">
+      <tr><td class="acell">
         <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'clipboard-check'])<h2>Checklist ejecutado</h2><span class="line"></span></div>
-        <div class="amb-chk-list">
-          <div class="amb-chk-row head">
-            <div class="c1">Punto</div><div class="c2">Norma</div><div class="c3">Resultado</div>
-          </div>
-          @foreach ($snap as $s)
-            @php $isGate = ! empty($s['is_gate']); $fail = ($s['answer'] ?? '') === 'fail'; @endphp
-            <div class="amb-chk-row {{ $isGate ? 'gate' : '' }}">
-              <div class="c1">
-                {{ $s['text'] ?? '' }}
-                @if ($isGate)<span class="amb-tag gate">Compuerta</span>@endif
-                @if (! empty($s['requires_document']))<span class="amb-tag">Documento</span>@endif
-              </div>
-              <div class="c2">
-                {{ $s['code'] ?? '' }}
-                @if (! empty($s['norm']))<span class="amb-tag">{{ $s['norm'] }}</span>@endif
-              </div>
-              <div class="c3">
-                @if ($fail)<span class="amb-res bad">FALLA</span>@else<span class="amb-res ok">Cumple</span>@endif
-              </div>
-            </div>
-          @endforeach
+        <div class="amb-chk-row head">
+          <div class="c1">Punto</div><div class="c2">Norma</div><div class="c3">Resultado</div>
         </div>
-      </section>
+      </td></tr>
+      @foreach ($snap as $s)
+        @php $isGate = ! empty($s['is_gate']); $fail = ($s['answer'] ?? '') === 'fail'; @endphp
+        <tr><td class="acell chkcell {{ $isGate ? 'gate' : '' }}">
+          <div class="amb-chk-row">
+            <div class="c1">
+              {{ $s['text'] ?? '' }}
+              @if ($isGate)<span class="amb-tag gate">Compuerta</span>@endif
+              @if (! empty($s['requires_document']))<span class="amb-tag">Documento</span>@endif
+            </div>
+            <div class="c2">
+              {{ $s['code'] ?? '' }}
+              @if (! empty($s['norm']))<span class="amb-tag">{{ $s['norm'] }}</span>@endif
+            </div>
+            <div class="c3">
+              @if ($fail)<span class="amb-res bad">FALLA</span>@else<span class="amb-res ok">Cumple</span>@endif
+            </div>
+          </div>
+        </td></tr>
+      @endforeach
+      <tr><td class="acell" style="padding-top:14px"></td></tr>
       @endif
 
       {{-- ============ FOTO DE LA UNIDAD + EVIDENCIA (sellada) ============ --}}
       @if ($inspection->unitPhotoUrl() || count($evidence))
+      <tr><td class="acell">
       <section class="sec amb-photos">
         <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'camera'])<h2>Foto de la unidad y evidencia</h2><span class="line"></span></div>
         <div class="photos">
@@ -393,23 +399,30 @@
           @endforeach
         </div>
       </section>
+      </td></tr>
       @endif
 
       {{-- ============ OBSERVACIONES ============ --}}
       @if ($inspection->observations)
+      <tr><td class="acell">
       <section class="sec">
         <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'info'])<h2>Observaciones</h2><span class="line"></span></div>
         <p class="desc" style="white-space:pre-line">{{ $inspection->observations }}</p>
       </section>
+      </td></tr>
       @endif
 
       {{-- ============ SELLO SHA + QR + CADENA CFDI ============ --}}
+      <tr><td class="acell">
       <section class="sec">
         <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'shield-check'])<h2>Sello digital</h2><span class="line"></span></div>
         @include('componentes._seal-cfdi', ['doc' => $inspection, 'folio' => $inspection->folio(), 'prefix' => 'CREWCARE-AMBU'])
       </section>
+      </td></tr>
 
-    </div>{{-- .doc-body --}}
+    </tbody>
+    <tfoot><tr><td><div class="footer-spacer"></div></td></tr></tfoot>
+    </table>
 @include('componentes._report-v2-foot', [
     'footPreparedName' => ($inspection->inspector_name ?: '—'),
     'footPreparedMeta' => $footMeta,
