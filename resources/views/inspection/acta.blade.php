@@ -98,6 +98,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ $inspection->folio() }} — {{ $brandName }}</title>
 @include('componentes._report-v2-head')
+@include('componentes._report-v2-blockflow')
 <style>
     /* Contenido propio del acta (scoped .insp-*). Hereda los tokens del chrome (claro/oscuro/print). */
 
@@ -163,18 +164,17 @@
 
 <div class="stage">
   <article class="sheet">
-    <table class="report-wrap">
-    <thead><tr><td>
-      @include('componentes._doc-hero', [
-        'heroImage'    => $inspection->toolPhotoUrl(),
-        'heroProject'  => $brandName,
-        'heroLocation' => ($inspection->tool_name ?: '—'),
-        'heroDate'     => optional($inspection->created_at)->format('d M Y'),
-        'heroTime'     => optional($inspection->created_at)->format('H:i'),
-        'heroModule'   => $en ? 'CrewCare · Tool inspection' : 'CrewCare · Inspección de herramienta',
-      ])
-    </td></tr></thead>
-    <tbody><tr><td>
+    {{-- CUERPO EN FLUJO DE BLOQUES (no tabla): el hero sale en la 1ª hoja y el pie fijo se repite.
+         Antes el cuerpo vivía en UNA celda <td> y Chrome cortaba el texto en los saltos; en flujo
+         normal SÍ respeta break-inside:avoid. Ver doc-hero-band-homologation gotcha #2. --}}
+    @include('componentes._doc-hero', [
+      'heroImage'    => $inspection->toolPhotoUrl(),
+      'heroProject'  => $brandName,
+      'heroLocation' => ($inspection->tool_name ?: '—'),
+      'heroDate'     => optional($inspection->created_at)->format('d M Y'),
+      'heroTime'     => optional($inspection->created_at)->format('H:i'),
+      'heroModule'   => $en ? 'CrewCare · Tool inspection' : 'CrewCare · Inspección de herramienta',
+    ])
 
     {{-- BANDA (como el DSR): identidad del documento + un vistazo rápido. --}}
     <div class="band">
@@ -198,7 +198,7 @@
       </div>
     </div>
 
-    <div class="body">
+    <div class="doc-body">
       <h1 class="restricted" style="position:absolute;left:-9999px">{{ $brandName }} — {{ $en ? 'Tool inspection record' : 'Acta de inspección de herramienta' }} — {{ $inspection->folio() }}</h1>
 
       {{-- Flash operativo (no-print). --}}
@@ -377,10 +377,7 @@
       </div>
       @endif
 
-    </div>{{-- .body --}}
-
-    </td></tr></tbody>
-    </table>
+    </div>{{-- .doc-body --}}
 @include('componentes._report-v2-foot', [
     'footPreparedName' => ($inspection->inspector_name ?: '—'),
     'footPreparedMeta' => $footMeta,

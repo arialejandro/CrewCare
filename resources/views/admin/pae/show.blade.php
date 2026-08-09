@@ -168,6 +168,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ $brandName }} · {{ $heroModule }} · {{ $locLabel }}</title>
 @include('componentes._report-v2-head')
+@include('componentes._report-v2-blockflow')
 <style>
     /* Contenido propio del PAE (scoped .pae-*). Hereda los tokens del chrome (claro/oscuro/print). */
 
@@ -336,8 +337,7 @@
 
 <div class="stage">
   <article class="sheet">
-    <table class="report-wrap">
-    <thead><tr><td>
+    {{-- Cuerpo en FLUJO DE BLOQUES (no tabla): hero en la 1ª hoja; el pie fijo se repite. Ver _report-v2-blockflow / doc-hero-band-homologation #2. --}}
       @include('componentes._doc-hero', [
         'heroImage'    => $mainImage !== '' ? $mainImage : null,
         'heroProject'  => $project,
@@ -347,8 +347,6 @@
         'heroMeta'     => $heroMeta,
         'heroModule'   => $heroModule,
       ])
-    </td></tr></thead>
-    <tbody><tr><td>
 
     {{-- BANDA (como el DSR): identidad del documento + un vistazo rápido. --}}
     <div class="band">
@@ -366,7 +364,7 @@
       </div>
     </div>
 
-    <div class="body">
+    <div class="doc-body">
       <h1 class="restricted" style="position:absolute;left:-9999px">{{ $brandName }} — {{ $heroModule }} — {{ $locLabel }}</h1>
 
       @if(! $p->is_active)
@@ -652,10 +650,7 @@
         @if($identicon)<div class="idc">{!! $identicon !!}</div>@endif
       </div>
 
-    </div>{{-- .body --}}
-
-    </td></tr></tbody>
-    </table>
+    </div>{{-- .doc-body --}}
 @include('componentes._report-v2-foot', [
     'footPreparedName' => $preparedName,
     'footPreparedMeta' => $footMeta,

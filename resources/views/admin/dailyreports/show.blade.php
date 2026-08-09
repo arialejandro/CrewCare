@@ -167,6 +167,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ $brandName }} · {{ __('reports.dsr_module') }} · {{ $titleLoc }}</title>
 @include('componentes._report-v2-head')
+@include('componentes._report-v2-blockflow')
 <style>
   /* Rejilla de logs del día (bitácora): 2 col en pantalla/papel, 1 col en móvil. Cada tarjeta
      evita partirse entre hojas. NO re-glasea impresión (los tonos de papel salen de _report-v2-head). */
@@ -283,12 +284,12 @@
 <style>
   @media print{
     /* La bitácora es alta y variable → debe FLUIR entre hojas para llenar la hoja 1, no saltar entera. */
-    .body .sec:has(.dsr-log-grid){break-inside:auto;page-break-inside:auto}
+    .doc-body .sec:has(.dsr-log-grid){break-inside:auto;page-break-inside:auto}
     .dsr-log-grid{break-inside:auto;page-break-inside:auto}
     /* Pero cada tarjeta de log se mantiene ÍNTEGRA (no se parte a la mitad entre hojas). */
     .dsr-log-card{break-inside:avoid;page-break-inside:avoid}
     /* El encabezado de la bitácora no queda huérfano al pie de la hoja. */
-    .body .sec:has(.dsr-log-grid) .sec-h{break-after:avoid;page-break-after:avoid}
+    .doc-body .sec:has(.dsr-log-grid) .sec-h{break-after:avoid;page-break-after:avoid}
   }
 </style>
 </head>
@@ -300,8 +301,7 @@
 
 <div class="stage">
   <article class="sheet">
-    <table class="report-wrap">
-    <thead><tr><td>
+    {{-- Cuerpo en FLUJO DE BLOQUES (no tabla): hero en la 1ª hoja; el pie fijo se repite. Ver _report-v2-blockflow / doc-hero-band-homologation #2. --}}
       @include('componentes._doc-hero', [
         'heroImage'    => $r->hero_image_path,
         'heroProject'  => $brandName,
@@ -310,8 +310,6 @@
         'heroTime'     => $callTime,
         'heroModule'   => __('reports.dsr_module'),
       ])
-    </td></tr></thead>
-    <tbody><tr><td>
 
     {{-- TIRA DE METADATOS · fila 1 (banda oscura): SHOOT DAY · CREW · LOGS · MIN|MAX.
          El nombre del proyecto NO se repite aquí (vive en el hero); las 4 celdas ocupan todo el ancho. --}}
@@ -370,7 +368,7 @@
       </div>
     </div>
 
-    <div class="body">
+    <div class="doc-body">
       <h1 class="restricted" style="position:absolute;left:-9999px">{{ $brandName }} — {{ __('reports.dsr_module') }} — {{ $titleLoc }}</h1>
 
       {{-- CONTROLES OPERATIVOS (no-print): flash + candado + captura de hallazgo / cierre de día.
@@ -662,10 +660,7 @@
             'prefix' => 'CREWCARE-DSR',
         ])
       </section>
-    </div>
-    </td></tr></tbody>
-    <tfoot><tr><td><div class="footer-spacer"></div></td></tr></tfoot>
-    </table>
+    </div>{{-- .doc-body --}}
     @include('componentes._report-v2-foot', [
       'footPreparedName' => $r->author_name ?: '—',
       'footPreparedMeta' => __('reports.label_risk_assessment') . ($heroDate ? ' · ' . $heroDate : ''),
