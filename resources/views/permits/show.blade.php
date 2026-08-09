@@ -127,6 +127,28 @@
             @endforeach
         </div>
 
+        {{-- FOTOGRAFÍAS congeladas (parte del documento sellado; rutas raíz-relativas /storage/…). --}}
+        @php $photos = is_array($issued->photos) ? array_filter($issued->photos) : []; @endphp
+        @if (! empty($photos))
+            <div class="card border-0 shadow-sm rounded-3 p-3 p-md-4 mb-3">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    @include('componentes._icon', ['name' => 'camera', 'label' => null])
+                    <strong>{{ __('Fotografías') }}</strong>
+                    <span class="insp-tag">{{ count($photos) }}</span>
+                </div>
+                <div class="row g-2">
+                    @foreach ($photos as $src)
+                        <div class="col-6 col-md-4">
+                            <a href="{{ $src }}" target="_blank" rel="noopener">
+                                <img src="{{ $src }}" alt="{{ __('Fotografía del permiso') }}"
+                                     class="img-fluid rounded-3" style="width:100%;aspect-ratio:4/3;object-fit:cover;border:1px solid rgba(0,0,0,.12);">
+                            </a>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
         {{-- Sello + QR + cadena CFDI (verificable públicamente) --}}
         @include('componentes._seal-cfdi', ['doc' => $issued, 'folio' => $issued->folio(), 'prefix' => 'CREWCARE-PERM'])
 

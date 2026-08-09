@@ -33,7 +33,12 @@ use App\Traits\TracksCorrectiveActions;
  */
 class IssuedPermit extends Model
 {
-    use HasDigitalSignatures, GeneratesUuidKey, TracksCorrectiveActions;
+    use GeneratesUuidKey, TracksCorrectiveActions;
+    // Se ALIAS el payload canónico del trait para poder envolverlo (override null-only de `photos`,
+    // ver canonicalSignaturePayload() abajo) sin re-implementar la lógica de firma.
+    use HasDigitalSignatures {
+        canonicalSignaturePayload as baseCanonicalSignaturePayload;
+    }
 
     protected $table = 'issued_permits';
 
@@ -45,7 +50,7 @@ class IssuedPermit extends Model
     protected $fillable = [
         'uuid', 'production_id', 'shoot_day',
         'permit_id', 'permit_code', 'permit_key', 'permit_family', 'permit_name', 'permit_definition',
-        'permit_site_scope', 'points_snapshot', 'standards_snapshot',
+        'permit_site_scope', 'points_snapshot', 'standards_snapshot', 'photos',
         'activity_description', 'site_label', 'tool_id', 'tool_code', 'tool_name',
         'ext_auth_mandatory', 'ext_auth_authority', 'ext_auth_folio', 'ext_auth_valid_until',
         'ext_auth_declared_by', 'ext_auth_note',
@@ -61,6 +66,7 @@ class IssuedPermit extends Model
         'shoot_day'            => 'integer',
         'points_snapshot'      => 'array',
         'standards_snapshot'   => 'array',
+        'photos'               => 'array',
         'reverifications'      => 'array',
         'ext_auth_mandatory'   => 'boolean',
         'ext_auth_valid_until' => 'date',
@@ -84,6 +90,29 @@ class IssuedPermit extends Model
         'closed_at', 'closed_by_id', 'closed_by_name', 'close_notes',
         'suspended_at', 'suspended_by_id', 'suspended_reason', 'superseded_by_id',
     ];
+
+    /**
+     * SELLO — override NULL-ONLY de `photos`.
+     *
+     * Las fotografías adjuntas son CONTENIDO del permiso (adjuntar a un permiso ya sellado una
+     * prueba distinta = ALTERADO), así que cuando existen, sus RUTAS entran al hash (misma
+     * doctrina que las fotos del DSR / evidence_photos del acta de ambulancia: se sella el path,
+     * no los bytes). Por eso `photos` NO va en $signatureExcludes.
+     *
+     * PERO la columna `photos` se agregó DESPUÉS de que ya había permisos SELLADOS. Si un
+     * `photos = null` entrara al payload canónico, el JSON de esos permisos viejos cambiaría
+     * (aparecería "photos":null) y su sello se leería como ALTERADO sin que nadie los tocara.
+     * Solución: cuando está vacío se RETIRA del payload → los permisos sellados antes de esta
+     * columna conservan EXACTAMENTE su hash, y las emisiones nuevas CON fotos SÍ quedan selladas.
+     */
+    public function canonicalSignaturePayload(): array
+    {
+        $payload = $this->baseCanonicalSignaturePayload();
+        if (empty($payload['photos'])) {
+            unset($payload['photos']);
+        }
+        return $payload;
+    }
 
     // ---- Relaciones (vivas, para lectura; el permiso ya congeló lo que importa) ----
     public function permit(): BelongsTo

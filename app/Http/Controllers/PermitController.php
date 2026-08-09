@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\IssuedPermit;
 use App\Models\Permit;
 use App\Support\CurrentProduction;
+use App\Support\ImageCompressor;
 use App\Support\ProductionCalendar;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * EMISIÓN DE PERMISOS DE TRABAJO (ciclo completo, delta #44): emitir → verificar en
@@ -130,6 +132,10 @@ class PermitController extends Controller
             'ext_auth_note'        => 'nullable|string|max:2000',
             // Cuando esta emisión SUSTITUYE a otra (cambio de sitio / re-montaje): el uuid del viejo.
             'supersedes'           => 'nullable|string|exists:issued_permits,uuid',
+            // Fotografías adjuntas (opcional): prueba del sitio/montaje al emitir. HEIC via heic_ok
+            // (iPhone en set); mismo criterio que el resto del app. Tope ~6 fotos, ~8 MB c/u.
+            'permit_photos'        => 'nullable|array|max:6',
+            'permit_photos.*'      => 'nullable|mimes:jpeg,png,jpg,webp,heic,heif|heic_ok|max:8192',
         ];
         $data = $request->validate($rules);
 
@@ -194,6 +200,20 @@ class PermitController extends Controller
         $cred = ($author && \App\Models\MedicCredential::supportsCredentials()) ? $author->medicCredential : null;
         $standards = $permit->standards->pluck('regulation_code')->filter()->values()->all();
 
+        // FOTOGRAFÍAS ANTES DE SELLAR (sus RUTAS entran al hash — congeladas con el documento).
+        // Compresión GD + disco 'public' vía ImageCompressor (misma convención que DSR/ambulancia);
+        // se guarda la ruta RAÍZ-RELATIVA (/storage/…) con Storage::url() para renderizar sin asset().
+        $photoPaths = [];
+        foreach ((array) $request->file('permit_photos', []) as $file) {
+            if (! $file) {
+                continue;
+            }
+            $stored = ImageCompressor::store($file, 'permit_photos'); // ruta relativa dentro del disco 'public'
+            if ($stored) {
+                $photoPaths[] = Storage::url($stored);                // → /storage/permit_photos/xxx.jpg
+            }
+        }
+
         $payload = [
             'production_id'        => CurrentProduction::id(),
             'shoot_day'            => $this->currentShootDay(),
@@ -206,6 +226,7 @@ class PermitController extends Controller
             'permit_site_scope'    => $permit->site_scope,
             'points_snapshot'      => $snapshot,
             'standards_snapshot'   => $standards,
+            'photos'               => $photoPaths ?: null,
             'activity_description' => trim($data['activity_description']),
             'site_label'           => trim($data['site_label']),
             'tool_id'              => $data['tool_id'] ?? null,
