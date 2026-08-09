@@ -235,7 +235,13 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
-### 2026-08-09 — ⛔→✅ REVERSIÓN del block-flow al motor de tabla (feedback duro del owner)
+### 2026-08-09 — ✅✅ RAÍZ REAL: los docs son OFICIO; Carta era lo que rompía (commit `a80a61c2`)
+- El owner mandó el DSR **bueno (Pino)** y el **roto (Salón Fiesta)**. Rasterizados con **PyMuPDF (`fitz`)** para VERLOS de verdad (ya no suponer): Pino = **4 hojas, bitácora en 2 columnas, compacto** (MediaBox 613×964 = **Oficio**); Salón = **10 hojas, una tarjeta por hoja, casi vacías** (612×792 = **Carta**).
+- **Causa raíz definitiva:** los reportes se DISEÑARON para Oficio (340mm). El commit `fed2d2ed` (Carta) cambió SÓLO el `@page` y eso, en la hoja 61mm más corta, hace que la rejilla + `break-inside:avoid` tiren una tarjeta por hoja. La teoría previa ("declarar Oficio pero imprimir Carta corta") era **falsa**.
+- **Fix:** `@page{size:216mm 340mm;margin:0}` de vuelta en `_report-v2-head` (todos heredan). **Verificado renderizando + VIENDO:** DSR 4 hojas (=Pino), Scouting 3 (tabla completa), Wrap con encabezado/pie/KPIs correctos. Tooling de verificación en scratchpad: `fitz-render.py`, `render-report.php`, `cdp-pdf.mjs`, `extract-pdf-images.mjs`. Ver [[doc-hero-band-homologation]] gotcha #3 (definitivo).
+- **Estado:** DSR/Scouting/Wrap/ambulancia/etc. de vuelta al estado BUENO (Oficio + motor de tabla). Para migrar a Carta en el futuro hay que RE-DISEÑAR el layout por doc (no sólo el @page) o export server-side — NO tocar el @page suelto otra vez.
+
+### 2026-08-09 — ⛔→(parcial) REVERSIÓN del block-flow al motor de tabla (feedback duro del owner)
 - **El owner rechazó el block-flow** ("ese roll up sólo causó más problemas que soluciones… destruir ese roll up"): en el PDF real del DSR el hero/cintillo ya no se repetía por hoja, salían bandas en blanco, el **pie desaparecía en cada hoja** (mi `bottom:-16mm` de `f7e09475` caía en el área no imprimible) y el cintillo salía desfasado con "borde raro a la izquierda". Pidió **full page como antes**.
 - **Solución real = volver al MOTOR DE TABLA** (`report-wrap`: `<thead>`=hero y `<tfoot>` se REPITEN por hoja y reservan espacio, `@page{margin:0}` full-bleed, sin bandas). Ejecutado:
   - **7 docs del rollout** (`88a6667f`) revertidos con `git checkout 88a6667f^ -- …` (no habían cambiado después → sin pérdidas): DSR, Scouting, Injury completa, Acto/Cond. insegura, PAE, acta de inspección. Se **borró** `componentes/_report-v2-blockflow.blade.php`. Commit **`3b9e8d70`**.
