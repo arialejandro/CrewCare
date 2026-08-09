@@ -235,6 +235,14 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-09 — 🖨️ Papel CARTA + fix de emisión de permisos (feedback owner)
+- **Estado:** Hecho. Commits `fed2d2ed` (Carta) + `f00c6c57` (permisos). SIN SQL/modelo.
+- **Archivos:** `componentes/_report-v2-blockflow`, `componentes/_report-v2-head`, `ambulance/acta`, `admin/wrap/show` (papel) · `componentes/_inspection-styles` (permisos).
+- **Qué / Por qué:**
+  1. **OFICIO → CARTA (Letter).** El owner reportó márgenes feos y cortes. **Causa raíz probable del corte:** el `@page` declaraba Oficio (340mm de alto) pero el papel real del navegador es Carta (279mm) → el navegador calculaba los saltos para una hoja MÁS ALTA y el contenido se cortaba al caer en papel más corto. `size:letter` en todos los @page (parcial blockflow + chrome + ambulancia/wrap inline); márgenes 12mm/15mm (bloque) y 0 (chrome tabla). **El owner debe re-confirmar los PDF** (esto debería resolver Scouting/Wrap/Cond.-insegura que "cortaban").
+  2. **Permisos: "no podía seleccionar nada".** El radio está oculto (`opacity:0`) y el feedback sale de `.insp-answer input:checked + .btn-ans`, pero ese selector sólo cubría `value="ok"/"fail"` (tool inspection); el form de permisos usa `cumple/no_cumple` → clic seleccionaba pero sin cambio visual → parecía inerte. Fix: variantes `cumple/no_cumple` en `_inspection-styles`.
+- **Riesgo/Notas:** SIN SQL. PENDIENTES del mismo feedback (features/discusión, ver reporte al owner): accidente de prueba con imágenes, **permisos con FOTOS** (hoy no hay campo → feature nueva), **vista de impresión del historial médico** (no existe), y **Wrap totalmente editable** (editar el contenido generado + imágenes principal/adicionales — replantea el panel omit/nota; requiere decisión de alcance).
+
 ### 2026-08-08 — 🖨️ Rollout: flujo de bloques a los 7 documentos largos restantes (commit `88a6667f`)
 - **Estado:** Hecho (verificado: `view:cache` compila todo; los 7 renderizan por su CONTROLADOR REAL con datos reales → `.doc-body`, sin motor, parcial aplicado, cierre limpio). SIN SQL, SIN cambio de modelo/controlador (sólo vista).
 - **Archivos:** `resources/views/componentes/_report-v2-blockflow.blade.php` (nuevo, estilos centralizados), + los 7 docs: `inspection/acta`, `admin/pae/show`, `admin/dailyreports/show`, `admin/injuryreport`, `admin/scoutings/show`, `admin/hazard`, `admin/unsafecond`.
