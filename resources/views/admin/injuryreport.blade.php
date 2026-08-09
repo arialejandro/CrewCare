@@ -96,7 +96,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ $brandName }} · {{ __('reports.injury_module') }} · {{ $injuryReport->name }}</title>
 @include('componentes._report-v2-head')
-@include('componentes._report-v2-blockflow')
 </head>
 <body>
 
@@ -121,7 +120,9 @@
 
 <div class="stage">
   <article class="sheet">
-    {{-- Cuerpo en FLUJO DE BLOQUES (no tabla): hero en la 1ª hoja; el pie fijo se repite. Ver _report-v2-blockflow / doc-hero-band-homologation #2. --}}
+    {{-- Motor de paginación: <thead> (HERO DE MARCA _doc-hero) + <tfoot> (espaciador) se REPITEN por hoja impresa. --}}
+    <table class="report-wrap">
+    <thead><tr><td>
       @include('componentes._doc-hero', [
         'heroImage'    => $injuryReport->main_image_path,
         'heroProject'  => $brandName,
@@ -130,6 +131,8 @@
         'heroTime'     => $heroTime,
         'heroModule'   => __('reports.injury_module'),
       ])
+    </td></tr></thead>
+    <tbody><tr><td>
 
     {{-- QUICK-READ BAND --}}
     @php
@@ -156,7 +159,7 @@
       </div>
     </div>
 
-    <div class="doc-body">
+    <div class="body">
       <h1 class="restricted" style="position:absolute;left:-9999px">{{ $brandName }} — {{ __('reports.injury_module') }} — {{ $injuryReport->name }}</h1>
 
       {{-- DATOS DEL INCIDENTE --}}
@@ -466,7 +469,10 @@
              Compartido con la salida lite para que la firma se vea igual en ambas. --}}
         @include('componentes._seal-cfdi', ['injuryReport' => $injuryReport])
       </section>
-    </div>{{-- .doc-body --}}
+    </div>
+    </td></tr></tbody>
+    <tfoot><tr><td><div class="footer-spacer"></div></td></tr></tfoot>
+    </table>
 
     @include('componentes._report-v2-foot', [
       'footPreparedName' => $injuryReport->make_by ?: '—',

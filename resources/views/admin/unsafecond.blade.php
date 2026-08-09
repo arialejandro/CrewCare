@@ -58,7 +58,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ $brandName }} · {{ __('reports.unsafe_module') }} · {{ $leadValue }}</title>
 @include('componentes._report-v2-head')
-@include('componentes._report-v2-blockflow')
 </head>
 <body>
 
@@ -68,7 +67,8 @@
 
 <div class="stage">
   <article class="sheet">
-    {{-- Cuerpo en FLUJO DE BLOQUES (no tabla): hero en la 1ª hoja; el pie fijo se repite. Ver _report-v2-blockflow / doc-hero-band-homologation #2. --}}
+    <table class="report-wrap">
+    <thead><tr><td>
       @include('componentes._doc-hero', [
         'heroImage'    => $uc->main_image_path,
         'heroProject'  => $brandName,
@@ -77,6 +77,8 @@
         'heroTime'     => $heroTime,
         'heroModule'   => __('reports.unsafe_module'),
       ])
+    </td></tr></thead>
+    <tbody><tr><td>
 
     {{-- QUICK-READ BAND --}}
     <div class="band">
@@ -95,7 +97,7 @@
       </div>
     </div>
 
-    <div class="doc-body">
+    <div class="body">
       <h1 class="restricted" style="position:absolute;left:-9999px">{{ $brandName }} — {{ __('reports.unsafe_module') }} — {{ $leadValue }}</h1>
 
       {{-- CONTROLES OPERATIVOS (no-print): flash + actualización de estatus PDCA (managers) --}}
@@ -296,7 +298,10 @@
         </div>
         @include('componentes._seal-cfdi', ['doc' => $uc, 'folio' => $folio, 'prefix' => 'CREWCARE-UNS'])
       </section>
-    </div>{{-- .doc-body --}}
+    </div>
+    </td></tr></tbody>
+    <tfoot><tr><td><div class="footer-spacer"></div></td></tr></tfoot>
+    </table>
     @include('componentes._report-v2-foot', [
       'footPreparedName' => $uc->make_by ?: '—',
       {{-- (2026-07-23) Antes reusaba label_risk_assessment ("Risk Assessment" — inglés dentro del

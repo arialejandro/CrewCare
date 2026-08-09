@@ -152,7 +152,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ $brandName }} · {{ __('reports.scouting_title') }} · {{ $report->location_name }}</title>
 @include('componentes._report-v2-head')
-@include('componentes._report-v2-blockflow')
 <style>
   /* Estilos propios del Scouting (scopeados). El motor de impresión ya vive en _report-v2-head;
      aquí solo chips de clasificación de riesgo, banner SB-132 y estados de viabilidad. Print-safe:
@@ -219,7 +218,7 @@
     .stage{padding:116px 12px 48px}
 
     /* Cuerpo con menos padding: más ancho útil para tablas y fichas. */
-    .doc-body{padding:18px 14px 4px}
+    .body{padding:18px 14px 4px}
 
     /* Hero: el logo y el nombre/locación dejan de montarse uno sobre otro y el
        texto de la locación puede envolver en vez de recortarse. */
@@ -261,7 +260,9 @@
 
 <div class="stage">
   <article class="sheet">
-    {{-- Cuerpo en FLUJO DE BLOQUES (no tabla): hero en la 1ª hoja; el pie fijo se repite. Ver _report-v2-blockflow / doc-hero-band-homologation #2. --}}
+    {{-- Motor de paginación: <thead> (HERO DE MARCA _doc-hero) + <tfoot> (espaciador) se REPITEN por hoja impresa. --}}
+    <table class="report-wrap">
+    <thead><tr><td>
       @include('componentes._doc-hero', [
         'heroImage'    => $report->main_image_path,
         'heroProject'  => $heroProject,
@@ -274,6 +275,8 @@
       @if($report->status !== 'final')
       <div class="draft-flag">@include('componentes._icon', ['name' => 'alert-triangle']) {{ __('reports.draft_watermark') }} <span class="n">{{ __('reports.draft_note') }}</span></div>
       @endif
+    </td></tr></thead>
+    <tbody><tr><td>
 
     {{-- QUICK-READ BAND --}}
     <div class="band">
@@ -292,7 +295,7 @@
       </div>
     </div>
 
-    <div class="doc-body">
+    <div class="body">
       <h1 class="restricted" style="position:absolute;left:-9999px">{{ $brandName }} — {{ __('reports.scouting_title') }} — {{ $report->location_name }}</h1>
 
       {{-- CONTROLES OPERATIVOS (no-print): flash + formato Amazon MGM + editar --}}
@@ -709,7 +712,10 @@
           <div class="seal none">@include('componentes._icon', ['name' => 'info'])<div><span class="h">{{ __('reports.seal_not_sealed') }}</span></div></div>
         @endif
       </section>
-    </div>{{-- .doc-body --}}
+    </div>
+    </td></tr></tbody>
+    <tfoot><tr><td><div class="footer-spacer"></div></td></tr></tfoot>
+    </table>
 
     @include('componentes._report-v2-foot', [
       'footPreparedName' => $report->make_by ?: '—',

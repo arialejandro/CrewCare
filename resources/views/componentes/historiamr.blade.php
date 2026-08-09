@@ -93,25 +93,43 @@
     @media (max-width:720px){ .cfdi{flex-direction:column} .cfdi-mark{width:74px;height:74px} .cfdi-mark--qr{width:106px;height:106px} .cfdi-verify{width:auto} }
 
     /* ===== Impresión (window.print sobre esta misma vista) =====
-       La app YA oculta header, sidebar y paleta de comandos en papel (.no-print, en
-       public/css/form-register.css). Antes esta vista usaba `body *{visibility:hidden}`
-       + `#hm-report{position:absolute}`: el absoluto SACA el reporte del flujo y Chrome
-       lo RECORTA a la 1ª hoja → los expedientes largos perdían páginas. Ahora el reporte
-       se queda EN FLUJO, a todo el ancho de la hoja, y pagina en varias páginas. */
+       Se conserva el formato de PANTALLA del expediente (mismas tarjetas), sólo destilado
+       para papel. Antes esta vista usaba `body *{visibility:hidden}` + `#hm-report{position:
+       absolute}`: el absoluto SACA el reporte del flujo y Chrome lo RECORTA a la 1ª hoja →
+       los expedientes largos perdían páginas. Ahora queda EN FLUJO, a todo el ancho, y pagina. */
     @media print {
         @page { size: letter; margin: 14mm 12mm; }
-        .cc-amb { display: none !important; }                 /* luz ambiental (no lleva .no-print) */
-        .hm-no-print { display: none !important; }
-        /* Neutraliza el encuadre col-md-10 (sidebar) para que el reporte ocupe toda la hoja. */
+
+        /* (1) TINTA DE PAPEL — la app puede estar en modo OSCURO (tokens claros); al imprimir eso
+           salía "gris claro sobre blanco". Se fuerzan los tokens a oscuro-sobre-blanco (mismos
+           valores que los reportes v2). `!important` en la custom property gana sobre el
+           `:root[data-theme="dark"]` del tema sin importar la especificidad. */
+        :root {
+            --text: #14181f !important; --text-muted: #4a5261 !important; --faint: #6b7382 !important;
+            --surface-2: #f4f6f8 !important; --panel: #fbfcfd !important;
+            --stroke: #d7dbe2 !important; --stroke-2: #b9c0cc !important; --border: #d7dbe2 !important;
+            --glass: #fff !important; --shadow: none !important;
+            --ok: #15803d !important; --warn: #b45309 !important; --danger: #b91c1c !important;
+        }
+        body { background: #fff !important; color: #14181f !important; }
+
+        /* (2) FUERA todo el chrome de la app (por si el .no-print global no bastara) + afordances
+           interactivas que en papel se ven como "fragmentos de interfaz". */
+        .cc-appbar, .cc-sb, .cc-cmdk, .cc-amb, #ccCmdk, header, nav,
+        .hm-no-print, .cc-collapse-caret { display: none !important; }
+        .cc-collapse-head { cursor: default !important; background: transparent !important; }
+        .cc-collapse-head:hover { background: transparent !important; }
+
+        /* (3) El reporte a todo el ancho de la hoja (neutraliza el encuadre col-md-10). */
         .container-fluid, .container-fluid > .row, main.cc-main, #app {
             width: 100% !important; max-width: none !important; flex: 0 0 100% !important;
             margin: 0 !important; padding: 0 !important; background: #fff !important;
             min-height: 0 !important;   /* main.cc-main trae min-height:100vh → hoja alta vacía en papel */
         }
         #hm-report { max-width: none !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
-        /* Tarjetas: sin sombra; PUEDEN partirse entre hojas (una tarjeta más alta que una
-           hoja —consultas, sellos— no debe recortarse). Lo ATÓMICO de adentro sí se protege. */
-        .cc-form-card { box-shadow: none !important; break-inside: auto; }
+
+        /* (4) Tarjetas planas; pueden partirse entre hojas (consultas/sellos), lo ATÓMICO no. */
+        .cc-form-card { box-shadow: none !important; border-color: var(--stroke) !important; break-inside: auto; }
         #hm-report .collapse { display: block !important; height: auto !important; } /* abre todo en papel */
         .table-responsive { overflow: visible !important; }
         .hm-med-table { min-width: 0 !important; }             /* la tabla no fuerza 640px en papel */
