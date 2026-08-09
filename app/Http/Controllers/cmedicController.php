@@ -537,6 +537,52 @@ class cmedicController extends Controller
     }
 
     /**
+     * (2026-08-09) VISTA DE IMPRESIÓN del expediente clínico — salida en PDF "como los demás
+     * documentos" (chrome v2: hero + banda + .sec + sello CFDI, papel CARTA, botón Exportar PDF).
+     *
+     * El formato en pantalla (historialWR → componentes.historiamr) YA está bien; lo que faltaba
+     * era una salida imprimible funcional (la de pantalla depende de un truco de `visibility`
+     * dentro de layouts.app). Ésta es la MISMA lectura read-only: mismos datos, misma fuente única
+     * (expedienteVigente), MISMO candado por departamento (canManageCrewMember) y MISMO gate de
+     * ruta (medical.view). Sólo cambia la piel — un documento standalone imprimible. No edita ni
+     * expone nada que historialWR() no muestre ya; el expediente sigue siendo inmutable y sellado.
+     */
+    public function historialImprimir($id)
+    {
+        // MISMO candado que historialWR: super-admin/medic/coordinator/line-producer pasan; el HOD
+        // queda acotado a SU área. Ocultar un enlace no es una guarda.
+        $target = User::findOrFail($id);
+        abort_unless(auth()->user()->canManageCrewMember($target), 403);
+
+        // Fuente ÚNICA (la misma de historialWR y create): expediente vigente con anexos aplicados.
+        list($datos, $usuario, $intakeState, $expedienteModelo) = $this->expedienteVigente($id);
+
+        // Coherencia con historialWR: sin expediente se arma un $datos MÍNIMO desde `users`
+        // (identidad y contacto, nada clínico); las secciones clínicas iteran $usuario (vacío) y
+        // simplemente no se pintan. $target ya garantizó (findOrFail) que la persona existe.
+        if (! $datos) {
+            $datos = DB::table('users')->where('id', $id)
+                ->first(['id', 'name', 'lname', 'lname2', 'phone', 'email', 'imgperfil']);
+        }
+
+        // Mismas consultas visibles (aislamiento por médico vía visibleTo) y mismo mapa de autores.
+        $consultas = cmedic::visibleTo(auth()->user())
+            ->where('id_user', $id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $medicos = $this->authorMap($consultas);
+
+        $anexosExpediente = ($expedienteModelo && \App\Models\HealthRecordAddendum::supported())
+            ? $expedienteModelo->anexos : collect();
+
+        return view('componentes.historiamr-print', compact(
+            'usuario', 'target', 'datos', 'consultas', 'medicos', 'intakeState',
+            'expedienteModelo', 'anexosExpediente'
+        ));
+    }
+
+    /**
      * (2026-07-25) HISTORIAL COMPLETO del paciente SIN CUENTA (lite). No existía: sólo había el
      * cintillo al atender. UN SOLO CAMINO con el crew — misma query (cmedic::historyForPatient), mismo
      * documento por consulta, mismo GATE doctor-only. Une la persona y sus duplicados fundidos

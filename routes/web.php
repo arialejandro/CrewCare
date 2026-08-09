@@ -199,6 +199,10 @@ Route::middleware(['auth','permission:medical.view'])->group(function () {
     // flag binario admin=1; ahora el permiso medical.view. Los enlaces en vistas no-médicas se
     // envuelven en @can('medical.view') para no mostrar un link que daría 403.
     Route::get('/historialWR/{id}/',[App\Http\Controllers\cmedicController::class,'historialWR'])->name('historialwr');
+    // (2026-08-09) VISTA DE IMPRESIÓN del expediente (PDF como los demás documentos: chrome v2 con
+    // hero + banda + sello, papel CARTA). MISMO gate de ruta (medical.view) y MISMO candado por
+    // departamento (canManageCrewMember, en el controlador) que /historialWR — es la misma lectura.
+    Route::get('/historialWR/{id}/imprimir',[App\Http\Controllers\cmedicController::class,'historialImprimir'])->whereNumber('id')->name('historialwr.imprimir');
     // (2026-07-25) DOCUMENTO SELLADO de UNA consulta (crew o lite) + PDF (window.print). El gate de
     // ruta es medical.view; el candado DOCTOR-ONLY (isClinician, igual que la consulta) lo pone el
     // controlador — un HOD/producción con medical.view NO abre expedientes clínicos individuales.

@@ -120,10 +120,13 @@
                 <div class="cc-muted small">{{ __('Expediente clínico — uso interno') }}</div>
             </div>
         </div>
-        <button type="button" class="cc-btn-ghost hm-no-print" onclick="window.print()" aria-label="{{ __('Imprimir historial médico') }}">
+        {{-- Salida imprimible funcional: la vista de IMPRESIÓN standalone (chrome v2, papel CARTA,
+             botón Exportar PDF), como los demás documentos. Reemplaza el window.print() sobre esta
+             pantalla (dependía de un truco de `visibility` dentro de layouts.app). --}}
+        <a href="{{ route('historialwr.imprimir', $target->id) }}" class="cc-btn-ghost hm-no-print" aria-label="{{ __('Imprimir historial médico') }}">
             @include('componentes._icon', ['name' => 'printer', 'class' => 'cc-ico-16', 'label' => null])
             <span>{{ __('Imprimir') }}</span>
-        </button>
+        </a>
     </div>
 
 {{-- (2026-07-24 · PASO 3/3, item 1) La persona puede tener consultas SIN haber llenado el
