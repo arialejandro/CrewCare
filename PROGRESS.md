@@ -235,6 +235,12 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-08 — 🖨️ Rollout: flujo de bloques a los 7 documentos largos restantes (commit `88a6667f`)
+- **Estado:** Hecho (verificado: `view:cache` compila todo; los 7 renderizan por su CONTROLADOR REAL con datos reales → `.doc-body`, sin motor, parcial aplicado, cierre limpio). SIN SQL, SIN cambio de modelo/controlador (sólo vista).
+- **Archivos:** `resources/views/componentes/_report-v2-blockflow.blade.php` (nuevo, estilos centralizados), + los 7 docs: `inspection/acta`, `admin/pae/show`, `admin/dailyreports/show`, `admin/injuryreport`, `admin/scoutings/show`, `admin/hazard`, `admin/unsafecond`.
+- **Qué / Por qué:** el owner pidió "rollout completo". Se replica el patrón confirmado del acta de ambulancia: el cuerpo sale de la celda `<td>` del `report-wrap` (Chrome ignora `break-inside` dentro de una celda que pagina) a `<div class="doc-body">` en flujo de bloques (donde SÍ lo respeta). Estilos (@page oficio 13mm/16mm, padding, `.doc-body .sec{break-inside:auto}`) centralizados en el parcial `_report-v2-blockflow`, incluido en el `<head>` de cada doc convertido. **Costo:** el hero sale sólo en la 1ª hoja; el pie fijo se repite (folio/UUID). **Arrastre corregido:** DSR y Scouting tenían reglas propias `.body{...}` (padding del scouting, break del log-grid del DSR) → renombradas a `.doc-body` para no perderlas.
+- **Riesgo/Notas:** SIN SQL/modelo/sello (el sello firma el DATO, no el render → intacto). NO convertidos a propósito: injury-lite y riskmaps (1 hoja), Amazon-MGM, show-legacy (ghost) — conservan `report-wrap` + `@page{margin:0}`. **El owner debe confirmar el PDF** de los largos (DSR/PAE/Injury/Scouting/inspección). Ambulancia y Wrap ya estaban en flujo de bloques. Ver [[doc-hero-band-homologation]] (sección ROLLOUT).
+
 ### 2026-08-08 — 📊 Wrap: membrete vivo + borrador usable (ver+omitir+notas) + flujo de bloques + móvil
 - **Estado:** Hecho (verificado por harness: render borrador+sellado TODO OK, `editorChoices()` correcto, sello del wrap con elecciones VÁLIDO, WRAP-0002 intacto). SIN SQL. 2 commits (`b0855bf4`, `74c8e8af`).
 - **Archivos:** `resources/views/admin/wrap/show.blade.php`, `resources/views/admin/wrap/_editor-note.blade.php` (nuevo), `app/Http/Controllers/WrapReportController.php`.
