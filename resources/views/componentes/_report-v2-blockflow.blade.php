@@ -17,10 +17,19 @@
 <style>
   .doc-body{padding:var(--pad)}
   @media print{
-    /* CARTA (Letter). Respiro arriba (12mm) y sitio para el pie fijo abajo (15mm). Gana sobre el
-       @page{margin:0} del chrome por orden de fuente (este parcial va después de _report-v2-head). */
-    @page{size:letter;margin:12mm 0 15mm 0}
-    .doc-body{padding:6mm 12mm 0}
+    /* CARTA (Letter). Gana sobre el @page{margin:0} del chrome por orden de fuente (este parcial
+       va después de _report-v2-head).
+       ⚠ EL PIE ES position:fixed y un @page margin-bottom NO le reserva espacio de flujo: el pie de
+       ~15mm se pintaba ENCIMA de las últimas filas de CADA hoja y las ocultaba/cortaba (verificado
+       con PDF real: apagando el pie, el contenido oculto reaparece). Fix verificado: margen inferior
+       18mm y BAJAR el pie a la zona de margen (bottom:-16mm) → el pie queda DEBAJO de la caja de
+       contenido, no lo tapa, y sólo deja ~2mm de blanco real bajo él. Arriba 8mm (seguro para
+       impresora). Antes: margin 12/15mm + padding 6mm → banda superior grande y corte inferior. */
+    @page{size:letter;margin:8mm 0 18mm 0}
+    .doc-body{padding:4mm 12mm 0}
+    /* !important porque en window.print() real el JS pone data-view="print" y _report-v2-head trae
+       `:root[data-view="print"] .print-foot{bottom:0}` (más específico) que si no, gana. */
+    .print-foot{bottom:-16mm!important}
     /* Las secciones LARGAS pueden partirse entre hojas; los bloques atómicos de adentro
        (.cfdi/.panel/.wkpi/.wloc/.photo/…) ya traen su propio break-inside:avoid. */
     .doc-body .sec{break-inside:auto!important;page-break-inside:auto!important}

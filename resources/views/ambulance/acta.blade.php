@@ -127,8 +127,12 @@
   .doc-body{ padding:18px var(--pad) 0; }
   .doc-body > .sec{ break-inside:avoid; page-break-inside:avoid; }
   @media print{
-    @page{ size:letter; margin:12mm 0 15mm 0; }
-    .doc-body{ padding:6mm 12mm 0; }
+    /* El pie es position:fixed y el @page margin-bottom NO le reserva flujo → pisaba las últimas
+       filas de cada hoja. Fix (verificado con PDF real): margen inferior 18mm + bajar el pie a la
+       zona de margen (bottom:-16mm !important) → no tapa contenido; arriba 8mm (seguro impresora). */
+    @page{ size:letter; margin:8mm 0 18mm 0; }
+    .doc-body{ padding:4mm 12mm 0; }
+    .print-foot{ bottom:-16mm !important; }
   }
 
   /* Checklist: sección que FLUYE + cada punto atómico (una fila no se parte en flujo de bloques). */
