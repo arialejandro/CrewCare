@@ -212,7 +212,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'profile.update-own',
         ]);
 
-        // crew (self-service; can file own injury/hazard reports — ownership checked in Policy)
+        // crew (self-service; can file own injury/hazard reports. Tras crear, aterriza en /home
+        // —NO ve la ficha, que exige injury.view— ver BUG-INC-01. El silo médico lo gatea
+        // InjuryReportPolicy::viewMedical.)
         $roles['crew']->syncPermissions([
             'injury.create', 'hazards.create',
             'documents.view', 'documents.sign',

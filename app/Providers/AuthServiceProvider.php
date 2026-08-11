@@ -14,7 +14,7 @@ class AuthServiceProvider extends ServiceProvider
      */
     protected $policies = [
         // 'App\Models\Model' => 'App\Policies\ModelPolicy',
-        // (2026-07-12) MÓDULO 13: silo médico del reporte de lesión (view / viewMedical).
+        // (2026-07-12) MÓDULO 13: silo médico del reporte de lesión (viewMedical).
         \App\Models\InjuryReport::class => \App\Policies\InjuryReportPolicy::class,
         // (2026-07-20) PASO Injury: propiedad del anexo médico (create=médico; edit/delete=dueño).
         \App\Models\Addendum::class => \App\Policies\AddendumPolicy::class,
