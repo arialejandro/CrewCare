@@ -333,7 +333,17 @@ class ScoutingReportController extends Controller
     public function show($id)
     {
         $report = ScoutingReport::findOrFail($id);
-        return view('admin.scoutings.show', compact('report'));
+
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+        // MISMA vista/datos y la pasa por Browsershot (Chrome headless) → descarga de un clic,
+        // idéntica a window.print(). Márgenes 0 (el @page Oficio manda). Ver [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = view('admin.scoutings.show', compact('report'))->render();
+            return \App\Support\PdfExporter::download($html, 'SCOUT-' . str_pad((string) $id, 4, '0', STR_PAD_LEFT), [0, 0, 0, 0]);
+        }
+
+        return view('admin.scoutings.show', compact('report')
+            + ['pdfUrl' => request()->fullUrlWithQuery(['pdf' => 1])]);
     }
 
     /**

@@ -445,6 +445,13 @@ body{
     @include('componentes._icon', ['name' => 'printer', 'class' => 'cc-ico-16', 'label' => null])
     <span>{{ __('Imprimir') }}</span>
 </button>
+{{-- (2026-08-11) Descarga PDF server-side (Browsershot): mismo documento, de un clic, idéntico al
+     papel. Se apila sobre el botón Imprimir. ?pdf=1 lo sirve historialWR como attachment. --}}
+<a class="printbtn no-print" style="bottom:66px; text-decoration:none;"
+   href="{{ request()->fullUrlWithQuery(['pdf' => 1]) }}" aria-label="{{ __('Descargar PDF') }}">
+    @include('componentes._icon', ['name' => 'download', 'class' => 'cc-ico-16', 'label' => null])
+    <span>{{ __('Descargar PDF') }}</span>
+</a>
 <script>
     // Abrir el diálogo de impresión al cargar (documento listo para papel). Si el usuario cancela,
     // sigue viendo el expediente limpio y puede reimprimir con el botón.

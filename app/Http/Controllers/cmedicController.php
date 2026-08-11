@@ -541,6 +541,15 @@ class cmedicController extends Controller
         // controla por entero. La pantalla (historiamr) queda igual. Mismo candado, mismos datos.
         // Reemplaza el window.print() sobre la vista de pantalla, que salía desordenado. Ver
         // [[health-record-module]].
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del print/return normal.
+        // Reusa EXACTAMENTE el mismo documento de impresión (historiamr-print) y lo pasa por
+        // Browsershot (Chrome headless) → descarga de un clic, idéntica a window.print(). Ver
+        // [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = view('componentes.historiamr-print', $viewData)->render();
+            return \App\Support\PdfExporter::download($html, 'HISTORIAL-' . ($target->id ?? ($datos->id ?? 0)), [13, 12, 13, 12]);
+        }
+
         if (request()->boolean('print')) {
             return view('componentes.historiamr-print', $viewData);
         }

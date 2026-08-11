@@ -279,10 +279,22 @@ class DailyReportController extends Controller
         $ccHasActionItems = Schema::hasTable('action_items');
         $ccHasMitCol      = $ccHasActionItems && Schema::hasColumn('action_items', 'mitigation_image_path');
 
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa
+        // la MISMA vista con los MISMOS datos y la pasa por Browsershot (Chrome headless) → descarga
+        // de un clic, idéntica a window.print(). Márgenes 0 (el @page Oficio manda). Ver
+        // [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = view('admin.dailyreports.show', compact(
+                'report', 'standards', 'heatmap', 'isLocked', 'hazardEvents',
+                'ccHasStdPivot', 'ccHasActionItems', 'ccHasMitCol'
+            ))->render();
+            return \App\Support\PdfExporter::download($html, 'DSR-' . str_pad((string) $id, 4, '0', STR_PAD_LEFT), [0, 0, 0, 0]);
+        }
+
         return view('admin.dailyreports.show', compact(
             'report', 'standards', 'heatmap', 'isLocked', 'hazardEvents',
             'ccHasStdPivot', 'ccHasActionItems', 'ccHasMitCol'
-        ));
+        ) + ['pdfUrl' => request()->fullUrlWithQuery(['pdf' => 1])]);
     }
 
     /**

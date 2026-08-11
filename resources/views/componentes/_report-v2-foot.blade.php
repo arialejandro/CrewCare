@@ -56,7 +56,12 @@
   function beforeP(){ root.setAttribute('data-view', 'print'); }
   function afterP(){ root.setAttribute('data-view', manualPrint ? 'print' : 'screen'); }
   var pdfBtn = document.getElementById('pdfBtn');
+@isset($pdfUrl)
+  {{-- Descarga server-side (Browsershot): idéntica a window.print() pero de un clic. --}}
+  if(pdfBtn){ pdfBtn.addEventListener('click', function(){ window.location.href = '{{ $pdfUrl }}'; }); }
+@else
   if(pdfBtn){ pdfBtn.addEventListener('click', function(){ beforeP(); window.print(); }); }
+@endisset
   window.addEventListener('beforeprint', beforeP);
   window.addEventListener('afterprint', afterP);
 })();
