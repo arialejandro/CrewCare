@@ -530,10 +530,22 @@ class cmedicController extends Controller
         // (2026-07-25) $target es el User real del crew (ya resuelto para el gate). La cabecera de
         // historiamr mostraba el PUESTO leyendo la columna legacy $datos->puestodepartamento (fila
         // cruda, a veces sin ese campo); ahora lo lee del FK vía $target->positionName().
-        return view("componentes.historiamr", compact(
+        $viewData = compact(
             'usuario', 'target', 'datos', 'consultas', 'medicos', 'intakeState',
             'expedienteModelo', 'anexosExpediente'
-        ));
+        );
+
+        // (2026-08-10) IMPRESIÓN LIMPIA — ?print=1 devuelve el DOCUMENTO dedicado (componentes/
+        // historiamr-print): HTML autocontenido, SIN nada del shell de la app, así ningún elemento de
+        // GUI (la hamburguesa `position:fixed`) se cuela al papel y el layout clínico de 2 columnas se
+        // controla por entero. La pantalla (historiamr) queda igual. Mismo candado, mismos datos.
+        // Reemplaza el window.print() sobre la vista de pantalla, que salía desordenado. Ver
+        // [[health-record-module]].
+        if (request()->boolean('print')) {
+            return view('componentes.historiamr-print', $viewData);
+        }
+
+        return view('componentes.historiamr', $viewData);
     }
 
     // (2026-08-09) historialImprimir() + componentes/historiamr-print (vista standalone chrome-v2)
