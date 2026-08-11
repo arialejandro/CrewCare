@@ -235,6 +235,18 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-11 — 🩺 Fix sello del anexo en PDF del historial + hero de scouting; PLAN de puesta a punto (commit `446c73c0`)
+- **Estado:** Hecho (fixes) · Planeado, NO ejecutado (upgrade/migraciones/QA).
+- **Archivos:** `componentes/historiamr-print.blade.php`, `componentes/_doc-hero-styles.blade.php`, `componentes/_doc-hero.blade.php`, `admin/scoutings/show.blade.php`.
+- **Qué / Por qué:** (1) el PDF del historial **no enviaba el sello del anexo** (EXPA-0005, paciente 229) — la pantalla lo pintaba y el print lo omitía → se agregó `_seal-cfdi` al loop de anexos. (2) Hero scouting: `.cl-meta` con `font-family` monospace (igual que la fecha) + flag nuevo `heroHideCallLoc` para no repetir la locación (ya vive en el cintillo). Verificado rasterizando los PDFs reales (fitz). Revisión de sellos en los otros 12 docs: **sin problema** (una sola vista para pantalla+PDF; el Injury sí pinta el sello de su addendum). (3) **PLAN (no ejecutado):** cerrar la deuda de `migrate` con migraciones LIMPIAS por reverse-engineering (77 keep / 15 drop) + upgrade a **Laravel 13 / PHP 8.3** + **suite de QA profunda** (headless, agente de QA). Dossier: `C:\Users\O1\OneDrive\Documentos\Claude\Plan-Upgrade-L13-Migraciones-QA.md`.
+- **Riesgo/Notas:** commit `446c73c0` pusheado. El upgrade es un milestone aparte, reversible (tag+rama+dump), ~5-9 sesiones. Estado verificado: BD 92 tablas vs dump 56. Ver [[code-health-and-db-baseline-plan]], [[doc-hero-band-homologation]], [[health-record-module]].
+
+### 2026-08-10 — 🖨️ Export PDF server-side (Browsershot) para los 13 documentos + historial médico dedicado + sellos honestos
+- **Estado:** Hecho.
+- **Archivos:** `app/Support/PdfExporter.php` (nuevo), `componentes/historiamr-print.blade.php` (nuevo), `componentes/historiamr.blade.php`, `componentes/historiamr-legacy.blade.php` (ghost), `cmedicController@historialWR`, rama `?pdf=1` en los 13 controladores de documentos, `_report-v2-foot` (#pdfBtn).
+- **Qué / Por qué:** descarga PDF de un clic **idéntica al diseño** (reusa las vistas vía Chrome headless). Historial médico reconstruido como **documento clínico dedicado** (2 col, branded, sin fuga de GUI). Regla **"si no existe no se muestra"** aplicada a los sellos (sin placeholders vacíos "aún sin sellar").
+- **Riesgo/Notas:** Browsershot **3.58** (no 4.x = exige PHP 8.2), **`savePdf()`** no `pdf()` en Windows, entorno de node vía **`$_ENV`/`$_SERVER`** (SystemRoot/TEMP), `loading` lazy→eager. Commits `9d92c7c5`…`394b8049`. Tags `hito-2026-08-10-historial-medico` y `hito-2026-08-10-pdf-rollout`. Ver [[browsershot-pdf-pipeline]].
+
 ### 2026-08-09 — ✅✅ RAÍZ REAL: los docs son OFICIO; Carta era lo que rompía (commit `a80a61c2`)
 - El owner mandó el DSR **bueno (Pino)** y el **roto (Salón Fiesta)**. Rasterizados con **PyMuPDF (`fitz`)** para VERLOS de verdad (ya no suponer): Pino = **4 hojas, bitácora en 2 columnas, compacto** (MediaBox 613×964 = **Oficio**); Salón = **10 hojas, una tarjeta por hoja, casi vacías** (612×792 = **Carta**).
 - **Causa raíz definitiva:** los reportes se DISEÑARON para Oficio (340mm). El commit `fed2d2ed` (Carta) cambió SÓLO el `@page` y eso, en la hoja 61mm más corta, hace que la rejilla + `break-inside:avoid` tiren una tarjeta por hoja. La teoría previa ("declarar Oficio pero imprimir Carta corta") era **falsa**.

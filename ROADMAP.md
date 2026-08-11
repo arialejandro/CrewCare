@@ -13,6 +13,16 @@ Sirve para entender el panorama y decidir el orden.
 > en **[PROGRESS.md](PROGRESS.md)** (deltas #40-#51) y el detalle en las notas de memoria.
 > Las FASES de abajo siguen siendo la guía estratégica; no reflejan aún todo lo implementado.
 
+> **🔺 PRÓXIMO MILESTONE ESTRATÉGICO (planeado 2026-08-11, NO ejecutado): PUESTA A PUNTO DEL STACK.**
+> Con el H&S ya construido, el siguiente foco es el **cimiento**: (1) cerrar la deuda de `migrate`
+> con **migraciones limpias** (hoy `migrate` levanta 56 de 92 tablas); (2) **actualizar a Laravel 13 /
+> PHP 8.3** (ambos actuales están EOL → soporte + seguridad); (3) **suite de QA profunda** (headless,
+> agente de QA) para blindar los saltos. Motivación del owner: **soporte y seguridad reales** para
+> proteger la información clínica ("blindaje tipo militar"). Tracks aparte a futuro: **seguridad de
+> verdad** (cifrado en reposo, sello HMAC, MFA, bitácora de acceso) y **PWA funcional + puente nativo
+> (Capacitor)**. Plan completo por fases y estimación (~5-9 sesiones): dossier
+> `Plan-Upgrade-L13-Migraciones-QA.md`; decisiones en la memoria [[code-health-and-db-baseline-plan]].
+
 Documentos relacionados: [ARCHITECTURE.md](ARCHITECTURE.md) (estado actual),
 [COVID-DECOMMISSION.md](COVID-DECOMMISSION.md) (qué retirar), [SECURITY.md](SECURITY.md),
 [PERFORMANCE.md](PERFORMANCE.md), [PROGRESS.md](PROGRESS.md) (bitácora).
