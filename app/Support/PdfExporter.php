@@ -47,10 +47,16 @@ class PdfExporter
         if (stripos(PHP_OS, 'WIN') === 0) {
             $winRoot = getenv('SystemRoot') ?: (!empty($_SERVER['SystemRoot']) ? $_SERVER['SystemRoot'] : 'C:\\Windows');
             $winTmp  = sys_get_temp_dir() ?: ($winRoot . '\\Temp');
-            putenv('SystemRoot=' . $winRoot);
-            putenv('windir=' . $winRoot);
-            putenv('TEMP=' . $winTmp);
-            putenv('TMP=' . $winTmp);
+            // symfony/process arma el env del hijo (node) como `$_ENV + (getenv() ∩ $_SERVER)`
+            // (Process::getDefaultEnv, línea ~1648). putenv() SOLO toca getenv() → el `∩ $_SERVER`
+            // lo tira si $_SERVER no la tiene (caso del servidor web). Por eso hay que ponerla en
+            // $_ENV y $_SERVER además de putenv. Con esto node recibe SystemRoot/TEMP y os.tmpdir()
+            // deja de dar 'undefined\temp'.
+            foreach (['SystemRoot' => $winRoot, 'windir' => $winRoot, 'TEMP' => $winTmp, 'TMP' => $winTmp] as $k => $v) {
+                putenv($k . '=' . $v);
+                $_ENV[$k]    = $v;
+                $_SERVER[$k] = $v;
+            }
         }
 
         // 4) Browsershot -> savePdf (en Windows pdf() por stdout corrompe binarios grandes)
