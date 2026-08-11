@@ -21,8 +21,15 @@
         <server name="APP_ENV" value="testing"/>
         <server name="BCRYPT_ROUNDS" value="4"/>
         <server name="CACHE_DRIVER" value="array"/>
-        <!-- <server name="DB_CONNECTION" value="sqlite"/> -->
-        <!-- <server name="DB_DATABASE" value=":memory:"/> -->
+        <!-- BD de PRUEBAS dedicada. NUNCA la real (crewcare). El QaTestCase aborta
+             si DB_DATABASE != crewcare_test antes de que RefreshDatabase haga migrate:fresh. -->
+        <server name="DB_CONNECTION" value="mysql"/>
+        <server name="DB_DATABASE" value="crewcare_test"/>
+        <!-- InstallAdminSeeder deterministico (sin password aleatorio en la salida). -->
+        <server name="INSTALL_ADMIN_EMAIL" value="qa-admin@test.local"/>
+        <server name="INSTALL_ADMIN_PASSWORD" value="secret1234"/>
+        <!-- No pegarle al robot SEP en pruebas. -->
+        <server name="CEDULA_AUTO_VERIFY" value="false"/>
         <server name="MAIL_MAILER" value="array"/>
         <server name="QUEUE_CONNECTION" value="sync"/>
         <server name="SESSION_DRIVER" value="array"/>
