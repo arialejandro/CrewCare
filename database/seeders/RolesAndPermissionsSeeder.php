@@ -182,6 +182,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'crew.view',
             'crew.view.contact', 'crew.view.personal', 'crew.view.all-departments',
             'injury.view', 'injury.create', // reportar accidentes (requisito del owner)
+            'hazards.create', 'hazards.manage', // gestiona peligros (grant historico de MedicRolePermissionsSeeder, unificado al base 2026-08-11; sin .view, igual que el vivo)
             'medical.view', 'medical.create', 'medical.update', 'medical.materials',
             'documents.view', 'documents.sign',
             'reports.view',

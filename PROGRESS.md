@@ -235,6 +235,13 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-11 — 🌱 Fase 1b EJECUTADA: seeders de fábrica (`migrate && db:seed` deja la app usable) — commit `66531964` en rama `upgrade/laravel-13`
+- **Estado:** Hecho y VERIFICADO.
+- **Archivos:** `database/seeders/DatabaseSeeder.php` (chain de fábrica), `database/seeders/InstallAdminSeeder.php` (NUEVO), `database/seeders/RolesAndPermissionsSeeder.php` (medic +hazards), `database/seeders/ProductionDemoSeeder.php` (nombre por env).
+- **Qué / Por qué:** cerrar el hueco de deploy que dejó Fase 1 — `migrate` creaba tablas VACÍAS (sin cuenta para entrar, catálogos vacíos, RBAC incompleto). Ahora `DatabaseSeeder` encadena 26 seeders (9 `*PermissionsSeeder` por-módulo + 12 catálogos en orden estricto de dependencia); `InstallAdminSeeder` bootstrapea el 1er super-admin (idempotente, creds por env, sin password hardcodeado); medic gana `hazards.create/manage` en el base; producción por `env('INSTALL_PRODUCTION_NAME')`. Se sacaron del chain MapExisting/Backfill (legacy, no-op en fresh).
+- **Verificación:** BD limpia → `migrate` 74 + `db:seed` 26 seeders, **0 errores**. `Auth::attempt` REAL → **LOGIN OK** (super-admin, `Gate::before` da acceso, password malo rechazado). Catálogos = baseline correcto; RBAC idéntico al vivo salvo `super-admin::medical.consolidate` (cosmético).
+- **Riesgo/Notas:** deploy de cliente pone `INSTALL_ADMIN_EMAIL/NAME/PASSWORD` (+ opcional `INSTALL_PRODUCTION_NAME`) en su `.env` antes de `db:seed`. Pendiente menor: gatear/quitar la conexión `migrate_test` antes de entregar. Ver [[code-health-and-db-baseline-plan]].
+
 ### 2026-08-11 — 🧱 Fase 0 + Fase 1 EJECUTADAS: rollback probado + migraciones limpias (`migrate` levanta todo) — commit `9e4c6852` en rama `upgrade/laravel-13`
 - **Estado:** Hecho y PROBADO (esquema). Pendiente: Fase 1b seeders (ver Riesgo/Notas).
 - **Archivos:** `database/migrations/` +64 (63 `create` nuevas + 1 trigger cmedic XOR) y 3 modificadas (`users`/`departments`/`positions` regeneradas desde DDL vivo); `database/schema/mysql-schema.dump` **BORRADO**; `config/database.php` (+conexión aislada `migrate_test`).

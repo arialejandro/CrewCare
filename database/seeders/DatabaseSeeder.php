@@ -29,12 +29,50 @@ class DatabaseSeeder extends Seeder
         //
         // Por la misma razón NUNCA debe encadenarse aquí `DemoProductionSeeder` (el corpus de
         // demostración). Se invoca explícito y también tiene candado de entorno.
+        // (2026-08-11) Chain de FABRICA completo: un `migrate && db:seed` en base vacia
+        // deja una app USABLE (login + catalogos + RBAC completo). Se sacaron del chain
+        // MapExistingUsersSeeder y BackfillUserPositionsSeeder: son helpers LEGACY que
+        // migran una tabla `users` preexistente (no-op en fresh) y hacen firstOrFail sobre
+        // el nombre de la produccion — se invocan a mano solo si se migra un install viejo.
         $this->call([
-            RolesAndPermissionsSeeder::class,
-            OrgCatalogSeeder::class,
-            ProductionDemoSeeder::class,
-            MapExistingUsersSeeder::class,
-            BackfillUserPositionsSeeder::class,
+            // ── RBAC: roles + TODOS los permisos (base + por-modulo) + matriz ──
+            RolesAndPermissionsSeeder::class,          // 8 roles + 53 permisos base + grants
+            NormasEventosPermissionsSeeder::class,     // standards.* / hazardevents.*
+            MedicCredentialPermissionsSeeder::class,   // medic.credential.manage
+            ToolInspectionPermissionsSeeder::class,    // tools.inspect
+            PermitIssuancePermissionsSeeder::class,    // permits.issue
+            EpiPermissionsSeeder::class,               // epi.view
+            MedevacPermissionsSeeder::class,           // medevac.issue
+            RiskMapPermissionsSeeder::class,           // riskmap.issue
+            PaePermissionsSeeder::class,               // pae.issue
+            AmbulancePermissionsSeeder::class,         // ambulance.manage
+            // (SdsPermissionsSeeder NO: sds.* ya viene en el base)
+            // (MedicRolePermissionsSeeder NO: migra usuarios; el grant a medic vive en el base)
+
+            // ── Estructura organizacional + produccion + primer super-admin ──
+            OrgCatalogSeeder::class,                   // departments/positions globales (production_id NULL)
+            ProductionDemoSeeder::class,               // la fila de produccion de la instancia (nombre por env)
+            InstallAdminSeeder::class,                 // 1er super-admin idempotente (creds por env)
+
+            // ── Normativa + eventos (ORDEN ESTRICTO por dependencia FK/logica) ──
+            SafetyCatalogSeeder::class,                // normas — PRIMERO (todos resuelven codigos contra esta)
+            HazardEventSeeder::class,                  // eventos base (necesita Safety)
+            EnrichedCatalogSeeder::class,              // +eventos/+normas -> 207/83 (necesita Safety+Hazard)
+            HazardEventPpeSeeder::class,               // required_ppe (necesita los 207 poblados)
+
+            // ── SFX / consumibles (ORDEN ESTRICTO) ──
+            ConsumableSeeder::class,                   // fichas legacy
+            SpfxCatalogSeeder::class,                  // consumibles + effect types + links
+            EffectStandardBridgeSeeder::class,         // puente effect<->standard (necesita Spfx + Safety+Enriched)
+
+            // ── Herramienta / permisos de trabajo (ORDEN ESTRICTO) ──
+            ToolPermitCatalogSeeder::class,            // tools + permits (necesita safety_standards)
+            ToolInspectionRegimeSeeder::class,         // inspection_regime (necesita tools poblado)
+
+            // ── Catalogos independientes ──
+            MedicationCatalogSeeder::class,            // medicamentos
+            IndicatorTermSeeder::class,                // terminos indicadores
+            AmbulanceCatalogSeeder::class,             // tipos + puntos de ambulancia
         ]);
     }
 }
