@@ -127,8 +127,8 @@ class formulario extends Model
         'prevent1', 'prevent2',
     ];
 
-    protected $dates = ['created_at', 'updated_at'];
-
+    // (2026-08-11 upgrade) `$dates` (deprecado L9+) retirado: created_at/updated_at los castea
+    // Eloquent automáticamente por timestamps.
     protected $casts = [
         'vacci2_date' => 'date',
     ];

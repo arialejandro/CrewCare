@@ -356,7 +356,8 @@ class cmedic extends Model
         'seal_version'      => 'integer',
     ];
 
-    protected $dates = ['created_at', 'updated_at'];
+    // (2026-08-11 upgrade) created_at/updated_at los castea Eloquent solo cuando hay timestamps;
+    // el viejo `protected $dates` (deprecado L9+) era redundante → retirado.
 
     // Paciente atendido (id_user → users.id).
     public function patient()
