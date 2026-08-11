@@ -235,6 +235,12 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-11 — 🧪 Fase 2 (tanda 3 + cierre de bugs): +7 verticales (132 t) + los 3 bugs de tanda 2 CERRADOS — commits `cc54bf99`, `d4480c46`, `d25f1392`
+- **Estado:** Hecho. **Suite integrada 475 passed / 0 skipped / 0 fallos** (tandas 1+2+3 en un solo proceso, prueba de no-interferencia cruzada). 0 bugs nuevos.
+- **Archivos:** `tests/Feature/{Ambulance,Medevac,RiskMap,Pae,Epi,Badge,Wrap}/` (nuevos, 20 archivos); fixes en `StoreDailyReportRequest`, migraciones `..._000022`/`..._000045` (PK), `InjuryReportController`, guardas `DsrBugGuardsTest` + `IncidentPersistenceSealTest` (ahora activas).
+- **Qué / Por qué:** cerrar los 3 bugs de la tanda 2 y ampliar la red a los módulos restantes. **CERRADOS:** DSR-1/2 (`nullable|date_format:H:i`, formato verificado del `<input type=time>`), BUG-INC-02 (PK `tinyint`→`int(10) unsigned`, grep confirmó CERO FKs que tocar), BUG-INC-01 (crew → `/home` con acuse, sin 403; opción "landing permitida" del owner). **Tanda 3 (3 subagentes, 0 bugs):** Ambulancias/MEDEVAC (verif `ambu` 3-estados / `mdvc` 2-estados), RiskMap/PAE (`rmap`/`pae`, pines sellados, versionado PAE), Epi/Gafetes/Wrap (**invariante PII de Epi LIMPIO** — cero fuga nominal; 2 candados de emisión del Wrap; `WrapReportBuilder` read-only).
+- **Riesgo/Notas:** `InjuryReportPolicy::view()` quedó como código muerto → chip `task_70db26f4` para retirarlo. Observación (no bug): PAE sin unicidad dura "uno por llamado" en BD. Ver [[qa-suite-and-findings]].
+
 ### 2026-08-11 — 🧪 Fase 2 (tanda 2 + bugs): +3 verticales (207 t) + 4 bugs cerrados; 3 nuevos abiertos — commits `443ef751`, `3ec2431e`, `8e607c06`
 - **Estado:** Hecho (tanda 2 + BUG-01/02/03/04). Pendiente: 3 bugs nuevos (tu decisión) + tanda 3 opcional.
 - **Archivos:** `tests/Feature/{Dsr,Incident,Permit}/` (nuevos); fixes en `CrewController`, `RoleAssignmentController`, `MedicalReportController`, `routes/web.php`, `admin/partials/roles-assign-table.blade`, `layouts/sidebar.blade`, `componentes/_dashboard-medical.blade`, `MedicalIsolationTest`.
