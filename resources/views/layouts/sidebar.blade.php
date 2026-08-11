@@ -436,10 +436,12 @@
                             @include('componentes._icon', ['name' => 'stethoscope', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('nav.med_consults') }}</span>
                         </a>
+                        @can('medical.consolidate')
                         <a href="{{ route('medical.bitacora') }}" class="cc-item">
                             @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('nav.med_logbook') }}</span>
                         </a>
+                        @endcan
                         @can('medical.materials')
                             <a href="{{ route('medical.materials') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'package', 'class' => 'cc-item__ico', 'label' => null])
@@ -762,10 +764,12 @@
                                 @include('componentes._icon', ['name' => 'stethoscope', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.med_consults') }}</span>
                             </a>
+                            @can('medical.consolidate')
                             <a href="{{ route('medical.bitacora') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.med_logbook') }}</span>
                             </a>
+                            @endcan
                             @can('medical.materials')
                                 <a href="{{ route('medical.materials') }}" class="cc-item">
                                     @include('componentes._icon', ['name' => 'package', 'class' => 'cc-item__ico', 'label' => null])

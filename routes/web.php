@@ -212,10 +212,18 @@ Route::middleware(['auth','permission:medical.view'])->group(function () {
     // crew.view.contact — y el médico lo tiene, así que buscar exponía contacto que la lista
     // médica no muestra. Preset propio = proyección explícita sin PII de contacto.
     Route::get('/searchmedico/{valor}/',[App\Http\Controllers\SearchController::class,'medical'])->name('searchmedico');
-    // Bitácora médica semanal (2026-07-06) — reporte estilo "medical log", agrupado por día + PDF.
+    // --- /historial (PCR history, COVID) ELIMINADO — Lote 3 COVID-DECOMMISSION (2026-06-25) ---
+});
+
+// (2026-08-11 · BUG-01, opción B) BITÁCORA CONSOLIDADA — grupo PROPIO gateado SÓLO por
+// `medical.consolidate` (NO medical.view). La bitácora concentra las consultas de TODOS los
+// médicos con su nota privada, así que la ve/emite únicamente el KEY MEDIC. El permiso es DIRECTO
+// y el super-admin lo otorga desde /rolescrud a médico, safety-officer o producción (él mismo pasa
+// por Gate::before). Va en grupo aparte para NO exigir además medical.view: un consolidador
+// safety-officer/producción puede no tenerlo.
+Route::middleware(['auth','permission:medical.consolidate'])->group(function () {
     Route::get('/medico/bitacora',[App\Http\Controllers\MedicalReportController::class,'weekly'])->name('medical.bitacora');
     Route::get('/medico/bitacora/pdf',[App\Http\Controllers\MedicalReportController::class,'weeklyPdf'])->name('medical.bitacora.pdf');
-    // --- /historial (PCR history, COVID) ELIMINADO — Lote 3 COVID-DECOMMISSION (2026-06-25) ---
 });
 Route::middleware(['auth','permission:medical.create'])->group(function () {
     Route::get('/consulta/{id}',[App\Http\Controllers\cmedicController::class,'create'])->name('cmedica.create');

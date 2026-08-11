@@ -77,25 +77,26 @@
                             </form>
                         @endif
 
-                        {{-- (2026-07-24 · PASO 2/3, item 5) KEY MEDIC. Sólo tiene sentido sobre un
-                             MÉDICO: le deja ver TODAS las consultas (no sólo las suyas) y emitir la
-                             bitácora y el conteo consolidados. Mismo patrón que arriba: permiso
-                             DIRECTO, nunca por rol, sólo el super-admin, con registro. Si el SQL
-                             owner-apply no se ha aplicado el permiso no existe → no se pinta. --}}
-                        @if($currentRole === 'medic' && ($keyMedicPermReady ?? false))
+                        {{-- (2026-08-11 · BUG-01 opción B / BUG-04) CONSOLIDACIÓN DE LA BITÁCORA
+                             (medical.consolidate): ve TODAS las consultas y emite la bitácora y el
+                             conteo semanal. Permiso DIRECTO, nunca por rol, sólo el super-admin lo
+                             da/quita, con registro. Aplica al MÉDICO y también a safety-officer /
+                             producción — el super-admin decide quién consolida (respaldo si no hay
+                             médico key). Si el permiso no existe aún (SQL owner-apply) no se pinta. --}}
+                        @if(in_array($currentRole, ['medic', 'safety-officer', 'line-producer', 'coordinator', 'hod'], true) && ($keyMedicPermReady ?? false))
                             <div class="mt-1">
                                 @if($isKey)
-                                    <span class="badge bg-primary me-1" title="Ve todas las consultas y emite la bitácora y el conteo.">Key medic</span>
+                                    <span class="badge bg-primary me-1" title="Ve todas las consultas y emite la bitácora y el conteo.">Consolida bitácora</span>
                                     <form method="POST" action="{{ route('roles.medical.revoke', $u->id) }}" class="d-inline">
                                         @csrf
                                         <input type="hidden" name="permission" value="medical.consolidate">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">Quitar key</button>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">Quitar consolidación</button>
                                     </form>
                                 @else
                                     <form method="POST" action="{{ route('roles.medical.grant', $u->id) }}" class="d-inline">
                                         @csrf
                                         <input type="hidden" name="permission" value="medical.consolidate">
-                                        <button type="submit" class="btn btn-sm btn-outline-primary py-0 px-2" title="Consolida la función semanal: ve todas las consultas y emite los reportes.">Hacer key medic</button>
+                                        <button type="submit" class="btn btn-sm btn-outline-primary py-0 px-2" title="Deja ver todas las consultas y emitir la bitácora y el conteo semanal.">Dar consolidación</button>
                                     </form>
                                 @endif
                             </div>

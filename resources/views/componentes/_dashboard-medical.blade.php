@@ -135,10 +135,12 @@
             @include('componentes._icon', ['name' => 'stethoscope', 'class' => 'cc-ico-16', 'label' => null])
             {{ __('dashboard.med_go_consults') }}
         </a>
+        @can('medical.consolidate')
         <a href="{{ route('medical.bitacora') }}" class="cc-med__link">
             @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-ico-16', 'label' => null])
             {{ __('dashboard.med_go_log') }}
         </a>
+        @endcan
         @if(!empty($m['puede_meds']))
             <a href="{{ route('medical.materials') }}" class="cc-med__link">
                 @include('componentes._icon', ['name' => 'package', 'class' => 'cc-ico-16', 'label' => null])

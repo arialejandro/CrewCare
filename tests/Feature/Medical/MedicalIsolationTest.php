@@ -371,62 +371,64 @@ class MedicalIsolationTest extends QaTestCase
     }
 
     // =====================================================================================
-    //  5. CARACTERIZACIÓN DE FUGA REAL — BITÁCORA SEMANAL (BUG-01)
+    //  5. BITÁCORA CONSOLIDADA — sólo KEY MEDIC (BUG-01 cerrado, opción B) + grant del panel (BUG-04)
     // =====================================================================================
 
     /**
-     * ⚠ FUGA CLÍNICA CONFIRMADA (BUG-01) — este test DOCUMENTA el comportamiento ACTUAL (verde),
-     * no lo aprueba. Ver el reporte: la bitácora semanal (MedicalReportController::fetchConsultas)
-     * NO aplica scopeVisibleTo y `medic` tiene crew.view.all-departments, así que un médico común
-     * (sólo medical.view, SIN medical.consolidate) ve en pantalla las consultas de OTRO médico
-     * CON su nota privada `observations` — la misma nota que el expediente individual y el
-     * documento sellado sí aíslan (ver los dos tests de arriba). Es una incoherencia con la
-     * doctrina "observations/aditional es nota privada y se mantiene aislada".
-     *
-     * Si el owner cierra la fuga (excluir observations del agregado o aislar por autor para el
-     * médico común), este test deberá invertirse a assertDontSee.
+     * BUG-01 CERRADO (opción B, 2026-08-11): la bitácora consolida las consultas de TODOS los
+     * médicos con su nota privada `observations`, así que VER y EMITIR la bitácora dejan de estar
+     * al alcance de `medical.view` y exigen `medical.consolidate` (KEY MEDIC; el super-admin pasa
+     * por Gate::before). El super-admin lo otorga/quita desde /rolescrud a médico, safety-officer o
+     * producción. Estas guardas quedan ACTIVAS contra regresión de la fuga.
      */
-    public function test_bitacora_no_debe_filtrar_la_nota_privada_de_otro_medico(): void
+    public function test_bitacora_solo_la_ve_el_key_medic_no_un_medico_comun(): void
     {
-        // GUARDA DE REGRESIÓN de BUG-01 (fuga confirmada, pendiente de decisión del owner).
-        // Hoy la bitácora SÍ filtra la nota privada de otro médico a un médico común; por eso
-        // se SALTA. Al cerrar la fuga (excluir `observations` del agregado o exigir
-        // medical.consolidate), quitar este skip: el test debe pasar y blindar contra regresión.
-        $this->markTestSkipped('BUG-01: fuga clínica en la bitácora semanal, pendiente de fix del owner.');
+        $medicComun = $this->makeUser('medic'); // solo medical.view
+        $this->actingAs($medicComun);
+        $this->get(route('medical.bitacora'))->assertForbidden();
 
-        $patient = $this->makeUser('crew');
-        $medicA  = $this->makeUser('medic'); // médico común, SIN consolidate
-        $medicB  = $this->makeUser('medic');
+        $keyMedic = $this->makeUser('medic');
+        $keyMedic->givePermissionTo('medical.consolidate');
+        $this->actingAs($keyMedic);
+        $this->get(route('medical.bitacora'))->assertOk();
+    }
 
-        $this->makeConsult($patient->id, $medicB->id, 'DxSemanalB', 'NOTA-PRIVADA-B-FUGA-7788');
+    public function test_pdf_de_bitacora_solo_lo_emite_el_key_medic(): void
+    {
+        $medicComun = $this->makeUser('medic');
+        $this->actingAs($medicComun);
+        $this->get(route('medical.bitacora.pdf'))->assertForbidden();
 
-        $this->actingAs($medicA);
-        $resp = $this->get(route('medical.bitacora'));
-        $resp->assertOk();
-
-        // Comportamiento SEGURO esperado: la nota privada de B NO se filtra a A.
-        $resp->assertDontSee('NOTA-PRIVADA-B-FUGA-7788');
+        $keyMedic = $this->makeUser('medic');
+        $keyMedic->givePermissionTo('medical.consolidate');
+        $this->actingAs($keyMedic);
+        $this->get(route('medical.bitacora.pdf'))->assertOk();
     }
 
     /**
-     * ⚠ EXTENSIÓN DE BUG-01 — la fuga alcanza también la EMISIÓN (PDF). El guard de exportación
-     * (MedicalReportController::guardLogExport → canEmitLog = isClinician() || medical.consolidate)
-     * deja emitir a CUALQUIER médico: un médico común (sin consolidate) descarga el PDF de la
-     * bitácora con el log clínico de TODOS los médicos. Documenta el 200 (no 403) actual.
+     * BUG-04 + petición del owner: el super-admin otorga `medical.consolidate` DESDE EL PANEL
+     * (/rolescrud) a un safety-officer (o producción), y el grant honra ESE permiso — antes el
+     * controlador hardcodeaba medical.view, así que "hacer key medic" no funcionaba. Tras otorgarlo,
+     * el safety-officer ve la bitácora.
      */
-    public function test_pdf_de_bitacora_consolidada_no_debe_emitirlo_un_medico_comun(): void
+    public function test_super_admin_otorga_consolidacion_a_un_safety_officer_desde_el_panel(): void
     {
-        // GUARDA DE REGRESIÓN de BUG-01 (extensión a la EMISIÓN/PDF). Hoy cualquier médico común
-        // descarga el PDF con el log clínico de TODOS; se SALTA hasta que el owner decida. Si el fix
-        // es "exigir medical.consolidate", quitar el skip y este assert (403) debe pasar.
-        $this->markTestSkipped('BUG-01: la emisión del PDF de bitácora no exige medical.consolidate; pendiente de fix del owner.');
+        $safety = $this->makeUser('safety-officer');
 
-        $patient = $this->makeUser('crew');
-        $medicA  = $this->makeUser('medic');
-        $medicB  = $this->makeUser('medic');
-        $this->makeConsult($patient->id, $medicB->id, 'DxSemanalB', 'Nota B');
+        $this->actingAs($safety);
+        $this->get(route('medical.bitacora'))->assertForbidden(); // aún no
 
-        $this->actingAs($medicA);
-        $this->get(route('medical.bitacora.pdf'))->assertForbidden();
+        $this->actingAsRole('super-admin');
+        $this->post(route('roles.medical.grant', $safety->id), ['permission' => 'medical.consolidate'])
+            ->assertRedirect();
+
+        // El grant otorgó medical.consolidate (no medical.view por error) → BUG-04 blindado.
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        $safety = $safety->fresh();
+        $this->assertTrue($safety->hasDirectPermission('medical.consolidate'));
+        $this->assertFalse($safety->hasDirectPermission('medical.view'));
+
+        $this->actingAs($safety);
+        $this->get(route('medical.bitacora'))->assertOk();
     }
 }

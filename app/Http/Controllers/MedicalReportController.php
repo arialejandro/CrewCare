@@ -87,8 +87,11 @@ class MedicalReportController extends Controller
      */
     private function canEmitLog()
     {
+        // (2026-08-11 · BUG-01, opción B) La bitácora es del KEY MEDIC: exige `medical.consolidate`
+        // (el super-admin pasa por Gate::before). Antes bastaba con ser clínico → fuga: cualquier
+        // médico común emitía el log clínico consolidado de TODOS.
         $user = auth()->user();
-        return $user ? ($user->isClinician() || $user->can('medical.consolidate')) : false;
+        return $user ? $user->can('medical.consolidate') : false;
     }
 
     // ---- MATERIALIDAD (evidencia fiscal SAT) ------------------------------------
