@@ -542,7 +542,16 @@ public function show($id)
 
     $canComplete = \Illuminate\Support\Facades\Gate::allows('viewMedical', $injuryReport);
 
-    return view('admin.injuryreport-lite', compact('injuryReport', 'canComplete'));
+    // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+    // MISMA vista/datos y la pasa por Browsershot (Chrome headless) → descarga idéntica a
+    // window.print(). Márgenes 0 (el @page Oficio manda). Ver [[browsershot-pdf-pipeline]].
+    if (request()->boolean('pdf')) {
+        $html = view('admin.injuryreport-lite', compact('injuryReport', 'canComplete'))->render();
+        return \App\Support\PdfExporter::download($html, 'INJ-' . $injuryReport->id, [0, 0, 0, 0]);
+    }
+
+    return view('admin.injuryreport-lite', compact('injuryReport', 'canComplete')
+        + ['pdfUrl' => request()->fullUrlWithQuery(['pdf' => 1])]);
 }
 
 /**
@@ -600,7 +609,16 @@ public function showComplete($id)
         $injuryReport->load($addendumRel);
     }
 
-    return view('admin.injuryreport', compact('injuryReport', 'standardUrl'));
+    // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. El GATE
+    // viewMedical de arriba también protege el export (no se sirve ni el PDF sin permiso).
+    // Márgenes 0 (el @page Oficio manda). Ver [[browsershot-pdf-pipeline]].
+    if (request()->boolean('pdf')) {
+        $html = view('admin.injuryreport', compact('injuryReport', 'standardUrl'))->render();
+        return \App\Support\PdfExporter::download($html, 'INJ-' . $injuryReport->id . '-completo', [0, 0, 0, 0]);
+    }
+
+    return view('admin.injuryreport', compact('injuryReport', 'standardUrl')
+        + ['pdfUrl' => request()->fullUrlWithQuery(['pdf' => 1])]);
 }
 
     public function searchUsers(Request $request)

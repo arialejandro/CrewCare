@@ -478,7 +478,16 @@ class HazardNotificationController extends Controller
             }
         }
 
-        return View::make('admin.hazard', compact('hazardNotification', 'standardUrl', 'involvedUser', 'involvedDeptName', 'canViewInvolved'));
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+        // MISMA vista/datos y la pasa por Browsershot (Chrome headless) → descarga idéntica a
+        // window.print(). Márgenes 0 (el @page Oficio manda). Ver [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = View::make('admin.hazard', compact('hazardNotification', 'standardUrl', 'involvedUser', 'involvedDeptName', 'canViewInvolved'))->render();
+            return \App\Support\PdfExporter::download($html, 'HAZ-' . $hazardNotification->id, [0, 0, 0, 0]);
+        }
+
+        return View::make('admin.hazard', compact('hazardNotification', 'standardUrl', 'involvedUser', 'involvedDeptName', 'canViewInvolved'))
+            ->with('pdfUrl', request()->fullUrlWithQuery(['pdf' => 1]));
     }
 
     /**

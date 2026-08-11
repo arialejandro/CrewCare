@@ -227,11 +227,25 @@ class WrapReportController extends Controller
 
         $wrap = WrapReport::with(['production', 'parent', 'addendums'])->findOrFail($id);
 
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+        // MISMA vista/datos y la pasa por Browsershot (Chrome headless) → descarga idéntica a
+        // window.print(). Márgenes 0 (el @page Oficio manda). Ver [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = view('admin.wrap.show', [
+                'wrap'       => $wrap,
+                'payload'    => is_array($wrap->payload) ? $wrap->payload : [],
+                'produccion' => $wrap->production,
+                'borrador'   => false,
+            ])->render();
+            return \App\Support\PdfExporter::download($html, 'WRAP-' . $wrap->id, [0, 0, 0, 0]);
+        }
+
         return view('admin.wrap.show', [
             'wrap'       => $wrap,
             'payload'    => is_array($wrap->payload) ? $wrap->payload : [],
             'produccion' => $wrap->production,
             'borrador'   => false,
+            'pdfUrl'     => request()->fullUrlWithQuery(['pdf' => 1]),
         ]);
     }
 

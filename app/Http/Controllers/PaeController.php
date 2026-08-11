@@ -280,7 +280,18 @@ class PaeController extends Controller
     {
         abort_unless(EmergencyActionPlan::supported(), 404);
 
-        return view('admin.pae.show', ['plan' => $pae]);
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+        // MISMA vista/datos y la pasa por Browsershot (Chrome headless) → descarga idéntica a
+        // window.print(). Márgenes 0 (el @page Oficio manda). Ver [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = view('admin.pae.show', ['plan' => $pae])->render();
+            return \App\Support\PdfExporter::download($html, 'PAE-' . $pae->id, [0, 0, 0, 0]);
+        }
+
+        return view('admin.pae.show', [
+            'plan'   => $pae,
+            'pdfUrl' => request()->fullUrlWithQuery(['pdf' => 1]),
+        ]);
     }
 
     /**

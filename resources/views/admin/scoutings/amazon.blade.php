@@ -158,7 +158,9 @@
             <a href="{{ route('scoutings.amazon', [$report->id, 'lang' => 'es']) }}" class="{{ $lang === 'es' ? 'on' : 'off' }}">ES</a>
             <a href="{{ route('scoutings.amazon', [$report->id, 'lang' => 'en']) }}" class="{{ $lang === 'en' ? 'on' : 'off' }}">EN</a>
         </div>
-        <button onclick="window.print();" class="amz-btn amz-btn-dark">{{ $L('btn_print') }}</button>
+        {{-- Descarga server-side (Browsershot): idéntica a window.print() pero de un clic; conserva ?lang. --}}
+        <button onclick="window.location.href='{{ request()->fullUrlWithQuery(['pdf' => 1]) }}';" class="amz-btn amz-btn-dark">{{ $lang === 'en' ? 'Download PDF' : 'Descargar PDF' }}</button>
+        <button onclick="window.print();" class="amz-btn">{{ $L('btn_print') }}</button>
     </div>
 </div>
 

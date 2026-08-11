@@ -420,9 +420,18 @@ class unsafecondNotificationController extends Controller
             $unsafenotification->load('scoutingReport');
         }
 
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+        // MISMA vista/datos y la pasa por Browsershot (Chrome headless) → descarga idéntica a
+        // window.print(). Márgenes 0 (el @page Oficio manda). Ver [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = View::make('admin.unsafecond', compact('unsafenotification', 'standardUrl'))->render();
+            return \App\Support\PdfExporter::download($html, 'UNS-' . $unsafenotification->id, [0, 0, 0, 0]);
+        }
+
         // (2026-07-24) La Condición NO tiene involucrado: se ancla al lugar. No se calcula contexto
         // de persona ni se pasa a la vista.
-        return View::make('admin.unsafecond', compact('unsafenotification', 'standardUrl'));
+        return View::make('admin.unsafecond', compact('unsafenotification', 'standardUrl'))
+            ->with('pdfUrl', request()->fullUrlWithQuery(['pdf' => 1]));
     }
 
     // (2026-06-28) Cierre del ciclo: actualizar el estado de la acción correctiva

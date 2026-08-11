@@ -254,7 +254,9 @@
 <div class="mdv-toolbar">
     <a href="{{ route('scoutings.show', $p->scouting_report_id) }}">← Volver al scouting</a>
     <span class="sp"></span>
-    <button type="button" class="primary" onclick="window.print()">Imprimir / PDF</button>
+    {{-- Descarga server-side (Browsershot): idéntica a window.print() pero de un clic. --}}
+    <button type="button" class="primary" onclick="window.location.href='{{ request()->fullUrlWithQuery(['pdf' => 1]) }}'">Descargar PDF</button>
+    <button type="button" onclick="window.print()">Imprimir</button>
 </div>
 
 <div class="mdv-sheet">

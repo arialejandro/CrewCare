@@ -363,6 +363,15 @@ class ScoutingReportController extends Controller
             ? $request->query('lang')
             : 'es';
 
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+        // MISMA vista/datos (conserva ?lang) y la pasa por Browsershot (Chrome headless) → descarga
+        // idéntica a window.print(). Formato CARTA (letter, márgenes 12mm); el botón vive en la
+        // propia vista (chrome propio, no _report-v2-foot). Ver [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = view('admin.scoutings.amazon', compact('report', 'lang'))->render();
+            return \App\Support\PdfExporter::download($html, 'SCOUT-' . $report->id . '-RA', [12, 12, 12, 12]);
+        }
+
         return view('admin.scoutings.amazon', compact('report', 'lang'));
     }
 

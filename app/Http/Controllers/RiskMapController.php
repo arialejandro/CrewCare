@@ -324,9 +324,21 @@ class RiskMapController extends Controller
     {
         $map = RiskMap::with(['views.markers', 'scouting'])->findOrFail($id);
 
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+        // MISMA vista/datos y la pasa por Browsershot (Chrome headless) → descarga idéntica a
+        // window.print(). Márgenes 0 (el @page Oficio manda). Ver [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = view('admin.riskmaps.document', [
+                'map'            => $map,
+                'eligibleEvents' => $map->eligibleEvents(),
+            ])->render();
+            return \App\Support\PdfExporter::download($html, 'RMAP-' . $map->id, [0, 0, 0, 0]);
+        }
+
         return view('admin.riskmaps.document', [
             'map'            => $map,
             'eligibleEvents' => $map->eligibleEvents(),
+            'pdfUrl'         => request()->fullUrlWithQuery(['pdf' => 1]),
         ]);
     }
 

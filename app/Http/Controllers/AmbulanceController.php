@@ -668,7 +668,16 @@ class AmbulanceController extends Controller
             ? $inspection->actionItems()->where('source_field', 'ambulance_paro')->latest('id')->first()
             : null;
 
-        return view('ambulance.acta', compact('inspection', 'actionItem'));
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+        // MISMA vista/datos y la pasa por Browsershot (Chrome headless) → descarga idéntica a
+        // window.print(). Márgenes 0 (el @page Oficio manda). Ver [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = view('ambulance.acta', compact('inspection', 'actionItem'))->render();
+            return \App\Support\PdfExporter::download($html, 'AMB-' . substr($inspection->uuid, 0, 8), [0, 0, 0, 0]);
+        }
+
+        return view('ambulance.acta', compact('inspection', 'actionItem')
+            + ['pdfUrl' => request()->fullUrlWithQuery(['pdf' => 1])]);
     }
 
     /* ===================== DESBLOQUEO DEL PARO ===================== */
