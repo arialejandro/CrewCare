@@ -38,6 +38,21 @@ class PdfExporter
 
         $m = array_values($margins) + [0, 0, 0, 0];
 
+        // (Windows) El proceso web (Apache/php-fpm o `php artisan serve`) hereda un entorno PELADO:
+        // sin SystemRoot/windir/TEMP. Node (puppeteer) calcula os.tmpdir() = (SystemRoot||windir)+'\temp'
+        // → 'undefined\temp' → ENOENT al crear el perfil de Chrome. Browsershot lanza node con `new
+        // Process(...)` heredando el entorno de PHP (Browsershot.php:931), así que sembramos aquí las
+        // variables (en CLI ya venían; por eso ahí sí funcionaba). setEnvironmentOptions NO sirve:
+        // sólo pasa env a Chrome, no a node.
+        if (stripos(PHP_OS, 'WIN') === 0) {
+            $winRoot = getenv('SystemRoot') ?: (!empty($_SERVER['SystemRoot']) ? $_SERVER['SystemRoot'] : 'C:\\Windows');
+            $winTmp  = sys_get_temp_dir() ?: ($winRoot . '\\Temp');
+            putenv('SystemRoot=' . $winRoot);
+            putenv('windir=' . $winRoot);
+            putenv('TEMP=' . $winTmp);
+            putenv('TMP=' . $winTmp);
+        }
+
         // 4) Browsershot -> savePdf (en Windows pdf() por stdout corrompe binarios grandes)
         try {
             Browsershot::htmlFromFilePath($tmpHtml)
