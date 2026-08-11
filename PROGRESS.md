@@ -235,6 +235,13 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-11 — 🧱 Fase 0 + Fase 1 EJECUTADAS: rollback probado + migraciones limpias (`migrate` levanta todo) — commit `9e4c6852` en rama `upgrade/laravel-13`
+- **Estado:** Hecho y PROBADO (esquema). Pendiente: Fase 1b seeders (ver Riesgo/Notas).
+- **Archivos:** `database/migrations/` +64 (63 `create` nuevas + 1 trigger cmedic XOR) y 3 modificadas (`users`/`departments`/`positions` regeneradas desde DDL vivo); `database/schema/mysql-schema.dump` **BORRADO**; `config/database.php` (+conexión aislada `migrate_test`).
+- **Qué / Por qué:** cerrar la deuda de `migrate` (un deploy limpio levantaba 56/92 tablas porque el dump viejo secuestraba el proceso). Método: 1 migración `create` por tabla desde `SHOW CREATE TABLE` VIVO (`DB::statement`, orden por FK topo-sort, sin contador `AUTO_INCREMENT`), + trigger XOR por `DB::unprepared` (sin DEFINER), + poda de 15 tablas legacy. Fase 0 antes: tag `pre-upgrade-L8` + rama aislada + `mysqldump` completo fuera del repo (`C:\laragon\backups\crewcare\`, restauración probada 92 tablas/2 triggers).
+- **Verificación:** BD vacía → `php artisan migrate` desde la carpeta real → diff `SHOW CREATE TABLE` = **76/76 IDÉNTICAS, 0 diffs**, 15 podadas ausentes, solo `jobs` de más (infra sin usar). Rollback FK-safe + trigger + config revisados por subagente adversarial (limpio).
+- **Riesgo/Notas:** ⚠️ Son migraciones para instalaciones NUEVAS — **NO correr `migrate` contra el `crewcare` vivo** (colisión). `clean-main` intacta; rollback = tag `pre-upgrade-L8` + dump. **HUECO Fase 1b (revisión adversarial):** `migrate && db:seed` aún NO deja app usable — falta encadenar ~13 seeders de catálogo (A2) + ~14 `*PermissionsSeeder` (A3, ambos ya existen e idempotentes) + bootstrap de 1er super-admin (A1, decisión owner) + defaults settings/flags/badge (M1). Ver [[code-health-and-db-baseline-plan]].
+
 ### 2026-08-11 — 🩺 Fix sello del anexo en PDF del historial + hero de scouting; PLAN de puesta a punto (commit `446c73c0`)
 - **Estado:** Hecho (fixes) · Planeado, NO ejecutado (upgrade/migraciones/QA).
 - **Archivos:** `componentes/historiamr-print.blade.php`, `componentes/_doc-hero-styles.blade.php`, `componentes/_doc-hero.blade.php`, `admin/scoutings/show.blade.php`.
