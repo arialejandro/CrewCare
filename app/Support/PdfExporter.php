@@ -31,6 +31,10 @@ class PdfExporter
             }
         }
 
+        // 2b) Imágenes lazy: en render headless (PDF) las de ABAJO del viewport no se disparan
+        // (no hay scroll/intersección) → salen en NEGRO. Forzar carga inmediata para el PDF.
+        $html = str_replace(['loading="lazy"', "loading='lazy'"], 'loading="eager"', $html);
+
         // 3) Archivo temporal (htmlFromFilePath salta el check anti-file:// de setHtml)
         $tmpHtml = tempnam(sys_get_temp_dir(), 'ccpdf') . '.html';
         $tmpPdf  = tempnam(sys_get_temp_dir(), 'ccpdf') . '.pdf';
