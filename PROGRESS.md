@@ -235,7 +235,7 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
-### 2026-08-11 — 🌱 Fase 1b EJECUTADA: seeders de fábrica (`migrate && db:seed` deja la app usable) — commit `66531964` en rama `upgrade/laravel-13`
+### 2026-08-11 — 🌱 Fase 1b EJECUTADA: seeders de fábrica (`migrate && db:seed` deja la app usable) — commit `d0a66527` en rama `upgrade/laravel-13`
 - **Estado:** Hecho y VERIFICADO.
 - **Archivos:** `database/seeders/DatabaseSeeder.php` (chain de fábrica), `database/seeders/InstallAdminSeeder.php` (NUEVO), `database/seeders/RolesAndPermissionsSeeder.php` (medic +hazards), `database/seeders/ProductionDemoSeeder.php` (nombre por env).
 - **Qué / Por qué:** cerrar el hueco de deploy que dejó Fase 1 — `migrate` creaba tablas VACÍAS (sin cuenta para entrar, catálogos vacíos, RBAC incompleto). Ahora `DatabaseSeeder` encadena 26 seeders (9 `*PermissionsSeeder` por-módulo + 12 catálogos en orden estricto de dependencia); `InstallAdminSeeder` bootstrapea el 1er super-admin (idempotente, creds por env, sin password hardcodeado); medic gana `hazards.create/manage` en el base; producción por `env('INSTALL_PRODUCTION_NAME')`. Se sacaron del chain MapExisting/Backfill (legacy, no-op en fresh).
