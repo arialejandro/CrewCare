@@ -406,6 +406,12 @@ body{
                 <div class="anexo-by">
                     {{ __('health.trace_by') }}: {{ $anexo->medic_name ?: '—' }}@if($anexo->medic_cedula) · {{ __('health.trace_cedula') }} {{ $anexo->medic_cedula }}@if($anexo->medic_cedula_verified) ✓ @endif @endif
                 </div>
+                {{-- Sello del anexo (mismo que la pantalla): un anexo firmado lleva su propia cadena
+                     CFDI. Antes el print lo omitía → "el historial no enviaba el sello que sí existe".
+                     Guardado por EXISTENCIA de firma (regla "si no existe, no se muestra"). --}}
+                @if($anexo->signatures()->exists())
+                    @include('componentes._seal-cfdi', ['doc' => $anexo, 'folio' => $anexo->folio(), 'prefix' => 'CREWCARE-EXPA'])
+                @endif
             </div>
         @endforeach
 

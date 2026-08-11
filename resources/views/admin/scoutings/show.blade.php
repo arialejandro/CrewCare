@@ -270,6 +270,9 @@
         'heroDate'     => $heroDate,
         'heroTime'     => null,
         'heroMeta'     => $heroMeta,
+        {{-- La locación se OCULTA del cuadro negro: ya vive abajo en el cintillo (UBICACIÓN) y
+             repetirla aquí era redundante. La caja negra queda como "llamado": fecha + escenas/tipo. --}}
+        'heroHideCallLoc' => true,
         'heroModule'   => __('reports.scouting_title'),
       ])
       @if($report->status !== 'final')

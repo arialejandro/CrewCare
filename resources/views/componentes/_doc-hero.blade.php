@@ -31,6 +31,10 @@
     // $heroHideCallbox OPCIONAL: oculta el recuadro negro de locación/fecha. Lo usa el acta de
     // ambulancia (la fecha vive en la banda y el hero destaca al proveedor). Default: se muestra.
     $heroHideCallbox = $heroHideCallbox ?? false;
+    // $heroHideCallLoc OPCIONAL: oculta SÓLO la línea de locación del cuadro negro (deja fecha y
+    // meta). Lo usa el Scouting, donde la locación ya vive abajo en el cintillo y repetirla en la
+    // caja negra era redundante. Default: se muestra (retrocompatible con los demás documentos).
+    $heroHideCallLoc = $heroHideCallLoc ?? false;
 @endphp
 <div class="doc-hero">
     @if(!empty($heroImage))
@@ -46,7 +50,9 @@
         <div class="hero-project" id="heroProject" style="font-size:46px;">{{ $heroProject }}</div>
         @unless($heroHideCallbox)
         <div class="hero-callbox">
+            @unless($heroHideCallLoc)
             <div class="cl-loc" id="heroCall">{{ $heroLocation !== '' ? $heroLocation : '—' }}</div>
+            @endunless
             <div class="cl-date">{{ $heroDate ?: 'S/F' }}{{ !empty($heroTime) ? ' | ' . $heroTime . ' HRS' : '' }}</div>
             @if(!empty($heroMeta))<div class="cl-meta" style="font-size:11px;color:rgba(255,255,255,.82);margin-top:5px;letter-spacing:.02em;line-height:1.35;">{{ $heroMeta }}</div>@endif
         </div>
