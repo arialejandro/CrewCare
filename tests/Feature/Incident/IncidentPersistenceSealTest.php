@@ -318,29 +318,34 @@ class IncidentPersistenceSealTest extends QaTestCase
     // ==================================================================================
 
     /**
-     * BUG-INC-01 — La redirección post-creación de crew apunta a una vista prohibida.
+     * BUG-INC-01 — FIX (2026-08-11, opción del owner: landing permitida).
      *
-     * crew tiene injury.create (self-service) pero NO injury.view, y InjuryReportController@store
-     * SIEMPRE redirige a injury_reports.show (gate injury.view). Además InjuryReportPolicy::view()
-     * —que su propio docblock dice que gatea "la ficha general"— es CÓDIGO MUERTO: no hay ningún
-     * authorize('view')/can('view') en el código, así que la "ownership en Policy" que promete el
-     * comentario del seeder ("can file own injury/hazard reports — ownership checked in Policy")
-     * NUNCA se ejerce para VER. Resultado: crew envía su reporte y aterriza en un 403.
+     * crew tiene injury.create (self-service) pero NO injury.view. Antes, InjuryReportController@store
+     * SIEMPRE redirigía a injury_reports.show (gate injury.view) → crew enviaba su reporte y aterrizaba
+     * en un 403. El fix ramifica por permiso: quien puede VER va al expediente; el resto (crew) aterriza
+     * en /home con un acuse, SIN exponer el documento.
      *
-     * Esta guarda DOCUMENTA el comportamiento ACTUAL (verde). Comportamiento esperado tras el fix
-     * (decisión del owner): o bien redirigir a crew a una landing permitida, o bien cablear la
-     * policy de propiedad para que el capturador vea su propia ficha LITE.
+     * NOTA: se eligió la landing, NO cablear la ownership-policy → InjuryReportController@store ya no
+     * depende de InjuryReportPolicy::view() (que sigue siendo código muerto; su retiro es aparte).
+     *
+     * Esta guarda verifica el comportamiento ESPERADO tras el fix.
      */
-    public function test_BUG_crew_tras_crear_injury_es_redirigido_a_una_vista_que_le_da_403(): void
+    public function test_crew_tras_crear_injury_aterriza_en_home_no_en_una_vista_prohibida(): void
     {
         $this->actingAsRole('crew');
         $resp = $this->post(route('injury_reports.store'), ['what_happened' => 'Reporte propio']);
 
         $injury = InjuryReport::latest('id')->first();
-        $this->assertNotNull($injury);
-        // El store redirige a la LITE...
-        $resp->assertRedirect(route('injury_reports.show', $injury->id));
-        // ...pero esa misma ruta le da 403 a crew (dangling redirect).
+        $this->assertNotNull($injury, 'El crew SÍ puede capturar su propio reporte.');
+
+        // El store ya NO manda a crew a injury_reports.show; aterriza en /home con acuse.
+        $resp->assertRedirect(route('home'));
+        $resp->assertSessionHas('success');
+        // La landing es realmente alcanzable (no hay dangling 403).
+        $this->get(route('home'))->assertSuccessful();
+
+        // Defensa en profundidad: el gate de módulo NO se relajó — crew sigue sin poder
+        // abrir la ficha completa directamente.
         $this->get(route('injury_reports.show', $injury->id))->assertForbidden();
     }
 

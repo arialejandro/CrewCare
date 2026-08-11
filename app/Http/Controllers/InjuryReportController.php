@@ -121,10 +121,20 @@ class InjuryReportController extends Controller
         $report->refresh();
         $report->signDocument(auth()->user(), $request);
 
-        // Redirigir a la vista del reporte recién creado con un mensaje de éxito
+        // (2026-08-11) BUG-INC-01: el crew tiene injury.create pero NO injury.view,
+        // así que redirigir SIEMPRE a injury_reports.show le daba un 403 al crear su
+        // propio accidente. Ramificamos por permiso: quien puede VER el expediente va
+        // al reporte; el resto aterriza en su home con un acuse, SIN exponer el
+        // documento (evita el 403 y protege la PII clínica).
+        if (auth()->user()->can('injury.view')) {
+            return redirect()
+                ->route('injury_reports.show', $report->id)
+                ->with('success', 'Reporte creado exitosamente.');
+        }
+
         return redirect()
-            ->route('injury_reports.show', $report->id)
-            ->with('success', 'Reporte creado exitosamente.');
+            ->route('home')
+            ->with('success', 'Tu reporte fue recibido. Gracias por notificarlo.');
 
     } catch (\Exception $e) {
         // Log del error para depuración
