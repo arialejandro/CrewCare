@@ -353,13 +353,12 @@ class IncidentPersistenceSealTest extends QaTestCase
      *   database/migrations/2026_06_25_000022_create_hazardnotifications_table.php:13
      *   database/migrations/2026_06_25_000045_create_unsafeconds_table.php:13
      *
-     * SKIPPED hasta que el owner amplíe la columna (a bigint/int unsigned, homologado con injury).
-     * Al aplicar el fix y quitar el skip, esta guarda debe pasar (el PK ya NO es tinyint).
+     * FIX APLICADO: ambas columnas `id` se ampliaron a `int(10) unsigned` en sus migraciones de
+     * creación (homologado hacia arriba respecto al tinyint legacy). La guarda ahora EXIGE que el PK
+     * ya NO sea tinyint.
      */
     public function test_BUG_id_de_hazard_y_unsafe_no_debe_toparse_en_255(): void
     {
-        $this->markTestSkipped('BUG-INC-02: hazardnotifications.id / unsafeconds.id son tinyint(3) (tope 255); pendiente de ampliar por el owner.');
-
         foreach (['hazardnotifications', 'unsafeconds'] as $table) {
             $type = DB::table('information_schema.columns')
                 ->where('table_schema', DB::getDatabaseName())

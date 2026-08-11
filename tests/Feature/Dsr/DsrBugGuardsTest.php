@@ -46,22 +46,23 @@ class DsrBugGuardsTest extends QaTestCase
      */
     public function test_BUG_call_time_malformado_no_debe_dar_500(): void
     {
+        // FIX APLICADO (StoreDailyReportRequest: call_time => 'nullable|date_format:H:i').
+        // Una hora malformada debe rebotar como ERROR DE VALIDACIÓN (redirect 302 con errores en
+        // sesión), NUNCA como 500 (QueryException 1292 al insertar en una columna `time` STRICT).
         $this->actingAsRole('safety-officer');
         $payload = $this->basePayload(['call_time' => 'notatime']);
 
         $resp = $this->post(route('daily_reports.store'), $payload);
 
-        if ($resp->status() === 500) {
-            $this->assertDatabaseMissing('daily_reports', ['location_name' => $payload['location_name']]);
-            $this->markTestIncomplete(
-                'BUG DSR-1 ABIERTO: call_time malformado -> 500 (QueryException 1292) en vez de error de ' .
-                'validación. Fix: date_format:H:i en StoreDailyReportRequest.php:108.'
-            );
-        }
-
-        // El fix llegó: exigir el comportamiento correcto.
+        $this->assertNotSame(500, $resp->status(), 'call_time malformado NO debe reventar en 500.');
         $resp->assertSessionHasErrors('call_time');
         $this->assertDatabaseMissing('daily_reports', ['location_name' => $payload['location_name']]);
+
+        // Y una hora válida HH:MM (lo que emite <input type="time">) SÍ se acepta.
+        $ok = $this->basePayload(['call_time' => '07:30']);
+        $this->post(route('daily_reports.store'), $ok)
+            ->assertSessionDoesntHaveErrors('call_time');
+        $this->assertDatabaseHas('daily_reports', ['location_name' => $ok['location_name']]);
     }
 
     /**
@@ -75,20 +76,20 @@ class DsrBugGuardsTest extends QaTestCase
      */
     public function test_BUG_safety_meeting_time_malformado_no_debe_dar_500(): void
     {
+        // FIX APLICADO (StoreDailyReportRequest: safety_meeting_time => 'nullable|date_format:H:i').
         $this->actingAsRole('safety-officer');
         $payload = $this->basePayload(['safety_meeting_time' => 'xx:yy']);
 
         $resp = $this->post(route('daily_reports.store'), $payload);
 
-        if ($resp->status() === 500) {
-            $this->assertDatabaseMissing('daily_reports', ['location_name' => $payload['location_name']]);
-            $this->markTestIncomplete(
-                'BUG DSR-2 ABIERTO: safety_meeting_time malformado -> 500 (QueryException 1292). ' .
-                'Fix: date_format:H:i en StoreDailyReportRequest.php:112.'
-            );
-        }
-
+        $this->assertNotSame(500, $resp->status(), 'safety_meeting_time malformado NO debe reventar en 500.');
         $resp->assertSessionHasErrors('safety_meeting_time');
         $this->assertDatabaseMissing('daily_reports', ['location_name' => $payload['location_name']]);
+
+        // Y una hora válida HH:MM SÍ se acepta.
+        $ok = $this->basePayload(['safety_meeting_time' => '07:30']);
+        $this->post(route('daily_reports.store'), $ok)
+            ->assertSessionDoesntHaveErrors('safety_meeting_time');
+        $this->assertDatabaseHas('daily_reports', ['location_name' => $ok['location_name']]);
     }
 }

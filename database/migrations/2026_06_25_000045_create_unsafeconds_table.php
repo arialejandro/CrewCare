@@ -10,7 +10,7 @@ class CreateUnsafecondsTable extends Migration
     {
         DB::statement(<<<'SQL'
 CREATE TABLE `unsafeconds` (
-  `id` tinyint(3) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `production_name` varchar(255) DEFAULT NULL,
   `name_loc` varchar(255) DEFAULT NULL,
   `latitude` decimal(10,7) DEFAULT NULL,

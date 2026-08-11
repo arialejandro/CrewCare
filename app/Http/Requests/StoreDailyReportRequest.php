@@ -105,11 +105,11 @@ class StoreDailyReportRequest extends FormRequest
             'location_name'        => 'required|string',
             'slug_setting'         => 'required|string',
             'slug_time'            => 'required|string',
-            'call_time'            => 'nullable',
+            'call_time'            => 'nullable|date_format:H:i',
             'weather_condition'    => 'required|string',
             'weather_min_temp'     => 'nullable|integer',
             'weather_max_temp'     => 'nullable|integer',
-            'safety_meeting_time'  => 'nullable',
+            'safety_meeting_time'  => 'nullable|date_format:H:i',
             // (2026-07-21) ¿Se realizó la junta? nullable a propósito: si el formulario de
             // una instancia vieja no manda el campo, el reporte queda "sin declarar" (null)
             // en vez de mentir marcándolo como realizado.
