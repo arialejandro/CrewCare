@@ -235,6 +235,12 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-11 — 🧪 Fase 2 (tanda 2 + bugs): +3 verticales (207 t) + 4 bugs cerrados; 3 nuevos abiertos — commits `443ef751`, `3ec2431e`, `8e607c06`
+- **Estado:** Hecho (tanda 2 + BUG-01/02/03/04). Pendiente: 3 bugs nuevos (tu decisión) + tanda 3 opcional.
+- **Archivos:** `tests/Feature/{Dsr,Incident,Permit}/` (nuevos); fixes en `CrewController`, `RoleAssignmentController`, `MedicalReportController`, `routes/web.php`, `admin/partials/roles-assign-table.blade`, `layouts/sidebar.blade`, `componentes/_dashboard-medical.blade`, `MedicalIsolationTest`.
+- **Qué / Por qué:** completar la red de QA (7 verticales; **suite integrada 304 passed / 2 incomplete / 1 skipped**) y cerrar bugs. **CERRADOS:** BUG-02/03 (500s en alta de crew / asignación de rol), BUG-01 (fuga clínica de la bitácora → **opción B**: la ve/emite solo `medical.consolidate`, otorgable desde el panel a médico/safety-officer/producción), BUG-04 (el grant del key-medic del panel estaba doblemente roto). **NUEVOS (guardas en el suite, sin corregir):** DSR-1/2 (hora malformada→500), BUG-INC-01 (crew cae en 403 tras crear injury + policy muerta), BUG-INC-02 (PK `tinyint` tope 255 en hazard/unsafe).
+- **Riesgo/Notas:** BUG-INC-02 = riesgo real de prod (falla en la fila 256). BUG-INC-01 requiere decisión (a dónde redirigir a crew); DSR-1/2 e INC-02 son fixes claros pendientes de tu OK. Ver [[qa-suite-and-findings]].
+
 ### 2026-08-11 — 🧪 Fase 2 (tanda 1): suite de QA headless + 3 verticales (95 verde) — commits `5ccf8c99` (arnés) + `fc14f20b` (verticales)
 - **Estado:** Hecho (tanda 1). Pendiente: tanda 2 de verticales + render/fitz.
 - **Archivos:** `phpunit.xml`, `tests/QaTestCase.php` (arnés), `tests/Feature/Smoke/`, `tests/Feature/Crew/` (3), `tests/Feature/Medical/`, `tests/Feature/Seal/` (2). Borrados los stubs Example.
