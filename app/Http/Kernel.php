@@ -74,11 +74,10 @@ class Kernel extends HttpKernel
         // personales sensibles sin haber leído bajo qué términos.
         'privacidad' => \App\Http\Middleware\EnsurePrivacyConsent::class,
 
-        // Spatie RBAC aliases (ADDITIVE — registered for use vertical-by-vertical later;
-        // NOT yet attached to any existing route. Old 'admin'/AdminMiddleware stay in place).
-        // NOTE: spatie/laravel-permission v5 namespaces these under `Middlewares` (plural).
-        'role' => \Spatie\Permission\Middlewares\RoleMiddleware::class,
-        'permission' => \Spatie\Permission\Middlewares\PermissionMiddleware::class,
-        'role_or_permission' => \Spatie\Permission\Middlewares\RoleOrPermissionMiddleware::class,
+        // Spatie RBAC aliases. (2026-08-11 · upgrade L10) spatie/laravel-permission v6 movió
+        // el namespace de `Middlewares` (plural, v5) a `Middleware` (singular).
+        'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
+        'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+        'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
     ];
 }

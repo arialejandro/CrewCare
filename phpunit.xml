@@ -1,38 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:noNamespaceSchemaLocation="./vendor/phpunit/phpunit/phpunit.xsd"
-         bootstrap="vendor/autoload.php"
-         colors="true"
->
-    <testsuites>
-        <testsuite name="Unit">
-            <directory suffix="Test.php">./tests/Unit</directory>
-        </testsuite>
-        <testsuite name="Feature">
-            <directory suffix="Test.php">./tests/Feature</directory>
-        </testsuite>
-    </testsuites>
-    <coverage processUncoveredFiles="true">
-        <include>
-            <directory suffix=".php">./app</directory>
-        </include>
-    </coverage>
-    <php>
-        <server name="APP_ENV" value="testing"/>
-        <server name="BCRYPT_ROUNDS" value="4"/>
-        <server name="CACHE_DRIVER" value="array"/>
-        <!-- BD de PRUEBAS dedicada. NUNCA la real (crewcare). El QaTestCase aborta
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd" bootstrap="vendor/autoload.php" colors="true" cacheDirectory=".phpunit.cache">
+  <testsuites>
+    <testsuite name="Unit">
+      <directory suffix="Test.php">./tests/Unit</directory>
+    </testsuite>
+    <testsuite name="Feature">
+      <directory suffix="Test.php">./tests/Feature</directory>
+    </testsuite>
+  </testsuites>
+  <php>
+    <server name="APP_ENV" value="testing"/>
+    <server name="BCRYPT_ROUNDS" value="4"/>
+    <server name="CACHE_DRIVER" value="array"/>
+    <!-- BD de PRUEBAS dedicada. NUNCA la real (crewcare). El QaTestCase aborta
              si DB_DATABASE != crewcare_test antes de que RefreshDatabase haga migrate:fresh. -->
-        <server name="DB_CONNECTION" value="mysql"/>
-        <server name="DB_DATABASE" value="crewcare_test"/>
-        <!-- InstallAdminSeeder deterministico (sin password aleatorio en la salida). -->
-        <server name="INSTALL_ADMIN_EMAIL" value="qa-admin@test.local"/>
-        <server name="INSTALL_ADMIN_PASSWORD" value="secret1234"/>
-        <!-- No pegarle al robot SEP en pruebas. -->
-        <server name="CEDULA_AUTO_VERIFY" value="false"/>
-        <server name="MAIL_MAILER" value="array"/>
-        <server name="QUEUE_CONNECTION" value="sync"/>
-        <server name="SESSION_DRIVER" value="array"/>
-        <server name="TELESCOPE_ENABLED" value="false"/>
-    </php>
+    <server name="DB_CONNECTION" value="mysql"/>
+    <server name="DB_DATABASE" value="crewcare_test"/>
+    <!-- InstallAdminSeeder deterministico (sin password aleatorio en la salida). -->
+    <server name="INSTALL_ADMIN_EMAIL" value="qa-admin@test.local"/>
+    <server name="INSTALL_ADMIN_PASSWORD" value="secret1234"/>
+    <!-- No pegarle al robot SEP en pruebas. -->
+    <server name="CEDULA_AUTO_VERIFY" value="false"/>
+    <server name="MAIL_MAILER" value="array"/>
+    <server name="QUEUE_CONNECTION" value="sync"/>
+    <server name="SESSION_DRIVER" value="array"/>
+    <server name="TELESCOPE_ENABLED" value="false"/>
+  </php>
+  <source>
+    <include>
+      <directory suffix=".php">./app</directory>
+    </include>
+  </source>
 </phpunit>

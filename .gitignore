@@ -42,3 +42,4 @@ graphify-out/
 auth.json
 npm-debug.log
 yarn-error.log
+/.phpunit.cache
