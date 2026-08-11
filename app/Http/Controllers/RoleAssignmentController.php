@@ -152,7 +152,7 @@ class RoleAssignmentController extends Controller
 
             // Si el departamento cambia, el puesto previo pertenecía a otro depto → se limpia
             // (no hay selector de puesto en esta v1; se reasigna cuando lo agreguemos).
-            $newDept = $data['department_id'] !== null ? (int) $data['department_id'] : null;
+            $newDept = ($data['department_id'] ?? null) !== null ? (int) $data['department_id'] : null; // BUG-03: la clave puede faltar (validada nullable)
             $positionId = $existing->position_id ?? null;
             if (!$existing || (int) ($existing->department_id ?? 0) !== (int) ($newDept ?? 0)) {
                 $positionId = null;

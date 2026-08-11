@@ -215,11 +215,8 @@ class CrewPersistenceTest extends QaTestCase
      */
     public function test_labn_no_numerico_debe_dar_error_de_validacion_no_500(): void
     {
-        // GUARDA DE REGRESIÓN de BUG-02: users.labn es int(30) pero CrewController:89 lo valida
-        // como `string` -> con STRICT mode, una letra revienta en 500 en vez de un error amable.
-        // Skipped hasta el fix (regla `integer`). Al arreglar, quitar el skip: debe pasar.
-        $this->markTestSkipped('BUG-02: labn no numerico devuelve 500; pendiente de fix del owner.');
-
+        // BUG-02 CORREGIDO (labn ahora `integer` en CrewController): una letra da error de
+        // validación, no 500. Esta guarda queda ACTIVA contra regresión.
         $this->actingAsRole('super-admin');
         $payload = $this->newUserPayload(['labn' => 'ABC']); // no numerico
 
@@ -237,11 +234,8 @@ class CrewPersistenceTest extends QaTestCase
      */
     public function test_roles_update_sin_department_id_no_debe_dar_500(): void
     {
-        // GUARDA DE REGRESIÓN de BUG-03: RoleAssignmentController:155 lee $data['department_id']
-        // directo aunque se valida `nullable` -> si el POST lo omite, Undefined index -> 500.
-        // Skipped hasta el fix (`$data['department_id'] ?? null`). Latente (el form real siempre lo manda).
-        $this->markTestSkipped('BUG-03: roles.update sin department_id devuelve 500; pendiente de fix del owner.');
-
+        // BUG-03 CORREGIDO (`$data['department_id'] ?? null`): omitir department_id ya no revienta.
+        // Guarda ACTIVA contra regresión.
         $target = $this->makeUser('crew');
 
         $this->actingAsRole('line-producer');
