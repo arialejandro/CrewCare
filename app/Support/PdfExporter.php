@@ -39,16 +39,27 @@ class PdfExporter
         $m = array_values($margins) + [0, 0, 0, 0];
 
         // 4) Browsershot -> savePdf (en Windows pdf() por stdout corrompe binarios grandes)
-        Browsershot::htmlFromFilePath($tmpHtml)
-            ->setChromePath(env('BROWSERSHOT_CHROME', 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'))
-            ->setNodeBinary(env('BROWSERSHOT_NODE', 'C:\\Program Files\\nodejs\\node.exe'))
-            ->setNodeModulePath(base_path('node_modules'))
-            ->noSandbox()
-            ->setOption('preferCSSPageSize', true)
-            ->showBackground()
-            ->margins((float) $m[0], (float) $m[1], (float) $m[2], (float) $m[3])
-            ->waitUntilNetworkIdle()
-            ->savePdf($tmpPdf);
+        try {
+            Browsershot::htmlFromFilePath($tmpHtml)
+                ->setChromePath(env('BROWSERSHOT_CHROME', 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'))
+                ->setNodeBinary(env('BROWSERSHOT_NODE', 'C:\\Program Files\\nodejs\\node.exe'))
+                ->setNodeModulePath(base_path('node_modules'))
+                ->noSandbox()
+                ->setOption('preferCSSPageSize', true)
+                ->showBackground()
+                ->margins((float) $m[0], (float) $m[1], (float) $m[2], (float) $m[3])
+                ->waitUntilNetworkIdle()
+                ->timeout(120)
+                ->savePdf($tmpPdf);
+        } catch (\Symfony\Component\Process\Exception\ProcessFailedException $e) {
+            @unlink($tmpHtml);
+            @unlink($tmpPdf);
+            // Superficie el stderr REAL de node/Chrome (si no, el whoops sólo muestra el comando).
+            // Útil donde el spawn de Chrome falla por entorno del servidor (p. ej. `php artisan serve`,
+            // de un solo hilo y entorno mínimo). El camino normal es el vhost de laragon / Apache.
+            $err = trim($e->getProcess()->getErrorOutput());
+            throw new \RuntimeException('Export PDF (Browsershot) falló: ' . ($err !== '' ? $err : $e->getMessage()), 0, $e);
+        }
 
         $bytes = file_get_contents($tmpPdf);
         @unlink($tmpHtml);
