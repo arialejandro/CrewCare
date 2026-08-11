@@ -235,6 +235,12 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-11 — 🧪 Fase 2 (tanda 1): suite de QA headless + 3 verticales (95 verde) — commits `5ccf8c99` (arnés) + `fc14f20b` (verticales)
+- **Estado:** Hecho (tanda 1). Pendiente: tanda 2 de verticales + render/fitz.
+- **Archivos:** `phpunit.xml`, `tests/QaTestCase.php` (arnés), `tests/Feature/Smoke/`, `tests/Feature/Crew/` (3), `tests/Feature/Medical/`, `tests/Feature/Seal/` (2). Borrados los stubs Example.
+- **Qué / Por qué:** construir la RED DE SEGURIDAD antes del upgrade L13. Antes: 0 tests reales. Arnés headless (`actingAs`, sin password) sobre el install de fábrica, con BD dedicada `crewcare_test` y guard duro anti-BD-real. Verticales por subagentes en paralelo (cada uno su BD `crewcare_test_<v>`) + verificación integrada propia: 95 passed, 4 skipped, 0 fallos.
+- **Riesgo/Notas:** **3 BUGS reales revelados** (guardas skipped, NO corregidos, esperan go): **BUG-01** fuga clínica en la bitácora médica (Dx + nota privada de otros médicos → chip de tarea, decisión owner), **BUG-02** 500 por `labn` string/int (`CrewController:89`), **BUG-03** 500 latente por `department_id` ausente (`RoleAssignmentController:155`). El vertical de SELLOS salió **sin bugs de integridad** (el núcleo de confianza está blindado). Ver [[qa-suite-and-findings]].
+
 ### 2026-08-11 — 🌱 Fase 1b EJECUTADA: seeders de fábrica (`migrate && db:seed` deja la app usable) — commit `d0a66527` en rama `upgrade/laravel-13`
 - **Estado:** Hecho y VERIFICADO.
 - **Archivos:** `database/seeders/DatabaseSeeder.php` (chain de fábrica), `database/seeders/InstallAdminSeeder.php` (NUEVO), `database/seeders/RolesAndPermissionsSeeder.php` (medic +hazards), `database/seeders/ProductionDemoSeeder.php` (nombre por env).
