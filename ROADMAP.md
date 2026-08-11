@@ -13,7 +13,7 @@ Sirve para entender el panorama y decidir el orden.
 > en **[PROGRESS.md](PROGRESS.md)** (deltas #40-#51) y el detalle en las notas de memoria.
 > Las FASES de abajo siguen siendo la guía estratégica; no reflejan aún todo lo implementado.
 
-> **🔺 PRÓXIMO MILESTONE ESTRATÉGICO (planeado 2026-08-11, NO ejecutado): PUESTA A PUNTO DEL STACK.**
+> **🔺 MILESTONE ESTRATÉGICO EN CURSO (2026-08-11): PUESTA A PUNTO DEL STACK.** ✅ HECHAS en rama `upgrade/laravel-13` (`clean-main` intacta): **Fase 0** (rollback probado), **Fase 1** (migraciones limpias — `migrate` levanta el esquema 76/76 idéntico), **Fase 1b** (seeders de fábrica — `db:seed` deja app usable), **Fase 2** (suite de QA: 7 verticales, 307 tests; 4 bugs cerrados, 3 abiertos). ⬜ FALTA: **upgrade PHP 8.3 + Laravel 13 (Fases 3–4)** + cierre HMAC (5). Ver [[qa-suite-and-findings]].
 > Con el H&S ya construido, el siguiente foco es el **cimiento**: (1) cerrar la deuda de `migrate`
 > con **migraciones limpias** (hoy `migrate` levanta 56 de 92 tablas); (2) **actualizar a Laravel 13 /
 > PHP 8.3** (ambos actuales están EOL → soporte + seguridad); (3) **suite de QA profunda** (headless,
