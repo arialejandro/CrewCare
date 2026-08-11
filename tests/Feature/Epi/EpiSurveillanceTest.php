@@ -69,7 +69,7 @@ class EpiSurveillanceTest extends QaTestCase
         $this->get(route('epi.index'))->assertOk();
     }
 
-    public function rolesConEpiView(): array
+    public static function rolesConEpiView(): array
     {
         return [['safety-officer'], ['medic'], ['super-admin']];
     }
@@ -81,7 +81,7 @@ class EpiSurveillanceTest extends QaTestCase
         $this->get(route('epi.index'))->assertForbidden();
     }
 
-    public function rolesSinEpiView(): array
+    public static function rolesSinEpiView(): array
     {
         // El panel lo comparten SOLO safety y médico; ningún permiso genérico lo abre.
         return [['line-producer'], ['coordinator'], ['hod'], ['crew'], ['auditor']];

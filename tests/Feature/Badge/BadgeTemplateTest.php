@@ -81,7 +81,7 @@ class BadgeTemplateTest extends QaTestCase
         $this->get(route('badge.designer'))->assertOk();
     }
 
-    public function grantedProvider(): array
+    public static function grantedProvider(): array
     {
         return [['super-admin'], ['line-producer'], ['coordinator']];
     }
@@ -109,7 +109,7 @@ class BadgeTemplateTest extends QaTestCase
         $this->get(route('badge.template'))->assertForbidden();
     }
 
-    public function deniedProvider(): array
+    public static function deniedProvider(): array
     {
         return [['hod'], ['medic'], ['safety-officer'], ['crew'], ['auditor']];
     }

@@ -57,7 +57,7 @@ class WrapReportTest extends QaTestCase
         $this->get(route('wrap.preview'))->assertOk();
     }
 
-    public function emisoresProvider(): array
+    public static function emisoresProvider(): array
     {
         return [['safety-officer'], ['super-admin']];
     }
@@ -71,7 +71,7 @@ class WrapReportTest extends QaTestCase
         $this->get(route('wrap.preview'))->assertForbidden();
     }
 
-    public function noEmisoresProvider(): array
+    public static function noEmisoresProvider(): array
     {
         return [['line-producer'], ['coordinator'], ['hod'], ['auditor'], ['medic'], ['crew']];
     }

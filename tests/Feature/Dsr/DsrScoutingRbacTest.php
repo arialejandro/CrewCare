@@ -30,7 +30,7 @@ class DsrScoutingRbacTest extends QaTestCase
         $this->get(route($routeName, $params))->assertRedirect(route('login'));
     }
 
-    public function rutasGetProvider(): array
+    public static function rutasGetProvider(): array
     {
         return [
             'dsr.index'        => ['daily_reports.index', []],
@@ -60,7 +60,7 @@ class DsrScoutingRbacTest extends QaTestCase
         }
     }
 
-    public function dsrCreateRolesProvider(): array
+    public static function dsrCreateRolesProvider(): array
     {
         return [
             'super-admin'    => ['super-admin', true],
@@ -90,7 +90,7 @@ class DsrScoutingRbacTest extends QaTestCase
         }
     }
 
-    public function dsrViewRolesProvider(): array
+    public static function dsrViewRolesProvider(): array
     {
         return [
             'super-admin'    => ['super-admin', true],
@@ -157,7 +157,7 @@ class DsrScoutingRbacTest extends QaTestCase
         }
     }
 
-    public function scoutCreateRolesProvider(): array
+    public static function scoutCreateRolesProvider(): array
     {
         return [
             'super-admin'    => ['super-admin', true],
@@ -187,7 +187,7 @@ class DsrScoutingRbacTest extends QaTestCase
         }
     }
 
-    public function scoutViewRolesProvider(): array
+    public static function scoutViewRolesProvider(): array
     {
         return [
             'super-admin'    => ['super-admin', true],

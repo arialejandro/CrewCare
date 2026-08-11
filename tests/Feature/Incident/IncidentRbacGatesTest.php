@@ -53,7 +53,7 @@ class IncidentRbacGatesTest extends QaTestCase
         $this->get(route('injury_reports.create'))->assertOk();
     }
 
-    public function rolesConInjuryCreate(): array
+    public static function rolesConInjuryCreate(): array
     {
         return [['super-admin'], ['line-producer'], ['medic'], ['safety-officer'], ['crew']];
     }
@@ -67,7 +67,7 @@ class IncidentRbacGatesTest extends QaTestCase
         $this->post(route('injury_reports.store'), [])->assertForbidden();
     }
 
-    public function rolesSinInjuryCreate(): array
+    public static function rolesSinInjuryCreate(): array
     {
         return [['coordinator'], ['hod'], ['auditor']];
     }
@@ -89,7 +89,7 @@ class IncidentRbacGatesTest extends QaTestCase
         $this->get(route('injury_reports.index'))->assertOk();
     }
 
-    public function rolesConInjuryView(): array
+    public static function rolesConInjuryView(): array
     {
         return [['super-admin'], ['line-producer'], ['coordinator'], ['hod'], ['medic'], ['safety-officer'], ['auditor']];
     }
@@ -130,7 +130,7 @@ class IncidentRbacGatesTest extends QaTestCase
         $this->get(route('injury_reports.show_complete', $injury->id))->assertOk();
     }
 
-    public function rolesConViewMedical(): array
+    public static function rolesConViewMedical(): array
     {
         // viewMedical: super-admin (Gate::before), line-producer/safety-officer (hazards.manage),
         // medic (isMedic). Ninguno es el capturador del injury de prueba.
@@ -148,7 +148,7 @@ class IncidentRbacGatesTest extends QaTestCase
         $this->get(route('injury_reports.show_complete', $injury->id))->assertForbidden(); // COMPLETA no
     }
 
-    public function rolesSinViewMedical(): array
+    public static function rolesSinViewMedical(): array
     {
         return [['coordinator'], ['hod'], ['auditor']];
     }
@@ -202,7 +202,7 @@ class IncidentRbacGatesTest extends QaTestCase
         $this->get(route('hazard_notifications.create'))->assertOk();
     }
 
-    public function rolesConHazardsCreate(): array
+    public static function rolesConHazardsCreate(): array
     {
         return [['super-admin'], ['line-producer'], ['medic'], ['safety-officer'], ['crew']];
     }
@@ -215,7 +215,7 @@ class IncidentRbacGatesTest extends QaTestCase
         $this->post(route('hazard_notifications.store'), [])->assertForbidden();
     }
 
-    public function rolesSinHazardsCreate(): array
+    public static function rolesSinHazardsCreate(): array
     {
         return [['coordinator'], ['hod'], ['auditor']];
     }
@@ -227,7 +227,7 @@ class IncidentRbacGatesTest extends QaTestCase
         $this->get(route('hazard_notifications.index'))->assertOk();
     }
 
-    public function rolesConHazardsView(): array
+    public static function rolesConHazardsView(): array
     {
         return [['super-admin'], ['line-producer'], ['coordinator'], ['hod'], ['safety-officer'], ['auditor']];
     }
@@ -254,7 +254,7 @@ class IncidentRbacGatesTest extends QaTestCase
             ->assertForbidden();
     }
 
-    public function rolesSinHazardsManage(): array
+    public static function rolesSinHazardsManage(): array
     {
         return [['coordinator'], ['hod'], ['crew'], ['auditor']];
     }

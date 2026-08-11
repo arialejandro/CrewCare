@@ -282,7 +282,7 @@ class IncidentPersistenceSealTest extends QaTestCase
             ->assertForbidden();
     }
 
-    public function rolesSinMedicalCreate(): array
+    public static function rolesSinMedicalCreate(): array
     {
         // Sólo super-admin y medic tienen medical.create. safety-officer/coordinator/crew no.
         return [['safety-officer'], ['coordinator'], ['crew']];

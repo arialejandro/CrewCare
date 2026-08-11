@@ -59,7 +59,7 @@ class MedicalIsolationTest extends QaTestCase
         $this->get(route('medicocrud'))->assertOk();
     }
 
-    public function rolesConMedicalView(): array
+    public static function rolesConMedicalView(): array
     {
         return [
             ['super-admin'], ['line-producer'], ['coordinator'], ['hod'], ['medic'],
@@ -73,7 +73,7 @@ class MedicalIsolationTest extends QaTestCase
         $this->get(route('medicocrud'))->assertForbidden();
     }
 
-    public function rolesSinMedicalView(): array
+    public static function rolesSinMedicalView(): array
     {
         // crew y auditor NO tienen medical.view (expediente clínico = dato sensible).
         return [['crew'], ['auditor'], ['safety-officer']];
@@ -123,7 +123,7 @@ class MedicalIsolationTest extends QaTestCase
         $this->get(route('medical.materials'))->assertOk();
     }
 
-    public function rolesConMaterials(): array
+    public static function rolesConMaterials(): array
     {
         return [['super-admin'], ['line-producer'], ['medic'], ['safety-officer']];
     }
@@ -214,7 +214,7 @@ class MedicalIsolationTest extends QaTestCase
         $this->assertContains($consultB->id_cmedic, $visibles);
     }
 
-    public function observadoresConMedicalView(): array
+    public static function observadoresConMedicalView(): array
     {
         return [['super-admin'], ['line-producer'], ['coordinator']];
     }
