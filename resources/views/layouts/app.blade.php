@@ -44,9 +44,8 @@
 {{-- Poppins duplicado ELIMINADO: ya se importa (junto con Roboto y display=swap) en el
      <link> de arriba. Los preconnect se conservan para acelerar la carga de fuentes. --}}
 
-<!-- -------------- PWA -------------- -->
-@laravelPWA
-    <!-- PWA -->
+{{-- PWA: el paquete silviolleite/laravelpwa se retiró en el upgrade (era sólo el cascarón;
+     ver [[pwa-push-native-strategy]]). Una PWA propia (manifest + service worker) llegará después. --}}
 
     {{-- TEMA GLOBAL DE MARCA: variables CSS + puente a Bootstrap + utilidades .*-brand.
          Se incluye ANTES de @stack('styles') para que sea la base de toda la app y las

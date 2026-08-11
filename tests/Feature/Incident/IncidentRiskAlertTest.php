@@ -25,7 +25,7 @@ use Tests\QaTestCase;
  *  1. CABLEADO: los tres eventos están registrados al listener y el modelo dispara su
  *     evento al crearse (Event::fake + assertDispatched/assertListening).
  *  2. EFECTO: el gate de nivel del listener — se inspecciona el transporte de correo
- *     'array' (SwiftMailer) para confirmar que Alto/Extremo ENVÍAN y Bajo/Medio NO.
+ *     'array' (Symfony Mailer) para confirmar que Alto/Extremo ENVÍAN y Bajo/Medio NO.
  */
 class IncidentRiskAlertTest extends QaTestCase
 {
@@ -66,7 +66,9 @@ class IncidentRiskAlertTest extends QaTestCase
     /** Nº de mensajes acumulados en el transporte de correo 'array'. */
     private function mailCount(): int
     {
-        return Mail::getSwiftMailer()->getTransport()->messages()->count();
+        // (2026-08-11 · upgrade L9) L9 cambió SwiftMailer → Symfony Mailer: el transporte
+        // 'array' ahora se obtiene con getSymfonyTransport() (antes getSwiftMailer()->getTransport()).
+        return Mail::getSymfonyTransport()->messages()->count();
     }
 
     public function test_un_acto_alto_dispara_correo_y_uno_bajo_no(): void
