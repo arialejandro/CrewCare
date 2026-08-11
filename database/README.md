@@ -1,12 +1,23 @@
 # Esquema de CrewCare — cómo levantarlo y cómo actualizarlo
 
-> **Estado a 2026-07-25 · versión 3.5.** La app corre SOLO EN LOCAL. Nada de esto se ha
-> aplicado todavía en producción.
+> **⚠ ACTUALIZADO 2026-08-11 — ESTE DOC ES EN SU MAYORÍA HISTÓRICO.** Desde la **Fase 1** del
+> plan de puesta a punto (ver `PROGRESS.md` / `ROADMAP.md`), el esquema se reconstruyó como
+> **migraciones limpias POR TABLA** (`database/migrations/*.php`, una por tabla desde el DDL
+> vivo). Hoy **`php artisan migrate` levanta TODO el esquema** — verificado 2026-08-11: 64
+> migraciones, install de fábrica arranca limpio + **475 tests de QA en verde**. El viejo
+> `database/schema/mysql-schema.dump` fue **BORRADO** y ya NO se usa. La carpeta
+> `database/owner-apply/` y el índice de deltas de más abajo quedan como **referencia
+> histórica**: su contenido YA está horneado en las migraciones (auditado 2026-08-11, cero
+> gaps; sólo `scouting_canvases`/`canvas_pins` del delta #48 quedaron fuera A PROPÓSITO por
+> estar superseded por RiskMap). Los seeders de catálogo/permiso ya están **encadenados en
+> `DatabaseSeeder`** (un solo `php artisan db:seed` deja la app usable) → la sección "Seeders
+> uno-por-uno" de abajo también es histórica.
+>
+> **Estado original (2026-07-25 · v3.5, histórico):** la app corría SOLO EN LOCAL.
 
-Este archivo existe porque hasta hoy no había ninguno: `database/owner-apply/` tenía SQL
-sueltos sin orden documentado, y **28 de las 56 tablas no se podían recrear desde el repo**.
-Si la base local se perdía, el producto se perdía con ella. (Hoy son **45 deltas** — la lista de
-aplicación, con dependencias, está abajo.)
+Este archivo existe porque hasta entonces no había ninguno: `database/owner-apply/` tenía SQL
+sueltos sin orden documentado. (Histórico: entonces eran **45 deltas**; el índice con
+dependencias sigue abajo como referencia.)
 
 ---
 
