@@ -235,6 +235,12 @@ Roadmap ordenado de los cortes del God Object (`AdminController`, ~581 líneas),
 > squasheó lo previo). El detalle fino de cada bloque vive en su nota de memoria enlazada.
 > De aquí en adelante se registra por bloque en tiempo real. Fechas = de la memoria/commits.
 
+### 2026-08-11 — 🧱⬆️ Upgrade Etapas 0+1: Laravel 8 → 9 en PHP 8.1 (475 verde) — commits `6447f9fe`, `6a2623f3`
+- **Estado:** Hecho. Rama `upgrade/laravel-13`. **Suite 475 verde en PHP 8.1 / Laravel 9** (compuerta: migrate:fresh+seed + view:cache compila todos los Blade + 247 rutas).
+- **Archivos:** `composer.json`/`.lock`, 7 modelos (`$dates`→`$casts`), `Http/Kernel.php` (CORS), `AppServiceProvider` (shim Blade), `layouts/app.blade.php` (`@laravelPWA`), `IncidentRiskAlertTest` (mail Swift→Symfony); borrado `config/laravelpwa.php`.
+- **Qué / Por qué:** primer tramo del upgrade (runbook en el dossier `Plan-Upgrade-L13…`). **Etapa 0** = baseline en 8.1 + fixes agnósticos (`$dates` deprecado L9+). **Etapa 1** = L8→L9: composer a framework `^9` (v9.52.21), quitados fruitcake (CORS nativo) + laravelpwa (cascarón), ignition→spatie/laravel-ignition, mailersend 1→2. Único breaking real = helper de mail del TEST (SwiftMailer→Symfony Mailer); la app estaba limpia.
+- **Riesgo/Notas:** corre en PHP 8.1 (laragon ya lo tenía). **PHP 8.3 lo instala el owner para la Etapa 3 (L11).** 16 advisories en 3 paquetes transitorios (se cierran al subir mayores L10-L13). Siguiente: Etapa 2 = L9→L10 (phpunit 9→10, spatie/permission ^5→^6 `Middlewares`→`Middleware`).
+
 ### 2026-08-11 — 🧪 Fase 2 (tanda 3 + cierre de bugs): +7 verticales (132 t) + los 3 bugs de tanda 2 CERRADOS — commits `cc54bf99`, `d4480c46`, `d25f1392`
 - **Estado:** Hecho. **Suite integrada 475 passed / 0 skipped / 0 fallos** (tandas 1+2+3 en un solo proceso, prueba de no-interferencia cruzada). 0 bugs nuevos.
 - **Archivos:** `tests/Feature/{Ambulance,Medevac,RiskMap,Pae,Epi,Badge,Wrap}/` (nuevos, 20 archivos); fixes en `StoreDailyReportRequest`, migraciones `..._000022`/`..._000045` (PK), `InjuryReportController`, guardas `DsrBugGuardsTest` + `IncidentPersistenceSealTest` (ahora activas).
