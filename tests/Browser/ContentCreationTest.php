@@ -2,6 +2,7 @@
 
 namespace Tests\Browser;
 
+use App\Models\AmbulanceInspection;
 use App\Models\EmergencyActionPlan;
 use App\Models\MedevacPoster;
 use App\Models\ScoutingReport;
@@ -104,5 +105,44 @@ class ContentCreationTest extends DuskTestCase
         // El controlador guarda el mapa en el scouting como data URI → prueba que la imagen llegó.
         $map = (string) ScoutingReport::find($scouting->id)->hospital_map;
         $this->assertStringStartsWith('data:image', $map, 'El mapa subido no quedó guardado (data URI).');
+    }
+
+    /** ACTA DE AMBULANCIA (2 pasos): elige tipo → checklist + fotos de evidencia → sella. */
+    public function test_acta_ambulancia(): void
+    {
+        $fixture = base_path('tests/Browser/fixtures/map.png');
+        $before  = AmbulanceInspection::count();
+
+        $this->browse(function (Browser $browser) use ($fixture) {
+            // Paso 1: elegir el tipo de ambulancia (recarga con el checklist).
+            $browser->loginAs($this->admin())
+                ->visit('/ambulancia/verificar')
+                ->pause(700)
+                ->select('type_id', '3')
+                ->screenshot('content-amb-1-tipo')
+                ->click('button.btn-crew-accent')
+                ->pause(1300)
+                ->screenshot('content-amb-2-checklist');
+
+            // Responder TODO el checklist "ok" (radios ocultos → por JS). script() devuelve
+            // array, no es encadenable, así que va en su propia sentencia.
+            $browser->script('document.querySelectorAll(\'input[name^="answers"][value="ok"]\').forEach(function(r){r.checked=true;});');
+
+            // Paso 2: datos + fotos + sellar.
+            $browser->type('plates', 'PDL4815')
+                ->type('economic_number', '245')
+                ->type('new_provider_name', 'Ambulancias Vitales')  // requerido: empresa (existente o alta)
+                ->attach('unit_photo', $fixture)
+                ->pause(1200)
+                ->attach('evidence_photos[]', $fixture)
+                ->pause(1200)
+                ->screenshot('content-amb-3-lleno')
+                ->scrollIntoView('button[type="submit"]')
+                ->press('Cerrar verificación y sellar')
+                ->pause(2200)
+                ->screenshot('content-amb-4-result');
+        });
+
+        $this->assertGreaterThan($before, AmbulanceInspection::count(), 'No se creó el acta de ambulancia por la UI.');
     }
 }
