@@ -21,6 +21,9 @@
     <server name="INSTALL_ADMIN_PASSWORD" value="secret1234"/>
     <!-- No pegarle al robot SEP en pruebas. -->
     <server name="CEDULA_AUTO_VERIFY" value="false"/>
+    <!-- Clave del sello HMAC estable para los tests (sellar y verificar usan la misma
+         en el mismo proceso; los seeders/tests auto-generan sus sellos con ella). -->
+    <server name="CREWCARE_SEAL_KEY" value="base64:dGVzdC1zZWFsLWtleS1jcmV3Y2FyZS1obWFjLXRlc3Q="/>
     <server name="MAIL_MAILER" value="array"/>
     <server name="QUEUE_CONNECTION" value="sync"/>
     <server name="SESSION_DRIVER" value="array"/>

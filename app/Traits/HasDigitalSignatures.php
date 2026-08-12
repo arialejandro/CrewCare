@@ -57,15 +57,24 @@ trait HasDigitalSignatures
     }
 
     /**
-     * SHA-256 del payload canónico (JSON estable).
+     * HMAC-SHA256 (clave dedicada) del payload canónico (JSON estable).
+     *
+     * Antes era hash('sha256', ...) SIN clave: el sello era reproducible por
+     * cualquiera que conociera el payload → se podía fabricar. Ahora es HMAC con
+     * `config('crewcare.seal.key')` (CREWCARE_SEAL_KEY). Fallback a app.key (siempre
+     * presente) si la clave dedicada no está configurada, para no volver NUNCA a un
+     * hash sin clave. Verificar y sellar usan este mismo método → misma clave, casan.
      *
      * @return string
      */
     public function computeDocumentHash(): string
     {
-        return hash(
+        $key = (string) (config('crewcare.seal.key') ?: config('app.key'));
+
+        return hash_hmac(
             'sha256',
-            json_encode($this->canonicalSignaturePayload(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+            json_encode($this->canonicalSignaturePayload(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            $key
         );
     }
 

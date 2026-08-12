@@ -5,6 +5,13 @@
 // viene a resolver, sólo que con dos sitios en vez de ocho.
 $version = '3.5';
 
+// Clave del sello (HMAC): decodifica el prefijo `base64:` (igual que APP_KEY) para
+// hashear con bytes crudos. Vacía si no está configurada → el trait cae a APP_KEY.
+$sealKey = (string) env('CREWCARE_SEAL_KEY', '');
+if (str_starts_with($sealKey, 'base64:')) {
+    $sealKey = base64_decode(substr($sealKey, 7)) ?: $sealKey;
+}
+
 return [
 
     /*
@@ -38,5 +45,31 @@ return [
     |
     */
     'doc_version' => 'VER ' . $version,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Clave del sello digital (HMAC-SHA256)
+    |--------------------------------------------------------------------------
+    |
+    | El sello de integridad de los documentos (App\Traits\HasDigitalSignatures)
+    | pasó de SHA-256 SIN CLAVE a HMAC-SHA256 CON CLAVE. Sin clave, cualquiera que
+    | conociera el payload canónico podía FABRICAR un sello válido (el hash era
+    | público y reproducible). Con HMAC, sólo quien tiene la clave produce un sello
+    | que el verificador acepte.
+    |
+    | Clave DEDICADA (no se reusa APP_KEY): la integridad del sello se puede rotar
+    | sin invalidar sesiones/cookies, y rotar APP_KEY no tira todos los sellos. Se
+    | genera con `php -r "echo 'base64:'.base64_encode(random_bytes(32));"` y va en
+    | .env como CREWCARE_SEAL_KEY. Si falta, el trait cae a APP_KEY (siempre presente)
+    | como red de seguridad — nunca vuelve a un hash sin clave.
+    |
+    | ⚠ Cutover LIMPIO: al activar HMAC, los sellos SHA viejos dejan de casar. Válido
+    | porque cada deploy es migrate:fresh (prod nace sin sellos viejos) y el local se
+    | re-siembra. NO rotar esta clave en una instancia con sellos vivos sin re-sellar.
+    |
+    */
+    'seal' => [
+        'key' => $sealKey,
+    ],
 
 ];
