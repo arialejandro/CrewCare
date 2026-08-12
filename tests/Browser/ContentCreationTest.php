@@ -4,9 +4,11 @@ namespace Tests\Browser;
 
 use App\Models\AmbulanceInspection;
 use App\Models\EmergencyActionPlan;
+use App\Models\hazardnotification;
 use App\Models\MedevacPoster;
 use App\Models\ScoutingReport;
 use App\Models\ToolInspection;
+use App\Models\unsafecond;
 use App\Models\User;
 use Laravel\Dusk\Browser;
 use Tests\DuskTestCase;
@@ -176,5 +178,32 @@ class ContentCreationTest extends DuskTestCase
         });
 
         $this->assertGreaterThan($before, ToolInspection::count(), 'No se creó el acta de inspección por la UI.');
+    }
+
+    /** ACTO INSEGURO (hazard): name_loc + fecha + descripción + foto → se sella al crearse. */
+    public function test_acto_inseguro(): void
+    {
+        $fixture = base_path('tests/Browser/fixtures/map.png');
+        $before  = hazardnotification::count();
+
+        $this->browse(function (Browser $browser) use ($fixture) {
+            $browser->loginAs($this->admin())
+                ->visit('/hazardnotification')
+                ->pause(900)
+                ->type('name_loc', '[DEMO] Set A · Pasillo norte')
+                ->value('#date_observed', '2026-08-12')
+                ->value('#time_observed', '10:30')
+                ->type('location_hazard_unsafe_act', 'Set A, pasillo norte junto a la mesa de catering')
+                ->type('description_hazard_unsafe_act', 'Operador conectando extensión con las manos mojadas junto a la mesa de catering.')
+                ->attach('main_image', $fixture)
+                ->pause(1200)
+                ->screenshot('content-hazard-1-lleno')
+                ->scrollIntoView('button[type="submit"]')
+                ->press('Enviar Notificación')
+                ->pause(2000)
+                ->screenshot('content-hazard-2-result');
+        });
+
+        $this->assertGreaterThan($before, hazardnotification::count(), 'No se creó el acto inseguro por la UI.');
     }
 }
