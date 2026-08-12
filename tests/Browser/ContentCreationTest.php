@@ -206,4 +206,31 @@ class ContentCreationTest extends DuskTestCase
 
         $this->assertGreaterThan($before, hazardnotification::count(), 'No se creó el acto inseguro por la UI.');
     }
+
+    /** CONDICIÓN INSEGURA (gemelo del acto): mismos campos, name_loc + fecha/hora + dónde + descripción + foto. */
+    public function test_condicion_insegura(): void
+    {
+        $fixture = base_path('tests/Browser/fixtures/map.png');
+        $before  = unsafecond::count();
+
+        $this->browse(function (Browser $browser) use ($fixture) {
+            $browser->loginAs($this->admin())
+                ->visit('/unsafenotifications/create')
+                ->pause(900)
+                ->type('name_loc', '[DEMO] Bodega · Escalera de servicio')
+                ->value('#date_observed', '2026-08-12')
+                ->value('#time_observed', '14:15')
+                ->type('location_unsafe_cond', 'Bodega, escalera de servicio hacia el foro')
+                ->type('description_unsafe_cond', 'Piso mojado permanente por fuga en el lavabo de planta baja; sin señalización.')
+                ->attach('main_image', $fixture)
+                ->pause(1200)
+                ->screenshot('content-unsafe-1-lleno')
+                ->scrollIntoView('button[type="submit"]')
+                ->press('Enviar Notificación')
+                ->pause(2000)
+                ->screenshot('content-unsafe-2-result');
+        });
+
+        $this->assertGreaterThan($before, unsafecond::count(), 'No se creó la condición insegura por la UI.');
+    }
 }
