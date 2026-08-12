@@ -43,3 +43,9 @@ auth.json
 npm-debug.log
 yarn-error.log
 /.phpunit.cache
+
+# Dusk (browser tests) — contienen secretos y screenshots locales
+.env.dusk.local
+tests/Browser/screenshots/
+tests/Browser/console/
+tests/Browser/source/
