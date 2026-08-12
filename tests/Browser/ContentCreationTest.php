@@ -233,4 +233,28 @@ class ContentCreationTest extends DuskTestCase
 
         $this->assertGreaterThan($before, unsafecond::count(), 'No se creó la condición insegura por la UI.');
     }
+
+    /** SCOUTING nuevo: location_name (único requerido) + foto → guarda el reporte de scouting. */
+    public function test_crear_scouting(): void
+    {
+        $fixture = base_path('tests/Browser/fixtures/map.png');
+        $before  = ScoutingReport::count();
+
+        $this->browse(function (Browser $browser) use ($fixture) {
+            $browser->loginAs($this->admin())
+                ->visit('/scoutings/create')
+                ->pause(1000)
+                ->type('location_name', '[DEMO] Estacionamiento Roma Norte')
+                ->type('scene', 'Esc. 21-24 · Persecución a pie')
+                ->attach('main_image', $fixture)
+                ->pause(1000)
+                ->screenshot('content-scouting-1-lleno')
+                ->scrollIntoView('button[type="submit"]')
+                ->press('Guardar Scouting')
+                ->pause(2200)
+                ->screenshot('content-scouting-2-result');
+        });
+
+        $this->assertGreaterThan($before, ScoutingReport::count(), 'No se creó el scouting por la UI.');
+    }
 }
