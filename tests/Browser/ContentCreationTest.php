@@ -6,6 +6,7 @@ use App\Models\AmbulanceInspection;
 use App\Models\EmergencyActionPlan;
 use App\Models\MedevacPoster;
 use App\Models\ScoutingReport;
+use App\Models\ToolInspection;
 use App\Models\User;
 use Laravel\Dusk\Browser;
 use Tests\DuskTestCase;
@@ -144,5 +145,36 @@ class ContentCreationTest extends DuskTestCase
         });
 
         $this->assertGreaterThan($before, AmbulanceInspection::count(), 'No se creó el acta de ambulancia por la UI.');
+    }
+
+    /** INSPECCIÓN DE HERRAMIENTA: HER-001 (sierra circular) → checklist + unidad + foto → sella. */
+    public function test_acta_inspeccion_herramienta(): void
+    {
+        $fixture = base_path('tests/Browser/fixtures/map.png');
+        $before  = ToolInspection::count();
+
+        $this->browse(function (Browser $browser) use ($fixture) {
+            $browser->loginAs($this->admin())
+                ->visit('/inspeccion/herramienta/1/inspeccionar')
+                ->pause(800)
+                ->screenshot('content-insp-1-form')
+                ->type('tool_serial', 'SC-2024-0042')
+                ->type('owner_name', 'Departamento de Arte')
+                ->attach('tool_photo', $fixture)
+                ->pause(1200);
+
+            // Departamento (select nativo bajo el typeahead) + checklist "ok", por JS para
+            // no depender de si el typeahead oculta el <select>.
+            $browser->script("var s=document.querySelector('select[name=department_id]'); if(s){s.value='1'; s.dispatchEvent(new Event('change',{bubbles:true}));}");
+            $browser->script('document.querySelectorAll(\'input[name^="answers"][value="ok"]\').forEach(function(r){r.checked=true;});');
+
+            $browser->screenshot('content-insp-2-lleno')
+                ->scrollIntoView('button[type="submit"]')
+                ->press('Cerrar inspección y sellar')
+                ->pause(2000)
+                ->screenshot('content-insp-3-result');
+        });
+
+        $this->assertGreaterThan($before, ToolInspection::count(), 'No se creó el acta de inspección por la UI.');
     }
 }
