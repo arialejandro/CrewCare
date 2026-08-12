@@ -2,6 +2,7 @@
 
 namespace Tests\Browser;
 
+use App\Models\EmergencyActionPlan;
 use App\Models\MedevacPoster;
 use App\Models\ScoutingReport;
 use App\Models\User;
@@ -52,5 +53,56 @@ class ContentCreationTest extends DuskTestCase
         });
 
         $this->assertGreaterThan($before, MedevacPoster::count(), 'No se creó el MedevacPoster al emitir por la UI.');
+    }
+
+    /** PAE: se emite eligiendo una locación (scouting) y llenando la unidad por la UI. */
+    public function test_emitir_pae(): void
+    {
+        $scouting = ScoutingReport::orderBy('id', 'desc')->firstOrFail();
+        $before   = EmergencyActionPlan::count();
+
+        $this->browse(function (Browser $browser) use ($scouting) {
+            $browser->loginAs($this->admin())
+                ->visit('/pae/emitir')
+                ->pause(700)
+                ->screenshot('content-pae-1-form')
+                ->select('scoutings[]', (string) $scouting->id)
+                ->clear('unit_name')->type('unit_name', 'Main')
+                ->clear('move_time')->type('move_time', '05:30')
+                ->screenshot('content-pae-2-filled')
+                ->scrollIntoView('button.cc-cta')
+                ->click('button.cc-cta')
+                ->pause(1800)
+                ->screenshot('content-pae-3-result');
+        });
+
+        $this->assertGreaterThan($before, EmergencyActionPlan::count(), 'No se creó el PAE al emitir por la UI.');
+    }
+
+    /** SUBIDA DE IMAGEN por la UI: emite un MEDEVAC adjuntando un mapa (input file real). */
+    public function test_subir_imagen_medevac_map(): void
+    {
+        $scouting = ScoutingReport::orderBy('id', 'desc')->firstOrFail();
+        $fixture  = base_path('tests/Browser/fixtures/map.png');
+        $before   = MedevacPoster::count();
+
+        $this->browse(function (Browser $browser) use ($scouting, $fixture) {
+            $browser->loginAs($this->admin())
+                ->visit('/medevac/emitir/' . $scouting->id)
+                ->pause(700)
+                ->attach('map_image', $fixture)   // sube el archivo por el input real
+                ->pause(1500)                      // deja correr el JS de cc-photo (compresión/HEIC)
+                ->screenshot('content-medevac-img-1-attached')
+                ->scrollIntoView('button.cc-cta')
+                ->click('button.cc-cta')
+                ->pause(2000)
+                ->screenshot('content-medevac-img-2-result');
+        });
+
+        $this->assertGreaterThan($before, MedevacPoster::count(), 'No se emitió el MEDEVAC con imagen.');
+
+        // El controlador guarda el mapa en el scouting como data URI → prueba que la imagen llegó.
+        $map = (string) ScoutingReport::find($scouting->id)->hospital_map;
+        $this->assertStringStartsWith('data:image', $map, 'El mapa subido no quedó guardado (data URI).');
     }
 }
