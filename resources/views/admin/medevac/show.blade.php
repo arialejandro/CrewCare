@@ -362,7 +362,7 @@
                 @if($verdict === false)<span class="bad-tag">· documento alterado</span>
                 @elseif($verdict === null)<span style="color:#9aa3b1">· sin sellar</span>@endif
             </div>
-            <div class="smeta">Folio {{ $p->folio() }}@if($sealedAt) · sellado {{ $sealedAt }}@endif@if($p->uuid) · verifica escaneando el QR@endif</div>
+            <div class="smeta">Folio {{ $p->folio() }}{{ $sealedAt ? ' · sellado '.$sealedAt : '' }}{{ $p->uuid ? ' · verifica escaneando el QR' : '' }}</div>
             @if($sig)<div class="shash">{{ $sig->document_hash }}</div>@endif
         </div>
         @if($identicon)<div class="idc">{!! $identicon !!}</div>@endif
