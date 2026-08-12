@@ -5,6 +5,7 @@ namespace Tests\Browser;
 use App\Models\AmbulanceInspection;
 use App\Models\EmergencyActionPlan;
 use App\Models\hazardnotification;
+use App\Models\InjuryReport;
 use App\Models\MedevacPoster;
 use App\Models\ScoutingReport;
 use App\Models\ToolInspection;
@@ -256,5 +257,28 @@ class ContentCreationTest extends DuskTestCase
         });
 
         $this->assertGreaterThan($before, ScoutingReport::count(), 'No se creó el scouting por la UI.');
+    }
+
+    /** ACCIDENTE (injury, form pesado): Fase 1 ágil sólo exige "qué pasó"; + foto → se sella. */
+    public function test_crear_accidente(): void
+    {
+        $fixture = base_path('tests/Browser/fixtures/map.png');
+        $before  = InjuryReport::count();
+
+        $this->browse(function (Browser $browser) use ($fixture) {
+            $browser->loginAs($this->admin())
+                ->visit('/accident')
+                ->pause(1000)
+                ->type('what_happened', 'Durante el reacomodo de una luminaria en la parrilla, un reflector de 2K sin cadena de seguridad se desprendió y golpeó el hombro derecho del técnico.')
+                ->attach('main_image', $fixture)
+                ->pause(1200)
+                ->screenshot('content-injury-1-lleno')
+                ->scrollIntoView('button[type="submit"]')
+                ->press('Guardar Reporte')
+                ->pause(2200)
+                ->screenshot('content-injury-2-result');
+        });
+
+        $this->assertGreaterThan($before, InjuryReport::count(), 'No se creó el accidente por la UI.');
     }
 }
