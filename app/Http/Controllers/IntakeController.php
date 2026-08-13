@@ -83,7 +83,7 @@ class IntakeController extends Controller
             'step'         => $step,
             'steps'        => self::STEPS,
             'completed'    => $completed,
-            'requiredDocs' => PayeePackage::identityRequirements($prodId, $payee->legal_nature ?: 'fisica'),
+            'requiredDocs' => PayeePackage::identityRequirements($prodId, $payee->legal_nature ?: 'fisica', $payee->nationality ?: 'mexicana'),
             'threshold'    => ProductionDocumentSetting::equipmentThresholdFor($prodId),
             'postUrl'      => $this->postUrl($isSelf, $payee),
             'navUrl'       => fn ($s) => $this->navUrl($isSelf, $payee, $s),

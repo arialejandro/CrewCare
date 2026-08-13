@@ -93,5 +93,26 @@ class DocumentTypeSeeder extends Seeder
             DocumentType::where('code', 'OPINION_32D')
                 ->update(['aliases' => 'Opinión SAT, Opinión de cumplimiento']);
         }
+
+        // Delta de EXTRANJERO: paquete alterno por nacionalidad. Docs mexicanos se marcan
+        // 'mexicana'; se agregan pasaporte/visa/residencia fiscal 'extranjera'. El resto queda
+        // NULL = ambas. Así un extranjero no queda en `missing` por INE/CSF/32-D que no le aplican.
+        if (\Illuminate\Support\Facades\Schema::hasColumn('document_types', 'nationality')) {
+            DocumentType::whereIn('code', ['INE', 'CSF', 'OPINION_32D'])->update(['nationality' => 'mexicana']);
+
+            $foreign = [
+                ['DOC_PASAPORTE',         'Pasaporte',                        DocumentType::V_PERMANENT, null, 25],
+                ['DOC_MIGRATORIO',        'Visa o documento migratorio',      DocumentType::V_PERMANENT, null, 26],
+                ['DOC_RESIDENCIA_FISCAL', 'Comprobante de residencia fiscal', DocumentType::V_DAYS,      90,   35],
+            ];
+            foreach ($foreign as $f) {
+                DocumentType::updateOrCreate(['code' => $f[0]], [
+                    'name' => $f[1], 'family' => $B, 'scope' => $ID, 'legal_nature' => 'fisica',
+                    'nationality' => 'extranjera', 'validity_shape' => $f[2], 'validity_days' => $f[3],
+                    'requires_positive_status' => 0, 'is_repse' => 0, 'repse_phase' => null,
+                    'sort_order' => $f[4], 'is_active' => 1,
+                ]);
+            }
+        }
     }
 }

@@ -34,7 +34,7 @@ class DocumentType extends Model
     const PHASE_AFTER  = 'after';
 
     protected $fillable = [
-        'code', 'name', 'aliases', 'family', 'scope', 'legal_nature',
+        'code', 'name', 'aliases', 'family', 'scope', 'legal_nature', 'nationality',
         'validity_shape', 'validity_days', 'requires_positive_status',
         'is_repse', 'repse_phase', 'is_active', 'sort_order',
     ];

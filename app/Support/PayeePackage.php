@@ -29,8 +29,12 @@ class PayeePackage
     const ST_NOT_POSITIVE = 'not_positive';  // recibido pero la 32-D no vino positiva
     const ST_EXPIRED      = 'expired';       // recibido pero caducado
 
-    /** Tipos exigidos a la IDENTIDAD (paquete fiscal), por naturaleza. */
-    public static function identityRequirements($productionId, string $legalNature): Collection
+    /**
+     * Tipos exigidos a la IDENTIDAD (paquete fiscal), por naturaleza y NACIONALIDAD. El
+     * extranjero recibe su paquete alterno (pasaporte/visa/residencia) en vez de INE/CSF/32-D,
+     * así llega al 100% sin `missing` permanente. Los tipos con nationality NULL aplican a ambos.
+     */
+    public static function identityRequirements($productionId, string $legalNature, string $nationality = 'mexicana'): Collection
     {
         $ids = DocumentRequirement::required()
             ->where('production_id', $productionId)
@@ -40,6 +44,7 @@ class PayeePackage
         return DocumentType::whereIn('id', $ids)
             ->where('family', DocumentType::FAMILY_BILLING)
             ->where('scope', DocumentType::SCOPE_IDENTITY)
+            ->where(fn ($q) => $q->whereNull('nationality')->orWhere('nationality', $nationality))
             ->orderBy('sort_order')
             ->get();
     }
