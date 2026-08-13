@@ -73,6 +73,7 @@ class DatabaseSeeder extends Seeder
             MedicationCatalogSeeder::class,            // medicamentos
             IndicatorTermSeeder::class,                // terminos indicadores
             AmbulanceCatalogSeeder::class,             // tipos + puntos de ambulancia
+            DocumentTypeSeeder::class,                 // catalogo de tipos de documento (quien cobra)
         ]);
     }
 }

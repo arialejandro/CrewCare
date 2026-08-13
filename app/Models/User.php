@@ -272,6 +272,39 @@ class User extends Authenticatable
     }
 
     /**
+     * HERMANO de applyDepartmentScope para la BASE ÚNICA DE QUIEN COBRA. La original NO se
+     * toca (tiene 8 call sites: CrewList, bitácora médica, gafete, export…). Este usa el MISMO
+     * whereExists sobre production_user, pero correlacionado con la PARTE CONTRATANTE en vez de
+     * users.id: conserva solo las filas cuyo contratante comparte departamento con el viewer.
+     * "Quién contrata es quien ve" (Paso 4) se implementa enchufando esto en los listados de
+     * payees/contratos; aquí solo queda la capacidad del modelo, sin call sites todavía.
+     *
+     * OJO: el bypass reusa `crew.view.all-departments` por ahora; el Paso 4 decide el permiso
+     * apagable definitivo (p.ej. exclusividad de ambulancias para producción/safety).
+     *
+     * @param  string  $contractingUserIdColumn  columna a correlacionar (default: la del contrato).
+     */
+    public static function applyContractingScope($query, self $viewer, string $contractingUserIdColumn = 'payee_contracts.contracted_by_user_id')
+    {
+        if ($viewer->can('crew.view.all-departments')) {
+            return $query;
+        }
+
+        $ownDeptIds = $viewer->ownDepartmentIds();
+
+        if ($ownDeptIds->isEmpty()) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereExists(function ($sub) use ($ownDeptIds, $contractingUserIdColumn) {
+            $sub->select(DB::raw(1))
+                ->from('production_user')
+                ->whereColumn('production_user.user_id', $contractingUserIdColumn)
+                ->whereIn('production_user.department_id', $ownDeptIds->all());
+        });
+    }
+
+    /**
      * ¿Puede ESTE usuario (viewer) gestionar a $target según el scope de departamento?
      * Es el equivalente "de un solo objetivo" de applyDepartmentScope() (que opera sobre
      * una consulta). MISMO criterio → una sola regla de negocio para listar Y para mutar:

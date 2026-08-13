@@ -158,14 +158,17 @@
                     </div>
                 </div>
 
-                {{-- Foto del documento/credencial. El nombre del campo = columna (photo_path). --}}
+                {{-- Foto del documento/credencial. ⚠ FIX (2026-08-13): el input se llamaba
+                     `photo_path` pero storeDocument valida/lee `photo` (hasFile('photo')) →
+                     la foto se descartaba EN SILENCIO. Ahora el name = `photo`, que es lo que
+                     el controlador espera; la columna destino sigue siendo photo_path. --}}
                 <div class="col-12">
                     <div class="cc-field mb-0">
-                        <label for="{{ $idp }}-photo_path" class="cc-label">
+                        <label for="{{ $idp }}-photo" class="cc-label">
                             @include('componentes._icon', ['name' => 'camera', 'class' => 'cc-ico-16', 'label' => null])
                             {{ __('Foto del documento') }}
                         </label>
-                        <input id="{{ $idp }}-photo_path" type="file" name="photo_path"
+                        <input id="{{ $idp }}-photo" type="file" name="photo"
                                accept="image/*,.heic,.heif" capture="environment" data-cc-photo
                                class="form-control cc-control">
                         <span class="cc-help">{{ __('El riesgo real es un papel de otra persona: la foto permite cotejar el documento con quien lo presenta.') }}</span>

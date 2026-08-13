@@ -39,17 +39,23 @@ class ExternalAuthorization extends Model
 
     // Datos de captura. Los de validación (validated_*, validation_method) quedan
     // FUERA: los escribe solo validate(), nunca el POST del formulario.
+    // (2026-08-13 · quien-cobra) `document_type_id` (clave del catálogo), `issued_at`
+    // (fecha de emisión) y `result_status` (estado requerido, p.ej. 32-D positiva) SÍ
+    // son de captura → entran a $fillable. `document_type` (texto) se conserva por
+    // compatibilidad mientras se migran las ambulancias (Paso 5).
     protected $fillable = [
         'holder_type', 'holder_id', 'level',
-        'document_type', 'authority', 'folio', 'valid_until', 'photo_path',
+        'document_type', 'document_type_id', 'authority', 'folio',
+        'valid_until', 'issued_at', 'photo_path',
         'origen', 'exigido_por', 'is_gate',
-        'status', 'pending_commit_date',
+        'status', 'result_status', 'pending_commit_date',
         'standard_code', 'standard_name',
         'is_active', 'created_by_id',
     ];
 
     protected $casts = [
         'valid_until'         => 'date',
+        'issued_at'           => 'date',
         'pending_commit_date' => 'date',
         'is_gate'             => 'boolean',
         'is_active'           => 'boolean',
@@ -60,6 +66,27 @@ class ExternalAuthorization extends Model
     public function holder(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    /** Tipo de documento del catálogo (clave). Reemplaza el texto libre `document_type`. */
+    public function documentType(): BelongsTo
+    {
+        return $this->belongsTo(DocumentType::class, 'document_type_id');
+    }
+
+    /**
+     * Caducidad EFECTIVA. Prioriza el `valid_until` explícito capturado; si no hay, la
+     * DERIVA de la forma de vigencia del tipo + la fecha de emisión (lo que antes nadie
+     * calculaba). Devuelve null cuando es permanente o falta el dato para calcular.
+     */
+    public function effectiveValidUntil(): ?\Carbon\Carbon
+    {
+        if ($this->valid_until !== null) {
+            return $this->valid_until instanceof \Carbon\Carbon
+                ? $this->valid_until
+                : \Carbon\Carbon::parse($this->valid_until);
+        }
+        return optional($this->documentType)->expiryFrom($this->issued_at);
     }
 
     public function validatedBy(): BelongsTo
