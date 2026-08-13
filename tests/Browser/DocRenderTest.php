@@ -113,6 +113,15 @@ class DocRenderTest extends DuskTestCase
         $this->assertTrue(true);
     }
 
+    public function test_render_ambulance_hub(): void
+    {
+        $this->browse(function (Browser $browser) {
+            $browser->loginAs($this->admin())->visit('/ambulancia')->pause(1600)->resize(1400, 1300);
+            $browser->screenshot('rev-ambulance-hub');
+        });
+        $this->assertTrue(true);
+    }
+
     public function test_render_inspeccion(): void
     {
         $i = ToolInspection::latest('id')->firstOrFail();

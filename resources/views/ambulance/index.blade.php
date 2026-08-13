@@ -135,27 +135,38 @@
             <a href="{{ route('ambulance.records') }}" class="small">{{ __('Ver todas') }}</a>
         </div>
 
-        <div class="card border-0 shadow-sm rounded-3">
-            @if (isset($inspections) && $inspections->count())
-                <div class="list-group list-group-flush">
-                    @foreach ($inspections as $acta)
-                        @php $c = $verdictChip[$ambState($acta)] ?? $verdictChip['apta']; @endphp
+        @if (isset($inspections) && $inspections->count())
+            <div class="row g-3">
+                @foreach ($inspections as $acta)
+                    @php
+                        $c     = $verdictChip[$ambState($acta)] ?? $verdictChip['apta'];
+                        $photo = method_exists($acta, 'unitPhotoUrl') ? $acta->unitPhotoUrl() : null;
+                    @endphp
+                    <div class="col-12 col-sm-6 col-lg-4">
                         <a href="{{ route('ambulance.acta', $acta->uuid) }}"
-                           class="list-group-item list-group-item-action d-flex flex-wrap align-items-center justify-content-between gap-2">
-                            <span class="d-flex align-items-center gap-2">
-                                <strong>{{ $acta->folio() }}</strong>
-                                <span class="text-muted small">{{ $acta->type_name }} · {{ $acta->provider_name ?: '—' }}</span>
-                            </span>
-                            <span class="d-flex align-items-center gap-2 flex-wrap">
-                                <span class="insp-tag" style="background:{{ $c['bg'] }};color:{{ $c['fg'] }};" title="{{ __('Apta con tripulación = verde · apta sin tripulación mínima = ámbar · paro = rojo') }}">
+                           class="card border-0 shadow-sm rounded-3 h-100 text-decoration-none amb-acard"
+                           style="border-left:4px solid {{ $c['bd'] }} !important;">
+                            <div class="amb-acard-media">
+                                @if ($photo)
+                                    <img src="{{ $photo }}" alt="{{ $acta->type_name }}" loading="lazy">
+                                @else
+                                    <span class="amb-acard-ph">@include('componentes._icon', ['name' => 'ambulance', 'label' => null])</span>
+                                @endif
+                                <span class="insp-tag amb-acard-chip" style="background:{{ $c['bg'] }};color:{{ $c['fg'] }};">
                                     @include('componentes._icon', ['name' => $c['ic'], 'label' => null]) {{ $c['t'] }}
                                 </span>
-                                <span class="text-muted small">{{ optional($acta->created_at)->format('d/m/Y') }}</span>
-                            </span>
+                            </div>
+                            <div class="p-3">
+                                <div class="amb-acard-folio">{{ $acta->folio() }}</div>
+                                <div class="amb-acard-sub text-truncate">{{ $acta->type_name }}</div>
+                                <div class="amb-acard-sub text-truncate">{{ $acta->provider_name ?: '—' }} · {{ optional($acta->created_at)->format('d/m/Y') }}</div>
+                            </div>
                         </a>
-                    @endforeach
-                </div>
-            @else
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <div class="card border-0 shadow-sm rounded-3">
                 <div class="text-center py-5">
                     <div class="crew-empty-icon mx-auto mb-3 d-inline-flex align-items-center justify-content-center rounded-circle">
                         @include('componentes._icon', ['name' => 'clipboard-list', 'label' => null])
@@ -163,8 +174,8 @@
                     <h5 class="mb-1">{{ __('Sin actas') }}</h5>
                     <p class="text-muted mb-0">{{ __('Aún no se ha verificado ninguna ambulancia.') }}</p>
                 </div>
-            @endif
-        </div>
+            </div>
+        @endif
 
     </div>
 </div>
@@ -172,6 +183,20 @@
 @push('styles')
     @include('componentes._crew-list-styles')
     @include('componentes._inspection-styles')
+    <style>
+      /* Cards de "Últimas actas": foto de la unidad (o icono de ambulancia) + chip de estado.
+         Theme-aware: usa los tokens de la app (--text/--text-muted/--surface-3) para claro y oscuro. */
+      .amb-acard{ overflow:hidden; color:inherit; transition:transform .12s ease, box-shadow .12s ease; }
+      .amb-acard:hover{ transform:translateY(-2px); box-shadow:0 .55rem 1.1rem rgba(0,0,0,.22) !important; }
+      .amb-acard-media{ position:relative; aspect-ratio:16/9; background:var(--surface-3, #eceff3);
+        display:flex; align-items:center; justify-content:center; overflow:hidden; }
+      .amb-acard-media img{ width:100%; height:100%; object-fit:cover; display:block; }
+      .amb-acard-ph{ color:var(--text-muted, #94a3b8); }
+      .amb-acard-ph svg{ width:46px; height:46px; }
+      .amb-acard-chip{ position:absolute; top:8px; right:8px; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+      .amb-acard-folio{ font-weight:700; color:var(--text, #1f2937); }
+      .amb-acard-sub{ color:var(--text-muted, #566072); font-size:.82rem; }
+    </style>
 @endpush
 
 @endsection
