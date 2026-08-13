@@ -85,12 +85,15 @@
 
     // ---- Folio / UUID ----
     $folio    = 'SCOUT-' . str_pad((string) $report->id, 4, '0', STR_PAD_LEFT);
-    $footUuid = 'UUID: ' . $brandName . '-SCOUT-' . (16210 + $report->id) . '-' . \Carbon\Carbon::parse($report->created_at)->format('dmY') . ' | ' . config('crewcare.doc_version');
+    // (2026-08-12) El pie muestra el UUID REAL del documento (el mismo que el sello CFDI y el QR),
+    // no un código derivado del id: tener dos "UUID" distintos en la misma hoja confundía.
+    $footUuid = 'UUID: ' . ($report->uuid ?: '—') . ' | ' . config('crewcare.doc_version');
 
     // ---- Hero: proyecto = nombre canónico de marca (branding global, NO el production_name libre
     //      que es inconsistente/vacío); locación = nombre; fecha = shoot ----
     $heroProject = $brandName;
-    $heroDate    = $report->date_shoot ? $report->date_shoot->format('d M Y') : null;
+    // translatedFormat (no format) para que el mes salga en el idioma de la app (es/en).
+    $heroDate    = $report->date_shoot ? $report->date_shoot->translatedFormat('d M Y') : null;
 
     // ---- Sub-línea del LLAMADO en el hero (homologada con el PAE): tipo Int./Ext. · día/noche · escenas ----
     $heroCallType = implode(' · ', array_filter([
@@ -104,9 +107,9 @@
 
     // ---- Rango de fechas (prep · shoot · wrap) para la banda y la ficha ----
     $dtParts = [];
-    if ($report->date_prep)  { $dtParts[] = $report->date_prep->format('d M'); }
-    if ($report->date_shoot) { $dtParts[] = $report->date_shoot->format('d M Y'); }
-    if ($report->date_wrap)  { $dtParts[] = $report->date_wrap->format('d M'); }
+    if ($report->date_prep)  { $dtParts[] = $report->date_prep->translatedFormat('d M'); }
+    if ($report->date_shoot) { $dtParts[] = $report->date_shoot->translatedFormat('d M Y'); }
+    if ($report->date_wrap)  { $dtParts[] = $report->date_wrap->translatedFormat('d M'); }
     $dtRange = count($dtParts) ? implode(' · ', $dtParts) : null;
 
     // ---- Sub-rótulo de la banda: escenario (el proyecto ya vive en el hero; no se repite aquí) ----
@@ -700,9 +703,12 @@
            antes reusaba label_risk_assessment ("Risk Assessment" por 2ª vez). --}}
       <section class="sec">
         <div class="sec-h"><span class="bar"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg><h2>{{ __('reports.label_signatures_integrity') }}</h2><span class="line"></span></div>
+        {{-- (2026-08-12) Las dos casillas son LÍNEAS DE FIRMA AUTÓGRAFA en blanco (firmar a mano):
+             ya NO se pre-imprime el nombre (va en los créditos del pie) ni la fecha (se escribe al
+             firmar). La línea de firma se conserva; el valor impreso se retira. --}}
         <div class="sign">
-          <div class="sig"><div class="who">{{ $report->make_by ?: '—' }}</div><div class="role">{{ __('reports.label_prepared_by') }}</div></div>
-          <div class="sig"><div class="who">{{ $report->make_date ? \Carbon\Carbon::parse($report->make_date)->format('d M Y') : '—' }}</div><div class="role">{{ __('reports.label_date') }}</div></div>
+          <div class="sig"><div class="who">&nbsp;</div><div class="role">{{ __('reports.label_prepared_by') }}</div></div>
+          <div class="sig"><div class="who">&nbsp;</div><div class="role">{{ __('reports.label_date') }}</div></div>
         </div>
         {{-- (2026-07-23) El sello es del acto de FINALIZAR: un 'final' lleva su cadena CFDI y su
              verificación; un borrador NO lleva sello vigente. Sin este gate, reabrir un final a
@@ -722,7 +728,7 @@
 
     @include('componentes._report-v2-foot', [
       'footPreparedName' => $report->make_by ?: '—',
-      'footPreparedMeta' => __('reports.label_risk_assessment') . ($report->make_date ? ' · ' . \Carbon\Carbon::parse($report->make_date)->format('d M Y') : ''),
+      'footPreparedMeta' => __('reports.label_risk_assessment') . ($report->make_date ? ' · ' . \Carbon\Carbon::parse($report->make_date)->translatedFormat('d M Y') : ''),
       'footUuid'         => $footUuid,
     ])
 

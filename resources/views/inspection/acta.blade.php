@@ -169,7 +169,7 @@
         'heroImage'    => $inspection->toolPhotoUrl(),
         'heroProject'  => $brandName,
         'heroLocation' => ($inspection->tool_name ?: '—'),
-        'heroDate'     => optional($inspection->created_at)->format('d M Y'),
+        'heroDate'     => optional($inspection->created_at)->translatedFormat('d M Y'),
         'heroTime'     => optional($inspection->created_at)->format('H:i'),
         'heroModule'   => $en ? 'CrewCare · Tool inspection' : 'CrewCare · Inspección de herramienta',
       ])
@@ -384,7 +384,9 @@
 @include('componentes._report-v2-foot', [
     'footPreparedName' => ($inspection->inspector_name ?: '—'),
     'footPreparedMeta' => $footMeta,
-    'footUuid'         => $inspection->uuid,
+    {{-- (2026-08-12) Etiquetado "UUID: … | VER x" como el resto de los documentos (antes iba el
+         uuid crudo sin rótulo, y no se leía como identificador). --}}
+    'footUuid'         => 'UUID: ' . ($inspection->uuid ?: '—') . ' | ' . config('crewcare.doc_version'),
 ])
 </body>
 </html>
