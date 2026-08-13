@@ -4,7 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Carbon;
 
 /**
  * NIVEL 2 · CONTRATO / concepto de cobro (BASE ÚNICA). VARIOS por identidad: así se
@@ -38,16 +40,53 @@ class PayeeContract extends Model
     const FREQ_BIWEEKLY   = 'biweekly';     // quincenal
     const FREQ_DAY_PLAYER = 'day_player';   // day player (por día trabajado)
 
+    // ESTADO DEL ROSTER derivado (crew_work). Sin fila por-persona-por-día: se calcula de
+    // is_active + fechas de trabajo + vigencia definitiva. Así "apagar sin borrar" respeta el
+    // unique(production_id,user_id) de production_user, que queda intacto.
+    // ⚠ La CADENA completa (contrato firmado + autorizado) es una PUERTA que se añade en el
+    // Paso C (el sobre): "sin ruta de firma completa no produce roster". Aquí va solo la base.
+    const ROSTER_CALLED     = 'called';       // activo + fecha ese día
+    const ROSTER_NOT_CALLED = 'not_called';   // activo, sin fecha ese día
+    const ROSTER_OUT        = 'out';           // vencido o inactivo (o no es crew_work)
+
     protected $fillable = [
         'payee_id', 'fiscal_regime_id', 'production_id', 'concept', 'title',
         'contracted_by_user_id', 'payment_frequency', 'is_repse',
         'notes', 'is_active', 'sort_order', 'created_by_id',
+        // PASO A · CARÁTULA crew_work (todo NULL en rental/service). La frecuencia de honorarios
+        // reusa 'payment_frequency' (arriba). Congelados: credit_name, beneficiary_*, contractor_*.
+        'crew_activity', 'department_id', 'credit_name',
+        'effective_date', 'estimated_end_date', 'definitive_end_date',
+        'fee_amount', 'fee_currency', 'issues_own_cfdi',
+        'union_payroll', 'union_is_member', 'union_retention_pct',
+        'perdiem_breakfast', 'perdiem_lunch', 'perdiem_dinner',
+        'perdiem_weekly_prep', 'perdiem_weekly_shoot',
+        'lodging_type', 'lodging_monthly_supplement',
+        'round_flights', 'budget_account',
+        'beneficiary_name', 'beneficiary_relationship', 'beneficiary_phone',
+        'contractor_legal_name', 'contractor_rfc', 'contractor_address',
+        'contractor_representative', 'contractor_email',
     ];
 
     protected $casts = [
         'is_repse'   => 'boolean',
         'is_active'  => 'boolean',
         'sort_order' => 'integer',
+        // PASO A · carátula crew_work
+        'effective_date'             => 'date',
+        'estimated_end_date'         => 'date',
+        'definitive_end_date'        => 'date',
+        'fee_amount'                 => 'decimal:2',
+        'issues_own_cfdi'            => 'boolean',
+        'union_is_member'            => 'boolean',
+        'union_retention_pct'        => 'decimal:2',
+        'perdiem_breakfast'          => 'decimal:2',
+        'perdiem_lunch'              => 'decimal:2',
+        'perdiem_dinner'             => 'decimal:2',
+        'perdiem_weekly_prep'        => 'decimal:2',
+        'perdiem_weekly_shoot'       => 'decimal:2',
+        'lodging_monthly_supplement' => 'decimal:2',
+        'round_flights'              => 'integer',
     ];
 
     public function payee(): BelongsTo
@@ -73,6 +112,18 @@ class PayeeContract extends Model
         return $this->morphMany(ExternalAuthorization::class, 'holder');
     }
 
+    /** PASO A · departamento del contrato crew_work (la actividad-objeto es de ese depto). */
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class, 'department_id');
+    }
+
+    /** PASO A · fechas de trabajo (con fase). Fechas NO contiguas; una fila por día. */
+    public function workDates(): HasMany
+    {
+        return $this->hasMany(PayeeContractWorkDate::class, 'payee_contract_id');
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', 1);
@@ -92,5 +143,52 @@ class PayeeContract extends Model
     public function frequencyLabel(): ?string
     {
         return self::frequencies()[$this->payment_frequency] ?? null;
+    }
+
+    public function isCrewWork(): bool
+    {
+        return $this->concept === self::CONCEPT_CREW;
+    }
+
+    public function scopeCrewWork($query)
+    {
+        return $query->where('concept', self::CONCEPT_CREW);
+    }
+
+    /**
+     * ESTADO DEL ROSTER de este contrato en una fecha: LLAMADO / NO LLAMADO / FUERA.
+     *  - FUERA: no es crew_work, o está inactivo, o ya venció (fecha > vigencia definitiva).
+     *  - LLAMADO: activo y con una fila de fecha de trabajo ese día.
+     *  - NO LLAMADO: activo, sin fila ese día.
+     * No necesita fila por-persona-por-día → "apagar" = vencer/inactivar el contrato.
+     * ⚠ La puerta de la ruta de firma (Paso C) se superpone después: aquí no se evalúa.
+     */
+    public function rosterStateOn($date): string
+    {
+        if (! $this->isCrewWork() || ! $this->is_active) {
+            return self::ROSTER_OUT;
+        }
+
+        $day = $date instanceof Carbon ? $date->copy()->startOfDay() : Carbon::parse($date)->startOfDay();
+
+        if ($this->definitive_end_date
+            && Carbon::parse($this->definitive_end_date)->startOfDay()->lt($day)) {
+            return self::ROSTER_OUT;   // vencido
+        }
+
+        $called = $this->workDates()->whereDate('work_date', $day->toDateString())->exists();
+
+        return $called ? self::ROSTER_CALLED : self::ROSTER_NOT_CALLED;
+    }
+
+    /**
+     * Tarifa SEMANAL de viáticos según la fase: shoot usa su monto; soft_prep/prep/wrap usan el
+     * de prep/wrap (en los contratos reales son cifras distintas). Devuelve null si no se capturó.
+     */
+    public function weeklyPerdiemForPhase(string $phase): ?string
+    {
+        return $phase === PayeeContractWorkDate::PHASE_SHOOT
+            ? $this->perdiem_weekly_shoot
+            : $this->perdiem_weekly_prep;
     }
 }
