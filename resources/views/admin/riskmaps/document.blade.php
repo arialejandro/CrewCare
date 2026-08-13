@@ -38,7 +38,7 @@
     // NOMBRE DE CRÉDITOS del autor (displayName → ncreditos; si vacío, nombre corto), no el legal.
     $__author   = $authorId ? \App\Models\User::find($authorId) : null;
     $authorName = $__author ? \App\Models\User::displayName($__author) : '—';
-    $footMeta   = 'Safety' . ($dateStr ? ' · ' . $dateStr : '');
+    $footMeta   = 'Safety'; // pie SIN fecha/hora (decisión owner 2026-08)
     // UUID REAL del documento (el mismo del sello CFDI), no un código derivado del id.
     $footUuid   = 'UUID: ' . ($map->uuid ?: '—') . ' | ' . config('crewcare.doc_version');
 

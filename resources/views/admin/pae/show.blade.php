@@ -156,7 +156,7 @@
 
     // Hero + pie. heroTime = NULL (el PAE es de todo el día; el llamado va en la sub-línea).
     $heroModule = $en ? 'Emergency Action Plan' : 'Plan de Atención a Emergencias';
-    $footMeta   = 'Safety' . ($dateStr ? ' · ' . $dateStr : '');
+    $footMeta   = 'Safety'; // pie SIN fecha/hora (decisión owner 2026-08)
     // UUID REAL del documento (el mismo del sello CFDI), no un código derivado del id.
     $footUuid   = 'UUID: ' . ($p->uuid ?: '—') . ' | ' . $appVersion;
 @endphp

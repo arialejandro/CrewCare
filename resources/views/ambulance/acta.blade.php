@@ -55,9 +55,9 @@
 
     // Hero + pie. El pie del hero ya antepone "CrewCare"; el módulo NO lo repite.
     $heroModule = 'Verificación de ambulancia';
+    // Pie SIN fecha/hora (decisión owner 2026-08): el sello ya la registra y el hero la muestra.
     $footMeta   = implode(' · ', array_filter([
         $inspection->inspector_role ?: null,
-        optional($inspection->created_at)->format('d/m/Y H:i'),
     ]));
     $appVersion = config('crewcare.doc_version');
     $footUuid   = 'UUID: ' . ($inspection->uuid ?: '—') . ($appVersion ? ' | ' . $appVersion : '');

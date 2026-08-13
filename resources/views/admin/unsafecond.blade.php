@@ -314,7 +314,7 @@
       'footPreparedName' => $creditName,
       {{-- (2026-07-23) Antes reusaba label_risk_assessment ("Risk Assessment" — inglés dentro del
            doc ES). Se usa el nombre localizado del módulo, que ya nombra el tipo de documento. --}}
-      'footPreparedMeta' => __('reports.unsafe_module') . ($uc->make_date ? ' · ' . \Carbon\Carbon::parse($uc->make_date)->translatedFormat('d M Y') : ''),
+      'footPreparedMeta' => __('reports.unsafe_module'), // pie SIN fecha (owner 2026-08)
       'footUuid'         => $footUuid,
     ])
 

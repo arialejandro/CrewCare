@@ -281,6 +281,15 @@
     /* overflow:visible → la hoja fluye entre páginas en vez de recortarse (ver nota arriba). */
     .sheet{max-width:none;border:0;border-radius:0;box-shadow:none;backdrop-filter:none;overflow:visible}
     .sec{break-inside:avoid}
+    /* Secciones LARGAS por naturaleza (checklists, tablas de muchas filas): fluyen entre páginas
+       en vez de saltar enteras (que dejaba un hueco grande al fondo de la hoja anterior). Cada fila
+       se mantiene atómica y el encabezado de grupo no queda huérfano al pie. */
+    .sec--flow{break-inside:auto}
+    .sec--flow .tbl tr{break-inside:avoid}
+    .sec--flow .tbl tr.scope-row{break-after:avoid}
+    /* En una sección fluida, las unidades cerradas (firmas, recuadro del sello) NO se parten:
+       fluyen entre sí pero cada una entra completa en una hoja. */
+    .sec--flow .sign,.sec--flow .sig,.sec--flow .cfdi{break-inside:avoid}
     /* Repetición por hoja: hero (thead) + espaciador de pie (tfoot). */
     .report-wrap>thead{display:table-header-group}
     .report-wrap>tfoot{display:table-footer-group}

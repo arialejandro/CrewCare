@@ -482,7 +482,7 @@
 
     @include('componentes._report-v2-foot', [
       'footPreparedName' => $creditName,
-      'footPreparedMeta' => __('reports.label_reporter') . ($injuryReport->make_date ? ' · ' . \Carbon\Carbon::parse($injuryReport->make_date)->translatedFormat('d M Y') : ''),
+      'footPreparedMeta' => __('reports.label_reporter'), // pie SIN fecha (owner 2026-08)
       'footUuid'         => $footUuid,
     ])
 </body>

@@ -675,7 +675,7 @@
     </table>
     @include('componentes._report-v2-foot', [
       'footPreparedName' => $creditName,
-      'footPreparedMeta' => __('reports.label_risk_assessment') . ($heroDate ? ' · ' . $heroDate : ''),
+      'footPreparedMeta' => __('reports.label_risk_assessment'), // pie SIN fecha (owner 2026-08)
       'footUuid'         => $footUuid,
     ])
 

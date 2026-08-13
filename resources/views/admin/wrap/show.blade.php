@@ -979,7 +979,9 @@
     </section>
     @endif
 
-    <section class="sec">
+    {{-- sec--flow: firmas + sello son unidades cerradas pero pueden fluir entre sí, para que el
+         bloque no salte ENTERO a una hoja nueva cuando queda poco espacio (ver _report-v2-head). --}}
+    <section class="sec sec--flow">
       <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'file-check'])<h2>Validación del documento</h2><span class="line"></span></div>
 
       {{-- FIRMA AUTÓGRAFA: el hueco en blanco. El sello de abajo es de INTEGRIDAD (dice que el
@@ -1019,8 +1021,7 @@
          venían sellados, no lo redacta alguien. Atribuirlo a quien apretó el botón sería falso. --}}
     @include('componentes._report-v2-foot', [
       'footPreparedName' => 'CrewCare · cálculo automático',
-      'footPreparedMeta' => 'Derivado de los reportes sellados de la producción'
-          . (isset($P['meta']['generado_en']) ? ' · ' . \Carbon\Carbon::parse($P['meta']['generado_en'])->translatedFormat('d M Y H:i') : ''),
+      'footPreparedMeta' => 'Derivado de los reportes sellados de la producción', // pie SIN fecha (owner 2026-08)
       'footUuid'         => $footUuid,
     ])
 

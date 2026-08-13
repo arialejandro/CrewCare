@@ -734,7 +734,7 @@
 
     @include('componentes._report-v2-foot', [
       'footPreparedName' => $creditName,
-      'footPreparedMeta' => __('reports.label_risk_assessment') . ($report->make_date ? ' · ' . \Carbon\Carbon::parse($report->make_date)->translatedFormat('d M Y') : ''),
+      'footPreparedMeta' => __('reports.label_risk_assessment'), // pie SIN fecha (owner 2026-08)
       'footUuid'         => $footUuid,
     ])
 

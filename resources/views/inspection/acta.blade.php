@@ -80,9 +80,9 @@
 
     // Marca / modelo (congelados) y pie.
     $brandModel = trim(($inspection->tool_brand ? $inspection->tool_brand . ' ' : '') . ($inspection->tool_model ?? '')) ?: '—';
+    // Pie SIN fecha/hora (decisión owner 2026-08): el sello ya la registra y el hero la muestra.
     $footBits = array_filter([
         trim((string) ($inspection->inspector_role ?? '')),
-        $inspection->created_at ? $inspection->created_at->format('d/m/Y H:i') : '',
     ]);
     $footMeta = implode(' · ', $footBits);
 
@@ -313,7 +313,10 @@
       @endif
 
       {{-- ============ CHECKLIST EJECUTADO (congelado: texto, norma y respuesta) ============ --}}
-      <section class="sec">
+      {{-- sec--flow: el checklist es largo por naturaleza; con break-inside:avoid saltaba ENTERO a
+           la hoja siguiente y dejaba un hueco de ~80mm. Fluye entre páginas manteniendo cada fila
+           atómica (ver .sec--flow en _report-v2-head). --}}
+      <section class="sec sec--flow">
         <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'clipboard-list'])<h2>{{ $en ? 'Executed checklist' : 'Checklist ejecutado' }}</h2><span class="line"></span></div>
         @if(count($snap))
         <table class="tbl">
