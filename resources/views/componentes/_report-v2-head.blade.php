@@ -200,6 +200,8 @@
   .sig{border:1px dashed var(--stroke-2);border-radius:var(--radius-sm);padding:14px 16px}
   .sig .who{font-weight:700;font-size:.9rem;margin-top:26px;border-top:1px solid var(--stroke);padding-top:7px}
   .sig .role{font-size:.7rem;color:var(--muted)}
+  {{-- Variante SIN línea de firma: para un dato que se muestra pero NO se firma (p. ej. la fecha). --}}
+  .sig--plain .who{margin-top:0;border-top:0;padding-top:0}
   .seal{display:flex;align-items:center;gap:11px;margin-top:14px;padding:12px 14px;border-radius:var(--radius-sm)}
   .seal svg{width:20px;height:20px;flex:none}
   /* Ya NO hay cintillo verde (2026-07-24): el documento sano no anuncia nada. Quedan el rojo

@@ -54,7 +54,9 @@
     $__qr        = $__verifyUrl ? \App\Support\SealVerifier::qrSvg($__verifyUrl, 132) : null;
     $__identicon = $__rec ? \App\Support\SealVerifier::identiconSvg($__rec->document_hash, 56) : null;
 
-    $__signer = ($__rec && $__rec->user) ? $__rec->user->name : null;
+    // (2026-08-12) El sello muestra el NOMBRE DE CRÉDITOS del firmante (ncreditos; si vacío, nombre
+    // corto), homologado con las firmas y el pie del documento — no el nombre legal completo.
+    $__signer = ($__rec && $__rec->user) ? \App\Models\User::displayName($__rec->user) : null;
     // Sello de SISTEMA: no lo firmó una persona, lo emitió la app al cerrarse el día.
     $__role   = $__rec ? $__rec->role_at_signing : null;
     $__system = $__rec && $__rec->user_id === null;

@@ -89,6 +89,12 @@
     // no un código derivado del id: tener dos "UUID" distintos en la misma hoja confundía.
     $footUuid = 'UUID: ' . ($report->uuid ?: '—') . ' | ' . config('crewcare.doc_version');
 
+    // (2026-08-12) NOMBRE DE CRÉDITOS de quien elaboró: el mismo que va en firmas, pie y sello.
+    // Se resuelve del AUTOR (created_by_id) → User::displayName (ncreditos; si vacío, nombre corto).
+    // Si no hay autor (reportes viejos), cae al snapshot make_by.
+    $__author = ! empty($report->created_by_id) ? \App\Models\User::find($report->created_by_id) : null;
+    $creditName = $__author ? \App\Models\User::displayName($__author) : ($report->make_by ?: '—');
+
     // ---- Hero: proyecto = nombre canónico de marca (branding global, NO el production_name libre
     //      que es inconsistente/vacío); locación = nombre; fecha = shoot ----
     $heroProject = $brandName;
@@ -703,12 +709,12 @@
            antes reusaba label_risk_assessment ("Risk Assessment" por 2ª vez). --}}
       <section class="sec">
         <div class="sec-h"><span class="bar"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg><h2>{{ __('reports.label_signatures_integrity') }}</h2><span class="line"></span></div>
-        {{-- (2026-08-12) Las dos casillas son LÍNEAS DE FIRMA AUTÓGRAFA en blanco (firmar a mano):
-             ya NO se pre-imprime el nombre (va en los créditos del pie) ni la fecha (se escribe al
-             firmar). La línea de firma se conserva; el valor impreso se retira. --}}
+        {{-- (2026-08-12) Casilla 1 = NOMBRE DE CRÉDITOS de quien elaboró, sobre la LÍNEA de firma
+             autógrafa (mismo nombre que el pie y el sello). Casilla 2 = FECHA como dato, SIN línea
+             de firma (`sig--plain`): la fecha no se firma. --}}
         <div class="sign">
-          <div class="sig"><div class="who">&nbsp;</div><div class="role">{{ __('reports.label_prepared_by') }}</div></div>
-          <div class="sig"><div class="who">&nbsp;</div><div class="role">{{ __('reports.label_date') }}</div></div>
+          <div class="sig"><div class="who">{{ $creditName }}</div><div class="role">{{ __('reports.label_prepared_by') }}</div></div>
+          <div class="sig sig--plain"><div class="who">{{ $report->make_date ? \Carbon\Carbon::parse($report->make_date)->translatedFormat('d M Y') : '—' }}</div><div class="role">{{ __('reports.label_date') }}</div></div>
         </div>
         {{-- (2026-07-23) El sello es del acto de FINALIZAR: un 'final' lleva su cadena CFDI y su
              verificación; un borrador NO lleva sello vigente. Sin este gate, reabrir un final a
@@ -727,7 +733,7 @@
     </table>
 
     @include('componentes._report-v2-foot', [
-      'footPreparedName' => $report->make_by ?: '—',
+      'footPreparedName' => $creditName,
       'footPreparedMeta' => __('reports.label_risk_assessment') . ($report->make_date ? ' · ' . \Carbon\Carbon::parse($report->make_date)->translatedFormat('d M Y') : ''),
       'footUuid'         => $footUuid,
     ])
