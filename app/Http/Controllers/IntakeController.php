@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DocumentType;
 use App\Models\Payee;
+use App\Models\PaymentPeriod;
 use App\Models\ProductionDocumentSetting;
 use App\Models\User;
 use App\Support\CurrentProduction;
@@ -220,13 +221,27 @@ class IntakeController extends Controller
                     }
                     $dt   = DocumentType::find($docTypeId);
                     $path = $file->storeAs('payee/docs/' . $payee->id, uniqid('doc_') . '.pdf', 'local'); // disco PRIVADO
-                    $payee->documents()->create([
+                    $doc = $payee->documents()->create([
                         'level' => 'persona', 'document_type' => $dt ? $dt->name : 'documento', 'document_type_id' => $dt?->id,
                         'issued_at' => $request->input("issued.$docTypeId"), 'result_status' => $request->input("result.$docTypeId"),
                         'photo_path' => $path, 'origen' => 'contractual',
                         'status' => 'presentado',   // RECIBIDO; el cotejo (validated_*) es aparte
                         'is_active' => 1, 'created_by_id' => $actor?->id, // quién subió + (created_at) cuándo
                     ]);
+                    // VENTANA DE RECEPCIÓN: cuelga el documento del periodo de pago (dentro o fuera de
+                    // ventana). Best-effort: si falla, la captura NO se rompe y el tablero igual deriva
+                    // el estado con PayeePackage.
+                    try {
+                        $res = PaymentPeriod::resolveReception($payee);
+                        if ($res['period']) {
+                            $doc->update([
+                                'payment_period_id'      => $res['period']->id,
+                                'received_out_of_window' => $res['out_of_window'],
+                            ]);
+                        }
+                    } catch (\Throwable $e) {
+                        // silencioso a propósito: el estampado del periodo no puede impedir la recepción.
+                    }
                 }
                 break;
 

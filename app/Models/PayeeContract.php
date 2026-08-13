@@ -30,6 +30,14 @@ class PayeeContract extends Model
     const CONCEPT_RENTAL  = 'equipment_rental'; // renta de equipo
     const CONCEPT_SERVICE = 'service';          // servicio
 
+    // FRECUENCIA del periodo de pago (VENTANA DE RECEPCIÓN). Se HEREDA del contrato: fija
+    // para crew y proveedores fijos, definible caso por caso para day players/apoyos/eventuales.
+    // DAY PLAYER no es una excepción: es OTRO TIPO de periodo (no tiene semana, tiene el día).
+    // Este modelo es la FUENTE del vocabulario; PaymentPeriod::frequency usa las mismas claves.
+    const FREQ_WEEKLY     = 'weekly';       // semanal
+    const FREQ_BIWEEKLY   = 'biweekly';     // quincenal
+    const FREQ_DAY_PLAYER = 'day_player';   // day player (por día trabajado)
+
     protected $fillable = [
         'payee_id', 'fiscal_regime_id', 'production_id', 'concept', 'title',
         'contracted_by_user_id', 'payment_frequency', 'is_repse',
@@ -68,5 +76,21 @@ class PayeeContract extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', 1);
+    }
+
+    /** Frecuencias válidas (clave => etiqueta traducible) para selects y validación. */
+    public static function frequencies(): array
+    {
+        return [
+            self::FREQ_WEEKLY     => __('Semanal'),
+            self::FREQ_BIWEEKLY   => __('Quincenal'),
+            self::FREQ_DAY_PLAYER => __('Day player'),
+        ];
+    }
+
+    /** Etiqueta legible de la frecuencia de este contrato (o null si no está definida). */
+    public function frequencyLabel(): ?string
+    {
+        return self::frequencies()[$this->payment_frequency] ?? null;
     }
 }

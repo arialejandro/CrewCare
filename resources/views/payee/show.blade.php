@@ -19,6 +19,8 @@
             </a>
         </div>
 
+        @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
+
         <div class="crew-header d-flex align-items-center gap-3 mb-4">
             <span class="crew-header-icon d-inline-flex align-items-center justify-content-center rounded-3">
                 @include('componentes._icon', ['name' => $payee->isMoral() ? 'building-2' : 'user', 'class' => 'cc-ico', 'label' => null])
@@ -85,7 +87,23 @@
                                         <td data-label="{{ __('Concepto') }}">{{ $conceptLabels[$c->concept] ?? $c->concept }}</td>
                                         <td data-label="{{ __('Contrata') }}">{{ optional($c->contractedBy)->name ? trim($c->contractedBy->name.' '.$c->contractedBy->lname) : '—' }}</td>
                                         <td data-label="{{ __('Régimen') }}">{{ optional($c->fiscalRegime)->name ?: '—' }}</td>
-                                        <td data-label="{{ __('Frecuencia') }}">{{ $c->payment_frequency ?: '—' }}</td>
+                                        <td data-label="{{ __('Frecuencia') }}">
+                                            @can('periods.manage')
+                                                {{-- La frecuencia HEREDA el periodo de pago; definible caso por caso (day players/apoyos). --}}
+                                                <form method="POST" action="{{ route('periods.contract.frequency', $c) }}" class="d-inline-flex gap-1 align-items-center">
+                                                    @csrf
+                                                    <select name="payment_frequency" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+                                                        <option value="">{{ __('—') }}</option>
+                                                        @foreach(\App\Models\PayeeContract::frequencies() as $fv => $fl)
+                                                            <option value="{{ $fv }}" @selected($c->payment_frequency === $fv)>{{ $fl }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <noscript><button class="btn btn-sm btn-crew-soft">{{ __('Guardar') }}</button></noscript>
+                                                </form>
+                                            @else
+                                                {{ $c->frequencyLabel() ?: '—' }}
+                                            @endcan
+                                        </td>
                                         <td data-label="{{ __('REPSE') }}">@if($c->is_repse)<span class="badge text-bg-warning">{{ __('Sí') }}</span>@else<span class="text-muted">—</span>@endif</td>
                                     </tr>
                                 @endforeach

@@ -56,16 +56,21 @@ class ExternalAuthorization extends Model
         'status', 'result_status', 'pending_commit_date',
         'standard_code', 'standard_name',
         'is_active', 'created_by_id',
+        // VENTANA DE RECEPCIÓN — el documento cuelga del PERIODO (además del holder). Se
+        // estampan best-effort al capturar; null = recibido sin periodo. `received_out_of_window`
+        // marca lo recibido fuera de ventana (nunca rechazado).
+        'payment_period_id', 'received_out_of_window',
     ];
 
     protected $casts = [
-        'valid_until'         => 'date',
-        'issued_at'           => 'date',
-        'pending_commit_date' => 'date',
-        'is_gate'             => 'boolean',
-        'is_active'           => 'boolean',
-        'validated_at'        => 'datetime',
-        'validated_snapshot'  => 'array',
+        'valid_until'            => 'date',
+        'issued_at'              => 'date',
+        'pending_commit_date'    => 'date',
+        'is_gate'                => 'boolean',
+        'is_active'              => 'boolean',
+        'validated_at'           => 'datetime',
+        'validated_snapshot'     => 'array',
+        'received_out_of_window' => 'boolean',
     ];
 
     public function holder(): MorphTo
@@ -77,6 +82,12 @@ class ExternalAuthorization extends Model
     public function documentType(): BelongsTo
     {
         return $this->belongsTo(DocumentType::class, 'document_type_id');
+    }
+
+    /** VENTANA DE RECEPCIÓN — el periodo de pago contra el que se recibió este documento. */
+    public function paymentPeriod(): BelongsTo
+    {
+        return $this->belongsTo(PaymentPeriod::class, 'payment_period_id');
     }
 
     /**

@@ -877,6 +877,21 @@ Route::middleware(['auth','permission:payees.view'])->group(function () {
     Route::get('/payees/{payee}/documento/{doc}',  [\App\Http\Controllers\PayeeController::class, 'document'])->name('payees.document')->whereNumber('payee')->whereNumber('doc');
 });
 
+// ---- Quien cobra · VENTANA DE RECEPCIÓN POR PERIODO DE PAGO ----
+// VER el tablero de "quién falta" (periods.view; el scope fino lo pone PeriodBoard vía
+// applyContractingScope). ADMINISTRAR la ventana (periods.manage; contabilidad): abrir/cerrar/
+// reabrir + asignar la frecuencia del contrato. La ruta fija va ANTES del {period} numérico.
+Route::middleware(['auth','permission:periods.view'])->group(function () {
+    Route::get('/periodos',           [\App\Http\Controllers\PaymentPeriodController::class, 'index'])->name('periods.index');
+    Route::get('/periodos/{period}',  [\App\Http\Controllers\PaymentPeriodController::class, 'show'])->name('periods.show')->whereNumber('period');
+});
+Route::middleware(['auth','permission:periods.manage'])->group(function () {
+    Route::post('/periodos',                    [\App\Http\Controllers\PaymentPeriodController::class, 'store'])->name('periods.store');
+    Route::post('/periodos/{period}/cerrar',    [\App\Http\Controllers\PaymentPeriodController::class, 'close'])->name('periods.close')->whereNumber('period');
+    Route::post('/periodos/{period}/reabrir',   [\App\Http\Controllers\PaymentPeriodController::class, 'reopen'])->name('periods.reopen')->whereNumber('period');
+    Route::post('/payees/contratos/{contract}/frecuencia', [\App\Http\Controllers\PaymentPeriodController::class, 'setFrequency'])->name('periods.contract.frequency')->whereNumber('contract');
+});
+
 // ---- Pilar 1: Progressive Disclosure — Fase 2 (edit/update de compliance en back-office) ----
 // La captura Fase 1 (store) es ágil (mínimo indispensable); aquí se completa la carga
 // burocrática (matriz 5×5, normas, causa raíz) y se limpia pending_compliance.

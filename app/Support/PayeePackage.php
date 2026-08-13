@@ -81,6 +81,32 @@ class PayeePackage
     }
 
     /**
+     * VENTANA DE RECEPCIÓN — tipos que un PERIODO DE PAGO espera de un contrato: el paquete
+     * "para cobrar" RECURRENTE (los que CADUCAN y se re-piden cada periodo: CSF, 32-D, factura)
+     * MÁS la tanda REPSE "DESPUÉS del pago" si el contrato es REPSE (cuelga del periodo EN QUE
+     * se pagó, §5 → se consume `repse_phase`, no se duplica).
+     *
+     * NO entra lo de ALTA (una sola vez): los identitarios PERMANENTES (INE, acta constitutiva)
+     * ni la tanda REPSE "ANTES del pago". Deriva del catálogo; no almacena nada.
+     */
+    public static function periodRequirements($productionId, PayeeContract $contract): Collection
+    {
+        $payee       = $contract->payee;
+        $nature      = optional($payee)->legal_nature ?? DocumentRequirement::APPLIES_AMBAS;
+        $nationality = optional($payee)->nationality ?: 'mexicana';
+
+        // Identidad RECURRENTE (los permanentes/sin vigencia son de alta, no de periodo).
+        $identity = self::identityRequirements($productionId, $nature, $nationality)
+            ->reject(fn ($t) => $t->validity_shape === DocumentType::V_PERMANENT || $t->validity_shape === null);
+
+        // Contrato: facturas + REPSE "después" (se quita la tanda "antes", que es de alta).
+        $contractTypes = self::contractRequirements($productionId, $contract)
+            ->reject(fn ($t) => $t->repse_phase === DocumentType::PHASE_BEFORE);
+
+        return $identity->concat($contractTypes)->unique('id')->values();
+    }
+
+    /**
      * Evalúa un tipo requerido contra los documentos capturados de un titular. $documents
      * = colección de ExternalAuthorization del holder. $cutDay = fecha de corte de la 32-D
      * de la producción (cambia el cálculo de caducidad de los "mes corriente").

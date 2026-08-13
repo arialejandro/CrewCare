@@ -47,6 +47,7 @@ class DatabaseSeeder extends Seeder
             PaePermissionsSeeder::class,               // pae.issue
             AmbulancePermissionsSeeder::class,         // ambulance.manage + ambulance.view (visibilidad producción/safety)
             PayeeAccessPermissionsSeeder::class,       // payees.view (quien cobra · Paso 4) — DESPUÉS del barrido %.view del auditor
+            PeriodPermissionsSeeder::class,            // periods.view/manage (ventana de recepción) — mismo motivo, después del barrido
             // (SdsPermissionsSeeder NO: sds.* ya viene en el base)
             // (MedicRolePermissionsSeeder NO: migra usuarios; el grant a medic vive en el base)
 

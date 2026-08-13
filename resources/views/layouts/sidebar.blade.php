@@ -257,7 +257,7 @@
             </div>
 
             {{-- ===== CREW ===== --}}
-            @canany(['users.create', 'users.view', 'payees.view'])
+            @canany(['users.create', 'users.view', 'payees.view', 'periods.view'])
                 <div class="cc-sec" data-open="false">
                     <button type="button" class="cc-sec-head" aria-expanded="false">
                         @include('componentes._icon', ['name' => 'users', 'class' => 'cc-sec-head__ico', 'label' => null])
@@ -289,6 +289,13 @@
                             <a href="{{ route('payees.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'wallet', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('Quién cobra') }}</span>
+                            </a>
+                        @endcan
+                        {{-- Ventana de recepción por periodo de pago: el tablero de "quién falta". --}}
+                        @can('periods.view')
+                            <a href="{{ route('periods.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'calendar', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Periodos de pago') }}</span>
                             </a>
                         @endcan
                     </div></div>
