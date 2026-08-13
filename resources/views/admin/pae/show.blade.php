@@ -157,9 +157,8 @@
     // Hero + pie. heroTime = NULL (el PAE es de todo el día; el llamado va en la sub-línea).
     $heroModule = $en ? 'Emergency Action Plan' : 'Plan de Atención a Emergencias';
     $footMeta   = 'Safety' . ($dateStr ? ' · ' . $dateStr : '');
-    $footUuid   = 'UUID: ' . $brandName . '-PAE-' . (16210 + (int) $p->id) . '-'
-                . ($p->created_at ? \Carbon\Carbon::parse($p->created_at)->format('dmY') : '')
-                . ' | ' . $appVersion;
+    // UUID REAL del documento (el mismo del sello CFDI), no un código derivado del id.
+    $footUuid   = 'UUID: ' . ($p->uuid ?: '—') . ' | ' . $appVersion;
 @endphp
 <!DOCTYPE html>
 <html lang="{{ app()->getLocale() }}">

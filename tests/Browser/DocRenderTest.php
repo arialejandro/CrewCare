@@ -2,7 +2,9 @@
 
 namespace Tests\Browser;
 
+use App\Models\DailyReport;
 use App\Models\hazardnotification;
+use App\Models\InjuryReport;
 use App\Models\ScoutingReport;
 use App\Models\ToolInspection;
 use App\Models\unsafecond;
@@ -67,6 +69,28 @@ class DocRenderTest extends DuskTestCase
             $browser->loginAs($this->admin())->visit('/unsafecond/' . $u->id)->pause(1200)->resize(1300, 2400);
             $this->printView($browser);
             $browser->scrollIntoView('.sign')->pause(400)->screenshot('rev-unsafe-firmas');
+        });
+        $this->assertTrue(true);
+    }
+
+    public function test_render_dsr(): void
+    {
+        $d = DailyReport::latest('id')->firstOrFail();
+        $this->browse(function (Browser $browser) use ($d) {
+            $browser->loginAs($this->admin())->visit('/dsr-reports/' . $d->id)->pause(1400)->resize(1300, 2600);
+            $this->printView($browser);
+            $browser->scrollIntoView('.sign')->pause(400)->screenshot('rev-dsr-firmas');
+        });
+        $this->assertTrue(true);
+    }
+
+    public function test_render_injury(): void
+    {
+        $i = InjuryReport::latest('id')->firstOrFail();
+        $this->browse(function (Browser $browser) use ($i) {
+            $browser->loginAs($this->admin())->visit('/accident/' . $i->id . '/completo')->pause(1400)->resize(1300, 2600);
+            $this->printView($browser);
+            $browser->scrollIntoView('.sign')->pause(400)->screenshot('rev-injury-firmas');
         });
         $this->assertTrue(true);
     }

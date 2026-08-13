@@ -35,11 +35,12 @@
 
     // Pie de marca (misma fórmula que los reportes / MEDEVAC).
     $authorId   = $map->sealed_by ?: $map->created_by_id;
-    $authorName = trim((string) optional(\App\Models\User::find($authorId))->name) ?: '—';
-    $footMeta   = ($en ? 'Safety' : 'Safety') . ($dateStr ? ' · ' . $dateStr : '');
-    $footUuid   = 'UUID: ' . $brandName . '-RMAP-' . (16210 + (int) $map->id) . '-'
-                . ($map->created_at ? \Carbon\Carbon::parse($map->created_at)->format('dmY') : '')
-                . ' | ' . config('crewcare.doc_version');
+    // NOMBRE DE CRÉDITOS del autor (displayName → ncreditos; si vacío, nombre corto), no el legal.
+    $__author   = $authorId ? \App\Models\User::find($authorId) : null;
+    $authorName = $__author ? \App\Models\User::displayName($__author) : '—';
+    $footMeta   = 'Safety' . ($dateStr ? ' · ' . $dateStr : '');
+    // UUID REAL del documento (el mismo del sello CFDI), no un código derivado del id.
+    $footUuid   = 'UUID: ' . ($map->uuid ?: '—') . ' | ' . config('crewcare.doc_version');
 
     $resLabels = RiskMapMarker::RESOURCE_TYPES;
     $inventory = $map->resourceInventory();

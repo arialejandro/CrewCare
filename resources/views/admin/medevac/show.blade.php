@@ -86,11 +86,10 @@
     // El UUID conserva la marca del cliente ($brandName) y la versión del documento, EXACTAMENTE con
     // la misma fórmula que DSR/scout/injury ({marca}-{TIPO}-{16210+id}-{ddmmaaaa} | VER x.x).
     $preparedName = trim((string) $p->issued_by_name) ?: '—';
-    $footDate     = $p->issued_at ? \Carbon\Carbon::parse($p->issued_at)->format('d M Y') : '';
+    $footDate     = $p->issued_at ? \Carbon\Carbon::parse($p->issued_at)->translatedFormat('d M Y') : '';
     $preparedMeta = __('reports.label_risk_assessment') . ($footDate !== '' ? ' · ' . $footDate : '');
-    $footUuid     = 'UUID: ' . $brandName . '-MDVC-' . (16210 + (int) $p->id) . '-'
-                  . ($p->created_at ? \Carbon\Carbon::parse($p->created_at)->format('dmY') : '')
-                  . ' | ' . config('crewcare.doc_version');
+    // UUID REAL del documento (el mismo del sello CFDI), no un código derivado del id.
+    $footUuid     = 'UUID: ' . ($p->uuid ?: '—') . ' | ' . config('crewcare.doc_version');
 @endphp
 <!DOCTYPE html>
 <html lang="{{ app()->getLocale() }}">

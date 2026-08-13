@@ -94,13 +94,14 @@
     $folio = $wrap->exists ? $wrap->folio() : 'BORRADOR';
     $periodoIni = $v($s1, 'periodo_desde');
     $periodoFin = $v($s1, 'periodo_hasta');
-    $fmt = function ($f) { return $f ? \Carbon\Carbon::parse($f)->format('d M Y') : '—'; };
+    $fmt = function ($f) { return $f ? \Carbon\Carbon::parse($f)->translatedFormat('d M Y') : '—'; };
 
     $nivelClase = ['Bajo' => 'n1', 'Medio' => 'n2', 'Alto' => 'n3', 'Extremo' => 'n4'];
     $nivelNombre = [1 => 'Bajo', 2 => 'Medio', 3 => 'Alto', 4 => 'Extremo'];
 
     $heroDate = $fmt($periodoIni) . ' — ' . $fmt($periodoFin);
-    $footUuid = $wrap->uuid ? mb_strtoupper(mb_substr((string) $wrap->uuid, 0, 8)) : '—';
+    // UUID REAL completo del documento (el mismo del sello CFDI), homologado con los demás docs.
+    $footUuid = 'UUID: ' . ($wrap->uuid ?: '—') . ' | ' . config('crewcare.doc_version');
 @endphp
 <!DOCTYPE html>
 <html lang="{{ app()->getLocale() }}">
@@ -1019,7 +1020,7 @@
     @include('componentes._report-v2-foot', [
       'footPreparedName' => 'CrewCare · cálculo automático',
       'footPreparedMeta' => 'Derivado de los reportes sellados de la producción'
-          . (isset($P['meta']['generado_en']) ? ' · ' . \Carbon\Carbon::parse($P['meta']['generado_en'])->format('d M Y H:i') : ''),
+          . (isset($P['meta']['generado_en']) ? ' · ' . \Carbon\Carbon::parse($P['meta']['generado_en'])->translatedFormat('d M Y H:i') : ''),
       'footUuid'         => $footUuid,
     ])
 

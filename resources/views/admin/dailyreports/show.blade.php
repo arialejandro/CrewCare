@@ -18,7 +18,7 @@
     $r = $report;
 
     // ---- Hero: nombre de proyecto + "llamado" (setting · locación · time) + fecha/CALL ----
-    $heroDate = $r->report_date ? \Carbon\Carbon::parse($r->report_date)->format('d M Y') : null;
+    $heroDate = $r->report_date ? \Carbon\Carbon::parse($r->report_date)->translatedFormat('d M Y') : null;
     $callTime = $r->call_time ? \Carbon\Carbon::parse($r->call_time)->format('H:i') : null;
     $locParts = array_filter([$r->slug_setting, $r->location_name, $r->slug_time], function ($v) { return trim((string) $v) !== ''; });
     $heroLoc  = count($locParts) ? implode(' · ', $locParts) : (string) $r->location_name;
@@ -128,7 +128,13 @@
     $stdUrls = $standards->pluck('reference_url', 'regulation_code');
 
     // ---- Folio / UUID del pie ----
-    $footUuid = 'UUID: ' . $brandName . '-DSR-' . (16210 + $r->id) . '-' . \Carbon\Carbon::parse($r->created_at)->format('dmY') . ' | ' . config('crewcare.doc_version');
+    // UUID REAL del documento (el mismo del sello CFDI), no un código derivado del id.
+    $footUuid = 'UUID: ' . ($r->uuid ?: '—') . ' | ' . config('crewcare.doc_version');
+
+    // NOMBRE DE CRÉDITOS de quien elaboró (firmas + pie): autor por created_by_id → displayName;
+    // si no hay autor, cae al author_name guardado.
+    $__author = ! empty($r->created_by_id) ? \App\Models\User::find($r->created_by_id) : null;
+    $creditName = $__author ? \App\Models\User::displayName($__author) : ($r->author_name ?: '—');
 
     // ---- RISK HEATMAP: SOLO los iconos de los riesgos REALMENTE presentes (sin ausentes, sin radios).
     //      Un riesgo está presente si (a) un log del día lo disparó vía su boletín ($heatmap del ctrl),
@@ -643,9 +649,10 @@
       {{-- VALIDACIÓN / SELLO DE INTEGRIDAD --}}
       <section class="sec">
         <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'shield'])<h2>{{ __('reports.label_prepared_by') }}</h2><span class="line"></span></div>
+        {{-- Casilla 1 = nombre de créditos sobre la línea de firma; casilla 2 = fecha SIN línea. --}}
         <div class="sign">
-          <div class="sig"><div class="who">{{ $r->author_name ?: '—' }}</div><div class="role">{{ __('reports.label_risk_assessment') }}</div></div>
-          <div class="sig"><div class="who">{{ $heroDate ?: '—' }}</div><div class="role">{{ __('reports.label_date') }}</div></div>
+          <div class="sig"><div class="who">{{ $creditName }}</div><div class="role">{{ __('reports.label_risk_assessment') }}</div></div>
+          <div class="sig sig--plain"><div class="who">{{ $heroDate ?: '—' }}</div><div class="role">{{ __('reports.label_date') }}</div></div>
         </div>
         {{-- Hueco de la firma autógrafa (ver la nota equivalente en el Injury): el espacio
              en blanco sobre la línea ya se imprime y ya se puede firmar a mano. --}}
@@ -667,7 +674,7 @@
     <tfoot><tr><td><div class="footer-spacer"></div></td></tr></tfoot>
     </table>
     @include('componentes._report-v2-foot', [
-      'footPreparedName' => $r->author_name ?: '—',
+      'footPreparedName' => $creditName,
       'footPreparedMeta' => __('reports.label_risk_assessment') . ($heroDate ? ' · ' . $heroDate : ''),
       'footUuid'         => $footUuid,
     ])
