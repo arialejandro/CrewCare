@@ -32,9 +32,11 @@ use App\Models\ScoutingReport;
 class EmergencyActionPlanBuilder
 {
     /** Versión del cálculo. Viaja en el payload congelado. Subirla si cambia el SIGNIFICADO.
-     *   v2 (2026-08-08 · Parte D): +day_resource (badge del recurso de traslado del día). Additivo:
-     *   los PAE v1 no lo traen y la vista cae a null (no se pinta la tarjeta). */
-    const VERSION = 2;
+     *   v2 (2026-08-08 · Parte D): +day_resource (badge del recurso de traslado del día). Additivo.
+     *   v3 (2026-08-13): −day_resource. El PAE se EMITE ANTES de la ambulancia: sólo declara la
+     *   necesidad/acuerdo de una ambulancia, no la unidad concreta ni su verificación (decisión
+     *   owner). La vista ya no pinta esa tarjeta; los PAE v2 la conservan congelada, los nuevos no. */
+    const VERSION = 3;
 
     /**
      * Construye el payload congelado del PAE.
@@ -122,13 +124,9 @@ class EmergencyActionPlanBuilder
                 'move_time' => $isMove ? self::str($opts['move_time'] ?? '') : '',
             ],
 
-            // (Parte D) RECURSO DE TRASLADO DEL DÍA — badge congelado (ambulancia en sitio con su
-            // acta/veredicto, medio declarado, o hueco). Uno por producción+día; NO sobreclama el
-            // cotejo de tripulación ("documentos revisados", nunca "contra registro").
-            'day_resource' => AmbulanceResourceBadge::forDay(
-                ! empty($list) ? $list[0]->production_id : null,
-                (isset($opts['shoot_day']) && $opts['shoot_day'] !== '') ? (int) $opts['shoot_day'] : null
-            ),
+            // (2026-08-13) Se RETIRÓ 'day_resource': el PAE se emite ANTES de la ambulancia, sólo
+            // declara la necesidad/acuerdo de una ambulancia, no la unidad concreta ni su
+            // verificación. El estado real de la ambulancia del día vive en su ACTA y en el hub.
 
             // 3 · UN BLOQUE POR LOCACIÓN (se repite; en el orden capturado).
             'locations' => $locations,

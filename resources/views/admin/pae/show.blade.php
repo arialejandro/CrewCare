@@ -36,10 +36,6 @@
     $moveTime  = trim((string) ($move['move_time'] ?? ''));
     $locations = (array) $p->pdata('locations', []);
 
-    // (Parte D) Recurso de traslado del día — badge congelado. Sólo existe en PAE v2+; los v1
-    // devuelven [] y la tarjeta no se pinta (retrocompatible).
-    $dayRes    = (array) $p->pdata('day_resource', []);
-
     $planDate  = trim((string) ($hd['date'] ?? ''));
     $unit      = trim((string) ($hd['unit'] ?? ''));
     $mainImage = trim((string) ($hd['main_image'] ?? ''));
@@ -391,30 +387,10 @@
       </div>
       @endif
 
-      {{-- ============ RECURSO DE TRASLADO DEL DÍA (Parte D) ============ --}}
-      @if(!empty($dayRes['state']))
-        @php
-          $drTone   = in_array(($dayRes['tone'] ?? 'neutral'), ['ok','warn','neutral'], true) ? $dayRes['tone'] : 'neutral';
-          $drTitle  = trim((string) ($dayRes['title'] ?? ''));
-          $drDetail = trim((string) ($dayRes['detail'] ?? ''));
-          $drSub    = trim((string) ($dayRes['sub'] ?? ''));
-          $drVerd   = trim((string) ($dayRes['verdict'] ?? ''));
-          $drMethod = trim((string) ($dayRes['method'] ?? ''));
-          $drFolio  = trim((string) ($dayRes['folio'] ?? ''));
-          $drUrl    = trim((string) ($dayRes['verify_url'] ?? ''));
-        @endphp
-        <div class="pae-dayres {{ $drTone }}">
-          <span class="dr-ic">@include('componentes._icon', ['name' => 'ambulance', 'label' => null])</span>
-          <div class="dr-b">
-            <div class="dr-lbl">{{ $en ? 'Day transport resource' : 'Recurso de traslado del día' }}</div>
-            <div class="dr-title">{{ $drTitle }}@if($drVerd !== '') <span class="dr-verdict">{{ $drVerd }}</span>@endif</div>
-            @if($drDetail !== '')<div class="dr-detail">{{ $drDetail }}</div>@endif
-            @if($drSub !== '')<div class="dr-meta">{{ $drSub }}</div>@endif
-            @if($drMethod !== '')<div class="dr-meta">{{ $drMethod }}</div>@endif
-            @if($drFolio !== '')<div class="dr-meta">{{ $en ? 'Record' : 'Acta' }} {{ $drFolio }}@if($drUrl !== '') · <a href="{{ $drUrl }}" target="_blank" rel="noopener">{{ $en ? 'Verify' : 'Verificar' }}</a>@endif</div>@endif
-          </div>
-        </div>
-      @endif
+      {{-- (2026-08-13) El PAE se EMITE ANTES de la ambulancia: sólo declara la necesidad/acuerdo de
+           una ambulancia, NO la unidad concreta ni su verificación. Se retiró la tarjeta "Recurso de
+           traslado del día" (badge de la unidad + veredicto): la ambulancia del día vive en su ACTA
+           y en el hub de verificación, no en este documento de planeación. --}}
 
       {{-- ============ HOJA DE ACTIVACIÓN (una por locación) ============ --}}
       @foreach($locations as $loc)

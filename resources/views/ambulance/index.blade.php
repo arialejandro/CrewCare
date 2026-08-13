@@ -48,19 +48,31 @@
         </h5>
 
         @if ($dayResource && $dayResource->hasAmbulance())
-            {{-- Estado 1: hay ambulancia en sitio. El badge sale del acta verificada. --}}
-            <div class="card border-0 shadow-sm rounded-3 p-3 p-md-4 mb-4" style="border-left:4px solid #16a34a !important;">
+            @php
+                $insp0     = $dayResource->inspection;
+                $crewReq0  = $insp0 ? \App\Support\AmbulanceVerdict::crewSummary((array) $insp0->crew_snapshot) : null;
+                $crewWarn0 = $insp0 && $insp0->verdict === 'apta' && $crewReq0 && ! $crewReq0['sufficient'];
+                $dayBorder = $crewWarn0 ? '#d97706' : '#16a34a';
+            @endphp
+            {{-- Estado 1: hay ambulancia en sitio. Si el acta quedó apta pero SIN tripulación mínima,
+                 se marca en ámbar: la unidad está lista, pero falta personal calificado para operar. --}}
+            <div class="card border-0 shadow-sm rounded-3 p-3 p-md-4 mb-4" style="border-left:4px solid {{ $dayBorder }} !important;">
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
                         <span class="insp-tag" style="background:#dcfce7;color:#166534;">
                             @include('componentes._icon', ['name' => 'circle-check', 'label' => null]) {{ __('Ambulancia en sitio') }}
                         </span>
-                        @if ($dayResource->inspection)
-                            <span class="text-muted small">{{ $dayResource->inspection->type_name }} · {{ $dayResource->inspection->provider_name ?: '—' }}</span>
+                        @if ($crewWarn0)
+                            <span class="insp-tag" style="background:#fef3c7;color:#92400e;">
+                                @include('componentes._icon', ['name' => 'alert-triangle', 'label' => null]) {{ __('Sin tripulación calificada') }}
+                            </span>
+                        @endif
+                        @if ($insp0)
+                            <span class="text-muted small">{{ $insp0->type_name }} · {{ $insp0->provider_name ?: '—' }}</span>
                         @endif
                     </div>
-                    @if ($dayResource->inspection)
-                        <a href="{{ route('ambulance.acta', $dayResource->inspection->uuid) }}" class="btn btn-sm btn-outline-success">{{ __('Ver acta') }}</a>
+                    @if ($insp0)
+                        <a href="{{ route('ambulance.acta', $insp0->uuid) }}" class="btn btn-sm btn-outline-success">{{ __('Ver acta') }}</a>
                     @endif
                 </div>
             </div>
@@ -121,14 +133,24 @@
             @if (isset($inspections) && $inspections->count())
                 <div class="list-group list-group-flush">
                     @foreach ($inspections as $acta)
-                        @php $vc = $verdictChip[$acta->verdict] ?? $verdictChip['apta']; @endphp
+                        @php
+                            $vc = $verdictChip[$acta->verdict] ?? $verdictChip['apta'];
+                            // Estado intermedio: apta por checklist pero SIN tripulación mínima (operador + clínico).
+                            $crewReq  = \App\Support\AmbulanceVerdict::crewSummary((array) $acta->crew_snapshot);
+                            $crewWarn = ($acta->verdict === 'apta' && ! $crewReq['sufficient']);
+                        @endphp
                         <a href="{{ route('ambulance.acta', $acta->uuid) }}"
                            class="list-group-item list-group-item-action d-flex flex-wrap align-items-center justify-content-between gap-2">
                             <span class="d-flex align-items-center gap-2">
                                 <strong>{{ $acta->folio() }}</strong>
                                 <span class="text-muted small">{{ $acta->type_name }} · {{ $acta->provider_name ?: '—' }}</span>
                             </span>
-                            <span class="d-flex align-items-center gap-2">
+                            <span class="d-flex align-items-center gap-2 flex-wrap">
+                                @if ($crewWarn)
+                                    <span class="insp-tag" style="background:#fef3c7;color:#92400e;" title="{{ __('Apta, pero sin tripulación mínima a bordo (operador + clínico)') }}">
+                                        @include('componentes._icon', ['name' => 'alert-triangle', 'label' => null]) {{ __('Sin tripulación') }}
+                                    </span>
+                                @endif
                                 <span class="insp-tag" style="background:{{ $vc['bg'] }};color:{{ $vc['fg'] }};">{{ $vc['t'] }}</span>
                                 <span class="text-muted small">{{ optional($acta->created_at)->format('d/m/Y') }}</span>
                             </span>
