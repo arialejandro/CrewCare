@@ -32,11 +32,15 @@ class BrandingController extends Controller
             'accent_color'    => 'nullable|regex:/^#[0-9A-Fa-f]{6}$/',
             'company_name'    => 'nullable|string|max:191',
             'office_address'  => 'nullable|string|max:191',
+            // Contratante para la carátula del contrato (Paso B) — aditivo.
+            'rfc'                 => 'nullable|string|max:20',
+            'representante_legal' => 'nullable|string|max:160',
+            'correo_contratante'  => 'nullable|string|max:160',
             'client_logo'     => 'nullable|mimes:png,jpg,jpeg,webp,svg|max:2048',
         ]);
 
         // Campos de texto/color → settings clave/valor.
-        foreach (['brand_name', 'app_title', 'primary_color', 'secondary_color', 'accent_color', 'company_name', 'office_address'] as $key) {
+        foreach (['brand_name', 'app_title', 'primary_color', 'secondary_color', 'accent_color', 'company_name', 'office_address', 'rfc', 'representante_legal', 'correo_contratante'] as $key) {
             if ($request->has($key)) {
                 Setting::updateOrCreate(['key' => $key], ['value' => $request->input($key)]);
             }

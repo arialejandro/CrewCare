@@ -894,6 +894,20 @@ Route::middleware(['auth','permission:periods.manage'])->group(function () {
     Route::post('/payees/contratos/{contract}/frecuencia', [\App\Http\Controllers\PaymentPeriodController::class, 'setFrequency'])->name('periods.contract.frequency')->whereNumber('contract');
 });
 
+// ---- EL CONTRATO · PASO B: EL DOCUMENTO ----
+// Biblioteca de clausulados (config de la productora → settings.manage, SIN permiso nuevo).
+Route::middleware(['auth','permission:settings.manage'])->group(function () {
+    Route::get('/contratos/clausulados',                       [\App\Http\Controllers\ContractClauseController::class, 'index'])->name('contracts.clauses.index');
+    Route::post('/contratos/clausulados',                      [\App\Http\Controllers\ContractClauseController::class, 'store'])->name('contracts.clauses.store');
+    Route::post('/contratos/clausulados/{clause}/toggle',      [\App\Http\Controllers\ContractClauseController::class, 'toggle'])->name('contracts.clauses.toggle')->whereNumber('clause');
+    Route::get('/contratos/clausulados/{clause}/descargar',    [\App\Http\Controllers\ContractClauseController::class, 'download'])->name('contracts.clauses.download')->whereNumber('clause');
+});
+// Emitir + carátula: MISMA guarda del payee (PayeePolicy capture/view, dentro del controlador). Sin permiso nuevo.
+Route::middleware(['auth'])->group(function () {
+    Route::post('/contratos/{contract}/emitir',   [\App\Http\Controllers\ContractController::class, 'emit'])->name('contracts.emit')->whereNumber('contract');
+    Route::get('/contratos/{contract}/caratula',  [\App\Http\Controllers\ContractController::class, 'caratula'])->name('contracts.caratula')->whereNumber('contract');
+});
+
 // ---- Pilar 1: Progressive Disclosure — Fase 2 (edit/update de compliance en back-office) ----
 // La captura Fase 1 (store) es ágil (mínimo indispensable); aquí se completa la carga
 // burocrática (matriz 5×5, normas, causa raíz) y se limpia pending_compliance.

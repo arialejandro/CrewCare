@@ -66,6 +66,8 @@ class PayeeContract extends Model
         'beneficiary_name', 'beneficiary_relationship', 'beneficiary_phone',
         'contractor_legal_name', 'contractor_rfc', 'contractor_address',
         'contractor_representative', 'contractor_email',
+        // PASO B · congelado al emitir
+        'clause_id', 'language', 'caratula_path', 'emitted_at', 'emitted_by_id',
     ];
 
     protected $casts = [
@@ -87,6 +89,7 @@ class PayeeContract extends Model
         'perdiem_weekly_shoot'       => 'decimal:2',
         'lodging_monthly_supplement' => 'decimal:2',
         'round_flights'              => 'integer',
+        'emitted_at'                 => 'datetime',
     ];
 
     public function payee(): BelongsTo
@@ -122,6 +125,18 @@ class PayeeContract extends Model
     public function workDates(): HasMany
     {
         return $this->hasMany(PayeeContractWorkDate::class, 'payee_contract_id');
+    }
+
+    /** PASO B · el clausulado + versión EXACTA con que se emitió (congelado). */
+    public function clause(): BelongsTo
+    {
+        return $this->belongsTo(ContractClause::class, 'clause_id');
+    }
+
+    /** ¿Ya se emitió? (tiene su carátula generada y sus datos congelados). Un emitido NO se edita. */
+    public function isEmitted(): bool
+    {
+        return $this->emitted_at !== null;
     }
 
     public function scopeActive($query)

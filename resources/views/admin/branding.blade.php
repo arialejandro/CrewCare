@@ -209,6 +209,31 @@
             </div>
         </div>
 
+        <div class="card bd-card mb-4">
+            <div class="card-header">Datos del contratante (carátula del contrato)</div>
+            <div class="card-body">
+                <p class="cc-muted small mb-3">
+                    Aparecen en la carátula del contrato. La razón social es la “Compañía de producción” y el domicilio
+                    es el “Domicilio de oficina” de arriba; aquí van RFC, representante legal y correo.
+                    El contrato CONGELA estos datos al emitirse: editarlos después no cambia un contrato ya emitido.
+                </p>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">RFC</label>
+                        <input type="text" name="rfc" class="form-control" value="{{ old('rfc', $current['rfc'] ?? '') }}" placeholder="Ej: PFI860101AB3">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Representante legal</label>
+                        <input type="text" name="representante_legal" class="form-control" value="{{ old('representante_legal', $current['representante_legal'] ?? '') }}" placeholder="Ej: Ana Pérez López">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Correo del contratante</label>
+                        <input type="text" name="correo_contratante" class="form-control" value="{{ old('correo_contratante', $current['correo_contratante'] ?? '') }}" placeholder="Ej: contratos@productora.com">
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="d-flex justify-content-end gap-2">
             <button type="submit" class="btn btn-primary fw-bold px-4">
                 @include('componentes._icon', ['name' => 'check', 'class' => 'cc-ico me-1', 'label' => null]) Guardar marca

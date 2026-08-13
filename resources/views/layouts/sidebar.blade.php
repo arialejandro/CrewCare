@@ -546,6 +546,10 @@
                             @include('componentes._icon', ['name' => 'settings', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('nav.settings_branding') }}</span>
                         </a>
+                        <a href="{{ route('contracts.clauses.index') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Clausulados') }}</span>
+                        </a>
                         <a href="{{ route('features.index') }}" class="cc-item">
                             @include('componentes._icon', ['name' => 'activity', 'class' => 'cc-item__ico', 'label' => null])
                             <span>Feature Flags</span>
@@ -868,6 +872,10 @@
                             <a href="{{ route('settings.branding.edit') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'settings', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.settings_branding') }}</span>
+                            </a>
+                            <a href="{{ route('contracts.clauses.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Clausulados') }}</span>
                             </a>
                             <a href="{{ route('features.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'activity', 'class' => 'cc-item__ico', 'label' => null])
