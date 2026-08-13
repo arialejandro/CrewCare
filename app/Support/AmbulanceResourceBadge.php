@@ -98,22 +98,41 @@ class AmbulanceResourceBadge
         ];
         [$verdLabel, $tone] = $verdictMap[$insp->verdict] ?? ['—', 'neutral'];
 
-        // Cotejo de tripulación: cuántos TAMP quedaron cotejados. HOY el método es siempre
-        // "documentos revisados" (nunca "contra registro"): no se sobreclama.
-        $crew          = is_array($insp->crew_snapshot) ? $insp->crew_snapshot : [];
-        $verifiedCount = 0;
-        foreach ($crew as $m) {
-            if (! empty($m['verified'])) {
-                $verifiedCount++;
+        $crew    = is_array($insp->crew_snapshot) ? $insp->crew_snapshot : [];
+        $crewReq = AmbulanceVerdict::crewSummary($crew);
+        $sub     = '';
+
+        // ESTADO INTERMEDIO: la UNIDAD quedó apta pero FALTA la tripulación mínima (operador +
+        // clínico). El PAE tiene que DEJARLO VER —una ambulancia sin personal calificado no puede
+        // operar— así que baja el tono a ámbar y lo dice, igual que el acta. Sólo matiza el 'apta';
+        // no toca un veredicto peor (paro/no_exec), que ya sale en 'warn'.
+        if ($insp->verdict === 'apta' && ! $crewReq['sufficient']) {
+            $miss = [];
+            if (in_array('operador', $crewReq['missing'], true)) { $miss[] = 'operador'; }
+            if (in_array('clinico', $crewReq['missing'], true))  { $miss[] = 'clínico'; }
+            $verdLabel = 'Apta · sin tripulación calificada';
+            $tone      = 'warn';
+            $sub       = 'Falta ' . implode(' y ', $miss) . ' a bordo (NOM-034).';
+            $method    = 'Sin tripulación calificada';
+        } else {
+            // Cotejo de tripulación (con la composición mínima cubierta): cuántos quedaron
+            // cotejados. HOY el método es siempre "documentos revisados" (nunca "contra
+            // registro"): no se sobreclama.
+            $verifiedCount = 0;
+            foreach ($crew as $m) {
+                if (! empty($m['verified'])) {
+                    $verifiedCount++;
+                }
             }
+            $method = $verifiedCount > 0 ? 'Tripulación cotejada (documentos revisados)' : 'Tripulación sin cotejar';
         }
-        $method = $verifiedCount > 0 ? 'Tripulación cotejada (documentos revisados)' : 'Tripulación sin cotejar';
 
         return array_merge(self::base(), [
             'state'      => 'ambulance_on_site',
             'title'      => 'Ambulancia en sitio',
             'detail'     => trim($insp->type_name . ($provider !== '' ? ' · ' . $provider : '')),
             'verdict'    => $verdLabel,
+            'sub'        => $sub,
             'method'     => $method,
             'tone'       => $tone,
             'folio'      => $insp->folio(),
