@@ -25,6 +25,8 @@
 
     $snap     = is_array($inspection->checklist_snapshot) ? $inspection->checklist_snapshot : [];
     $crewSnap = is_array($inspection->crew_snapshot) ? $inspection->crew_snapshot : [];
+    // Composición MÍNIMA de tripulación (operador + clínico): el mismo criterio que sella el veredicto.
+    $crewReq  = \App\Support\AmbulanceVerdict::crewSummary($crewSnap);
     $evidence = $inspection->evidencePhotoUrls();
 
     // Veredicto DERIVADO del dato. 'ck' = clase de color de la banda; 'band' = color de la
@@ -35,6 +37,20 @@
         'apta'                    => ['ck' => 'apta',   'band' => 'ok',   'icon' => 'shield-check',   'title' => 'APTA',                    'sub' => 'El recurso queda disponible.'],
     ];
     $v = $verdictMap[$inspection->verdict] ?? $verdictMap['apta'];
+
+    // ESTADO INTERMEDIO (derivado, NO sellado): la UNIDAD quedó apta por checklist, pero falta la
+    // tripulación mínima (uno o ambos roles) → se presenta en ÁMBAR con signo de advertencia. La
+    // ambulancia está lista; el problema es de personal. NO altera el veredicto sellado de la unidad.
+    $crewWarn = ($inspection->verdict === 'apta' && ! $crewReq['sufficient']);
+    if ($crewWarn) {
+        $v = [
+            'ck'    => 'noexec', // reusa el ámbar de la banda de veredicto
+            'band'  => '',
+            'icon'  => 'alert-triangle',
+            'title' => 'APTA · SIN TRIPULACIÓN CALIFICADA',
+            'sub'   => 'La unidad está lista, pero no puede operar sin tripulación calificada a bordo (NOM-034).',
+        ];
+    }
 
     $pathLabel = [
         'reemplazo'            => 'Fuera de servicio: la unidad sale y se reemplaza.',
@@ -86,6 +102,9 @@
   .amb-verdict.paro{ --vc:var(--danger); }
   .amb-verdict.noexec{ --vc:var(--warn); }
   .amb-verdict.apta{ --vc:var(--ok); }
+  /* Nota de advertencia de tripulación (estado intermedio) en ámbar, a juego con el banner del
+     veredicto. Los chips de requisito usan el .chip.warn (rojo) del chrome, que el owner aprobó. */
+  .amb-crewwarn{ color:var(--warn); }
   .amb-verdict .vic{ flex:none; width:34px; height:34px; color:var(--vc); }
   .amb-verdict .vic svg{ width:34px; height:34px; }
   .amb-verdict h2{ margin:0; font-family:var(--poster); font-weight:900; font-style:italic;
@@ -232,6 +251,19 @@
           </div>
         </div>
 
+        {{-- Motivo de tripulación en el veredicto: sin la composición mínima el recurso NO puede
+             operar (NOM-034). Se explicita para que el acta diga POR QUÉ, no solo el veredicto. --}}
+        @if (! $crewReq['sufficient'])
+          @php
+            $miss = [];
+            if (in_array('operador', $crewReq['missing'], true)) { $miss[] = 'un operador de ambulancia'; }
+            if (in_array('clinico', $crewReq['missing'], true))  { $miss[] = 'un clínico prehospitalario (TAMP o médico)'; }
+          @endphp
+          <p class="amb-note tight amb-crewwarn"><strong>Sin tripulación calificada:</strong> falta {{ implode(' y ', $miss) }}. La unidad está apta, pero no puede operar sin personal calificado a bordo (NOM-034-SSA3-2013).</p>
+        @elseif ($crewReq['clinical_unverified'])
+          <p class="amb-note tight"><strong>Advertencia:</strong> el personal clínico está registrado pero su certificación CONOCER no se cotejó (folio + foto del certificado y de la persona). El recurso queda apto; conviene cotejar la certificación.</p>
+        @endif
+
         {{-- Paro ya levantado: acto con autor (unblocked_* SÍ entra al hash). Imprimible. --}}
         @if ($inspection->isParo() && $inspection->unblocked_at)
         <div class="amb-lifted">
@@ -317,11 +349,24 @@
       </section>
       </td></tr>
 
-      {{-- ============ TRIPULACIÓN CONGELADA ============ --}}
-      @if (count($crewSnap))
+      {{-- ============ TRIPULACIÓN CONGELADA + composición mínima ============ --}}
       <tr><td class="acell">
       <section class="sec">
         <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'heart-pulse'])<h2>Tripulación</h2><span class="line"></span></div>
+
+        {{-- Requisito para operar (NOM-034): ≥1 operador + ≥1 clínico. Se marca el estado de cada uno. --}}
+        <div class="chips">
+          <span class="chip {{ $crewReq['has_operador'] ? 'ok' : 'warn' }}">
+            @include('componentes._icon', ['name' => $crewReq['has_operador'] ? 'circle-check' : 'alert-triangle', 'label' => null])
+            Operador de ambulancia{{ $crewReq['has_operador'] ? '' : ' — falta' }}
+          </span>
+          <span class="chip {{ $crewReq['has_clinical'] ? 'ok' : 'warn' }}">
+            @include('componentes._icon', ['name' => $crewReq['has_clinical'] ? 'circle-check' : 'alert-triangle', 'label' => null])
+            Clínico prehospitalario (TAMP o médico){{ $crewReq['has_clinical'] ? '' : ' — falta' }}
+          </span>
+        </div>
+
+        @if (count($crewSnap))
         <div class="chips">
           @foreach ($crewSnap as $m)
             @php
@@ -342,10 +387,12 @@
             </span>
           @endforeach
         </div>
-        <p class="amb-note tight">TAMP = Técnico en Atención Médica Prehospitalaria. «Cotejado» = folio CONOCER con foto del certificado y de la persona.</p>
+        @else
+        <p class="amb-note tight">No se registró tripulación en esta verificación.</p>
+        @endif
+        <p class="amb-note tight">TAMP = Técnico en Atención Médica Prehospitalaria. «Cotejado» = folio CONOCER con foto del certificado y de la persona. Una ambulancia requiere al menos un operador y un clínico a bordo para operar (NOM-034).</p>
       </section>
       </td></tr>
-      @endif
 
       {{-- ============ CHECKLIST EJECUTADO (congelado) — título + una <tr> POR PUNTO ============ --}}
       @if (count($snap))

@@ -199,6 +199,11 @@
                 {{-- (b) TRIPULACIÓN + COTEJO CONOCER ───────────────────────────── --}}
                 <div class="card border-0 shadow-sm rounded-3 p-3 p-md-4 mb-3">
                     <h5 class="mb-1">{{ __('Tripulación') }}</h5>
+                    {{-- Requisito duro del veredicto (NOM-034): sin operador + clínico el recurso no
+                         puede operar → la verificación NO puede quedar APTA (sale "actividad no ejecutable"). --}}
+                    <div class="alert alert-warning py-2 px-3 small mb-2" role="note">
+                        {{ __('Registra al menos un Operador de ambulancia y un clínico prehospitalario (TAMP o médico). Si falta alguno, la unidad puede quedar apta por su checklist pero el acta marcará en ámbar la advertencia «Sin tripulación calificada»: la ambulancia no puede operar sin personal calificado a bordo.') }}
+                    </div>
                     <p class="text-muted small">
                         {{ __('El Técnico en Atención Médica Prehospitalaria (TAMP) se coteja como verificado con su folio CONOCER, la foto de su certificado y una foto de la persona (el certificado puede ser de otra persona: por eso se coteja la cara contra el papel).') }}
                     </p>

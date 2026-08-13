@@ -144,6 +144,145 @@ class InspectionSealTest extends AmbulanceVerticalTestCase
     }
 
     // =====================================================================
+    //  TRIPULACIÓN — estado intermedio: la UNIDAD queda apta, pero sin personal
+    //  calificado el acta marca la advertencia "sin tripulación calificada".
+    // =====================================================================
+
+    public function test_sin_tripulacion_la_unidad_queda_apta_pero_con_advertencia(): void
+    {
+        $this->actingAsRole('safety-officer');
+        $type = $this->aTerrestrialType('AMB-01');
+
+        // Checklist COMPLETO en 'ok' pero SIN tripulación: la UNIDAD queda apta (veredicto del
+        // checklist); la ADVERTENCIA de tripulación se deriva del crew_snapshot vacío.
+        $this->post(
+            route('ambulance.inspect.store'),
+            $this->inspectStorePayload($type, [], ['crew' => []])
+        )->assertSessionHasNoErrors();
+
+        $insp = AmbulanceInspection::latest('id')->first();
+        $this->assertSame(
+            AmbulanceInspection::VERDICT_APTA,
+            $insp->verdict,
+            'El veredicto de la UNIDAD sigue siendo APTA (la tripulación no lo cambia).'
+        );
+        $summary = AmbulanceVerdict::crewSummary((array) $insp->crew_snapshot);
+        $this->assertFalse($summary['sufficient'], 'Sin tripulación → advertencia (no suficiente).');
+        $this->assertEqualsCanonicalizing(['operador', 'clinico'], $summary['missing']);
+    }
+
+    public function test_operador_o_clinico_solo_deja_apta_con_advertencia(): void
+    {
+        $this->actingAsRole('safety-officer');
+        $type = $this->aTerrestrialType('AMB-01');
+
+        // Solo operador (falta clínico).
+        $this->post(route('ambulance.inspect.store'), $this->inspectStorePayload($type, [], [
+            'crew' => [['name' => 'Operador QA', 'role' => AmbulanceVerdict::ROLE_OPERADOR]],
+        ]))->assertSessionHasNoErrors();
+        $insp = AmbulanceInspection::latest('id')->first();
+        $this->assertSame(AmbulanceInspection::VERDICT_APTA, $insp->verdict);
+        $this->assertFalse(
+            AmbulanceVerdict::crewSummary((array) $insp->crew_snapshot)['sufficient'],
+            'Operador sin clínico → advertencia.'
+        );
+
+        // Solo clínico (falta operador).
+        $this->post(route('ambulance.inspect.store'), $this->inspectStorePayload($type, [], [
+            'crew' => [['name' => 'TAMP QA', 'role' => AmbulanceVerdict::ROLE_TAMP]],
+        ]))->assertSessionHasNoErrors();
+        $insp = AmbulanceInspection::latest('id')->first();
+        $this->assertSame(AmbulanceInspection::VERDICT_APTA, $insp->verdict);
+        $this->assertFalse(
+            AmbulanceVerdict::crewSummary((array) $insp->crew_snapshot)['sufficient'],
+            'Clínico sin operador → advertencia.'
+        );
+    }
+
+    public function test_operador_mas_clinico_registrados_apta_sin_advertencia(): void
+    {
+        $this->actingAsRole('safety-officer');
+        $type = $this->aTerrestrialType('AMB-01');
+
+        // El payload por defecto trae operador + TAMP SIN folio CONOCER (registrado ≠ cotejado).
+        $this->post(route('ambulance.inspect.store'), $this->inspectStorePayload($type))
+            ->assertSessionHasNoErrors();
+
+        $insp = AmbulanceInspection::latest('id')->first();
+        $this->assertSame(AmbulanceInspection::VERDICT_APTA, $insp->verdict);
+        $this->assertTrue(
+            AmbulanceVerdict::crewSummary((array) $insp->crew_snapshot)['sufficient'],
+            'Operador + clínico registrados → suficiente (sin advertencia de faltantes).'
+        );
+    }
+
+    public function test_acta_de_apta_sin_tripulacion_muestra_advertencia_ambar(): void
+    {
+        $this->actingAsRole('safety-officer');
+        $type = $this->aTerrestrialType('AMB-01');
+        $this->post(route('ambulance.inspect.store'), $this->inspectStorePayload($type, [], ['crew' => []]))
+            ->assertSessionHasNoErrors();
+        $insp = AmbulanceInspection::latest('id')->first();
+
+        // El acta presenta el estado intermedio: título con la advertencia + la explicación.
+        $this->get(route('ambulance.acta', $insp->uuid))
+            ->assertOk()
+            ->assertSee('SIN TRIPULACIÓN CALIFICADA', false);
+    }
+
+    public function test_paro_del_checklist_manda_sobre_la_tripulacion(): void
+    {
+        $type  = $this->aTerrestrialType('AMB-04');
+        $codes = $this->applicablePointCodes($type);
+        $paro  = AmbulanceInspectionPoint::whereIn('code', $codes)
+            ->where('is_active', 1)->where('is_gate', 1)
+            ->where('outcome_if_fail', 'paro_inmediato')->first();
+        if (! $paro) {
+            $this->markTestSkipped('Sin punto paro_inmediato aplicable a AMB-04 en el catálogo de fábrica.');
+        }
+
+        $this->actingAsRole('safety-officer');
+        $this->post(
+            route('ambulance.inspect.store'),
+            $this->inspectStorePayload($type, [$paro->code => 'fail'], ['crew' => []])
+        )->assertSessionHasNoErrors();
+
+        $this->assertSame(
+            AmbulanceInspection::VERDICT_PARO,
+            AmbulanceInspection::latest('id')->first()->verdict,
+            'Un PARO del checklist manda: el veredicto es de la unidad, no de la tripulación.'
+        );
+    }
+
+    public function test_crew_summary_clasifica_roles_y_detecta_faltantes(): void
+    {
+        // Sin tripulación → faltan ambos.
+        $empty = AmbulanceVerdict::crewSummary([]);
+        $this->assertFalse($empty['sufficient']);
+        $this->assertEqualsCanonicalizing(['operador', 'clinico'], $empty['missing']);
+
+        // Operador + médico → suficiente; el médico cuenta como clínico. Sin cotejo = advertencia.
+        $ok = AmbulanceVerdict::crewSummary([
+            ['role' => AmbulanceVerdict::ROLE_OPERADOR],
+            ['role' => AmbulanceVerdict::ROLE_MEDICO, 'verified' => false],
+        ]);
+        $this->assertTrue($ok['sufficient']);
+        $this->assertTrue($ok['clinical_unverified'], 'Clínico registrado sin cotejo = advertencia.');
+
+        // Clínico cotejado → no hay advertencia.
+        $verified = AmbulanceVerdict::crewSummary([
+            ['role' => AmbulanceVerdict::ROLE_OPERADOR],
+            ['role' => AmbulanceVerdict::ROLE_TAMP, 'verified' => true],
+        ]);
+        $this->assertTrue($verified['sufficient']);
+        $this->assertFalse($verified['clinical_unverified']);
+
+        // Rol 'Otro' no cuenta como operador ni clínico.
+        $other = AmbulanceVerdict::crewSummary([['role' => 'Otro'], ['role' => 'Otro']]);
+        $this->assertFalse($other['sufficient']);
+    }
+
+    // =====================================================================
     //  INTEGRIDAD — falsificar el veredicto en BD rompe el sello.
     // =====================================================================
 

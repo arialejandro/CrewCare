@@ -5,6 +5,7 @@ namespace Tests\Feature\Ambulance;
 use App\Models\AmbulanceInspection;
 use App\Models\AmbulanceProvider;
 use App\Models\AmbulanceType;
+use App\Support\AmbulanceVerdict;
 use App\Support\CurrentProduction;
 use Illuminate\Support\Str;
 use Tests\QaTestCase;
@@ -73,6 +74,12 @@ abstract class AmbulanceVerticalTestCase extends QaTestCase
             'plates'            => 'QA-' . Str::random(4),
             'economic_number'   => 'ECO-' . Str::random(3),
             'answers'           => $answers,
+            // Tripulación MÍNIMA por defecto (operador + clínico) para que el camino feliz dé APTA.
+            // Los tests del gate de tripulación la sobreescriben con ['crew' => [...]] o ['crew' => []].
+            'crew'              => [
+                ['name' => 'Operador QA', 'role' => AmbulanceVerdict::ROLE_OPERADOR],
+                ['name' => 'TAMP QA',     'role' => AmbulanceVerdict::ROLE_TAMP],
+            ],
         ], $overrides);
     }
 

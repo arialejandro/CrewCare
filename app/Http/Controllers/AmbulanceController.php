@@ -478,8 +478,6 @@ class AmbulanceController extends Controller
             ];
         }
 
-        $result = AmbulanceVerdict::compute($executed);
-
         // Correspondencia tipo↔riesgo del día (OPCIONAL; la fija el criterio del safety, no el
         // catálogo). Solo cuenta si se declaró el nivel de riesgo del día. Vive en su PROPIO campo
         // (correspondence_ok) y se muestra en la sección de datos del acta, no en observaciones.
@@ -581,6 +579,12 @@ class AmbulanceController extends Controller
                 'verified'      => $verified,
             ];
         }
+
+        // VEREDICTO de la UNIDAD, derivado del checklist. La composición mínima de tripulación
+        // (≥1 operador + ≥1 clínico, NOM-034) NO cambia el veredicto: si falta, la unidad queda
+        // APTA pero el ACTA lo marca como ESTADO INTERMEDIO —advertencia ámbar "sin tripulación
+        // calificada"— derivado de `crew_snapshot` con AmbulanceVerdict::crewSummary().
+        $result = AmbulanceVerdict::compute($executed);
 
         // Inspector (doctrina de congelamiento) + cédula si el módulo está disponible.
         $cred = ($author && MedicCredential::supportsCredentials()) ? $author->medicCredential : null;
