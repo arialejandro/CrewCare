@@ -51,6 +51,12 @@ class Payee extends Model
         return $this->hasMany(PayeeContract::class, 'payee_id');
     }
 
+    /** Regímenes fiscales (N por identidad; el SAT puede listar varios en la CSF). */
+    public function fiscalRegimes(): HasMany
+    {
+        return $this->hasMany(PayeeFiscalRegime::class, 'payee_id');
+    }
+
     /** Documentos de la IDENTIDAD (paquete fiscal). Polimórfico al titular. */
     public function documents(): MorphMany
     {

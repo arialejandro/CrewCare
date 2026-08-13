@@ -34,7 +34,7 @@ class DocumentType extends Model
     const PHASE_AFTER  = 'after';
 
     protected $fillable = [
-        'code', 'name', 'family', 'scope', 'legal_nature',
+        'code', 'name', 'aliases', 'family', 'scope', 'legal_nature',
         'validity_shape', 'validity_days', 'requires_positive_status',
         'is_repse', 'repse_phase', 'is_active', 'sort_order',
     ];
@@ -54,14 +54,18 @@ class DocumentType extends Model
 
     /**
      * Fecha de caducidad DERIVADA de la forma de vigencia y la fecha de emisión.
-     * Es lo que hoy NO existe: nada calculaba caducidad, solo se guardaba valid_until.
+     * Es lo que antes NO existía: nada calculaba caducidad, solo se guardaba valid_until.
      *   - days_from_emission → emisión + validity_days.
-     *   - current_month      → último día del mes de emisión.
+     *   - current_month      → con FECHA DE CORTE de producción ($cutDay): válido hasta la
+     *                          próxima ocurrencia del día de corte posterior a la emisión
+     *                          (cambiar el corte cambia el cálculo). Sin corte: fin del mes.
      *   - quarterly          → fin del trimestre calendario de la emisión.
      *   - permanent / null   → no caduca (null).
-     * NO decide la fecha de corte de la 32-D (eso es configuración de producción, Paso 2).
+     * El VALOR de la fecha de corte lo pone la producción (Paso 2), no este modelo.
+     *
+     * @param  int|null  $cutDay  día de corte 1..28 (solo aplica a current_month).
      */
-    public function expiryFrom($issuedAt): ?Carbon
+    public function expiryFrom($issuedAt, ?int $cutDay = null): ?Carbon
     {
         if ($issuedAt === null) {
             return null;
@@ -72,6 +76,14 @@ class DocumentType extends Model
             case self::V_DAYS:
                 return $this->validity_days ? $d->addDays((int) $this->validity_days) : null;
             case self::V_MONTH:
+                if ($cutDay !== null) {
+                    $cut  = max(1, min(28, (int) $cutDay));
+                    $cand = $d->copy()->day($cut)->startOfDay();
+                    if ($cand->lessThanOrEqualTo($d->copy()->startOfDay())) {
+                        $cand = $cand->addMonthNoOverflow();
+                    }
+                    return $cand;
+                }
                 return $d->endOfMonth();
             case self::V_QUARTER:
                 return $d->endOfQuarter();

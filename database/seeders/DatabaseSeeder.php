@@ -74,6 +74,7 @@ class DatabaseSeeder extends Seeder
             IndicatorTermSeeder::class,                // terminos indicadores
             AmbulanceCatalogSeeder::class,             // tipos + puntos de ambulancia
             DocumentTypeSeeder::class,                 // catalogo de tipos de documento (quien cobra)
+            DocumentRequirementSeeder::class,          // paquete + settings de la produccion (Paso 2)
         ]);
     }
 }

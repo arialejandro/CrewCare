@@ -37,6 +37,11 @@ class ExternalAuthorization extends Model
     const STATUS_PENDING   = 'en_tramite';
     const STATUS_NA        = 'no_aplica';
 
+    // ESTADO REQUERIDO del documento (result_status). Hoy lo consume la 32-D: existir
+    // no basta, debe venir POSITIVA. Se captura como dato; no es una validación.
+    const RESULT_POSITIVE = 'positiva';
+    const RESULT_NEGATIVE = 'negativa';
+
     // Datos de captura. Los de validación (validated_*, validation_method) quedan
     // FUERA: los escribe solo validate(), nunca el POST del formulario.
     // (2026-08-13 · quien-cobra) `document_type_id` (clave del catálogo), `issued_at`

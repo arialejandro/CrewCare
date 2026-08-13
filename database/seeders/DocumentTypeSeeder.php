@@ -86,5 +86,12 @@ class DocumentTypeSeeder extends Seeder
                 ]
             );
         }
+
+        // Sinónimos de búsqueda (PASO 2): "Opinión SAT" es como se le llama a la 32-D en la
+        // práctica. Solo se fija si la columna existe (delta 2026-08-13-payee-packages aplicado).
+        if (\Illuminate\Support\Facades\Schema::hasColumn('document_types', 'aliases')) {
+            DocumentType::where('code', 'OPINION_32D')
+                ->update(['aliases' => 'Opinión SAT, Opinión de cumplimiento']);
+        }
     }
 }

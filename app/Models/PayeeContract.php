@@ -31,7 +31,7 @@ class PayeeContract extends Model
     const CONCEPT_SERVICE = 'service';          // servicio
 
     protected $fillable = [
-        'payee_id', 'production_id', 'concept', 'title',
+        'payee_id', 'fiscal_regime_id', 'production_id', 'concept', 'title',
         'contracted_by_user_id', 'payment_frequency', 'is_repse',
         'notes', 'is_active', 'sort_order', 'created_by_id',
     ];
@@ -45,6 +45,12 @@ class PayeeContract extends Model
     public function payee(): BelongsTo
     {
         return $this->belongsTo(Payee::class, 'payee_id');
+    }
+
+    /** El régimen fiscal (de los N de la identidad) bajo el que se factura ESTE contrato. */
+    public function fiscalRegime(): BelongsTo
+    {
+        return $this->belongsTo(PayeeFiscalRegime::class, 'fiscal_regime_id');
     }
 
     /** QUIÉN CONTRATA. Su departamento (vía production_user) resuelve el scope del Paso 4. */
