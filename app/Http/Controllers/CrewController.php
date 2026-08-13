@@ -195,6 +195,12 @@ class CrewController extends Controller
             );
         }
 
+        // (PASO 3 · quien cobra) DISPARA LA INVITACIÓN AL INTAKE: link firmado y expirable para que
+        // la persona llene ella misma sus datos fiscales y documentos (solo ella tiene su CLABE/INE
+        // y su domicilio). Se comparte por el mismo canal de llamados (correo del alta / WhatsApp);
+        // el alta sigue CORTA (identidad/rol/depto/contacto), no se vuelve un asistente largo.
+        $intakeUrl = \App\Http\Controllers\IntakeController::invitationUrl($user);
+
         // Correo de bienvenida. El alta NO se rompe si el correo falla, pero YA NO falla en silencio.
         //
         // BUG que esto corrige (2026-07-25): este bloque pasaba `password` (que la plantilla
@@ -210,9 +216,10 @@ class CrewController extends Controller
             $resetUrl = url(route('password.reset', ['token' => $token, 'email' => $user->email], false));
             $subject = 'Bienvenido a CrewCare';
             $data = [
-                'nombre'   => $user->name,
-                'email'    => $user->email,
-                'resetUrl' => $resetUrl,
+                'nombre'    => $user->name,
+                'email'     => $user->email,
+                'resetUrl'  => $resetUrl,
+                'intakeUrl' => $intakeUrl, // invitación al intake (la plantilla puede incluirla)
             ];
             $for = $user->email;
             Mail::send('correos.welcomeuser', $data, function ($msj) use ($subject, $for) {
@@ -231,7 +238,9 @@ class CrewController extends Controller
                 .'Reenvíalo desde consola con:  php artisan crew:welcome-resend '.$user->id;
         }
 
-        $redirect = redirect('/adduser')->with('status', 'Miembro de crew dado de alta: '.$user->name.' '.$user->lname.'.');
+        $redirect = redirect('/adduser')
+            ->with('status', 'Miembro de crew dado de alta: '.$user->name.' '.$user->lname.'.')
+            ->with('intake_url', $intakeUrl); // el coordinador puede compartir la invitación (WhatsApp)
         if ($mailWarning) {
             $redirect->with('error', $mailWarning);
         }

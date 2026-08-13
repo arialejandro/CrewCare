@@ -846,6 +846,19 @@ Route::middleware(['signed','throttle:6,1'])->group(function () {
     Route::post('/mitigation/{action}', [\App\Http\Controllers\MitigationController::class, 'store'])->name('mitigation.store')->whereNumber('action');
 });
 
+// ---- Quien cobra · PASO 3: INTAKE AUTOSERVICIO (PÚBLICO, firmado + expirable) ----
+// La persona invitada abre su link firmado y llena su intake. La firma es su llave (no login).
+Route::middleware(['signed','throttle:20,1'])->group(function () {
+    Route::get('/intake/{user}',  [\App\Http\Controllers\IntakeController::class, 'show'])->name('intake.show')->whereNumber('user');
+    Route::post('/intake/{user}', [\App\Http\Controllers\IntakeController::class, 'store'])->name('intake.store')->whereNumber('user');
+});
+
+// ---- Quien cobra · PASO 3: captura por QUIEN CONTRATA (autenticado; guarda de depto en el ctrl) ----
+Route::middleware(['auth'])->group(function () {
+    Route::get('/payees/{payee}/intake',  [\App\Http\Controllers\IntakeController::class, 'contractorForm'])->name('payee.intake.form')->whereNumber('payee');
+    Route::post('/payees/{payee}/intake', [\App\Http\Controllers\IntakeController::class, 'contractorStore'])->name('payee.intake.store')->whereNumber('payee');
+});
+
 // ---- Pilar 1: Progressive Disclosure — Fase 2 (edit/update de compliance en back-office) ----
 // La captura Fase 1 (store) es ágil (mínimo indispensable); aquí se completa la carga
 // burocrática (matriz 5×5, normas, causa raíz) y se limpia pending_compliance.

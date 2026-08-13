@@ -12,14 +12,24 @@ class ProductionDocumentSetting extends Model
 {
     protected $table = 'production_document_settings';
 
-    protected $fillable = ['production_id', 'csf_cut_day'];
+    protected $fillable = ['production_id', 'csf_cut_day', 'equipment_threshold'];
 
-    protected $casts = ['csf_cut_day' => 'integer'];
+    protected $casts = [
+        'csf_cut_day'         => 'integer',
+        'equipment_threshold' => 'decimal:2',
+    ];
 
     /** Día de corte de la 32-D para una producción (default 1 si no hay fila). */
     public static function cutDayFor($productionId): int
     {
         $day = static::where('production_id', $productionId)->value('csf_cut_day');
         return $day ? (int) $day : 1;
+    }
+
+    /** Umbral del equipo declarable para una producción (default 6000 si no hay fila). */
+    public static function equipmentThresholdFor($productionId): float
+    {
+        $t = static::where('production_id', $productionId)->value('equipment_threshold');
+        return $t !== null ? (float) $t : 6000.0;
     }
 }

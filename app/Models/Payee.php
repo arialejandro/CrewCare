@@ -34,11 +34,20 @@ class Payee extends Model
         'rfc', 'tax_residence_country',
         'bank_name', 'bank_branch', 'bank_account', 'bank_clabe',
         'notes', 'is_active', 'sort_order', 'created_by_id',
+        // PASO 3 · intake autoservicio
+        'nationality', 'elector_credential', 'marital_status',
+        'addr_street', 'addr_ext_no', 'addr_int_no', 'addr_colonia', 'addr_municipio',
+        'addr_cp', 'addr_city', 'addr_state',
+        'emergency_contact_name', 'emergency_contact_phone',
+        'shirt_size', 'is_vegetarian', 'is_donor', 'intake_submitted_at',
     ];
 
     protected $casts = [
-        'is_active'  => 'boolean',
-        'sort_order' => 'integer',
+        'is_active'           => 'boolean',
+        'sort_order'          => 'integer',
+        'is_vegetarian'       => 'boolean',
+        'is_donor'            => 'boolean',
+        'intake_submitted_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
@@ -55,6 +64,18 @@ class Payee extends Model
     public function fiscalRegimes(): HasMany
     {
         return $this->hasMany(PayeeFiscalRegime::class, 'payee_id');
+    }
+
+    /** Beneficiarios en caso de fallecimiento (dato mínimo de terceros; suman 100%). */
+    public function beneficiaries(): HasMany
+    {
+        return $this->hasMany(PayeeBeneficiary::class, 'payee_id');
+    }
+
+    /** Equipo declarado para seguro (declaración firmada; ≠ equipo rentado). */
+    public function declaredEquipment(): HasMany
+    {
+        return $this->hasMany(PayeeDeclaredEquipment::class, 'payee_id');
     }
 
     /** Documentos de la IDENTIDAD (paquete fiscal). Polimórfico al titular. */
