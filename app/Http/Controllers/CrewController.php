@@ -349,8 +349,11 @@ class CrewController extends Controller
         // --- Guarda de auto-edición (espeja RoleAssignmentController.php:102-104) ---
         // Un operador no reasigna su propio departamento/puesto: reescribiría su propio scope.
         // Sí puede editar el resto de SU ficha (nombre, teléfono, contraseña…).
+        // EXCEPCIÓN: el super-admin (el owner) SÍ puede asignarse un puesto — su scope ya es
+        // total (Gate::before lo deja pasar todo), así que no hay nada que "reescribir".
         $isSelf = ((int) $user->id === (int) auth()->id());
-        if ($isSelf && ($request->filled('department_id') || $request->filled('position_id'))) {
+        if ($isSelf && ! auth()->user()->hasRole('super-admin')
+            && ($request->filled('department_id') || $request->filled('position_id'))) {
             return back()
                 ->with('error', 'No puedes cambiar tu propio departamento o puesto; pídelo a un coordinador.')
                 ->withInput();
