@@ -9,8 +9,10 @@ use App\Models\ProductionDocumentSetting;
 use App\Models\User;
 use App\Support\CurrentProduction;
 use App\Support\PayeePackage;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 
 /**
@@ -31,6 +33,9 @@ class IntakeController extends Controller
     /** Los 6 pasos del asistente, en orden. */
     const STEPS = ['identity', 'fiscal', 'documents', 'emergency', 'equipment', 'logistics'];
 
+    /** Segundo factor SELF: intentos permitidos por enlace antes de enfriar (server-side). */
+    const SF_MAX = 8;
+
     /** Invitación firmada al intake (patrón Magic Links). La dispara el alta o el hub. */
     public static function invitationUrl(User $user, int $days = 14): string
     {
@@ -41,13 +46,56 @@ class IntakeController extends Controller
     public function show(Request $request, User $user)
     {
         $payee = $this->resolveSelfPayee($user);
+        if ($this->secondFactorRequired($user) && ! $this->secondFactorPassed($user)) {
+            return $this->gateView($user, null, false); // pide fecha de nacimiento antes del asistente
+        }
         return $this->renderWizard($request, $payee, true);
+    }
+
+    /**
+     * SEGUNDO FACTOR (solo SELF): coteja la FECHA DE NACIMIENTO contra users.borndate (el alta la
+     * exige). NO ES MURO: si no coincide, avisa sin bloquear (el dato pudo capturarse mal → se
+     * corrige con producción); si nunca se capturó, se OMITE. Intentos LIMITADOS server-side
+     * (RateLimiter, no depende de cookies) y recordado en sesión (una vez por dispositivo).
+     */
+    public function verify(Request $request, User $user)
+    {
+        // Sin fecha en el registro no hay nada que cotejar: no se puede dejar fuera a la persona.
+        if (! $this->secondFactorRequired($user)) {
+            session()->put($this->sfSessionKey($user), true);
+            return redirect(URL::temporarySignedRoute('intake.show', now()->addDays(14), ['user' => $user->id]));
+        }
+
+        $key = $this->sfLimiterKey($user);
+        if (RateLimiter::tooManyAttempts($key, self::SF_MAX)) {
+            return $this->gateView($user,
+                'Demasiados intentos por ahora. Si la fecha sigue sin coincidir, avísale a la producción para corregir tu registro.',
+                true);
+        }
+        RateLimiter::hit($key, 3600); // ventana de 1 h
+
+        $given = trim((string) $request->input('borndate'));
+        if ($given !== '' && $given === $this->userBirthdate($user)) {
+            RateLimiter::clear($key);
+            session()->put($this->sfSessionKey($user), true);
+            return redirect(URL::temporarySignedRoute('intake.show', now()->addDays(14), ['user' => $user->id]));
+        }
+
+        $left = max(0, self::SF_MAX - RateLimiter::attempts($key));
+        return $this->gateView($user,
+            'La fecha no coincide con tu registro. Si crees que es un error, avísale a la producción para corregirlo.'
+            . ($left > 0 ? " Intentos restantes: {$left}." : ''),
+            $left <= 0);
     }
 
     public function store(Request $request, User $user)
     {
         $payee = $this->resolveSelfPayee($user);
         abort_unless((int) $payee->user_id === (int) $user->id, 403); // solo su propio intake
+        // El POST directo tampoco salta el segundo factor (quien tiene el enlace debe cotejar primero).
+        if ($this->secondFactorRequired($user) && ! $this->secondFactorPassed($user)) {
+            return $this->gateView($user, 'Confirma tu fecha de nacimiento antes de continuar.', false);
+        }
         return $this->handleSave($request, $payee, $user, true);
     }
 
@@ -228,6 +276,46 @@ class IntakeController extends Controller
                 $payee->save();
                 break;
         }
+    }
+
+    // ── Segundo factor (SELF) ─────────────────────────────────────────────────
+    /** ¿Hay fecha de nacimiento con qué cotejar? Sin ella el factor se OMITE (no bloquea). */
+    private function secondFactorRequired(User $user): bool
+    {
+        return $this->userBirthdate($user) !== null;
+    }
+
+    /** ¿Ya se cotejó en ESTE dispositivo (sesión)? */
+    private function secondFactorPassed(User $user): bool
+    {
+        return (bool) session($this->sfSessionKey($user), false);
+    }
+
+    /** Fecha de nacimiento normalizada a Y-m-d, o null si no está capturada. */
+    private function userBirthdate(User $user): ?string
+    {
+        return $user->borndate ? Carbon::parse($user->borndate)->format('Y-m-d') : null;
+    }
+
+    private function sfSessionKey(User $user): string
+    {
+        return "intake_2fa_ok.{$user->id}";
+    }
+
+    private function sfLimiterKey(User $user): string
+    {
+        return 'intake-2fa:' . $user->id;
+    }
+
+    /** Pantalla del segundo factor (autocontenida). El POST va FIRMADO a intake.verify. */
+    private function gateView(User $user, ?string $error, bool $locked)
+    {
+        return view('payee.intake-gate', [
+            'who'     => trim($user->name . ' ' . $user->lname) ?: 'esta persona',
+            'postUrl' => URL::temporarySignedRoute('intake.verify', now()->addDays(14), ['user' => $user->id]),
+            'error'   => $error,
+            'locked'  => $locked,
+        ]);
     }
 
     // ── Resolución + guarda + navegación ──────────────────────────────────────

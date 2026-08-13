@@ -851,6 +851,8 @@ Route::middleware(['signed','throttle:6,1'])->group(function () {
 Route::middleware(['signed','throttle:20,1'])->group(function () {
     Route::get('/intake/{user}',  [\App\Http\Controllers\IntakeController::class, 'show'])->name('intake.show')->whereNumber('user');
     Route::post('/intake/{user}', [\App\Http\Controllers\IntakeController::class, 'store'])->name('intake.store')->whereNumber('user');
+    // Segundo factor: coteja fecha de nacimiento antes de abrir el asistente (no es muro; intentos limitados).
+    Route::post('/intake/{user}/verify', [\App\Http\Controllers\IntakeController::class, 'verify'])->name('intake.verify')->whereNumber('user');
 });
 
 // ---- Quien cobra · PASO 3: captura por QUIEN CONTRATA (autenticado; guarda de depto en el ctrl) ----
