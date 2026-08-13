@@ -8,12 +8,19 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 /**
- * AmbulancePermissionsSeeder — permiso del módulo "verificación de ambulancias".
+ * AmbulancePermissionsSeeder — permisos del módulo "verificación de ambulancias".
  *
- * UN SOLO PUNTO, TODO POR EL SAFETY: el bloque manda que la verificación de la
- * ambulancia, la tripulación y los documentos del proveedor pasen por el safety,
- * sin repartir entre roles. Por eso hay UN permiso `ambulance.manage` (no varios).
- * Se asigna a safety-officer y super-admin (super-admin además pasa por Gate::before).
+ * DOS niveles sobre el MISMO módulo:
+ *   - `ambulance.manage` = GESTIONAR (verificar, sellar actas, validar proveedor/documentos).
+ *     TODO POR EL SAFETY: safety-officer y super-admin (este último además por Gate::before).
+ *   - `ambulance.view`   = VER (hub, actas, proveedores) SIN gestionar. Se concede a la oficina
+ *     de PRODUCCIÓN (line-producer, coordinator) y también al safety. Es la puerta de la
+ *     VISIBILIDAD del Paso 4: ambulancias es EXCLUSIVO de producción y safety — nunca transpo
+ *     (un HOD de transporte no tiene ninguno de los dos → 403 hasta por URL directa).
+ *
+ * Ambos permisos son "propios y APAGABLES" desde /permisoscrud (la matriz viva por rol): el
+ * safety podría no necesitar ver, o el owner podría quitarle a producción. Las rutas de LECTURA
+ * aceptan `ambulance.manage|ambulance.view`; las de ESCRITURA siguen exigiendo `ambulance.manage`.
  *
  * ADITIVO E IDEMPOTENTE: firstOrCreate + givePermissionTo (nunca syncPermissions).
  * Correr a mano: php artisan db:seed --class=AmbulancePermissionsSeeder + cache:clear
@@ -26,10 +33,13 @@ class AmbulancePermissionsSeeder extends Seeder
         $guard = 'web';
 
         Permission::firstOrCreate(['name' => 'ambulance.manage', 'guard_name' => $guard]);
+        Permission::firstOrCreate(['name' => 'ambulance.view',   'guard_name' => $guard]);
 
         $matrix = [
-            'safety-officer' => ['ambulance.manage'],
-            'super-admin'    => ['ambulance.manage'],
+            'safety-officer' => ['ambulance.manage', 'ambulance.view'],
+            'super-admin'    => ['ambulance.manage', 'ambulance.view'],
+            'line-producer'  => ['ambulance.view'],   // producción VE, no gestiona
+            'coordinator'    => ['ambulance.view'],
         ];
 
         foreach ($matrix as $roleName => $grants) {
@@ -42,6 +52,6 @@ class AmbulancePermissionsSeeder extends Seeder
         }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-        $this->command->info('AmbulancePermissionsSeeder: ambulance.manage → safety-officer, super-admin.');
+        $this->command->info('AmbulancePermissionsSeeder: manage → safety/super-admin; view → +producción.');
     }
 }

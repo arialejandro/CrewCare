@@ -407,23 +407,29 @@ Route::middleware(['auth','permission:permits.issue'])->group(function () {
 // (validación MANUAL con quién-validó, como la cédula) + ACTA sellada en sitio (verificador PÚBLICO
 // 'ambu', cuya ruta va sin sesión más abajo). TODO POR EL SAFETY: gate único ambulance.manage.
 // Los prefijos fijos van ANTES de los {param} para desambiguar; el acta se liga por uuid.
-Route::middleware(['auth','permission:ambulance.manage'])->group(function () {
+// LECTURA (hub, actas, proveedores): visible para producción y safety → `ambulance.manage|ambulance.view`.
+// Transpo (HOD de transporte) no tiene ninguno → 403 hasta por URL directa.
+Route::middleware(['auth','permission:ambulance.manage|ambulance.view'])->group(function () {
     Route::get('/ambulancia', [App\Http\Controllers\AmbulanceController::class, 'index'])->name('ambulance.index');
+    Route::get('/ambulancia/actas', [App\Http\Controllers\AmbulanceController::class, 'records'])->name('ambulance.records');
+    Route::get('/ambulancia/acta/{inspection:uuid}', [App\Http\Controllers\AmbulanceController::class, 'actaShow'])->name('ambulance.acta')->where('inspection', '[0-9a-fA-F-]{36}');
+    Route::get('/ambulancia/proveedores', [App\Http\Controllers\AmbulanceController::class, 'providers'])->name('ambulance.providers');
+    Route::get('/ambulancia/proveedor/{provider}', [App\Http\Controllers\AmbulanceController::class, 'providerShow'])->name('ambulance.provider.show')->whereNumber('provider');
+});
+
+// ESCRITURA (verificar, sellar, validar, padrón): SOLO el safety → `ambulance.manage`.
+Route::middleware(['auth','permission:ambulance.manage'])->group(function () {
     // Recurso del día (Parte A)
     Route::get('/ambulancia/recurso', [App\Http\Controllers\AmbulanceController::class, 'dayResourceForm'])->name('ambulance.day.form');
     Route::post('/ambulancia/recurso', [App\Http\Controllers\AmbulanceController::class, 'storeDayResource'])->name('ambulance.day.store');
     // Verificación en sitio + acta (Parte C)
     Route::get('/ambulancia/verificar', [App\Http\Controllers\AmbulanceController::class, 'inspectForm'])->name('ambulance.inspect.form');
     Route::post('/ambulancia/verificar', [App\Http\Controllers\AmbulanceController::class, 'storeInspection'])->name('ambulance.inspect.store');
-    Route::get('/ambulancia/actas', [App\Http\Controllers\AmbulanceController::class, 'records'])->name('ambulance.records');
-    Route::get('/ambulancia/acta/{inspection:uuid}', [App\Http\Controllers\AmbulanceController::class, 'actaShow'])->name('ambulance.acta')->where('inspection', '[0-9a-fA-F-]{36}');
     Route::post('/ambulancia/acta/{inspection:uuid}/desbloquear', [App\Http\Controllers\AmbulanceController::class, 'unblock'])->name('ambulance.unblock')->where('inspection', '[0-9a-fA-F-]{36}');
     // Proveedor / padrón / documentos (Parte B)
-    Route::get('/ambulancia/proveedores', [App\Http\Controllers\AmbulanceController::class, 'providers'])->name('ambulance.providers');
     Route::post('/ambulancia/proveedores', [App\Http\Controllers\AmbulanceController::class, 'storeProvider'])->name('ambulance.provider.store');
     Route::post('/ambulancia/documento', [App\Http\Controllers\AmbulanceController::class, 'storeDocument'])->name('ambulance.document.store');
     Route::post('/ambulancia/documento/{doc}/validar', [App\Http\Controllers\AmbulanceController::class, 'validateDocument'])->name('ambulance.document.validate')->whereNumber('doc');
-    Route::get('/ambulancia/proveedor/{provider}', [App\Http\Controllers\AmbulanceController::class, 'providerShow'])->name('ambulance.provider.show')->whereNumber('provider');
     Route::post('/ambulancia/proveedor/{provider}/tripulante', [App\Http\Controllers\AmbulanceController::class, 'storeCrew'])->name('ambulance.crew.store')->whereNumber('provider');
 });
 
@@ -859,6 +865,16 @@ Route::middleware(['signed','throttle:20,1'])->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('/payees/{payee}/intake',  [\App\Http\Controllers\IntakeController::class, 'contractorForm'])->name('payee.intake.form')->whereNumber('payee');
     Route::post('/payees/{payee}/intake', [\App\Http\Controllers\IntakeController::class, 'contractorStore'])->name('payee.intake.store')->whereNumber('payee');
+});
+
+// ---- Quien cobra · PASO 4: VISIBILIDAD (SOLO LECTURA) ----
+// Gate de módulo `payees.view`; el SCOPE fino ("quien contrata es quien ve") lo pone
+// Payee::scopeVisibleTo + PayeePolicy. El serve de PDF va GATEADO por la misma visibilidad
+// (privado, nunca /storage). Las rutas fijas van ANTES del {payee} para no ser sombreadas.
+Route::middleware(['auth','permission:payees.view'])->group(function () {
+    Route::get('/payees',                          [\App\Http\Controllers\PayeeController::class, 'index'])->name('payees.index');
+    Route::get('/payees/{payee}',                  [\App\Http\Controllers\PayeeController::class, 'show'])->name('payees.show')->whereNumber('payee');
+    Route::get('/payees/{payee}/documento/{doc}',  [\App\Http\Controllers\PayeeController::class, 'document'])->name('payees.document')->whereNumber('payee')->whereNumber('doc');
 });
 
 // ---- Pilar 1: Progressive Disclosure — Fase 2 (edit/update de compliance en back-office) ----

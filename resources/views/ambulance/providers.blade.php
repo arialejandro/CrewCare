@@ -74,7 +74,8 @@
         </div>
     </div>
 
-    {{-- Alta de proveedor --}}
+    {{-- Alta de proveedor (solo quien gestiona; producción con ambulance.view no da de alta) --}}
+    @can('ambulance.manage')
     <div class="cc-form-card">
         <div class="cc-form-card__head">
             <span class="cc-form-ico">
@@ -131,6 +132,7 @@
             </form>
         </div>
     </div>
+    @endcan
 
 </div>
 

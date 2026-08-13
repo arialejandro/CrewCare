@@ -114,8 +114,9 @@
     @endif
 
     {{-- FORMULARIO DE VALIDACIÓN — separado del de captura, solo si está pendiente.
-         Calca la cédula profesional: casilla de atestación OBLIGATORIA. --}}
-    @if($doc->isPending())
+         Calca la cédula profesional: casilla de atestación OBLIGATORIA. Solo quien GESTIONA
+         (producción con ambulance.view solo ve el documento, no lo valida). --}}
+    @if($doc->isPending() && auth()->check() && auth()->user()->can('ambulance.manage'))
         <form action="{{ route('ambulance.document.validate', ['doc' => $doc->id]) }}" method="POST" class="amb-doc__validate">
             @csrf
             <div class="cc-field">

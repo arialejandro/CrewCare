@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\DocumentType;
 use App\Models\Payee;
-use App\Models\PayeeContract;
 use App\Models\ProductionDocumentSetting;
 use App\Models\User;
 use App\Support\CurrentProduction;
@@ -327,20 +326,15 @@ class IntakeController extends Controller
         );
     }
 
-    /** Misma guarda de departamento que el crew: super-admin/all-departments, o quien contrató. */
+    /**
+     * Guarda de la captura por quien contrata: MISMO criterio que la visibilidad del Paso 4
+     * ({@see \App\Policies\PayeePolicy::capture} → {@see Payee::scopeVisibleTo}). Fuente única:
+     * "quien contrata es quien ve" + liga de crew por departamento, bypass all-departments,
+     * super-admin por Gate::before.
+     */
     private function authorizeContractor(Payee $payee): void
     {
-        $actor = auth()->user();
-        if ($actor && $actor->can('crew.view.all-departments')) {
-            return;
-        }
-        if ($actor && $payee->user_id && $actor->canManageCrewMember($payee->user)) {
-            return;
-        }
-        $ok = $actor
-            ? User::applyContractingScope(PayeeContract::where('payee_id', $payee->id), $actor)->exists()
-            : false;
-        abort_unless($ok, 403);
+        abort_unless(auth()->check() && auth()->user()->can('capture', $payee), 403);
     }
 
     /** URL de navegación (GET) del paso: firmada para SELF, ruta normal para el contratante. */

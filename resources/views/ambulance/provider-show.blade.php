@@ -112,7 +112,8 @@
         </div>
     </div>
 
-    {{-- (c) ALTA DE DOCUMENTO DE EMPRESA --------------------------------------- --}}
+    {{-- (c) ALTA DE DOCUMENTO DE EMPRESA (solo quien gestiona) ------------------- --}}
+    @can('ambulance.manage')
     @include('ambulance.partials._doc-form', [
         'holderType' => 'empresa',
         'holderId'   => $provider->id,
@@ -121,6 +122,7 @@
         'sub'        => __('Aviso de funcionamiento, dictamen, póliza, permisos… Se valida después.'),
         'icon'       => 'file-plus',
     ])
+    @endcan
 
     {{-- (d) PADRÓN DE TRIPULANTES ---------------------------------------------- --}}
     <div class="cc-form-card">
@@ -167,6 +169,7 @@
                                 @endforeach
                             @endif
 
+                            @can('ambulance.manage')
                             @include('ambulance.partials._doc-form', [
                                 'holderType' => 'persona',
                                 'holderId'   => $crew->id,
@@ -176,12 +179,14 @@
                                 'icon'       => 'file-plus',
                                 'conocer'    => true,
                             ])
+                            @endcan
                         </div>
                     </div>
                 @endforeach
             @endif
 
-            {{-- Alta de tripulante EN EL MOMENTO (foto de credencial). --}}
+            {{-- Alta de tripulante EN EL MOMENTO (foto de credencial). Solo quien gestiona. --}}
+            @can('ambulance.manage')
             <div class="amb-crew amb-crew--add">
                 <p class="amb-subhead">{{ __('Dar de alta un tripulante') }}</p>
                 <form action="{{ route('ambulance.crew.store', ['provider' => $provider->id]) }}" method="POST" enctype="multipart/form-data">
@@ -227,6 +232,7 @@
                     </div>
                 </form>
             </div>
+            @endcan
 
         </div>
     </div>

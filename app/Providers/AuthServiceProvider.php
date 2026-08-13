@@ -18,6 +18,8 @@ class AuthServiceProvider extends ServiceProvider
         \App\Models\InjuryReport::class => \App\Policies\InjuryReportPolicy::class,
         // (2026-07-20) PASO Injury: propiedad del anexo médico (create=médico; edit/delete=dueño).
         \App\Models\Addendum::class => \App\Policies\AddendumPolicy::class,
+        // (2026-08-13) PASO 4 · quien cobra: visibilidad "quien contrata es quien ve" + serve gateado.
+        \App\Models\Payee::class => \App\Policies\PayeePolicy::class,
     ];
 
     /**

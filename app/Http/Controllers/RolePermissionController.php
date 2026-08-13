@@ -89,6 +89,13 @@ class RolePermissionController extends Controller
             'dsr.update'       => 'Editar reporte diario de seguridad',
             'dsr.export'       => 'Exportar reporte diario de seguridad',
         ],
+        'Ambulancias (recurso de emergencia)' => [
+            'ambulance.view'   => 'Ver ambulancias (hub, actas, proveedores) — producción y safety',
+            'ambulance.manage' => 'Gestionar ambulancias (verificar, sellar, validar) — safety',
+        ],
+        'Quién cobra' => [
+            'payees.view' => 'Ver quién cobra (identidades, contratos y documentos)',
+        ],
         'Médico (sensible)' => [
             'medical.view'   => 'Ver consultas médicas',
             'medical.create' => 'Crear consultas médicas',

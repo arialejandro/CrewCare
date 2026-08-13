@@ -20,24 +20,34 @@ use Tests\QaTestCase;
  * de puntos a un tipo la deriva AmbulanceType::applicablePoints() (rama+nivel, con
  * herencia A⊆B⊆C⊆D), que es exactamente lo que se quiere ejercitar.
  *
- * GATE ÚNICO: todo el módulo pasa por permission:ambulance.manage (safety-officer +
- * super-admin). El verificador público del acta ('ambu') vive aparte, sin sesión.
+ * GATES (Paso 4 · visibilidad): TRES niveles sobre el mismo módulo:
+ *   - GESTIONA (ambulance.manage): safety-officer + super-admin → lectura Y escritura.
+ *   - VE (ambulance.view): line-producer + coordinator (producción) → SOLO lectura del hub/actas/
+ *     proveedores; nada de verificar/sellar/validar.
+ *   - NADA: hod (incl. transporte), medic, crew, auditor → 403 en todo el módulo, hasta por URL.
+ * El verificador público del acta ('ambu') vive aparte, sin sesión.
  */
 abstract class AmbulanceVerticalTestCase extends QaTestCase
 {
-    /** Roles con ambulance.manage (AmbulancePermissionsSeeder). super-admin además por Gate::before. */
+    /** Roles con ambulance.manage (gestión total). super-admin además por Gate::before. */
     protected function grantedRoles(): array
     {
         return ['safety-officer', 'super-admin'];
     }
 
+    /** Roles con ambulance.view (producción): VEN el módulo, no lo gestionan. */
+    protected function viewRoles(): array
+    {
+        return ['line-producer', 'coordinator'];
+    }
+
     /**
-     * Roles SIN ambulance.manage. line-producer es un DISCRIMINADOR: sí emite permisos de
-     * trabajo, pero NO gestiona ambulancias (todo por el safety).
+     * Roles SIN ningún permiso de ambulancias → 403 en TODO el módulo. transpo es un HOD:
+     * ambulancias es exclusivo de producción y safety, jamás de transporte.
      */
     protected function deniedRoles(): array
     {
-        return ['line-producer', 'coordinator', 'hod', 'medic', 'crew', 'auditor'];
+        return ['hod', 'medic', 'crew', 'auditor'];
     }
 
     /** Un tipo terrestre real del catálogo (AMB-04 = cuidados intensivos, hereda A+B+C+D). */

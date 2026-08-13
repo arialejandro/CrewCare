@@ -98,4 +98,56 @@ class Payee extends Model
     {
         return $query->where('is_active', 1);
     }
+
+    /**
+     * PASO 4 · VISIBILIDAD — FUENTE ÚNICA de "quién ve qué payee". La usan el listado
+     * (PayeeController) y, derivado, el {@see \App\Policies\PayeePolicy} (por objeto) y la
+     * guarda del intake por quien contrata. Dos ejes, en OR:
+     *
+     *   (A) QUIÉN CONTRATÓ — el eje del Paso 4: el payee tiene un contrato cuyo
+     *       `contracted_by_user_id` comparte departamento con el viewer (misma correlación
+     *       que {@see User::applyContractingScope}). "Quien contrata es quien ve."
+     *   (B) LIGA A CREW — el payee es la MISMA persona que un crew del departamento del viewer
+     *       (scope de departamento estándar, {@see User::applyDepartmentScope}). NO es
+     *       "aislamiento por propiedad" (ese eje no existe todavía): es el mismo scope de
+     *       crew que ya gobierna toda la app.
+     *
+     * BYPASS: `crew.view.all-departments` (los MISMOS roles que hoy: line-producer,
+     * coordinator, medic, safety, auditor, y super-admin por Gate::before) ve todo.
+     * FALLA CERRADO: viewer sin departamento determinable no ve nada.
+     */
+    public function scopeVisibleTo($query, User $viewer)
+    {
+        if ($viewer->can('crew.view.all-departments')) {
+            return $query;
+        }
+
+        $ownDeptIds = $viewer->ownDepartmentIds();
+        if ($ownDeptIds->isEmpty()) {
+            return $query->whereRaw('1 = 0');
+        }
+        $ids = $ownDeptIds->all();
+
+        return $query->where(function ($w) use ($ids) {
+            // (A) el CONTRATANTE está en mi departamento.
+            $w->whereExists(function ($s) use ($ids) {
+                $s->selectRaw('1')->from('payee_contracts')
+                  ->join('production_user', 'production_user.user_id', '=', 'payee_contracts.contracted_by_user_id')
+                  ->whereColumn('payee_contracts.payee_id', 'payees.id')
+                  ->whereIn('production_user.department_id', $ids);
+            })
+            // (B) el payee está LIGADO a un crew de mi departamento.
+            ->orWhereExists(function ($s) use ($ids) {
+                $s->selectRaw('1')->from('production_user')
+                  ->whereColumn('production_user.user_id', 'payees.user_id')
+                  ->whereIn('production_user.department_id', $ids);
+            });
+        });
+    }
+
+    /** Derivado del scope (mismo criterio, un solo objeto). Lo usa la Policy y el intake. */
+    public function isVisibleTo(User $viewer): bool
+    {
+        return static::query()->whereKey($this->getKey())->visibleTo($viewer)->exists();
+    }
 }

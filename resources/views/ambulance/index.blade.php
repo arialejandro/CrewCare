@@ -38,9 +38,11 @@
             </div>
 
             <div class="d-flex flex-wrap gap-2">
+                @can('ambulance.manage')
                 <a href="{{ route('ambulance.inspect.form') }}" class="btn btn-crew-accent d-inline-flex align-items-center gap-1">
                     @include('componentes._icon', ['name' => 'shield-check', 'label' => null]) {{ __('Verificar ambulancia') }}
                 </a>
+                @endcan
                 <a href="{{ route('ambulance.providers') }}" class="btn btn-crew-soft d-inline-flex align-items-center gap-1">
                     @include('componentes._icon', ['name' => 'truck', 'label' => null]) {{ __('Proveedores') }}
                 </a>
@@ -106,9 +108,11 @@
                     <div class="col-md-6"><span class="text-muted d-block">{{ __('Tiempo de respuesta') }}</span>
                         {{ $dayResource->response_time ?: '—' }}</div>
                 </div>
+                @can('ambulance.manage')
                 <div class="mt-3">
                     <a href="{{ route('ambulance.day.form') }}" class="btn btn-sm btn-crew-soft">{{ __('Cambiar el recurso del día') }}</a>
                 </div>
+                @endcan
             </div>
         @else
             {{-- Estado 3 (o sin declarar): HUECO visible. Se ve como lo que es. --}}

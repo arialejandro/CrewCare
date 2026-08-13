@@ -256,7 +256,7 @@
             </div>
 
             {{-- ===== CREW ===== --}}
-            @canany(['users.create', 'users.view'])
+            @canany(['users.create', 'users.view', 'payees.view'])
                 <div class="cc-sec" data-open="false">
                     <button type="button" class="cc-sec-head" aria-expanded="false">
                         @include('componentes._icon', ['name' => 'users', 'class' => 'cc-sec-head__ico', 'label' => null])
@@ -282,6 +282,13 @@
                                     <span>{{ __('nav.crew_badge_design') }}</span>
                                 </a>
                             @endcan
+                        @endcan
+                        {{-- Quién cobra (Paso 4): identidades + contratos + documentos. Scope "quien contrata es quien ve". --}}
+                        @can('payees.view')
+                            <a href="{{ route('payees.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'wallet', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Quién cobra') }}</span>
+                            </a>
                         @endcan
                     </div></div>
                 </div>
@@ -314,7 +321,7 @@
             @endcanany
 
             {{-- ===== SEGURIDAD (H&S) ===== --}}
-            @canany(['dsr.view', 'dsr.create', 'hazards.view', 'hazards.create', 'injury.view', 'injury.create', 'tools.inspect', 'permits.issue', 'pae.issue', 'epi.view', 'ambulance.manage'])
+            @canany(['dsr.view', 'dsr.create', 'hazards.view', 'hazards.create', 'injury.view', 'injury.create', 'tools.inspect', 'permits.issue', 'pae.issue', 'epi.view', 'ambulance.manage', 'ambulance.view'])
                 <div class="cc-sec" data-open="false">
                     <button type="button" class="cc-sec-head" aria-expanded="false">
                         @include('componentes._icon', ['name' => 'shield-alert', 'class' => 'cc-sec-head__ico', 'label' => null])
@@ -368,13 +375,14 @@
                                 <span>PAE · Emergencias</span>
                             </a>
                         @endcan
-                        {{-- Verificación de ambulancias (deltas #51/#52): recurso del día, docs del proveedor, acta sellada. --}}
-                        @can('ambulance.manage')
+                        {{-- Verificación de ambulancias (deltas #51/#52): recurso del día, docs del proveedor, acta sellada.
+                             Visible para producción y safety (manage|view); transpo NO tiene ninguno. --}}
+                        @canany(['ambulance.manage', 'ambulance.view'])
                             <a href="{{ route('ambulance.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'heart-pulse', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>Ambulancias</span>
                             </a>
-                        @endcan
+                        @endcanany
                         {{-- Vigilancia epidemiológica (delta #45): panel silencioso, safety + médico. --}}
                         @can('epi.view')
                             <a href="{{ route('epi.index') }}" class="cc-item">
@@ -647,7 +655,7 @@
                 @endcanany
 
                 {{-- ===== SEGURIDAD (H&S) ===== --}}
-                @canany(['dsr.view', 'dsr.create', 'hazards.view', 'hazards.create', 'injury.view', 'injury.create', 'tools.inspect', 'permits.issue', 'pae.issue', 'epi.view', 'ambulance.manage'])
+                @canany(['dsr.view', 'dsr.create', 'hazards.view', 'hazards.create', 'injury.view', 'injury.create', 'tools.inspect', 'permits.issue', 'pae.issue', 'epi.view', 'ambulance.manage', 'ambulance.view'])
                     <div class="cc-sec" data-open="false">
                         <button type="button" class="cc-sec-head" aria-expanded="false">
                             @include('componentes._icon', ['name' => 'shield-alert', 'class' => 'cc-sec-head__ico', 'label' => null])
@@ -701,13 +709,14 @@
                                     <span>PAE · Emergencias</span>
                                 </a>
                             @endcan
-                            {{-- Verificación de ambulancias (deltas #51/#52): recurso del día, docs del proveedor, acta sellada. --}}
-                        @can('ambulance.manage')
+                            {{-- Verificación de ambulancias (deltas #51/#52): recurso del día, docs del proveedor, acta sellada.
+                             Visible para producción y safety (manage|view); transpo NO tiene ninguno. --}}
+                        @canany(['ambulance.manage', 'ambulance.view'])
                             <a href="{{ route('ambulance.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'heart-pulse', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>Ambulancias</span>
                             </a>
-                        @endcan
+                        @endcanany
                         {{-- Vigilancia epidemiológica (delta #45): panel silencioso, safety + médico. --}}
                             @can('epi.view')
                                 <a href="{{ route('epi.index') }}" class="cc-item">

@@ -45,7 +45,8 @@ class DatabaseSeeder extends Seeder
             MedevacPermissionsSeeder::class,           // medevac.issue
             RiskMapPermissionsSeeder::class,           // riskmap.issue
             PaePermissionsSeeder::class,               // pae.issue
-            AmbulancePermissionsSeeder::class,         // ambulance.manage
+            AmbulancePermissionsSeeder::class,         // ambulance.manage + ambulance.view (visibilidad producción/safety)
+            PayeeAccessPermissionsSeeder::class,       // payees.view (quien cobra · Paso 4) — DESPUÉS del barrido %.view del auditor
             // (SdsPermissionsSeeder NO: sds.* ya viene en el base)
             // (MedicRolePermissionsSeeder NO: migra usuarios; el grant a medic vive en el base)
 

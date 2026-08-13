@@ -292,8 +292,9 @@
         </div>
         @endif
 
-        {{-- Desbloqueo del PARO (control operativo: NO se imprime). --}}
-        @if ($inspection->isParo() && ! $inspection->unblocked_at)
+        {{-- Desbloqueo del PARO (control operativo: NO se imprime). Solo quien gestiona
+             (producción con ambulance.view ve el acta, no levanta el paro). --}}
+        @if ($inspection->isParo() && ! $inspection->unblocked_at && auth()->check() && auth()->user()->can('ambulance.manage'))
         <div class="ops no-print">
           <span class="ops-note">El paro dura minutos: levántalo cuando la vía de salida esté cumplida.</span>
           <form method="post" action="{{ route('ambulance.unblock', $inspection->uuid) }}"
