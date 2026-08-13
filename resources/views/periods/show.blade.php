@@ -38,7 +38,10 @@
                 </p>
             </div>
             @can('periods.manage')
-                <div class="ms-auto">
+                <div class="ms-auto d-flex gap-2">
+                    @if($tally['missing'] > 0)
+                        <a href="{{ route('periods.reminders', $period) }}" class="btn btn-sm btn-outline-success">{{ __('Recordar a quienes faltan') }}</a>
+                    @endif
                     @if($period->isOpen())
                         <form method="POST" action="{{ route('periods.close', $period) }}" class="d-inline">
                             @csrf<button class="btn btn-sm btn-outline-secondary">{{ __('Cerrar recepción') }}</button>

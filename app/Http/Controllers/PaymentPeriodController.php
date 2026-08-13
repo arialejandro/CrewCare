@@ -8,6 +8,7 @@ use App\Models\PayeeContract;
 use App\Models\PaymentPeriod;
 use App\Support\CurrentProduction;
 use App\Support\PeriodBoard;
+use App\Support\PeriodReminder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -60,6 +61,18 @@ class PaymentPeriodController extends Controller
             ->orderBy('name')->get(['id', 'name']);
 
         return view('periods.show', compact('period', 'board', 'departments', 'filters'));
+    }
+
+    /**
+     * RECORDATORIO MANUAL a quienes faltan (§a). Contabilidad revisa la lista y manda UNO POR UNO
+     * por WhatsApp (sabe quién está de vacaciones / dijo que lo manda mañana). Nunca a quien ya
+     * entregó. El mensaje nombra la producción y dice qué le falta a cada quien.
+     */
+    public function reminders(Request $request, PaymentPeriod $period)
+    {
+        $rows = PeriodReminder::build($period, $request->user());
+
+        return view('periods.reminders', compact('period', 'rows'));
     }
 
     /** ABRIR un periodo (contabilidad). production_id = la producción actual. */

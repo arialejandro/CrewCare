@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Support\CurrentProduction;
 use App\Support\PayeePackage;
 use App\Support\PeriodBoard;
+use App\Support\PeriodReminder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Tests\QaTestCase;
@@ -281,5 +282,59 @@ class PaymentPeriodTest extends QaTestCase
         $this->actingAs($lp);
         $this->get(route('periods.index'))->assertOk()->assertSee('Periodos de pago')->assertSee('Semana 5');
         $this->get(route('periods.show', $period))->assertOk()->assertSee('Render SA')->assertSee('Quiénes faltan');
+    }
+
+    // ── §a · recordatorio MANUAL a quienes faltan ─────────────────────────────
+    public function test_reminder_targets_missing_names_production_and_marks_external(): void
+    {
+        $lp = $this->makeUser('line-producer');
+
+        // Payee con AUTOSERVICIO (usuario + teléfono propio).
+        $u = $this->makeUser('crew');
+        $u->forceFill(['phone' => '5544332211'])->save();
+        $selfPayee = Payee::create(['legal_nature' => 'fisica', 'name' => 'Autoservicio SA', 'user_id' => $u->id]);
+        $this->contract($selfPayee, $lp, PayeeContract::FREQ_WEEKLY);
+
+        // Payee EXTERNO (sin usuario): también falta, pero sin autoservicio.
+        $ext = Payee::create(['legal_nature' => 'fisica', 'name' => 'Externo SA']);
+        $this->contract($ext, $lp, PayeeContract::FREQ_WEEKLY);
+
+        $period = $this->period(PayeeContract::FREQ_WEEKLY, '2026-08-10', '2026-08-16', ['label' => 'Semana 5']);
+        $rows = PeriodReminder::build($period, $lp);
+
+        $self = collect($rows)->first(fn ($r) => $r['payee']->id === $selfPayee->id);
+        $this->assertNotNull($self);
+        $this->assertTrue($self['self_serve']);
+        $this->assertTrue($self['has_phone']);
+        $this->assertStringContainsString('5544332211', $self['wa']);
+        $decoded = urldecode($self['wa']);
+        $prod = DB::table('productions')->where('id', $this->prodId)->value('name') ?: config('app.name');
+        $this->assertStringContainsString($prod, $decoded, 'el mensaje NOMBRA la producción');
+        $this->assertNotEmpty($self['missing'], 'dice qué le falta');
+
+        $extRow = collect($rows)->first(fn ($r) => $r['payee']->id === $ext->id);
+        $this->assertNotNull($extRow);
+        $this->assertFalse($extRow['self_serve'], 'externo sin autoservicio');
+        $this->assertNull($extRow['wa']);
+
+        // NUNCA se arma para quien ya entregó: toda fila tiene algo faltante.
+        foreach ($rows as $r) {
+            $this->assertNotEmpty($r['missing']);
+        }
+
+        // La página renderiza con datos reales (autoservicio + externo).
+        $this->actingAs($lp)->get(route('periods.reminders', $period))
+            ->assertOk()->assertSee('Autoservicio SA')->assertSee('Externo SA');
+    }
+
+    public function test_reminders_page_is_gated_to_managers(): void
+    {
+        $period = $this->period(PayeeContract::FREQ_WEEKLY, '2026-08-10', '2026-08-16');
+        $this->actingAs($this->makeUser('hod'));
+        $this->get(route('periods.reminders', $period))->assertForbidden();   // hod = solo consulta
+        $this->actingAs($this->makeUser('crew'));
+        $this->get(route('periods.reminders', $period))->assertForbidden();
+        $this->actingAs($this->makeUser('line-producer'));
+        $this->get(route('periods.reminders', $period))->assertOk()->assertSee('Recordatorios');
     }
 }

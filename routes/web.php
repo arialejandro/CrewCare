@@ -886,6 +886,8 @@ Route::middleware(['auth','permission:periods.view'])->group(function () {
     Route::get('/periodos/{period}',  [\App\Http\Controllers\PaymentPeriodController::class, 'show'])->name('periods.show')->whereNumber('period');
 });
 Route::middleware(['auth','permission:periods.manage'])->group(function () {
+    // Recordatorio manual a quienes faltan (contabilidad; un clic por persona, WhatsApp).
+    Route::get('/periodos/{period}/recordatorios', [\App\Http\Controllers\PaymentPeriodController::class, 'reminders'])->name('periods.reminders')->whereNumber('period');
     Route::post('/periodos',                    [\App\Http\Controllers\PaymentPeriodController::class, 'store'])->name('periods.store');
     Route::post('/periodos/{period}/cerrar',    [\App\Http\Controllers\PaymentPeriodController::class, 'close'])->name('periods.close')->whereNumber('period');
     Route::post('/periodos/{period}/reabrir',   [\App\Http\Controllers\PaymentPeriodController::class, 'reopen'])->name('periods.reopen')->whereNumber('period');
