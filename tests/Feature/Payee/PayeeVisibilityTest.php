@@ -121,6 +121,28 @@ class PayeeVisibilityTest extends QaTestCase
         $this->get(route('payees.document', ['payee' => $payeeA->id, 'doc' => $docB->id]))->assertNotFound();
     }
 
+    /** La descarga de un documento fiscal queda REGISTRADA (bitácora) y NO se bloquea. */
+    public function test_document_download_is_logged(): void
+    {
+        Storage::fake('local');
+        $hodA = $this->makeUser('hod'); $this->attachDept($hodA, $this->deptA);
+        $payeeA = $this->payeeContractedBy($hodA, 'Arte SA');
+        $doc = $payeeA->documents()->create([
+            'level' => 'persona', 'document_type' => 'CSF',
+            'photo_path' => 'payee/docs/' . $payeeA->id . '/doc_fiscal.pdf', 'is_active' => 1,
+        ]);
+        Storage::disk('local')->put($doc->photo_path, '%PDF-1.4 privado');
+
+        $this->actingAs($hodA);
+        $this->get(route('payees.document', ['payee' => $payeeA->id, 'doc' => $doc->id]))->assertOk();
+
+        $this->assertDatabaseHas('payee_document_downloads', [
+            'payee_id'    => $payeeA->id,
+            'document_id' => $doc->id,
+            'user_id'     => $hodA->id,
+        ]);
+    }
+
     // ── 4.3 · ambulancias exclusivo producción/safety, nunca transpo ──────────
     public function test_transpo_hod_cannot_reach_ambulances_by_direct_url(): void
     {

@@ -30,8 +30,17 @@
                     @if($payee->nationality === 'extranjera')<span class="badge text-bg-info">{{ __('Extranjera') }}</span>@endif
                     @if($payee->intake_submitted_at)<span class="badge text-bg-success">{{ __('Registro recibido') }}</span>
                     @else<span class="badge text-bg-warning">{{ __('Registro pendiente') }}</span>@endif
+                    @if($payee->ambulanceProvider)<span class="badge text-bg-danger">{{ __('Proveedor de ambulancias') }}</span>@endif
                 </p>
             </div>
+            @if($payee->ambulanceProvider)
+                @can('ambulance.view')
+                    <a href="{{ route('ambulance.provider.show', $payee->ambulanceProvider->id) }}"
+                       class="btn btn-sm btn-crew-soft ms-auto d-inline-flex align-items-center gap-1" title="{{ __('Ver el lado OPERAR (ambulancia)') }}">
+                        @include('componentes._icon', ['name' => 'heart-pulse', 'label' => null]) {{ __('Operar (ambulancia)') }}
+                    </a>
+                @endcan
+            @endif
         </div>
 
         {{-- ── Datos fiscales de la identidad ── --}}
@@ -87,36 +96,36 @@
             </div>
         </div>
 
-        {{-- ── Documentos (serve GATEADO) ── --}}
+        {{-- ── Documentos (serve GATEADO) — separados por familia: OPERAR vs COBRAR (Paso 5) ── --}}
+        @php
+            $operateDocs = $payee->documents->where('level', 'empresa')->values();
+            $billingDocs = $payee->documents->where('level', '!=', 'empresa')->values();
+        @endphp
         <div class="card mb-4">
-            <div class="card-header fw-semibold">{{ __('Documentos recibidos') }} <span class="text-muted">({{ $payee->documents->count() }})</span></div>
+            <div class="card-header fw-semibold">{{ __('Documentos') }} <span class="text-muted">({{ $payee->documents->count() }})</span></div>
             <div class="card-body">
                 @if($payee->documents->isEmpty())
-                    <p class="text-muted mb-0">{{ __('Sin documentos recibidos.') }}</p>
+                    <p class="text-muted mb-0">{{ __('Sin documentos.') }}</p>
                 @else
-                    <ul class="list-group list-group-flush">
-                        @foreach($payee->documents as $doc)
-                            <li class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-2 px-0">
-                                <div>
-                                    <span class="fw-semibold">{{ optional($doc->documentType)->name ?: $doc->document_type }}</span>
-                                    @if($doc->issued_at)<span class="text-muted small ms-2">{{ __('Emisión') }}: {{ \Carbon\Carbon::parse($doc->issued_at)->format('d/m/Y') }}</span>@endif
-                                    <div class="small">
-                                        @if($doc->isValidated())
-                                            <span class="text-success">{{ $doc->validationLabel() }}</span>
-                                        @else
-                                            <span class="text-warning">{{ __('Recibido · pendiente de validar') }}</span>
-                                        @endif
-                                    </div>
-                                </div>
-                                @if(trim((string) $doc->photo_path) !== '')
-                                    <a href="{{ route('payees.document', ['payee' => $payee->id, 'doc' => $doc->id]) }}"
-                                       target="_blank" rel="noopener" class="btn btn-sm btn-crew-soft d-inline-flex align-items-center gap-1">
-                                        @include('componentes._icon', ['name' => 'file-text', 'label' => null]) {{ __('Ver PDF') }}
-                                    </a>
-                                @endif
-                            </li>
-                        @endforeach
-                    </ul>
+                    @if($operateDocs->isNotEmpty())
+                        <div class="text-uppercase text-muted small fw-semibold mb-2" style="letter-spacing:.06em">{{ __('Para operar (ambulancia)') }}</div>
+                        <ul class="list-group list-group-flush mb-3">
+                            @foreach($operateDocs as $doc)
+                                @include('payee._doc-line', ['doc' => $doc, 'payee' => $payee])
+                            @endforeach
+                        </ul>
+                    @endif
+
+                    <div class="text-uppercase text-muted small fw-semibold mb-2" style="letter-spacing:.06em">{{ __('Para cobrar') }}</div>
+                    @if($billingDocs->isEmpty())
+                        <p class="text-muted mb-0">{{ __('Sin documentos fiscales recibidos.') }}</p>
+                    @else
+                        <ul class="list-group list-group-flush">
+                            @foreach($billingDocs as $doc)
+                                @include('payee._doc-line', ['doc' => $doc, 'payee' => $payee])
+                            @endforeach
+                        </ul>
+                    @endif
                 @endif
             </div>
         </div>

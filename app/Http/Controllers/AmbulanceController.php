@@ -173,6 +173,10 @@ class AmbulanceController extends Controller
             'created_by_id' => $author ? $author->id : null,
         ]));
 
+        // PASO 5: nace LIGADO a su identidad en la base única (payee moral + contrato). Quien lo
+        // registra (producción/safety) es el contratante → visibilidad del Paso 4; transpo no lo ve.
+        \App\Support\AmbulancePayeeLink::ensureFor($provider, $author ? $author->id : null);
+
         return redirect()->route('ambulance.provider.show', $provider)
             ->with('success', 'Proveedor registrado.');
     }
@@ -188,9 +192,9 @@ class AmbulanceController extends Controller
             ->orderBy('full_name')
             ->get();
 
-        // Documentos de nivel EMPRESA.
-        $companyDocs = $provider->authorizations()
-            ->where('level', ExternalAuthorization::LEVEL_COMPANY)
+        // Documentos de OPERAR de nivel EMPRESA. Fuente única: cuelgan del payee ligado (Paso 5),
+        // con fallback al proveedor mientras no exista el vínculo.
+        $companyDocs = $provider->companyDocuments()
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -267,14 +271,24 @@ class AmbulanceController extends Controller
 
         $author = auth()->user();
 
+        // PASO 5: el documento de OPERAR de la EMPRESA cuelga del PAYEE (base única). Se asegura el
+        // vínculo del proveedor y el holder apunta al payee. La PERSONA (padrón) no se mueve.
+        $targetHolderType = $holderClass;
+        $targetHolderId   = $holder->id;
+        if ($data['holder_type'] === 'empresa') {
+            $payee            = \App\Support\AmbulancePayeeLink::ensureFor($holder, $author ? $author->id : null);
+            $targetHolderType = \App\Models\Payee::class;
+            $targetHolderId   = $payee->id;
+        }
+
         // Foto del papel ANTES de persistir; ImageCompressor nunca pierde la evidencia.
         $photoPath = $request->hasFile('photo')
             ? ImageCompressor::store($request->file('photo'), 'ambulance/docs')
             : null;
 
         ExternalAuthorization::create([
-            'holder_type'         => $holderClass,
-            'holder_id'           => $holder->id,
+            'holder_type'         => $targetHolderType,
+            'holder_id'           => $targetHolderId,
             // El nivel se DERIVA del titular (no se confía en el cliente).
             'level'               => $data['holder_type'] === 'empresa'
                 ? ExternalAuthorization::LEVEL_COMPANY

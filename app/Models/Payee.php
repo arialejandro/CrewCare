@@ -84,6 +84,36 @@ class Payee extends Model
         return $this->morphMany(ExternalAuthorization::class, 'holder');
     }
 
+    /**
+     * PASO 5 · si esta identidad ES un proveedor de ambulancias, su perfil de OPERAR
+     * (documentos para operar + inspecciones viven en esa capa). hasOne inverso del puente.
+     */
+    public function ambulanceProvider()
+    {
+        return $this->hasOne(AmbulanceProvider::class, 'payee_id');
+    }
+
+    public function isAmbulanceProvider(): bool
+    {
+        return $this->ambulanceProvider()->exists();
+    }
+
+    /**
+     * Documentos "para OPERAR" (nivel empresa: aviso de funcionamiento, dictamen, póliza…) vs
+     * "para COBRAR" (el paquete fiscal del intake). Se separan por `level`: los de operar nacen
+     * en nivel EMPRESA; los de cobrar, en nivel PERSONA. Así conviven sobre la misma entidad y
+     * se muestran en secciones distintas (5.2).
+     */
+    public function operateDocuments()
+    {
+        return $this->documents()->where('level', ExternalAuthorization::LEVEL_COMPANY);
+    }
+
+    public function billingDocuments()
+    {
+        return $this->documents()->where('level', '!=', ExternalAuthorization::LEVEL_COMPANY);
+    }
+
     public function isFisica(): bool
     {
         return $this->legal_nature === self::NATURE_FISICA;

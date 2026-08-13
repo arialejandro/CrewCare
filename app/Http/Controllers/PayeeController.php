@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ExternalAuthorization;
 use App\Models\Payee;
+use App\Models\PayeeDocumentDownload;
 use App\Support\CurrentProduction;
 use App\Support\PayeePackage;
 use Illuminate\Http\Request;
@@ -51,6 +52,7 @@ class PayeeController extends Controller
             'fiscalRegimes',
             'documents.documentType',
             'beneficiaries', 'declaredEquipment',
+            'ambulanceProvider', // Paso 5: si esta identidad es un proveedor de ambulancias
         ]);
         $cutDay = PayeePackage::cutDay(optional(CurrentProduction::get())->id);
 
@@ -75,6 +77,23 @@ class PayeeController extends Controller
 
         $path = (string) $doc->photo_path;
         abort_unless($path !== '' && Storage::disk('local')->exists($path), 404);
+
+        // BITÁCORA (decisión del owner): registra QUIÉN descargó QUÉ y CUÁNDO. Append-only y
+        // NUNCA bloquea — si el rastro falla, el documento igual se entrega (no es un candado).
+        try {
+            $actor = $request->user();
+            PayeeDocumentDownload::create([
+                'payee_id'       => $payee->id,
+                'document_id'    => $doc->id,
+                'document_label' => optional($doc->documentType)->name ?: $doc->document_type,
+                'user_id'        => optional($actor)->id,
+                'user_name'      => $actor ? trim($actor->name . ' ' . $actor->lname) : null,
+                'ip'             => $request->ip(),
+                'downloaded_at'  => now(),
+            ]);
+        } catch (\Throwable $e) {
+            // Silencioso a propósito: el rastro no puede impedir el acceso legítimo.
+        }
 
         // Nombre legible al descargar, SIN PII (el del disco es opaco: doc_<uniqid>.pdf).
         $nice = 'documento-' . (optional($doc->documentType)->code ?: 'payee') . '-' . $payee->id . '.pdf';
