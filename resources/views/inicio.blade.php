@@ -131,7 +131,8 @@
         <div class="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
                 <p class="cc-hero__eyebrow text-[11px] uppercase tracking-[0.3em] font-bold mb-1">{{ __('dashboard.banner_eyebrow') }}</p>
-                <h1 class="font-poster text-2xl sm:text-3xl leading-none">{{ __('dashboard.greeting') }}, {{ auth()->user()->name }}</h1>
+                {{-- Nombre en CRÉDITOS (ncreditos → 1er nombre + 1er apellido), igual que el saludo del sidebar. --}}
+                <h1 class="font-poster text-2xl sm:text-3xl leading-none">{{ __('dashboard.greeting') }}, {{ \App\Models\User::displayName(auth()->user()) }}</h1>
                 <p class="cc-hero__sub text-sm mt-2">
                     @if(auth()->user()->encuestadiaria)
                         {{ __('dashboard.survey_thanks') }}
