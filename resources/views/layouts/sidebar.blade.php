@@ -182,7 +182,7 @@
     body.cc-rail .sidebar-expanded .cc-sec:hover > .cc-flyout { display: block; opacity: 1; transform: translateX(0); pointer-events: auto; }
 
     /* ---------- Pie: usuario + botón rail ---------- */
-    .cc-sb__foot { padding: .7rem .75rem; border-top: 1px solid var(--stroke); display: flex; align-items: center; gap: .6rem; }
+    .cc-sb__foot { padding: .7rem .75rem; border-top: 1px solid var(--stroke); display: flex; align-items: center; justify-content: flex-end; gap: .6rem; }
     .cc-sb__avatar {
         width: 34px; height: 34px; border-radius: 10px; flex: none; display: grid; place-items: center;
         font-weight: 700; font-size: .8rem;
@@ -226,7 +226,8 @@
                 <img src="{{ $__foto }}" alt="">
             </span>
             <span class="cc-sb__brand-txt">
-                <b>{{ __('nav.greeting') }} {{ $__u->name }}</b>
+                {{-- Nombre en CRÉDITOS (ncreditos); si faltara, cae a 1er nombre + 1er apellido. NUNCA el legal aquí. --}}
+                <b>{{ __('nav.greeting') }} {{ \App\Models\User::displayName($__u) }}</b>
                 <small>{{ $branding['app_title'] ?? 'CrewCare' }}</small>
             </span>
         </a>
@@ -549,14 +550,8 @@
         </nav>
 
         <div class="cc-sb__foot">
-            {{-- Mismo criterio que arriba: el pie no puede seguir mostrando iniciales cuando la
-                 cabecera ya muestra la cara — sería la misma persona representada de dos
-                 maneras en la misma columna. Las iniciales quedan de reserva por si algún día
-                 no hay ni silueta. --}}
-            <span class="cc-sb__avatar cc-sb__avatar--photo" aria-hidden="true">
-                @if($__foto)<img src="{{ $__foto }}" alt="">@else{{ $__ini }}@endif
-            </span>
-            <span class="cc-sb__who"><b>{{ $__u->name }}</b><small>{{ $__role }}</small></span>
+            {{-- El pie deja SOLO el control de contraer. Nombre, foto y rol ya viven arriba
+                 (saludo con el nombre en créditos) y en el perfil; repetirlos aquí sobra. --}}
             <button type="button" class="cc-sb__rail" id="ccRailBtn"
                     aria-label="{{ __('nav.collapse') }}" title="{{ __('nav.collapse') }}">
                 @include('componentes._icon', ['name' => 'chevron-left', 'class' => '', 'label' => null])
