@@ -105,6 +105,26 @@
   /* Nota de advertencia de tripulación (estado intermedio) en ámbar, a juego con el banner del
      veredicto. Los chips de requisito usan el .chip.warn (rojo) del chrome, que el owner aprobó. */
   .amb-crewwarn{ color:var(--warn); }
+
+  /* Tripulación en CARDS con jerarquía (nombre > rol > folio/estado), para que la información
+     respire y no se vea amontonada en pastillas largas. */
+  .cc-req{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 12px; }
+  .cc-req-lbl{ font-size:.78rem; font-weight:700; color:var(--muted); }
+  .amb-crew-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin:0 0 10px; }
+  .crewcard{ border:1px solid var(--stroke); border-left:3px solid var(--stroke-2); border-radius:var(--radius-sm);
+    background:var(--panel); padding:11px 13px; break-inside:avoid;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .crewcard.ok{ border-left-color:var(--ok); }
+  .crewcard .cc-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+  .crewcard .cc-name{ font-weight:800; font-size:.92rem; color:var(--text); line-height:1.2; }
+  .crewcard .cc-role{ margin-top:3px; font-size:.8rem; color:var(--muted); }
+  .crewcard .cc-meta{ margin-top:6px; font-size:.72rem; color:var(--faint); font-family:var(--mono); }
+  .cc-badge{ flex:none; display:inline-flex; align-items:center; gap:4px; font-size:.66rem; font-weight:700;
+    padding:2px 8px; border-radius:20px; border:1px solid var(--stroke); color:var(--muted);
+    text-transform:uppercase; letter-spacing:.03em; white-space:nowrap; }
+  .cc-badge svg{ width:12px; height:12px; }
+  .cc-badge.ok{ color:var(--ok); border-color:color-mix(in srgb,var(--ok) 40%,transparent); }
+  @media (max-width:720px){ .amb-crew-grid{ grid-template-columns:1fr; } }
   .amb-verdict .vic{ flex:none; width:34px; height:34px; color:var(--vc); }
   .amb-verdict .vic svg{ width:34px; height:34px; }
   .amb-verdict h2{ margin:0; font-family:var(--poster); font-weight:900; font-style:italic;
@@ -354,37 +374,41 @@
       <section class="sec">
         <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'heart-pulse'])<h2>Tripulación</h2><span class="line"></span></div>
 
-        {{-- Requisito para operar (NOM-034): ≥1 operador + ≥1 clínico. Se marca el estado de cada uno. --}}
-        <div class="chips">
+        {{-- Requisito para operar (NOM-034): ≥1 operador + ≥1 clínico. Estado compacto de cada uno. --}}
+        <div class="cc-req">
+          <span class="cc-req-lbl">Requisito para operar:</span>
           <span class="chip {{ $crewReq['has_operador'] ? 'ok' : 'warn' }}">
             @include('componentes._icon', ['name' => $crewReq['has_operador'] ? 'circle-check' : 'alert-triangle', 'label' => null])
-            Operador de ambulancia{{ $crewReq['has_operador'] ? '' : ' — falta' }}
+            Operador{{ $crewReq['has_operador'] ? '' : ' — falta' }}
           </span>
           <span class="chip {{ $crewReq['has_clinical'] ? 'ok' : 'warn' }}">
             @include('componentes._icon', ['name' => $crewReq['has_clinical'] ? 'circle-check' : 'alert-triangle', 'label' => null])
-            Clínico prehospitalario (TAMP o médico){{ $crewReq['has_clinical'] ? '' : ' — falta' }}
+            Clínico{{ $crewReq['has_clinical'] ? '' : ' — falta' }}
           </span>
         </div>
 
+        {{-- Cada tripulante en su CARD con jerarquía: nombre (destacado) › rol › folio/estado. --}}
         @if (count($crewSnap))
-        <div class="chips">
+        <div class="amb-crew-grid">
           @foreach ($crewSnap as $m)
             @php
               $ver   = ! empty($m['verified']);
               $r     = $m['role'] ?? ($m['crew_role'] ?? null);
               $folio = $m['conocer_folio'] ?? null;
               $nm    = $m['name'] ?? ($m['full_name'] ?? '—');
-              // Texto del chip armado en PHP: evita encadenar @endif@if inline (rompe Blade).
-              $chipParts = [$nm];
-              if ($r) { $chipParts[] = $r; }
-              if ($folio) { $chipParts[] = 'CONOCER ' . $folio; }
-              if ($ver) { $chipParts[] = 'cotejado'; }
-              elseif ($folio) { $chipParts[] = 'sin cotejar'; }
             @endphp
-            <span class="chip {{ $ver ? 'ok' : '' }}">
-              @if ($ver)@include('componentes._icon', ['name' => 'circle-check', 'label' => null])@endif
-              {{ implode(' · ', $chipParts) }}
-            </span>
+            <div class="crewcard {{ $ver ? 'ok' : '' }}">
+              <div class="cc-top">
+                <span class="cc-name">{{ $nm }}</span>
+                @if ($ver)
+                  <span class="cc-badge ok">@include('componentes._icon', ['name' => 'circle-check', 'label' => null]) Cotejado</span>
+                @elseif ($folio)
+                  <span class="cc-badge">Sin cotejar</span>
+                @endif
+              </div>
+              @if ($r)<div class="cc-role">{{ $r }}</div>@endif
+              @if ($folio)<div class="cc-meta">CONOCER · <span class="mono">{{ $folio }}</span></div>@endif
+            </div>
           @endforeach
         </div>
         @else
