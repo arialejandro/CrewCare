@@ -24,7 +24,12 @@
         <tbody>
             @forelse($users as $u)
                 @php
-                    $currentRole = $u->getRoleNames()->first();
+                    $roleNames   = $u->getRoleNames();
+                    $currentRole = $roleNames->first();
+                    // El super-admin es el ROL MÁXIMO: no está en la lista asignable, así que NO se
+                    // reasigna desde aquí (si se pintara el <select>, saldría "line-producer" por
+                    // defecto y un operador podría degradarlo). Fila en modo LECTURA + badge bloqueado.
+                    $isRowSuper  = $roleNames->contains('super-admin');
                     $currentDept = $deptByUser[$u->id] ?? null;
                     $fid = 'rolef-'.$u->id;
                 @endphp
@@ -38,22 +43,37 @@
                     </td>
                     <td data-label="Email" class="small cc-muted">{{ $u->email }}</td>
                     <td data-label="Rol">
-                        <select name="role" form="{{ $fid }}" class="form-select form-select-sm">
-                            @foreach($roles as $r)
-                                <option value="{{ $r }}" {{ $currentRole === $r ? 'selected' : '' }}>{{ $r }}</option>
-                            @endforeach
-                        </select>
+                        @if($isRowSuper)
+                            <span class="badge bg-warning text-dark d-inline-flex align-items-center gap-1"
+                                  title="Rol máximo: gestiona permisos, marca y feature flags. No se reasigna desde esta pantalla.">
+                                @include('componentes._icon', ['name' => 'shield-check', 'class' => 'cc-ico-16', 'label' => null])
+                                super-admin
+                            </span>
+                        @else
+                            <select name="role" form="{{ $fid }}" class="form-select form-select-sm">
+                                @foreach($roles as $r)
+                                    <option value="{{ $r }}" {{ $currentRole === $r ? 'selected' : '' }}>{{ $r }}</option>
+                                @endforeach
+                            </select>
+                        @endif
                     </td>
                     <td data-label="Departamento">
-                        <select name="department_id" form="{{ $fid }}" class="form-select form-select-sm">
-                            <option value="">— sin departamento —</option>
-                            @foreach($departments as $d)
-                                <option value="{{ $d->id }}" {{ (int) $currentDept === (int) $d->id ? 'selected' : '' }}>{{ $d->name }}</option>
-                            @endforeach
-                        </select>
+                        @if($isRowSuper)
+                            <span class="cc-muted small">Acceso total</span>
+                        @else
+                            <select name="department_id" form="{{ $fid }}" class="form-select form-select-sm">
+                                <option value="">— sin departamento —</option>
+                                @foreach($departments as $d)
+                                    <option value="{{ $d->id }}" {{ (int) $currentDept === (int) $d->id ? 'selected' : '' }}>{{ $d->name }}</option>
+                                @endforeach
+                            </select>
+                        @endif
                     </td>
                     @if($isSuperAdmin ?? false)
                     <td data-label="Acceso clínico">
+                        @if($isRowSuper)
+                        <span class="badge bg-secondary" title="El super-admin ve y consolida todo el expediente por diseño (Gate::before).">Acceso total</span>
+                        @else
                         @php
                             // Acceso DIRECTO (permiso Spatie sobre la persona) vs por ROL. El toggle
                             // solo controla el directo; si viene por rol se avisa (cambiar el rol es
@@ -101,10 +121,13 @@
                                 @endif
                             </div>
                         @endif
+                        @endif {{-- cierra @if($isRowSuper) --}}
                     </td>
                     @endif
                     <td class="text-end pe-3">
+                        @unless($isRowSuper)
                         <button form="{{ $fid }}" type="submit" class="btn btn-sm btn-primary">Guardar</button>
+                        @endunless
                     </td>
                 </tr>
             @empty

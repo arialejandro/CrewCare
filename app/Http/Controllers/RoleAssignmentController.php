@@ -143,6 +143,14 @@ class RoleAssignmentController extends Controller
         // Super-admin (crew.view.all-departments) pasa; roles acotados solo dentro de su depto.
         abort_unless(auth()->user()->canManageCrewMember($user), 403);
 
+        // (2026-08-13) EL SUPER-ADMIN NO SE REASIGNA DESDE AQUÍ. Como no está en ASSIGNABLE, el
+        // <select> lo mostraba como line-producer (primera opción) → cualquier operador con
+        // users.assign-role podía DEGRADARLO a line-producer y quitarle god-mode (lockout). El rol
+        // máximo se concede/retira solo por seeder o a mano, nunca por esta pantalla.
+        if ($user->hasRole('super-admin')) {
+            return back()->with('error', 'El super-admin no se reasigna desde aquí: es el rol máximo (permisos, marca, feature flags).');
+        }
+
         // Un operador no puede cambiar su PROPIO rol (evita auto-escalada/lockout).
         if ($user->id === auth()->id()) {
             return back()->with('error', 'No puedes cambiar tu propio rol.');
@@ -214,6 +222,11 @@ class RoleAssignmentController extends Controller
 
         $user = User::findOrFail($id);
 
+        // El super-admin ya ve/consolida todo por Gate::before → un otorgamiento directo sería ruido.
+        if ($user->hasRole('super-admin')) {
+            return back()->with('status', 'El super-admin ya tiene acceso total por diseño; no requiere otorgamiento.');
+        }
+
         // Idempotente: si ya lo tiene DIRECTO, no dupliques ni el permiso ni el registro.
         if (! $user->hasDirectPermission($permission)) {
             $user->givePermissionTo($permission);
@@ -251,6 +264,11 @@ class RoleAssignmentController extends Controller
             : 'medical.view';
 
         $user = User::findOrFail($id);
+
+        // No se le retira acceso al super-admin desde aquí: lo conserva por Gate::before (god-mode).
+        if ($user->hasRole('super-admin')) {
+            return back()->with('status', 'El super-admin conserva el acceso por diseño; no se retira desde esta pantalla.');
+        }
 
         if ($user->hasDirectPermission($permission)) {
             $user->revokePermissionTo($permission);
