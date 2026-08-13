@@ -2,8 +2,10 @@
 
 namespace Tests\Browser;
 
+use App\Models\hazardnotification;
 use App\Models\ScoutingReport;
 use App\Models\ToolInspection;
+use App\Models\unsafecond;
 use App\Models\User;
 use Laravel\Dusk\Browser;
 use Tests\DuskTestCase;
@@ -43,6 +45,28 @@ class DocRenderTest extends DuskTestCase
             $browser->scrollIntoView('.sign')->pause(400)->screenshot('rev-scouting-firmas');
             $browser->script("window.scrollTo(0, document.body.scrollHeight);");
             $browser->pause(400)->screenshot('rev-scouting-foot');
+        });
+        $this->assertTrue(true);
+    }
+
+    public function test_render_hazard(): void
+    {
+        $h = hazardnotification::latest('id')->firstOrFail();
+        $this->browse(function (Browser $browser) use ($h) {
+            $browser->loginAs($this->admin())->visit('/unsafeact/' . $h->id)->pause(1200)->resize(1300, 2400);
+            $this->printView($browser);
+            $browser->scrollIntoView('.sign')->pause(400)->screenshot('rev-hazard-firmas');
+        });
+        $this->assertTrue(true);
+    }
+
+    public function test_render_unsafe(): void
+    {
+        $u = unsafecond::latest('id')->firstOrFail();
+        $this->browse(function (Browser $browser) use ($u) {
+            $browser->loginAs($this->admin())->visit('/unsafecond/' . $u->id)->pause(1200)->resize(1300, 2400);
+            $this->printView($browser);
+            $browser->scrollIntoView('.sign')->pause(400)->screenshot('rev-unsafe-firmas');
         });
         $this->assertTrue(true);
     }

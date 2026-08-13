@@ -43,10 +43,16 @@
 
     // ---- Folio / UUID ----
     $folio    = 'HAZ-' . str_pad((string) $hz->id, 4, '0', STR_PAD_LEFT);
-    $footUuid = 'UUID: ' . $brandName . '-HAZ-' . (16210 + $hz->id) . '-' . \Carbon\Carbon::parse($hz->created_at)->format('dmY') . ' | ' . config('crewcare.doc_version');
+    // UUID REAL del documento (el mismo del sello CFDI), no un código derivado del id.
+    $footUuid = 'UUID: ' . ($hz->uuid ?: '—') . ' | ' . config('crewcare.doc_version');
+
+    // NOMBRE DE CRÉDITOS de quien elaboró (firmas + pie + sello): autor por created_by_id →
+    // User::displayName (ncreditos; si vacío, nombre corto). Si no hay autor, cae a make_by.
+    $__author = ! empty($hz->created_by_id) ? \App\Models\User::find($hz->created_by_id) : null;
+    $creditName = $__author ? \App\Models\User::displayName($__author) : ($hz->make_by ?: '—');
 
     // ---- Hero ----
-    $heroDate = $hz->date_observed ? \Carbon\Carbon::parse($hz->date_observed)->format('d M Y') : null;
+    $heroDate = $hz->date_observed ? \Carbon\Carbon::parse($hz->date_observed)->translatedFormat('d M Y') : null;
     $heroTime = $hz->time_observed ?: null;
     $heroLoc  = $hz->name_loc ?: ($hz->location_hazard_unsafe_act ?: '');
 
@@ -316,9 +322,11 @@
            Los gemelos sellan al crearse, así que SIEMPRE llevan cadena vigente. --}}
       <section class="sec">
         <div class="sec-h"><span class="bar"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg><h2>{{ __('reports.label_signatures_integrity') }}</h2><span class="line"></span></div>
+        {{-- Casilla 1 = nombre de créditos sobre la línea de firma; casilla 2 = fecha como dato SIN
+             línea (.sig--plain): la fecha no se firma. --}}
         <div class="sign">
-          <div class="sig"><div class="who">{{ $hz->make_by ?: '—' }}</div><div class="role">{{ __('reports.label_prepared_by') }}</div></div>
-          <div class="sig"><div class="who">{{ $hz->make_date ? \Carbon\Carbon::parse($hz->make_date)->format('d M Y') : '—' }}</div><div class="role">{{ __('reports.label_date') }}</div></div>
+          <div class="sig"><div class="who">{{ $creditName }}</div><div class="role">{{ __('reports.label_prepared_by') }}</div></div>
+          <div class="sig sig--plain"><div class="who">{{ $hz->make_date ? \Carbon\Carbon::parse($hz->make_date)->translatedFormat('d M Y') : '—' }}</div><div class="role">{{ __('reports.label_date') }}</div></div>
         </div>
         @include('componentes._seal-cfdi', ['doc' => $hz, 'folio' => $folio, 'prefix' => 'CREWCARE-HAZ'])
       </section>
@@ -327,10 +335,10 @@
     <tfoot><tr><td><div class="footer-spacer"></div></td></tr></tfoot>
     </table>
     @include('componentes._report-v2-foot', [
-      'footPreparedName' => $hz->make_by ?: '—',
+      'footPreparedName' => $creditName,
       {{-- (2026-07-23) Antes reusaba label_risk_assessment ("Risk Assessment" — inglés dentro del
            doc ES). Se usa el nombre localizado del módulo, que ya nombra el tipo de documento. --}}
-      'footPreparedMeta' => __('reports.hazard_module') . ($hz->make_date ? ' · ' . \Carbon\Carbon::parse($hz->make_date)->format('d M Y') : ''),
+      'footPreparedMeta' => __('reports.hazard_module') . ($hz->make_date ? ' · ' . \Carbon\Carbon::parse($hz->make_date)->translatedFormat('d M Y') : ''),
       'footUuid'         => $footUuid,
     ])
 
