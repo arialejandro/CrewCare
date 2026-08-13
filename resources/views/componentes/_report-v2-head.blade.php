@@ -121,7 +121,7 @@
   /* quick-read band */
   .band{display:flex;background:rgba(0,0,0,.3);border-bottom:1px solid var(--stroke)}
   :root[data-view="print"] .band{background:#0b0f16}
-  .band .lead{flex:1.7;display:flex;align-items:center;gap:12px;padding:11px 20px;border-left:3px solid var(--brand);border-right:1px solid var(--stroke);min-width:0}
+  .band .lead{flex:1.7;display:flex;align-items:center;gap:12px;padding:11px 20px;border-right:1px solid var(--stroke);min-width:0}
   .band .lead .ic{width:26px;height:26px;color:var(--brand);flex:none}
   .band .lead .ic svg{width:26px;height:26px}
   .band .lead .who{display:flex;flex-direction:column;min-width:0;gap:1px}
