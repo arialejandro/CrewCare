@@ -95,6 +95,15 @@ class DocRenderTest extends DuskTestCase
         $this->assertTrue(true);
     }
 
+    public function test_render_profile(): void
+    {
+        $this->browse(function (Browser $browser) {
+            $browser->loginAs($this->admin())->visit('/profile')->pause(1200)->resize(1300, 1000);
+            $browser->scrollIntoView('.profile-card-2')->pause(400)->screenshot('rev-profile-card');
+        });
+        $this->assertTrue(true);
+    }
+
     public function test_render_inspeccion(): void
     {
         $i = ToolInspection::latest('id')->firstOrFail();

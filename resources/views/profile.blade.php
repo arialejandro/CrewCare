@@ -48,8 +48,11 @@
                 <div class="profile-name">{{$users->name}} {{$users->lname}}</div>
                 <div class="profile-username">{{ $users->departmentName() }}</div>
                 <div class="profile-icons">
-                    <span class="data-basic">{{ $users->positionName() }} |
-                    {{ \Carbon\Carbon::parse($users->borndate)->age }}</span>
+                    @php
+                        $__pos = trim((string) $users->positionName());
+                        $__age = $users->borndate ? \Carbon\Carbon::parse($users->borndate)->age : null;
+                    @endphp
+                    <span class="data-basic">{{ trim($__pos . ($__pos !== '' && $__age !== null ? ' | ' : '') . ($__age !== null ? $__age : '')) }}</span>
                 </div>
             </div>
         </div>
