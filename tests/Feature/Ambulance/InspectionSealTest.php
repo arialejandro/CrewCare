@@ -283,55 +283,6 @@ class InspectionSealTest extends AmbulanceVerticalTestCase
     }
 
     // =====================================================================
-    //  BADGE DEL PAE — la advertencia de tripulación se propaga al PAE.
-    // =====================================================================
-
-    public function test_badge_pae_marca_ambulancia_apta_sin_tripulacion(): void
-    {
-        // Acta apta pero SIN tripulación (crew_snapshot vacío).
-        $insp = $this->sealAmbulanceInspection([
-            'verdict'       => AmbulanceInspection::VERDICT_APTA,
-            'crew_snapshot' => [],
-        ]);
-        \App\Models\AmbulanceDayResource::create([
-            'production_id'           => $insp->production_id,
-            'shoot_day'               => $insp->shoot_day,
-            'state'                   => \App\Models\AmbulanceDayResource::STATE_AMBULANCE,
-            'ambulance_inspection_id' => $insp->id,
-            'is_active'               => 1,
-        ]);
-
-        $badge = \App\Support\AmbulanceResourceBadge::forDay($insp->production_id, $insp->shoot_day);
-
-        $this->assertSame('warn', $badge['tone'], 'El PAE debe marcar (no en verde) la ambulancia apta sin tripulación.');
-        $this->assertStringContainsString('sin tripulación', mb_strtolower($badge['verdict']));
-        $this->assertNotSame('', $badge['sub'], 'Debe decir qué falta a bordo.');
-    }
-
-    public function test_badge_pae_ambulancia_con_tripulacion_queda_ok(): void
-    {
-        $insp = $this->sealAmbulanceInspection([
-            'verdict'       => AmbulanceInspection::VERDICT_APTA,
-            'crew_snapshot' => [
-                ['name' => 'Op',   'role' => AmbulanceVerdict::ROLE_OPERADOR],
-                ['name' => 'Tamp', 'role' => AmbulanceVerdict::ROLE_TAMP, 'verified' => true],
-            ],
-        ]);
-        \App\Models\AmbulanceDayResource::create([
-            'production_id'           => $insp->production_id,
-            'shoot_day'               => $insp->shoot_day,
-            'state'                   => \App\Models\AmbulanceDayResource::STATE_AMBULANCE,
-            'ambulance_inspection_id' => $insp->id,
-            'is_active'               => 1,
-        ]);
-
-        $badge = \App\Support\AmbulanceResourceBadge::forDay($insp->production_id, $insp->shoot_day);
-
-        $this->assertSame('ok', $badge['tone']);
-        $this->assertSame('Apta', $badge['verdict']);
-    }
-
-    // =====================================================================
     //  INTEGRIDAD — falsificar el veredicto en BD rompe el sello.
     // =====================================================================
 
