@@ -10,6 +10,19 @@
     <link rel="stylesheet" href="{{ asset('css/profile.css') }}">
     {{-- Cropper.js styles (load-bearing: profile-photo cropper). --}}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.6/cropper.css"/>
+    <style>
+        /* El gafete acompaña el scroll de la columna de acciones en escritorio. */
+        @media (min-width: 992px) { .profile-page .profile-sticky { position: sticky; top: 88px; } }
+        /* Input de archivo con botón de MARCA (antes: "Examinar…" gris del navegador). */
+        .profile-page input[type="file"].cc-control { padding: 7px 12px; line-height: 1.35; cursor: pointer; }
+        .profile-page input[type="file"].cc-control::file-selector-button {
+            margin: -1px 12px -1px -2px; padding: 8px 14px; border: 0; border-radius: 10px;
+            font: 700 .82rem/1 inherit; cursor: pointer;
+            background: var(--brand-primary); color: var(--brand-on-primary, #111);
+            transition: filter .15s ease;
+        }
+        .profile-page input[type="file"].cc-control::file-selector-button:hover { filter: brightness(1.06); }
+    </style>
 @endpush
 
 @section('content')
@@ -36,24 +49,10 @@
     </div>
 
     <div class="row g-4">
-        {{-- ===== Tarjeta visual de perfil (widget con estilos de profile.css) ===== --}}
-        <div class="col-12 col-lg-5 d-flex justify-content-center">
-            {{-- Avatar::url = fuente única (2026-07-24): si el archivo no está en disco cae a la
-                 silueta genérica. Antes esta tarjeta pintaba el icono roto del navegador. --}}
-            <div class="profile-card-2"><img src="{{ \App\Support\Avatar::url($users) }}" class="img img-fluid" alt="{{ $users->name }}">
-                <div class="profile-logo-container"></div>
-                <div class="profile-logo"><img src="{{ URL::asset('img/logo-cc-usrs.svg') }}" width="100" alt=""></div>
-                <div class="profile-logo-client"><img src="{{ ($branding['client_logo'] ?? '') ?: URL::asset('img/redrum.png') }}" width="80" alt=""></div>
-                <div class="profile-text-container"></div>
-                <div class="profile-name">{{$users->name}} {{$users->lname}}</div>
-                <div class="profile-username">{{ $users->departmentName() }}</div>
-                <div class="profile-icons">
-                    @php
-                        $__pos = trim((string) $users->positionName());
-                        $__age = $users->borndate ? \Carbon\Carbon::parse($users->borndate)->age : null;
-                    @endphp
-                    <span class="data-basic">{{ trim($__pos . ($__pos !== '' && $__age !== null ? ' | ' : '') . ($__age !== null ? $__age : '')) }}</span>
-                </div>
+        {{-- ===== Gafete visual de perfil (parcial compartido con /inicio) ===== --}}
+        <div class="col-12 col-lg-5">
+            <div class="profile-sticky">
+                @include('componentes._profile-badge', ['user' => $users])
             </div>
         </div>
 

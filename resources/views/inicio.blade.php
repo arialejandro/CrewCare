@@ -267,23 +267,7 @@
                 <input type="file" id="imgperfil" name="imgperfil" class="form-control image" accept="image/*,.heic,.heif">
             </form>
             <hr style="border-color: var(--border);">
-            <div class="profile-card-2">
-                <img src="{{ \App\Support\Avatar::url(auth()->user()) }}" class="img img-fluid" alt="{{ auth()->user()->name }}">
-                <div class="profile-logo-container"></div>
-                <div class="profile-logo">
-                    <img src="{{ URL::asset('img/logo-cc-usrs.svg') }}" width="100" alt="CrewCare">
-                </div>
-                <div class="profile-logo-client">
-                    <img src="{{ ($branding['client_logo'] ?? '') ?: URL::asset('img/redrum.png') }}" width="80" alt="">
-                </div>
-                <div class="profile-text-container"></div>
-                <div class="profile-name">{{ auth()->user()->name }} {{ auth()->user()->lname }}</div>
-                <div class="profile-username">{{ auth()->user()->departmentName() }}</div>
-                <div class="profile-icons">
-                    <span class="data-basic">{{ auth()->user()->positionName() }} |
-                    {{ \Carbon\Carbon::parse(auth()->user()->borndate)->age }}</span>
-                </div>
-            </div>
+            @include('componentes._profile-badge', ['user' => auth()->user()])
         </div>
 
         <div class="col-lg-8 col-md-8 col-12">
