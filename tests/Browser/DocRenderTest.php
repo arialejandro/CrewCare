@@ -95,6 +95,15 @@ class DocRenderTest extends DuskTestCase
         $this->assertTrue(true);
     }
 
+    public function test_render_questionnaire(): void
+    {
+        $this->browse(function (Browser $browser) {
+            $browser->loginAs($this->admin())->visit('/dailyreport')->pause(1200)->resize(1300, 1400);
+            $browser->scrollIntoView('[data-exclusive]')->pause(500)->screenshot('rev-questionnaire-family');
+        });
+        $this->assertTrue(true);
+    }
+
     public function test_render_profile(): void
     {
         $this->browse(function (Browser $browser) {
