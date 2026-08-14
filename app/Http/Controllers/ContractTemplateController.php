@@ -93,12 +93,7 @@ class ContractTemplateController extends Controller
         $tpl  = new ContractTemplate(['body' => $body]);
         $inner = ContractTemplateRenderer::render($tpl, self::sampleValues(), self::sampleSigMap());
 
-        $page = '<!doctype html><meta charset="utf-8">'
-            . '<style>body{font-family:Georgia,"Times New Roman",serif;color:#1a1a1a;margin:1.4rem;line-height:1.6}'
-            . 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #e2e2e2;padding-bottom:3px;margin-top:1.3rem}'
-            . 'table{width:100%;border-collapse:collapse}</style>' . $inner;
-
-        return response($page);
+        return response(ContractTemplateRenderer::page($inner));
     }
 
     // ── Validación + datos de ejemplo ─────────────────────────────────────────

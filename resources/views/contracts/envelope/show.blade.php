@@ -49,6 +49,13 @@
                             <a href="{{ route('contracts.envelope.document', ['envelope' => $envelope->id, 'index' => $i]) }}" target="_blank" rel="noopener" class="btn btn-sm btn-crew-soft">{{ __('Ver') }}</a>
                         </li>
                     @endforeach
+                    {{-- FASE 1c — contrato armado con la plantilla activa + las firmas reales (solo si existe). --}}
+                    @if(!empty($hasTemplate))
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>{{ __('Contrato (plantilla)') }} <span class="badge text-bg-light border">{{ __('estampado') }}</span></span>
+                            <a href="{{ route('contracts.envelope.template', $envelope) }}" target="_blank" rel="noopener" class="btn btn-sm btn-crew-soft">{{ __('Ver') }}</a>
+                        </li>
+                    @endif
                 </ul>
             </div>
         </div>

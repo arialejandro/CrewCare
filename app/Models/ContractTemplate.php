@@ -52,4 +52,14 @@ class ContractTemplate extends Model
         $list = $this->applies_to;
         return is_array($list) && in_array($concept, $list, true);
     }
+
+    /**
+     * La plantilla ACTIVA de la producción que aplica a este subtipo (o null). La más reciente gana.
+     * `applies_to` es JSON → se filtra en PHP (no como scope SQL). Usada por el sobre (Fase 1c/1d).
+     */
+    public static function activeFor($productionId, ?string $concept): ?self
+    {
+        return static::forProduction($productionId)->active()->orderByDesc('id')->get()
+            ->first(fn ($t) => $t->appliesToSubtype($concept));
+    }
 }

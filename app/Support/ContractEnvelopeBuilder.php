@@ -36,14 +36,16 @@ class ContractEnvelopeBuilder
         $contractedUser = $payee->user;
 
         // El CONTRATADO se resuelve solo (la persona del contrato). Nombre LEGAL, no el de créditos.
+        // `anchor_key` congela a qué `[[firma:...]]` de la plantilla corresponde este destinatario.
         $contractedSpec = [
-            'role'     => ContractEnvelopeRecipient::ROLE_CONTRACTED,
-            'name'     => $payee->name,
-            'email'    => $contractedEmail ?: optional($contractedUser)->email,
-            'cargo'    => 'Contratista',
-            'empresa'  => $payee->isMoral() ? $payee->name : null,
-            'user_id'  => optional($contractedUser)->id,
-            'payee_id' => $payee->id,
+            'role'       => ContractEnvelopeRecipient::ROLE_CONTRACTED,
+            'name'       => $payee->name,
+            'email'      => $contractedEmail ?: optional($contractedUser)->email,
+            'cargo'      => 'Contratista',
+            'anchor_key' => 'contratado',
+            'empresa'    => $payee->isMoral() ? $payee->name : null,
+            'user_id'    => optional($contractedUser)->id,
+            'payee_id'   => $payee->id,
         ];
 
         // ── LA RUTA (módulo de firma, config global). Dos caminos: ──
@@ -57,13 +59,15 @@ class ContractEnvelopeBuilder
                     ? SignaturePositions::departmentHodUser($prod, $contract->department_id, $label)
                     : SignaturePositions::soleUserForPosition($prod, (int) $entry, $label);
                 $route[] = [
-                    'role'     => ContractEnvelopeRecipient::ROLE_SIGNER,
-                    'name'     => trim($signer->name . ' ' . $signer->lname),
-                    'email'    => $signer->email,
-                    'cargo'    => $label,
-                    'empresa'  => $company,
-                    'user_id'  => $signer->id,
-                    'payee_id' => null,
+                    'role'       => ContractEnvelopeRecipient::ROLE_SIGNER,
+                    'name'       => trim($signer->name . ' ' . $signer->lname),
+                    'email'      => $signer->email,
+                    'cargo'      => $label,
+                    // Ancla de la plantilla: 'dept_hod' o 'puesto:ID' (espeja anchorCatalog()).
+                    'anchor_key' => $entry === SignaturePositions::DEPT_HOD ? 'dept_hod' : 'puesto:' . (int) $entry,
+                    'empresa'    => $company,
+                    'user_id'    => $signer->id,
+                    'payee_id'   => null,
                 ];
             }
         } else {

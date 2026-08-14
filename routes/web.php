@@ -948,6 +948,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/contratos/sobre/{envelope}/enviar',   [\App\Http\Controllers\ContractEnvelopeController::class, 'send'])->name('contracts.envelope.send')->whereNumber('envelope');
     Route::post('/contratos/sobre/{envelope}/cancelar', [\App\Http\Controllers\ContractEnvelopeController::class, 'cancel'])->name('contracts.envelope.cancel')->whereNumber('envelope');
     Route::get('/contratos/sobre/{envelope}/doc/{index}', [\App\Http\Controllers\ContractEnvelopeController::class, 'document'])->name('contracts.envelope.document')->whereNumber('envelope')->whereNumber('index');
+    // FASE 1c — el contrato ARMADO con la plantilla activa + las firmas reales del sobre (estampadas).
+    Route::get('/contratos/sobre/{envelope}/plantilla', [\App\Http\Controllers\ContractEnvelopeController::class, 'templateDocument'])->name('contracts.envelope.template')->whereNumber('envelope');
 });
 // FIRMAR: enlace FIRMADO por destinatario (el contratado firma sin sesión, con 2º factor).
 Route::middleware(['signed','throttle:30,1'])->group(function () {

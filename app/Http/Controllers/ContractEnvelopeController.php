@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\ContractEnvelopeException;
 use App\Models\ContractEnvelope;
+use App\Models\ContractTemplate;
 use App\Models\PayeeContract;
 use App\Models\Position;
 use App\Models\Setting;
 use App\Support\Branding;
 use App\Support\ContractEnvelopeBuilder;
 use App\Support\ContractSigning;
+use App\Support\ContractTemplateRenderer;
 use App\Support\CurrentProduction;
 use App\Support\SignaturePositions;
 use Illuminate\Http\Request;
@@ -53,7 +55,36 @@ class ContractEnvelopeController extends Controller
         $this->authorize('view', $envelope->contract->payee);
 
         $envelope->load('recipients', 'contract.payee');
-        return view('contracts.envelope.show', compact('envelope'));
+
+        // FASE 1c — ¿hay plantilla activa para este subtipo? Si la hay, el sobre puede mostrar el
+        // documento ARMADO con la plantilla + las firmas reales (link solo si existe → nada vacío).
+        $template = ContractTemplate::activeFor($envelope->production_id, optional($envelope->contract)->concept);
+
+        return view('contracts.envelope.show', ['envelope' => $envelope, 'hasTemplate' => (bool) $template]);
+    }
+
+    /**
+     * FASE 1c — el CONTRATO ARMADO con la plantilla activa del subtipo + las firmas REALES del sobre.
+     * Cada `[[firma:...]]` se estampa con la autógrafa CONGELADA de su destinatario (o "pendiente" si
+     * aún no firma). Prueba viva del lazo plantilla → firma, sin tocar el paquete byte-intact.
+     */
+    public function templateDocument(Request $request, ContractEnvelope $envelope)
+    {
+        abort_unless($envelope->contract && $envelope->contract->payee, 404);
+        $this->authorize('view', $envelope->contract->payee);
+
+        $contract = $envelope->contract;
+        $template = ContractTemplate::activeFor($envelope->production_id, $contract->concept);
+        abort_unless($template, 404);
+
+        $envelope->load('recipients');
+        $inner = ContractTemplateRenderer::render(
+            $template,
+            ContractTemplateRenderer::valuesFor($contract),
+            ContractTemplateRenderer::sigMapForEnvelope($envelope)
+        );
+
+        return response(ContractTemplateRenderer::page($inner));
     }
 
     public function cancel(Request $request, ContractEnvelope $envelope)

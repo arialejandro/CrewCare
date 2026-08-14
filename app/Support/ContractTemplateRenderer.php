@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\ContractEnvelope;
 use App\Models\ContractTemplate;
 use App\Models\PayeeContract;
 use Illuminate\Support\Carbon;
@@ -94,6 +95,52 @@ class ContractTemplateRenderer
     {
         $body = self::fill((string) $template->body, $values);
         return self::stampAnchors($body, $sigMap);
+    }
+
+    /**
+     * FASE 1c — arma el `$sigMap` con las firmas REALES del sobre: cada destinatario aporta su ancla
+     * (anchor_key congelado) y, si YA firmó, su autógrafa CONGELADA + el hash de su sello (verde =
+     * íntegra). Si no ha firmado, la clave queda null → el ancla se pinta "pendiente de firma".
+     *
+     * NO recalcula nada: cada firma ya está congelada por su propio sello (3.3). El documento es una
+     * composición viva de firmas congeladas, tal como DocuSign.
+     */
+    public static function sigMapForEnvelope(ContractEnvelope $envelope): array
+    {
+        $map = ['__labels' => []];
+
+        foreach ($envelope->recipients as $r) {
+            $key = $r->anchor_key;
+            if (! $key) {
+                continue;   // destinatario sin ancla (ruta clásica) → no participa del estampado
+            }
+            $map['__labels'][$key] = $r->cargo ?: $r->roleLabel();
+
+            if (! $r->isSigned()) {
+                $map[$key] = null;   // pendiente
+                continue;
+            }
+            $sig = $r->signatures()->latest('id')->first();
+            $map[$key] = [
+                'image'    => $r->signature_image,
+                'signer'   => $r->name,
+                'role'     => $r->cargo ?: $r->roleLabel(),
+                'date'     => $r->signed_at,
+                'hash'     => optional($sig)->document_hash,
+                'verified' => $r->verifyLatestSignature(),
+            ];
+        }
+
+        return $map;
+    }
+
+    /** Envuelve el documento renderizado en una hoja con estilos de contrato (serif, PDF-friendly). */
+    public static function page(string $inner): string
+    {
+        return '<!doctype html><meta charset="utf-8">'
+            . '<style>body{font-family:Georgia,"Times New Roman",serif;color:#1a1a1a;margin:1.4rem;line-height:1.6}'
+            . 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #e2e2e2;padding-bottom:3px;margin-top:1.3rem}'
+            . 'table{width:100%;border-collapse:collapse}</style>' . $inner;
     }
 
     /** Reemplaza `{{token}}` por su valor (escapado). Token desconocido/vacío → cadena vacía. */

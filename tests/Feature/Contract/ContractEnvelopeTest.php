@@ -10,6 +10,7 @@ use App\Models\ContractClause;
 use App\Models\ContractConsent;
 use App\Models\ContractEnvelope;
 use App\Models\ContractEnvelopeRecipient;
+use App\Models\ContractTemplate;
 use App\Models\Payee;
 use App\Models\PayeeContract;
 use App\Models\Position;
@@ -19,6 +20,7 @@ use App\Support\Branding;
 use App\Support\ContractEmitter;
 use App\Support\ContractEnvelopeBuilder;
 use App\Support\ContractSigning;
+use App\Support\ContractTemplateRenderer;
 use App\Support\CurrentProduction;
 use App\Support\SignaturePositions;
 use Illuminate\Support\Facades\DB;
@@ -362,5 +364,90 @@ class ContractEnvelopeTest extends QaTestCase
 
         // La ruta sigue sellada e íntegra.
         $this->assertTrue($env->verifyLatestSignature());
+    }
+
+    // ── Fase 1c · la plantilla se estampa con las firmas REALES del sobre ──────
+    private function seatOneSigner(): int
+    {
+        $pos  = Position::orderBy('id')->first()->id;
+        $user = $this->makeUser('coordinator'); $user->forceFill(['name' => 'Firma', 'lname' => 'Puesto'])->save();
+        $this->attachPosition($user, $pos);
+        Setting::updateOrCreate(['key' => SignaturePositions::KEY_SIGNERS], ['value' => json_encode([$pos])]);
+        Branding::forget();
+        return $pos;
+    }
+
+    public function test_sigmap_from_envelope_reflects_real_signatures(): void
+    {
+        Storage::fake('local');
+        $pos = $this->seatOneSigner();
+        $env = ContractEnvelopeBuilder::build($this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee()), null);
+
+        // El ancla quedó CONGELADA en cada destinatario (contratado + puesto).
+        $recs = $env->orderedRecipients()->get();
+        $this->assertSame('contratado', $recs[0]->anchor_key);
+        $this->assertSame('puesto:' . $pos, $recs[1]->anchor_key);
+
+        // Sin firmas → toda ancla pendiente (null), pero con su etiqueta.
+        $map0 = ContractTemplateRenderer::sigMapForEnvelope($env->fresh());
+        $this->assertNull($map0['contratado']);
+        $this->assertNull($map0['puesto:' . $pos]);
+        $this->assertArrayHasKey('contratado', $map0['__labels']);
+
+        // Firmar al CONTRATADO (primero en la ruta) con su autógrafa.
+        ContractSigning::send($env);
+        $autograph = 'data:image/png;base64,' . str_repeat('A', 160);
+        ContractSigning::sign($env->recipients()->where('role', 'contracted')->first()->fresh(), 'authenticated', '5.5.5.5', $autograph);
+
+        $map = ContractTemplateRenderer::sigMapForEnvelope($env->fresh());
+        // Contratado → estampa REAL, íntegra, con su hash de sello.
+        $this->assertIsArray($map['contratado']);
+        $this->assertSame($autograph, $map['contratado']['image']);
+        $this->assertTrue($map['contratado']['verified']);
+        $this->assertNotEmpty($map['contratado']['hash']);
+        // El firmante por puesto aún no firma → sigue pendiente.
+        $this->assertNull($map['puesto:' . $pos]);
+    }
+
+    public function test_envelope_template_document_stamps_real_signatures(): void
+    {
+        Storage::fake('local');
+        $pos = $this->seatOneSigner();
+        $payee = $this->crewPayee();
+        $env = ContractEnvelopeBuilder::build($this->emitContract(PayeeContract::CONCEPT_CREW, $payee), null);
+
+        // Plantilla ACTIVA del subtipo con dos anclas: el contratado y el firmante por puesto.
+        ContractTemplate::create([
+            'production_id' => $this->prodId, 'name' => 'Crew', 'applies_to' => [PayeeContract::CONCEPT_CREW],
+            'body' => '<p>{{payee_nombre}}</p><div>[[firma:contratado]]</div><div>[[firma:puesto:' . $pos . ']]</div>',
+            'language' => 'es', 'is_active' => 1,
+        ]);
+
+        // Firmar al contratado; el firmante por puesto queda pendiente.
+        ContractSigning::send($env);
+        $autograph = 'data:image/png;base64,' . str_repeat('A', 160);
+        ContractSigning::sign($env->recipients()->where('role', 'contracted')->first()->fresh(), 'authenticated', '5.5.5.5', $autograph);
+
+        $this->actingAs($this->makeUser('super-admin'));
+        $res = $this->get(route('contracts.envelope.template', $env));
+        $res->assertOk();
+        $html = $res->getContent();
+
+        $this->assertStringContainsString($payee->name, $html, 'el campo {{payee_nombre}} se llenó');
+        $this->assertStringContainsString('cc-sig-stamp', $html, 'el contratado se estampó');
+        $this->assertStringContainsString($autograph, $html, 'con su autógrafa REAL');
+        $this->assertStringContainsString('cc-sig-pending', $html, 'el firmante por puesto sigue pendiente');
+        $this->assertStringNotContainsString('[[firma:', $html, 'no quedan anclas crudas');
+    }
+
+    public function test_envelope_template_document_404_without_active_template(): void
+    {
+        Storage::fake('local');
+        $this->seatOneSigner();
+        $env = ContractEnvelopeBuilder::build($this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee()), null);
+
+        // Sin plantilla activa para el subtipo → 404 (nada que armar).
+        $this->actingAs($this->makeUser('super-admin'));
+        $this->get(route('contracts.envelope.template', $env))->assertNotFound();
     }
 }

@@ -27,8 +27,12 @@ class ContractEnvelopeRecipient extends Model
 
     protected $table = 'contract_envelope_recipients';
 
-    /** Columnas volátiles fuera del hash del sello (ver nota de clase). */
-    protected $signatureExcludes = ['status', 'sent_at', 'resent_at', 'viewed_at'];
+    /**
+     * Columnas fuera del hash del sello (ver nota de clase). Las VOLÁTILES de flujo + `anchor_key`
+     * (metadato de RUTA congelado al construir, no el acto de firma): así agregar la columna NO
+     * convierte en "alterados" los sobres ya sellados antes de la Fase 1c.
+     */
+    protected $signatureExcludes = ['status', 'sent_at', 'resent_at', 'viewed_at', 'anchor_key'];
 
     const ROLE_PREPARER   = 'preparer';
     const ROLE_CONTRACTED = 'contracted';
@@ -43,7 +47,7 @@ class ContractEnvelopeRecipient extends Model
 
     protected $fillable = [
         'envelope_id', 'role', 'sort_order',
-        'name', 'email', 'cargo', 'empresa', 'user_id', 'payee_id',
+        'name', 'email', 'cargo', 'anchor_key', 'empresa', 'user_id', 'payee_id',
         'status', 'sent_at', 'resent_at', 'viewed_at', 'signed_at', 'ip_address', 'sign_method',
         'signature_image',
     ];
