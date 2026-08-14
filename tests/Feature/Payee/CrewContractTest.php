@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Payee;
 
+use App\Models\ContractEnvelope;
 use App\Models\Payee;
 use App\Models\PayeeContract;
 use App\Models\PayeeContractWorkDate;
@@ -22,6 +23,7 @@ class CrewContractTest extends QaTestCase
         $payee = Payee::create(['legal_nature' => 'fisica', 'name' => 'Crew Uno']);
         return $payee->contracts()->create(array_merge([
             'concept' => PayeeContract::CONCEPT_CREW, 'is_active' => 1,
+            'production_id' => \Illuminate\Support\Facades\DB::table('productions')->min('id'),
         ], $extra));
     }
 
@@ -79,6 +81,15 @@ class CrewContractTest extends QaTestCase
     {
         $c = $this->crewContract(['definitive_end_date' => '2026-10-31']);
         $c->workDates()->create(['work_date' => '2026-09-08', 'phase' => PayeeContractWorkDate::PHASE_SHOOT]);
+
+        // 🔴 PUERTA (Paso C): sin sobre de firma COMPLETADO, no aparece llamado ningún día.
+        $this->assertSame(PayeeContract::ROSTER_OUT, $c->rosterStateOn('2026-09-08'), 'sin sobre completado = fuera');
+
+        // Con el sobre completado, aplica el mapeo base (activo + fecha + vigencia).
+        ContractEnvelope::create([
+            'payee_contract_id' => $c->id, 'production_id' => $c->production_id,
+            'status' => ContractEnvelope::STATUS_COMPLETED,
+        ]);
 
         $this->assertSame(PayeeContract::ROSTER_CALLED,     $c->rosterStateOn('2026-09-08'), 'activo + fecha = llamado');
         $this->assertSame(PayeeContract::ROSTER_NOT_CALLED, $c->rosterStateOn('2026-09-09'), 'activo sin fecha = no llamado');

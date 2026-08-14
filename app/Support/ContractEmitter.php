@@ -22,9 +22,9 @@ class ContractEmitter
 {
     public static function emit(PayeeContract $contract, ContractClause $clause, ?string $language = null, ?User $actor = null): PayeeContract
     {
-        if (! $contract->isCrewWork()) {
-            throw new ContractEmitException('Solo se emiten contratos de crew (crew_work).');
-        }
+        // (Paso C) También se emiten y firman contratos NO-crew (renta/servicio: ambulancia,
+        // proveedores, casas de renta, seguridad fílmica). La carátula oculta los renglones de
+        // crew vacíos, así que no hace falta gatear por concepto.
         if ($contract->isEmitted()) {
             throw new ContractEmitException('Este contrato ya fue emitido; un emitido no se re-emite ni se edita.');
         }

@@ -908,6 +908,32 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/contratos/{contract}/caratula',  [\App\Http\Controllers\ContractController::class, 'caratula'])->name('contracts.caratula')->whereNumber('contract');
 });
 
+// ---- EL CONTRATO · PASO C: EL SOBRE Y LA RUTA DE FIRMA ----
+// Biblioteca de anexos + config de la ruta (config de la productora → settings.manage).
+Route::middleware(['auth','permission:settings.manage'])->group(function () {
+    Route::get('/contratos/anexos',                     [\App\Http\Controllers\ContractAnnexController::class, 'index'])->name('contracts.annexes.index');
+    Route::post('/contratos/anexos',                    [\App\Http\Controllers\ContractAnnexController::class, 'store'])->name('contracts.annexes.store');
+    Route::post('/contratos/anexos/{annex}/toggle',     [\App\Http\Controllers\ContractAnnexController::class, 'toggle'])->name('contracts.annexes.toggle')->whereNumber('annex');
+    Route::get('/contratos/anexos/{annex}/descargar',   [\App\Http\Controllers\ContractAnnexController::class, 'download'])->name('contracts.annexes.download')->whereNumber('annex');
+    Route::get('/contratos/ruta-config',                [\App\Http\Controllers\ContractEnvelopeController::class, 'editConfig'])->name('contracts.route.config');
+    Route::post('/contratos/ruta-config',               [\App\Http\Controllers\ContractEnvelopeController::class, 'updateConfig'])->name('contracts.route.config.update');
+});
+// El SOBRE: crear/enviar/ver/cancelar/servir doc — misma guarda del payee (dentro del controlador).
+Route::middleware(['auth'])->group(function () {
+    Route::post('/contratos/{contract}/sobre',          [\App\Http\Controllers\ContractEnvelopeController::class, 'store'])->name('contracts.envelope.store')->whereNumber('contract');
+    Route::get('/contratos/sobre/{envelope}',           [\App\Http\Controllers\ContractEnvelopeController::class, 'show'])->name('contracts.envelope.show')->whereNumber('envelope');
+    Route::post('/contratos/sobre/{envelope}/enviar',   [\App\Http\Controllers\ContractEnvelopeController::class, 'send'])->name('contracts.envelope.send')->whereNumber('envelope');
+    Route::post('/contratos/sobre/{envelope}/cancelar', [\App\Http\Controllers\ContractEnvelopeController::class, 'cancel'])->name('contracts.envelope.cancel')->whereNumber('envelope');
+    Route::get('/contratos/sobre/{envelope}/doc/{index}', [\App\Http\Controllers\ContractEnvelopeController::class, 'document'])->name('contracts.envelope.document')->whereNumber('envelope')->whereNumber('index');
+});
+// FIRMAR: enlace FIRMADO por destinatario (el contratado firma sin sesión, con 2º factor).
+Route::middleware(['signed','throttle:30,1'])->group(function () {
+    Route::get('/contratos/firma/{recipient}',              [\App\Http\Controllers\ContractSignController::class, 'show'])->name('contracts.sign.show')->whereNumber('recipient');
+    Route::post('/contratos/firma/{recipient}/verificar',   [\App\Http\Controllers\ContractSignController::class, 'verify'])->name('contracts.sign.verify')->whereNumber('recipient');
+    Route::post('/contratos/firma/{recipient}/firmar',      [\App\Http\Controllers\ContractSignController::class, 'sign'])->name('contracts.sign.do')->whereNumber('recipient');
+    Route::get('/contratos/firma/{recipient}/doc/{index}',  [\App\Http\Controllers\ContractSignController::class, 'document'])->name('contracts.sign.document')->whereNumber('recipient')->whereNumber('index');
+});
+
 // ---- Pilar 1: Progressive Disclosure — Fase 2 (edit/update de compliance en back-office) ----
 // La captura Fase 1 (store) es ágil (mínimo indispensable); aquí se completa la carga
 // burocrática (matriz 5×5, normas, causa raíz) y se limpia pending_compliance.

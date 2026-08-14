@@ -329,6 +329,14 @@
                             @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('Clausulados') }}</span>
                         </a>
+                        <a href="{{ route('contracts.annexes.index') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Anexos') }}</span>
+                        </a>
+                        <a href="{{ route('contracts.route.config') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Ruta de firma') }}</span>
+                        </a>
                     </div></div>
                 </div>
             @endcan
@@ -700,6 +708,14 @@
                             <a href="{{ route('contracts.clauses.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('Clausulados') }}</span>
+                            </a>
+                            <a href="{{ route('contracts.annexes.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Anexos') }}</span>
+                            </a>
+                            <a href="{{ route('contracts.route.config') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Ruta de firma') }}</span>
                             </a>
                         </div></div>
                     </div>

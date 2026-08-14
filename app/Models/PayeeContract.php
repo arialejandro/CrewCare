@@ -133,6 +133,18 @@ class PayeeContract extends Model
         return $this->belongsTo(ContractClause::class, 'clause_id');
     }
 
+    /** PASO C · sobres de firma del contrato. */
+    public function envelopes(): HasMany
+    {
+        return $this->hasMany(ContractEnvelope::class, 'payee_contract_id');
+    }
+
+    /** ¿Tiene un sobre COMPLETADO? Es la PUERTA del roster: sin ruta de firma completa, no produce. */
+    public function hasCompletedEnvelope(): bool
+    {
+        return $this->envelopes()->where('status', ContractEnvelope::STATUS_COMPLETED)->exists();
+    }
+
     /** ¿Ya se emitió? (tiene su carátula generada y sus datos congelados). Un emitido NO se edita. */
     public function isEmitted(): bool
     {
@@ -176,12 +188,17 @@ class PayeeContract extends Model
      *  - LLAMADO: activo y con una fila de fecha de trabajo ese día.
      *  - NO LLAMADO: activo, sin fila ese día.
      * No necesita fila por-persona-por-día → "apagar" = vencer/inactivar el contrato.
-     * ⚠ La puerta de la ruta de firma (Paso C) se superpone después: aquí no se evalúa.
+     * 🔴 PUERTA (Paso C): un contrato SIN su sobre de firma COMPLETADO NO produce roster → nunca
+     * aparece llamado. Se superpone al mapeo base (activo + fecha + vigencia).
      */
     public function rosterStateOn($date): string
     {
         if (! $this->isCrewWork() || ! $this->is_active) {
             return self::ROSTER_OUT;
+        }
+
+        if (! $this->hasCompletedEnvelope()) {
+            return self::ROSTER_OUT;   // sin ruta de firma completa, no aparece llamado ningún día
         }
 
         $day = $date instanceof Carbon ? $date->copy()->startOfDay() : Carbon::parse($date)->startOfDay();
