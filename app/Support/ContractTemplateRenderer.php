@@ -134,13 +134,18 @@ class ContractTemplateRenderer
         return $map;
     }
 
-    /** Envuelve el documento renderizado en una hoja con estilos de contrato (serif, PDF-friendly). */
-    public static function page(string $inner): string
+    /**
+     * Envuelve el documento renderizado en una hoja con estilos de contrato (serif, PDF-friendly).
+     * $architecture (opcional) añade el CSS propio del FORMATO (carátula/ficha/declaraciones).
+     */
+    public static function page(string $inner, ?string $architecture = null): string
     {
+        $extra = $architecture ? ContractArchitectures::pageCss($architecture) : '';
+
         return '<!doctype html><meta charset="utf-8">'
             . '<style>body{font-family:Georgia,"Times New Roman",serif;color:#1a1a1a;margin:1.4rem;line-height:1.6}'
             . 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #e2e2e2;padding-bottom:3px;margin-top:1.3rem}'
-            . 'table{width:100%;border-collapse:collapse}</style>' . $inner;
+            . 'table{width:100%;border-collapse:collapse}' . $extra . '</style>' . $inner;
     }
 
     /** Reemplaza `{{token}}` por su valor (escapado). Token desconocido/vacío → cadena vacía. */

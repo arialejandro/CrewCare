@@ -79,4 +79,43 @@ class ContractTemplateTest extends QaTestCase
         $this->assertStringNotContainsString('[[firma:contratado]]', $html, 'no queda ancla cruda');
         $this->assertStringContainsString('cc-sig-stamp', $html, 'la firma se estampó');
     }
+
+    public function test_create_preloads_scaffold_for_chosen_format(): void
+    {
+        $this->actingAs($this->makeUser('line-producer'));
+
+        $res = $this->get(route('contracts.templates.create', ['arch' => 'field_sheet']));
+        $res->assertOk();
+        $res->assertSee('actividades empresariales');          // andamiaje real de la ficha (C)
+        $res->assertSee('id="tplArch"', false);                // el selector de formato existe
+    }
+
+    public function test_store_persists_architecture(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        $this->post(route('contracts.templates.store'), [
+            'name' => 'Ficha K&K', 'applies_to' => ['crew_work'],
+            'architecture' => 'field_sheet', 'body' => '<p>{{payee_nombre}}</p>', 'is_active' => 1,
+        ])->assertRedirect();
+
+        $tpl = ContractTemplate::firstWhere('name', 'Ficha K&K');
+        $this->assertSame('field_sheet', $tpl->architecture);
+        $this->assertFalse($tpl->bilingual);
+    }
+
+    public function test_preview_applies_format_css(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        // declarations → CSS justificado (distintivo de ese formato)
+        $res = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>', 'architecture' => 'declarations']);
+        $res->assertOk();
+        $this->assertStringContainsString('text-align:justify', $res->getContent());
+
+        // formato inválido → se normaliza al default (carátula), sin el CSS de declaraciones
+        $res2 = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>', 'architecture' => 'bogus']);
+        $res2->assertOk();
+        $this->assertStringNotContainsString('text-align:justify', $res2->getContent());
+    }
 }

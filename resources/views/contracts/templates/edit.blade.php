@@ -56,6 +56,20 @@
                                 @endforeach
                             </div>
 
+                            {{-- FORMATO del contrato: define la forma (carátula/ficha/declaraciones) + el andamiaje. --}}
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold d-block">{{ __('Formato del contrato') }}</label>
+                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                    <select name="architecture" id="tplArch" class="form-select form-select-sm" style="max-width:360px">
+                                        @foreach($architectures as $key => $a)
+                                            <option value="{{ $key }}" @selected(old('architecture', $template->architecture ?: 'caratula_numbered') === $key)>{{ $a['label'] }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" id="tplLoadScaffold" class="btn btn-sm btn-crew-soft">{{ __('Cargar andamiaje') }}</button>
+                                </div>
+                                <div class="form-text" id="tplArchDesc"></div>
+                            </div>
+
                             {{-- Paleta: insertar campos / firmas en el cursor. Sin `name` → no se envían. --}}
                             <div class="d-flex flex-wrap gap-2 mb-2">
                                 <select class="form-select form-select-sm cc-tpl-insert" style="max-width:220px">
@@ -76,7 +90,7 @@
 
                             <textarea id="tplBody" name="body" class="form-control" rows="18"
                                       style="font-family:ui-monospace,Consolas,monospace;font-size:.86rem;">{{ old('body', $template->body) }}</textarea>
-                            <div class="form-text">{{ __('HTML permitido. Los {{campos}} se llenan con el trato; las [[firma:...]] se estampan al firmar.') }}</div>
+                            <div class="form-text">{{ __('HTML permitido. Los campos se llenan con el trato y las firmas se estampan al firmar.') }}</div>
 
                             <div class="d-flex align-items-center gap-3 mt-3">
                                 <button class="btn btn-crew">{{ __('Guardar') }}</button>
@@ -114,6 +128,17 @@
 <script>
 (function () {
     var ta = document.getElementById('tplBody');
+    var archSel  = document.getElementById('tplArch');
+    var archMeta = @json($architectures);
+    var starters = @json($starters);
+
+    // Descripción del formato bajo el selector.
+    function updateArchDesc() {
+        var m = archSel && archMeta[archSel.value];
+        var el = document.getElementById('tplArchDesc');
+        if (el) { el.textContent = m ? m.desc : ''; }
+    }
+
     function insertAtCursor(text) {
         var s = ta.selectionStart, e = ta.selectionEnd;
         ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);
@@ -136,11 +161,29 @@
         fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-TOKEN': token },
-            body: 'body=' + encodeURIComponent(ta.value)
+            body: 'body=' + encodeURIComponent(ta.value) + '&architecture=' + encodeURIComponent(archSel ? archSel.value : '')
         }).then(function (r) { return r.text(); }).then(function (html) { frame.srcdoc = html; });
     }
     var btn = document.getElementById('tplRefresh');
     if (btn) { btn.addEventListener('click', refresh); }
+
+    // Cargar el andamiaje del formato elegido (reemplaza el canvas; confirma si ya hay contenido).
+    var loadBtn = document.getElementById('tplLoadScaffold');
+    if (loadBtn) {
+        loadBtn.addEventListener('click', function () {
+            var s = archSel && starters[archSel.value];
+            if (s === undefined) { return; }
+            if (ta.value.trim() && !window.confirm(@json(__('Esto reemplazará el contenido del canvas con el andamiaje de este formato. ¿Continuar?')))) { return; }
+            ta.value = s;
+            ta.focus();
+            refresh();
+        });
+    }
+
+    // Cambiar de formato re-renderiza el preview con el CSS de ese formato.
+    if (archSel) { archSel.addEventListener('change', function () { updateArchDesc(); refresh(); }); }
+
+    updateArchDesc();
     refresh();
 })();
 </script>

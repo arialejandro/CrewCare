@@ -4,16 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\ContractTemplate;
 use App\Models\PayeeContract;
+use App\Support\ContractArchitectures;
 use App\Support\ContractTemplateRenderer;
 use App\Support\CurrentProduction;
 use Illuminate\Http\Request;
 
 /**
- * CONTRACT BUILDER · FASE 1b — EDITOR de plantillas de contrato.
+ * CONTRACT BUILDER · EDITOR de plantillas de contrato.
  *
- * Redactar el cuerpo e insertar `{{campos}}` y `[[firma:...]]` desde un menú (sin memorizar
- * sintaxis) + PREVIEW server-side con datos de ejemplo (el mismo render que el documento real).
- * Gated a settings.manage (en las rutas). No emite ni firma nada; solo define la plantilla.
+ * Se ELIGE un FORMATO (arquitectura: carátula numerada / ficha / declaraciones) y el canvas carga su
+ * andamiaje real; se redacta el cuerpo e insertan `{{campos}}` y `[[firma:...]]` desde un menú +
+ * PREVIEW server-side con datos de ejemplo (el mismo render que el documento real, con el CSS del
+ * formato). Gated a `contracts.author` (Line Producer / representante-legal). No emite ni firma nada.
  */
 class ContractTemplateController extends Controller
 {
@@ -38,11 +40,15 @@ class ContractTemplateController extends Controller
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
+        // El FORMATO puede venir preelegido (?arch=…) desde el índice; el canvas nace con su andamiaje.
+        $arch = ContractArchitectures::normalize($request->query('arch'));
+
         return $this->editView(new ContractTemplate([
             'name' => '', 'applies_to' => [PayeeContract::CONCEPT_CREW], 'language' => 'es',
-            'body' => self::starterBody(), 'is_active' => false,
+            'architecture' => $arch, 'bilingual' => false,
+            'body' => ContractArchitectures::starter($arch), 'is_active' => false,
         ]));
     }
 
@@ -54,10 +60,12 @@ class ContractTemplateController extends Controller
     private function editView(ContractTemplate $template)
     {
         return view('contracts.templates.edit', [
-            'template' => $template,
-            'subtypes' => $this->subtypes(),
-            'fields'   => ContractTemplateRenderer::fieldCatalog(),
-            'anchors'  => ContractTemplateRenderer::anchorCatalog(),
+            'template'      => $template,
+            'subtypes'      => $this->subtypes(),
+            'fields'        => ContractTemplateRenderer::fieldCatalog(),
+            'anchors'       => ContractTemplateRenderer::anchorCatalog(),
+            'architectures' => ContractArchitectures::all(),
+            'starters'      => ContractArchitectures::starters(),
         ]);
     }
 
@@ -90,10 +98,11 @@ class ContractTemplateController extends Controller
     public function preview(Request $request)
     {
         $body = (string) $request->input('body', '');
+        $arch = ContractArchitectures::normalize($request->input('architecture'));
         $tpl  = new ContractTemplate(['body' => $body]);
         $inner = ContractTemplateRenderer::render($tpl, self::sampleValues(), self::sampleSigMap());
 
-        return response(ContractTemplateRenderer::page($inner));
+        return response(ContractTemplateRenderer::page($inner, $arch));
     }
 
     // ── Validación + datos de ejemplo ─────────────────────────────────────────
@@ -104,11 +113,15 @@ class ContractTemplateController extends Controller
             'applies_to'   => 'required|array|min:1',
             'applies_to.*' => 'in:crew_work,rental,service',
             'language'     => 'nullable|string|max:5',
+            'architecture' => 'nullable|string|max:32',
+            'bilingual'    => 'nullable|boolean',
             'body'         => 'nullable|string',
             'is_active'    => 'nullable|boolean',
         ]);
-        $data['is_active'] = $request->boolean('is_active');
-        $data['language']  = ($data['language'] ?? null) ?: 'es';
+        $data['is_active']    = $request->boolean('is_active');
+        $data['language']     = ($data['language'] ?? null) ?: 'es';
+        $data['architecture'] = ContractArchitectures::normalize($data['architecture'] ?? null);
+        $data['bilingual']    = $request->boolean('bilingual');
 
         return $data;
     }
@@ -150,19 +163,5 @@ class ContractTemplateController extends Controller
         $map['__labels'] = $labels;
 
         return $map;
-    }
-
-    /** Cuerpo de arranque (ejemplo) para plantillas nuevas. */
-    private static function starterBody(): string
-    {
-        return "<h1>Contrato de prestación de servicios</h1>\n"
-            . "<p>En la Ciudad de México, a {{fecha_hoy}}, comparecen <strong>{{empresa}}</strong>, "
-            . "representada por {{representante_legal}}, y <strong>{{payee_nombre}}</strong> (RFC {{payee_rfc}}).</p>\n"
-            . "<h2>Objeto</h2>\n<p>El Contratado prestará sus servicios como <strong>{{puesto}}</strong> "
-            . "({{actividad}}), del {{vigencia_inicio}} al {{vigencia_fin}}, por {{honorarios}} {{moneda}}.</p>\n"
-            . "<h2>Firmas</h2>\n<table><tr>\n"
-            . "  <td style=\"text-align:center;padding:10px;vertical-align:bottom\">[[firma:contratado]]<div style=\"font-size:11px;color:#555\">El Contratado</div></td>\n"
-            . "  <td style=\"text-align:center;padding:10px;vertical-align:bottom\">[[firma:dept_hod]]<div style=\"font-size:11px;color:#555\">Por la Producción</div></td>\n"
-            . "</tr></table>";
     }
 }

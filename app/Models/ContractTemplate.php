@@ -21,13 +21,15 @@ class ContractTemplate extends Model
     protected $table = 'contract_templates';
 
     protected $fillable = [
-        'production_id', 'name', 'applies_to', 'body', 'language', 'version', 'is_active', 'created_by_id',
+        'production_id', 'name', 'applies_to', 'body', 'language', 'architecture', 'bilingual',
+        'version', 'is_active', 'created_by_id',
     ];
 
     protected $casts = [
         'applies_to' => 'array',
         'version'    => 'integer',
         'is_active'  => 'boolean',
+        'bilingual'  => 'boolean',
     ];
 
     public function createdBy(): BelongsTo

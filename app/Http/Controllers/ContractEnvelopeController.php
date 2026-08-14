@@ -84,7 +84,7 @@ class ContractEnvelopeController extends Controller
             ContractTemplateRenderer::sigMapForEnvelope($envelope)
         );
 
-        return response(ContractTemplateRenderer::page($inner));
+        return response(ContractTemplateRenderer::page($inner, $template->architecture));
     }
 
     public function cancel(Request $request, ContractEnvelope $envelope)
