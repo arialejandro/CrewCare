@@ -114,8 +114,8 @@ class ContractArchitectures
             . "</table>\n"
             . "<h2>Declaraciones</h2>\n<p>Las partes se reconocen mutuamente la capacidad para suscribir el presente contrato.</p>\n"
             . "<h2>Cláusulas</h2>\n"
-            . "<p><strong>PRIMERA. Objeto.</strong> [Redacta aquí el objeto — remite al Apartado 2 de la Carátula.]</p>\n"
-            . "<p><strong>SEGUNDA. Contraprestación.</strong> [Redacta aquí — remite a los Apartados 4 y 5.]</p>\n"
+            . "<p class=\"cc-clause\"><strong>PRIMERA. Objeto.</strong> [Redacta aquí el objeto — remite al Apartado 2 de la Carátula.]</p>\n"
+            . "<p class=\"cc-clause\"><strong>SEGUNDA. Contraprestación.</strong> [Redacta aquí — remite a los Apartados 4 y 5.]</p>\n"
             . "<p><em>[Agrega aquí el resto del clausulado revisado por tu área legal.]</em></p>\n"
             . self::firmasBlock('El Prestador', 'Por la Empresa');
     }
@@ -139,7 +139,7 @@ class ContractArchitectures
             . "<p>En virtud de los tiempos limitados de la producción, el Contratista prestará sus servicios "
             . "exclusivamente a este proyecto durante la vigencia.</p>\n"
             . "<h2>Cláusulas</h2>\n"
-            . "<p><strong>PRIMERA. Objeto.</strong> [Redacta aquí el objeto del contrato.]</p>\n"
+            . "<p class=\"cc-clause\"><strong>PRIMERA. Objeto.</strong> [Redacta aquí el objeto del contrato.]</p>\n"
             . "<p><em>[Agrega aquí el resto del clausulado revisado por tu área legal.]</em></p>\n"
             . self::firmasBlock('El Contratista', 'Por la Empresa');
     }
@@ -160,7 +160,7 @@ class ContractArchitectures
             . "b) Cuenta con la experiencia y los recursos propios para prestar los Servicios como {{puesto}}.<br>\n"
             . "c) Su RFC es {{payee_rfc}}.</p>\n"
             . "<h2>Cláusulas</h2>\n"
-            . "<p><strong>PRIMERA. Objeto.</strong> [Redacta aquí el objeto — los Servicios ({{actividad}}), "
+            . "<p class=\"cc-clause\"><strong>PRIMERA. Objeto.</strong> [Redacta aquí el objeto — los Servicios ({{actividad}}), "
             . "del {{vigencia_inicio}} al {{vigencia_fin}}, por {{honorarios}} {{moneda}}.]</p>\n"
             . "<p><em>[Agrega aquí el resto del clausulado revisado por tu área legal.]</em></p>\n"
             . self::firmasBlock('El Prestador', 'Por la Productora');

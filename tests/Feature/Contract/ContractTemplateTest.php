@@ -88,6 +88,8 @@ class ContractTemplateTest extends QaTestCase
         $res->assertOk();
         $res->assertSee('actividades empresariales');          // andamiaje real de la ficha (C)
         $res->assertSee('id="tplArch"', false);                // el selector de formato existe
+        $res->assertSee('id="tplCanvas"', false);              // canvas Word-lite (WYSIWYG)
+        $res->assertSee('cc-toolbar', false);                  // barra de formato
     }
 
     public function test_store_persists_architecture(): void
