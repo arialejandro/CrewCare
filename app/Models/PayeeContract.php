@@ -68,6 +68,14 @@ class PayeeContract extends Model
         'contractor_representative', 'contractor_email',
         // PASO B · congelado al emitir
         'clause_id', 'language', 'caratula_path', 'emitted_at', 'emitted_by_id',
+        // EL INFOSHEET · importe POR FASE (semanas·tarifa·importe ×4) + desglose fiscal +
+        // comprobante + caja chica. El total sigue en fee_amount; no se duplica.
+        'fee_soft_prep_weeks', 'fee_soft_prep_rate', 'fee_soft_prep_amount',
+        'fee_prep_weeks', 'fee_prep_rate', 'fee_prep_amount',
+        'fee_shoot_weeks', 'fee_shoot_rate', 'fee_shoot_amount',
+        'fee_wrap_weeks', 'fee_wrap_rate', 'fee_wrap_amount',
+        'tax_iva', 'tax_isr_retention', 'tax_iva_retention',
+        'payment_document_type', 'manages_petty_cash',
     ];
 
     protected $casts = [
@@ -90,6 +98,13 @@ class PayeeContract extends Model
         'lodging_monthly_supplement' => 'decimal:2',
         'round_flights'              => 'integer',
         'emitted_at'                 => 'datetime',
+        // EL INFOSHEET · importe por fase + desglose fiscal
+        'fee_soft_prep_weeks' => 'decimal:2', 'fee_soft_prep_rate' => 'decimal:2', 'fee_soft_prep_amount' => 'decimal:2',
+        'fee_prep_weeks'      => 'decimal:2', 'fee_prep_rate'      => 'decimal:2', 'fee_prep_amount'      => 'decimal:2',
+        'fee_shoot_weeks'     => 'decimal:2', 'fee_shoot_rate'     => 'decimal:2', 'fee_shoot_amount'     => 'decimal:2',
+        'fee_wrap_weeks'      => 'decimal:2', 'fee_wrap_rate'      => 'decimal:2', 'fee_wrap_amount'      => 'decimal:2',
+        'tax_iva'             => 'decimal:2', 'tax_isr_retention'  => 'decimal:2', 'tax_iva_retention'    => 'decimal:2',
+        'manages_petty_cash'  => 'boolean',
     ];
 
     public function payee(): BelongsTo
@@ -137,6 +152,12 @@ class PayeeContract extends Model
     public function envelopes(): HasMany
     {
         return $this->hasMany(ContractEnvelope::class, 'payee_contract_id');
+    }
+
+    /** EL INFOSHEET · las AUTORIZACIONES (paso 2) de este contrato crew_work. */
+    public function authorizations(): HasMany
+    {
+        return $this->hasMany(InfosheetAuthorization::class, 'payee_contract_id');
     }
 
     /** ¿Tiene un sobre COMPLETADO? Es la PUERTA del roster: sin ruta de firma completa, no produce. */

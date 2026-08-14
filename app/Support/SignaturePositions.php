@@ -23,6 +23,21 @@ class SignaturePositions
     const KEY_BINDER   = 'contract_binder_position_id';
     const KEY_ORDER    = 'contract_route_order';
 
+    // MÓDULO DE FIRMA (config global, al iniciar el proyecto). Dos listas ordenadas de PUESTOS:
+    //  - KEY_SIGNERS: los FIRMANTES del contrato (paso 4). Si está configurada, el sobre usa
+    //    contratado + N firmantes (generaliza el clásico preparador/obliga, que queda de fallback).
+    //  - KEY_AUTHORIZERS: quién AUTORIZA el Infosheet (paso 2). Por defecto el Line Producer.
+    const KEY_SIGNERS     = 'contract_signer_position_ids';
+    const KEY_AUTHORIZERS = 'infosheet_authorizer_position_ids';
+
+    // Entrada DINÁMICA: "el HOD (jefe) del departamento del contrato" — así el jefe del depto
+    // relevante firma sin fijar un puesto por-departamento (que afectaría a todos por igual).
+    const DEPT_HOD = 'dept_hod';
+
+    // Solo estos deptos aportan firmantes/autorizadores (cabezas de producción) — no un asistente
+    // de arte ni un coordinador de vestuario. El HOD de cada depto entra por la entrada DEPT_HOD.
+    const SIGNER_DEPARTMENTS = ['Producción', 'Oficina de Producción', 'Producción Ejecutiva', 'Contabilidad'];
+
     public static function preparerPositionId(): ?int
     {
         $v = (int) Branding::get(self::KEY_PREPARER, 0);
@@ -51,6 +66,98 @@ class SignaturePositions
             fn ($r) => in_array($r, $default, true)));
         // Debe cubrir los tres papeles; si no, cae al default para no dejar a nadie fuera de la ruta.
         return count(array_unique($order)) === 3 ? $order : $default;
+    }
+
+    /** Entradas de FIRMANTES (paso 4): ids de puesto y/o el token DEPT_HOD, EN ORDEN. */
+    public static function signerEntries(): array
+    {
+        return self::decodeEntries(Branding::get(self::KEY_SIGNERS, ''));
+    }
+
+    /** ¿Hay lista de firmantes configurada? Decide entre nuevo (N firmantes) y clásico (prep/obliga). */
+    public static function hasSignerList(): bool
+    {
+        return count(self::signerEntries()) > 0;
+    }
+
+    /** Entradas de AUTORIZADORES (paso 2): ids de puesto y/o DEPT_HOD. Vacía = default Line Producer. */
+    public static function authorizerEntries(): array
+    {
+        return self::decodeEntries(Branding::get(self::KEY_AUTHORIZERS, ''));
+    }
+
+    /** Decodifica entradas (JSON o CSV): enteros positivos (position_id) + el token 'dept_hod'. */
+    private static function decodeEntries($raw): array
+    {
+        if (is_array($raw)) {
+            $list = $raw;
+        } else {
+            $s = trim((string) $raw);
+            if ($s === '') {
+                return [];
+            }
+            $decoded = json_decode($s, true);
+            $list = is_array($decoded) ? $decoded : array_map('trim', explode(',', $s));
+        }
+        $out = [];
+        foreach ($list as $v) {
+            if ($v === self::DEPT_HOD) {
+                $out[] = self::DEPT_HOD;
+            } elseif ((int) $v > 0) {
+                $out[] = (int) $v;
+            }
+        }
+        return $out;
+    }
+
+    /** Etiqueta legible de una entrada (puesto, o "HOD del departamento" para la dinámica). */
+    public static function entryLabel($entry): string
+    {
+        return $entry === self::DEPT_HOD ? __('HOD del departamento') : self::positionLabel((int) $entry);
+    }
+
+    /** Nombre legible de un puesto (para errores y para el `cargo` congelado del destinatario). */
+    public static function positionLabel(?int $positionId): string
+    {
+        $name = $positionId ? optional(\App\Models\Position::find($positionId))->name : null;
+        return $name ?: __('Firmante');
+    }
+
+    /** El JEFE (is_lead) del departamento en la producción — resuelve la entrada dinámica DEPT_HOD. */
+    public static function departmentHodUser(int $productionId, ?int $departmentId, string $label): User
+    {
+        if (! $departmentId) {
+            throw ContractEnvelopeException::vacantPosition($label . ' — ' . __('el contrato no tiene departamento'));
+        }
+        $userIds = DB::table('production_user')
+            ->where('production_id', $productionId)
+            ->where('department_id', $departmentId)
+            ->where('is_lead', 1)
+            ->pluck('user_id');
+
+        if ($userIds->count() === 0) {
+            throw ContractEnvelopeException::vacantPosition($label);
+        }
+        if ($userIds->count() > 1) {
+            throw ContractEnvelopeException::duplicatePosition($label);
+        }
+        return User::findOrFail($userIds->first());
+    }
+
+    /**
+     * Puestos ELEGIBLES como firmantes/autorizadores: SOLO de los deptos de gestión de producción
+     * (cabezas de producción). El HOD de cualquier depto entra por la entrada dinámica DEPT_HOD.
+     */
+    public static function signerEligiblePositions($productionId = null)
+    {
+        $deptIds = \App\Models\Department::whereIn('name', self::SIGNER_DEPARTMENTS)->pluck('id');
+
+        return \App\Models\Position::query()
+            ->where(fn ($q) => $q->whereNull('production_id')->orWhere('production_id', $productionId))
+            ->where('active', 1)
+            ->whereIn('department_id', $deptIds)
+            ->orderBy('sort_order')->orderBy('name')
+            ->get(['id', 'name', 'department_id']);
     }
 
     /**

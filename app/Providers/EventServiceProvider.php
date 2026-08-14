@@ -38,6 +38,12 @@ class EventServiceProvider extends ServiceProvider
         \App\Events\MedicalConsultRecorded::class => [
             \App\Listeners\InjectLinkedConsultIntoDsr::class,
         ],
+
+        // (2026-08-13) EL INFOSHEET · Fase 3.4 — ruta de firma completada: entrega al contratado su
+        // paquete firmado (PDF adjuntos + certificado). Listener defensivo (nunca rompe la firma).
+        \App\Events\ContractEnvelopeCompleted::class => [
+            \App\Listeners\EmailSignedContractToParty::class,
+        ],
     ];
 
     /**

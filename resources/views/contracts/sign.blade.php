@@ -1,5 +1,5 @@
 {{-- PÁGINA DE FIRMA (Paso C) — independiente (el contratado firma sin sesión). Ve el paquete
-     completo, consiente (una vez) y firma. La ruta avanza sola. --}}
+     completo, consiente (una vez), DIBUJA SU FIRMA AUTÓGRAFA (DocuSign) y firma. La ruta avanza sola. --}}
 @php $docs = $envelope->documents ?? []; @endphp
 <!doctype html>
 <html lang="es">
@@ -20,9 +20,17 @@
     .doc:last-child { border-bottom: 0; }
     .doc a { color: #7dd3fc; text-decoration: none; font-weight: 600; }
     label.consent { display: flex; gap: .6rem; align-items: flex-start; font-size: .88rem; color: #cbd5e1; margin: 1rem 0; }
-    button { width: 100%; padding: .8rem; border: 0; border-radius: 10px; background: #16a34a; color: #fff; font-weight: 700; font-size: 1.05rem; cursor: pointer; }
+    /* El submit tiene su propia clase para NO aplastar los botones del pad de firma (type=button). */
+    .cc-submit { width: 100%; padding: .8rem; border: 0; border-radius: 10px; background: #16a34a; color: #fff; font-weight: 700; font-size: 1.05rem; cursor: pointer; margin-top: 1rem; }
     .ok { color: #86efac; } .warn { color: #fcd34d; }
+    .err { background: #3b1220; border: 1px solid #7f1d3a; color: #fecdd3; padding: .6rem .8rem; border-radius: 10px; font-size: .85rem; margin-bottom: 1rem; }
+    /* Base mínima para el pad de firma (esta página no carga Bootstrap). */
+    .cc-label { display: block; font-size: .82rem; color: #cbd5e1; margin-bottom: .4rem; }
+    .cc-sigpad .btn { width: auto; padding: .38rem .7rem; border: 1px solid #2a3a5c; border-radius: 8px; background: #16233f; color: #e5e7eb; font-size: .8rem; font-weight: 600; cursor: pointer; }
+    .cc-sigpad .form-control { padding: .38rem .6rem; border: 1px solid #2a3a5c; border-radius: 8px; background: #0b1220; color: #e5e7eb; font-size: .85rem; }
+    .cc-sigpad__savelbl { color: #9aa4b2; }
 </style>
+@stack('styles')
 </head>
 <body>
 <div class="wrap">
@@ -53,6 +61,8 @@
         </div>
 
         <div class="card">
+            @if(session('error'))<div class="err">{{ session('error') }}</div>@endif
+            @if($errors->any())<div class="err">{{ $errors->first() }}</div>@endif
             <form method="POST" action="{{ $signUrl }}">
                 @csrf
                 @if($needsConsent)
@@ -61,10 +71,17 @@
                         <span>{{ __('Acepto firmar electrónicamente. Reconozco que mi firma electrónica tiene la misma validez que la autógrafa (Cód. de Comercio 89 y 89 Bis; CCF 1811).') }}</span>
                     </label>
                 @endif
-                <button type="submit">{{ __('Firmar el paquete') }}</button>
+
+                @include('componentes._signature-pad', [
+                    'label'   => __('Dibuja tu firma (o escríbela con tu nombre):'),
+                    'adopted' => optional($recipient->user)->adopted_signature,
+                ])
+
+                <button type="submit" class="cc-submit">{{ __('Firmar el paquete') }}</button>
             </form>
         </div>
     @endif
 </div>
+@stack('scripts')
 </body>
 </html>

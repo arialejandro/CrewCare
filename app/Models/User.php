@@ -49,6 +49,11 @@ class User extends Authenticatable
         'device_token',
         'daytest',
         'labn',
+        // EL INFOSHEET · no-crew como usuario ÚNICO (bandera de la PERSONA; NO otorga ni gatea
+        // acceso — solo distingue el tipo). El token de acceso (external_access_*) se asigna SÓLO
+        // en servidor: a propósito NO es mass-assignable (token de enlace = no debe elegirse).
+        'is_external',
+        'crewlist_visible',
         // COVID desacoplado (2026-07-07): lastpcr/enfermo/ultimatemperatura/inline/resultpcr/tested
         // salieron del $fillable y del schema (owner-apply 2026-07-07-users-covid-cleanup.sql). Nunca
         // se leían; solo se inicializaban en el alta. DIFERIDOS (siguen vivos): daytest (rol legacy →
@@ -72,6 +77,10 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'borndate' => 'date', // Añade esta línea para convertir a fecha
+        // EL INFOSHEET · no-crew
+        'is_external'             => 'boolean',
+        'crewlist_visible'        => 'boolean',
+        'external_access_used_at' => 'datetime',
     ];
 
     /**

@@ -5,6 +5,7 @@ namespace Tests\Feature\Contract;
 use App\Events\ContractEnvelopeCompleted;
 use App\Exceptions\ContractEnvelopeException;
 use App\Http\Controllers\ContractSignController;
+use App\Listeners\EmailSignedContractToParty;
 use App\Models\ContractClause;
 use App\Models\ContractConsent;
 use App\Models\ContractEnvelope;
@@ -22,6 +23,7 @@ use App\Support\CurrentProduction;
 use App\Support\SignaturePositions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Tests\QaTestCase;
@@ -269,13 +271,96 @@ class ContractEnvelopeTest extends QaTestCase
         // Ahora ve la página de firma.
         $this->get(ContractSignController::signUrl($rec))->assertOk()->assertSee('Firma tu contrato');
 
-        // Firmar el paquete (con consentimiento).
+        // Firmar el paquete (con consentimiento + FIRMA AUTÓGRAFA obligatoria, DocuSign).
         $signUrl = URL::temporarySignedRoute('contracts.sign.do', now()->addHours(3), ['recipient' => $rec->id]);
-        $this->post($signUrl, ['consent' => 1])->assertRedirect();
+        $autograph = 'data:image/png;base64,' . str_repeat('A', 160);
+        $this->post($signUrl, ['consent' => 1, 'signature_image' => $autograph])->assertRedirect();
 
-        $this->assertTrue($rec->fresh()->isSigned());
-        $this->assertNotNull($rec->fresh()->ip_address);
+        $signed = $rec->fresh();
+        $this->assertTrue($signed->isSigned());
+        $this->assertNotNull($signed->ip_address);
+        // La autógrafa quedó en la fila y el SELLO la cubre (verificable e íntegra).
+        $this->assertSame($autograph, $signed->signature_image);
+        $this->assertTrue($signed->verifyLatestSignature(), 'el sello cubre la autógrafa e íntegra');
         // El contratado crew es usuario → el consentimiento se llavea por USER.
         $this->assertTrue(ContractConsent::has('user', (int) $rec->user_id), 'se registró el consentimiento');
+    }
+
+    // ── Fase 3.4 · correo al completarse la ruta ──────────────────────────────
+    public function test_completion_listener_is_wired(): void
+    {
+        Event::fake();
+        Event::assertListening(ContractEnvelopeCompleted::class, EmailSignedContractToParty::class);
+    }
+
+    public function test_completing_route_emails_the_contracted_party_with_attachments(): void
+    {
+        Storage::fake('local');
+        $this->seatInternals();
+
+        $payee = $this->crewPayee();
+        $payee->user->forceFill(['email' => 'contratado@qa.test'])->save();
+        $env = ContractEnvelopeBuilder::build($this->emitContract(PayeeContract::CONCEPT_CREW, $payee), null);
+        ContractSigning::send($env);
+
+        $contracted = $env->recipients()->where('role', ContractEnvelopeRecipient::ROLE_CONTRACTED)->first();
+        $this->assertSame('contratado@qa.test', $contracted->email);
+
+        $before = Mail::getSymfonyTransport()->messages()->count();
+
+        // Firmar TODA la ruta (sin falsear el evento → el listener corre de verdad).
+        $autograph = 'data:image/png;base64,' . str_repeat('A', 160);
+        foreach ($env->orderedRecipients()->get() as $r) {
+            ContractSigning::sign($r->fresh(), 'authenticated', '9.9.9.9', $autograph);
+        }
+        $this->assertTrue($env->fresh()->isCompleted());
+
+        $messages = Mail::getSymfonyTransport()->messages();
+        $this->assertSame($before + 1, $messages->count(), 'se envió UN correo al completar');
+
+        $sent = $messages->last()->getOriginalMessage();
+        $this->assertSame('contratado@qa.test', $sent->getTo()[0]->getAddress());
+        // El paquete (carátula + clausulado) viaja ADJUNTO.
+        $this->assertGreaterThanOrEqual(2, count($sent->getAttachments()), 'los PDF del paquete van adjuntos');
+    }
+
+    // ── Fase 3.5 · lista configurable de N firmantes con la entrada dinámica dept_hod ─────────
+    public function test_signer_list_with_dept_hod_builds_route(): void
+    {
+        Storage::fake('local');
+
+        // Depto del contrato + su JEFE (is_lead) → resuelve la entrada DEPT_HOD.
+        $dept = \App\Models\Department::first();
+        $hod  = $this->makeUser('crew'); $hod->forceFill(['name' => 'Jefa', 'lname' => 'Depto'])->save();
+        DB::table('production_user')->updateOrInsert(
+            ['production_id' => $this->prodId, 'user_id' => $hod->id],
+            ['department_id' => $dept->id, 'is_lead' => 1, 'role' => 'crew', 'created_at' => now(), 'updated_at' => now()]
+        );
+
+        // Un firmante por PUESTO (cualquier puesto ocupado por exactamente una persona).
+        $signerPos  = Position::orderBy('id')->first()->id;
+        $signerUser = $this->makeUser('coordinator'); $signerUser->forceFill(['name' => 'Firma', 'lname' => 'Puesto'])->save();
+        $this->attachPosition($signerUser, $signerPos);
+
+        // Módulo de firma: lista = [puesto, HOD del depto], EN ORDEN.
+        Setting::updateOrCreate(['key' => SignaturePositions::KEY_SIGNERS],
+            ['value' => json_encode([$signerPos, SignaturePositions::DEPT_HOD])]);
+        Branding::forget();
+        $this->assertTrue(SignaturePositions::hasSignerList());
+
+        $contract = $this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee());
+        $contract->update(['department_id' => $dept->id]);
+
+        $env  = ContractEnvelopeBuilder::build($contract->fresh(), null);
+        $recs = $env->orderedRecipients()->get();
+
+        // Contratado + N firmantes, en orden. dept_hod congela a la JEFA del depto del contrato.
+        $this->assertSame(['contracted', 'signer', 'signer'], $recs->pluck('role')->all());
+        $this->assertSame((int) $signerUser->id, (int) $recs[1]->user_id, 'el firmante por puesto');
+        $this->assertSame((int) $hod->id, (int) $recs[2]->user_id, 'dept_hod → jefe del depto del contrato');
+        $this->assertSame(__('HOD del departamento'), $recs[2]->cargo);
+
+        // La ruta sigue sellada e íntegra.
+        $this->assertTrue($env->verifyLatestSignature());
     }
 }

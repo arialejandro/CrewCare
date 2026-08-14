@@ -865,6 +865,15 @@ Route::middleware(['signed','throttle:20,1'])->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('/payees/{payee}/intake',  [\App\Http\Controllers\IntakeController::class, 'contractorForm'])->name('payee.intake.form')->whereNumber('payee');
     Route::post('/payees/{payee}/intake', [\App\Http\Controllers\IntakeController::class, 'contractorStore'])->name('payee.intake.store')->whereNumber('payee');
+
+    // EL INFOSHEET · FASE 2 · captura del TRATO (crew_work). La guarda de auto-edición (can:capture,
+    // mismo criterio que el intake del contratante) va DENTRO del controlador. {step} = role|fees|dates.
+    Route::get('/payees/{payee}/infosheet/{step?}', [\App\Http\Controllers\InfosheetController::class, 'edit'])->name('infosheet.edit')->whereNumber('payee');
+    Route::post('/payees/{payee}/infosheet',        [\App\Http\Controllers\InfosheetController::class, 'save'])->name('infosheet.save')->whereNumber('payee');
+    // EL INFOSHEET · FASE 3 · autorización (paso 2): un autorizador aprueba con su firma autógrafa.
+    Route::post('/payees/{payee}/infosheet/autorizar', [\App\Http\Controllers\InfosheetController::class, 'approve'])->name('infosheet.authorize')->whereNumber('payee');
+    // EL INFOSHEET · FASE 4 · contratado no-crew: crea/reusa su usuario externo lite + enlace de un solo uso.
+    Route::post('/payees/{payee}/acceso-externo', [\App\Http\Controllers\ExternalAccessController::class, 'provision'])->name('external.provision')->whereNumber('payee');
 });
 
 // ---- Quien cobra · PASO 4: VISIBILIDAD (SOLO LECTURA) ----
@@ -932,6 +941,13 @@ Route::middleware(['signed','throttle:30,1'])->group(function () {
     Route::post('/contratos/firma/{recipient}/verificar',   [\App\Http\Controllers\ContractSignController::class, 'verify'])->name('contracts.sign.verify')->whereNumber('recipient');
     Route::post('/contratos/firma/{recipient}/firmar',      [\App\Http\Controllers\ContractSignController::class, 'sign'])->name('contracts.sign.do')->whereNumber('recipient');
     Route::get('/contratos/firma/{recipient}/doc/{index}',  [\App\Http\Controllers\ContractSignController::class, 'document'])->name('contracts.sign.document')->whereNumber('recipient')->whereNumber('index');
+});
+
+// ACCESO EXTERNO (no-crew): enlace de UN SOLO USO (hash) que lleva al contratado externo a su firma.
+// El token ES la credencial → público (sin sesión), acotado por throttle.
+Route::middleware(['throttle:30,1'])->group(function () {
+    Route::get('/acceso/{token}', [\App\Http\Controllers\ExternalAccessController::class, 'enter'])
+        ->name('external.access')->where('token', '[A-Za-z0-9]{16,64}');
 });
 
 // ---- Pilar 1: Progressive Disclosure — Fase 2 (edit/update de compliance en back-office) ----

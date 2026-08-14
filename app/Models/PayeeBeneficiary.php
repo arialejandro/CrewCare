@@ -15,7 +15,9 @@ class PayeeBeneficiary extends Model
 {
     protected $table = 'payee_beneficiaries';
 
-    protected $fillable = ['payee_id', 'full_name', 'relationship', 'percentage', 'sort_order'];
+    // `phone` (Infosheet) es el teléfono del BENEFICIARIO — dato aparte del contacto de emergencia
+    // (payees.emergency_contact_*); no se confunden. Es de él que se congela beneficiary_phone al emitir.
+    protected $fillable = ['payee_id', 'full_name', 'relationship', 'phone', 'percentage', 'sort_order'];
 
     protected $casts = [
         'percentage' => 'decimal:2',

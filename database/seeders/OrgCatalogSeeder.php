@@ -42,6 +42,9 @@ class OrgCatalogSeeder extends Seeder
                 ['Productor Ejecutivo', true], ['Coord. Ejecutivo', false],
                 ['Jefa de Equipo', false], ['Ejecutivo Creativo', false],
                 ['Asistente Ejecutivo', false], ['Coordinador Ejecutivo', false],
+                // Firmante de contratos (Firmas Prod.): quien obliga a la empresa. Es un USUARIO con
+                // perfil (firma autenticado). Renómbralo/duplícalo si tu productora lo llama distinto.
+                ['Representante Legal', false],
             ]],
             'Escritores' => [null, [
                 ['Creador/Escritor', true], ['Escritor', false],
@@ -116,10 +119,11 @@ class OrgCatalogSeeder extends Seeder
                 ['Jefe de Utilería', true], ['Utilería en Set', false],
                 ['Asistente de Utilería', false], ['Asistente de Utilería en Set', false],
                 ['Compras de Utilería en Set', false], ['Bodeguero Props', false],
-                ['Apoyo Eventual de Utilería', false], ['Animalero', false],
+                ['Apoyo Eventual de Utilería', false],
                 // Backfill 2026-06-24: legacy "Coordinacion Utileria" -> the dept had no
                 // coordinator position in the catalog.
                 ['Coordinador de Utilería', false],
+                // 'Animalero' se MOVIÓ a su propio depto (ver más abajo · destilación 2026-07-18).
             ]],
             'Locaciones' => ['4', [
                 ['Gerente de Locaciones', true], ['Gerente Asst. de Locaciones', false],
@@ -179,7 +183,7 @@ class OrgCatalogSeeder extends Seeder
             ]],
             'Salud y Seguridad' => ['16', [
                 ['Supervisor de Salud y Seguridad', true], ['Asistente de S&S', false],
-                ['Doctor en Set', false], ['Doctor de Construcción', false], ['Ambulancia (EFD)', false],
+                ['Doctor en Set', false], ['Doctor de Construcción', false],
             ]],
             'Sustentabilidad' => [null, [
                 ['Jefa de Sustentabilidad', true], ['Coordinador de Sustentabilidad', false],
@@ -192,6 +196,21 @@ class OrgCatalogSeeder extends Seeder
             ]],
             'A.N.D.A.' => [null, [
                 ['Delegada del A.N.D.A.', false],
+            ]],
+            // (2026-07-18) Destilación EFD: son TRES cosas DISTINTAS, no "Ambulancia (EFD)" bajo S&S.
+            //   · Equipo = casa de renta de equipo/luces (lo que el call sheet llama "EFD").
+            //   · Ambulancia = su PROPIO depto (servicio médico), NO Salud y Seguridad ni EFD.
+            //   · Animalero = su propio depto (antes colgaba de Utilería).
+            // El owner-apply 2026-07-18-departments-animalero-equipo.sql hace lo mismo en BD ya sembrada.
+            'Animalero' => [null, [
+                ['Animalero', false],
+            ]],
+            'Equipo' => [null, [
+                ['Móvil Alpha', false], ['Asistente/Luces', false], ['Planta Set', false],
+                ['Dolly', false], ['Cabeza Remota', false],
+            ]],
+            'Ambulancia' => [null, [
+                ['Ambulancia', false],
             ]],
             'Otros' => [null, [
                 ['Doble', false], ['Coach de Dialecto', false],

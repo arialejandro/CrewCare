@@ -72,9 +72,14 @@ class ContractSigning
     }
 
     /**
-     * FIRMAR: registra al destinatario y avanza la ruta (o completa el sobre y avisa).
+     * FIRMAR: registra al destinatario, aplica su FIRMA AUTÓGRAFA, lo SELLA y avanza la ruta (o
+     * completa el sobre y avisa).
+     *
+     * $imageData — data URL PNG de la firma dibujada (DocuSign). Opcional para no romper llamadas
+     * viejas; la autógrafa se exige arriba, en el controlador (validación). Al ser columna del
+     * destinatario, entra al hash del sello → la firma queda verificable e íntegra.
      */
-    public static function sign(ContractEnvelopeRecipient $r, string $method, ?string $ip): ContractEnvelope
+    public static function sign(ContractEnvelopeRecipient $r, string $method, ?string $ip, ?string $imageData = null): ContractEnvelope
     {
         $envelope = $r->envelope;
 
@@ -89,12 +94,18 @@ class ContractSigning
         }
 
         $r->update([
-            'status'      => ContractEnvelopeRecipient::STATUS_SIGNED,
-            'signed_at'   => now(),
-            'viewed_at'   => $r->viewed_at ?: now(),
-            'ip_address'  => $ip,
-            'sign_method' => $method,
+            'status'          => ContractEnvelopeRecipient::STATUS_SIGNED,
+            'signed_at'       => now(),
+            'viewed_at'       => $r->viewed_at ?: now(),
+            'ip_address'      => $ip,
+            'sign_method'     => $method,
+            'signature_image' => $imageData ?: $r->signature_image,
         ]);
+
+        // Sella el acto de aceptación: el hash cubre la identidad congelada + signed_at + ip +
+        // método + la autógrafa. Atribuido al usuario congelado del destinatario si lo hay (los
+        // internos firman logueados; el contratado no-crew no tiene user → sello sin persona).
+        $r->signDocument($r->user);
 
         // Avanza al siguiente en la ruta; si no hay, COMPLETA y avisa.
         $next = $envelope->orderedRecipients()->where('sort_order', '>', $r->sort_order)->first();

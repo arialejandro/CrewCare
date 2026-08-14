@@ -85,6 +85,19 @@
                                     <td class="small">{{ $fmt($r->signed_at) }}</td>
                                     <td class="small">{{ $r->ip_address ?: '—' }}<div class="text-muted">{{ $r->sign_method ?: '' }}</div></td>
                                 </tr>
+                                @if($r->signature_image)
+                                    @php $sig = $r->signatures()->latest('id')->first(); @endphp
+                                    <tr><td colspan="8" class="bg-body-tertiary">
+                                        @include('componentes._signature-block', [
+                                            'image'    => $r->signature_image,
+                                            'signer'   => $r->name,
+                                            'role'     => $r->cargo ?: $r->roleLabel(),
+                                            'date'     => $r->signed_at,
+                                            'hash'     => optional($sig)->document_hash,
+                                            'verified' => $r->verifyLatestSignature(),
+                                        ])
+                                    </td></tr>
+                                @endif
                                 @if($envelope->isSent() && (int) $envelope->current_recipient_id === (int) $r->id)
                                     <tr><td colspan="8" class="bg-body-tertiary">
                                         <span class="small text-muted">{{ __('Enlace de firma de este destinatario:') }}</span>

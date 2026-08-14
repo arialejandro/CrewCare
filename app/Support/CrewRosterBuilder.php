@@ -63,8 +63,10 @@ class CrewRosterBuilder
             }
         }
 
-        // --- Crew activo, ACOTADO por el scope del visor (misma regla que usuarioscrud) ---
-        $query = User::applyDepartmentScope(DB::table('users')->where('activo', 1), $viewer);
+        // --- Crew activo y VISIBLE en el listado, ACOTADO por el scope del visor ---
+        // `crewlist_visible` gatea el LISTADO (los no-crew externos nacen fuera; un proveedor que el
+        // owner SÍ quiera listar se marca visible). Las filas existentes son visible=1 por default.
+        $query = User::applyDepartmentScope(DB::table('users')->where('activo', 1)->where('crewlist_visible', 1), $viewer);
         $users = $query->get(['id', 'name', 'lname', 'lname2', 'ncreditos', 'email', 'phone', 'zone', 'puestodepartamento']);
 
         $groups = []; // deptKey => ['label', 'sort', 'people'=>[]]

@@ -104,14 +104,27 @@ class ContractSignController extends Controller
             abort(403);
         }
 
+        // FIRMA AUTÓGRAFA obligatoria (DocuSign): la imagen dibujada es la representación física de
+        // la autorización, más allá del sello. Sin ella no se firma.
+        $request->validate(['signature_image' => 'required|string|min:100']);
+        $image = (string) $request->input('signature_image');
+
         // Consentimiento electrónico (aparte, una vez por persona).
         if ($request->boolean('consent')) {
             ContractSigning::recordConsent($recipient, $request->ip());
         }
 
+        // Adopción de firma para reúso (solo el firmante interno logueado sobre su propio
+        // destinatario; el contratado no-crew no tiene usuario donde guardarla).
+        $u = $request->user();
+        if ($request->boolean('save_signature') && $u && (int) $u->id === (int) $recipient->user_id) {
+            $u->adopted_signature = $image;
+            $u->save();
+        }
+
         $method = $this->needsFactor($request, $recipient) ? 'signed_link_2fa' : 'authenticated';
         try {
-            ContractSigning::sign($recipient, $method, $request->ip());
+            ContractSigning::sign($recipient, $method, $request->ip(), $image);
         } catch (ContractEnvelopeException $e) {
             return back()->with('error', $e->getMessage());
         }

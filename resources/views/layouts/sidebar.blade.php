@@ -335,7 +335,7 @@
                         </a>
                         <a href="{{ route('contracts.route.config') }}" class="cc-item">
                             @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
-                            <span>{{ __('Ruta de firma') }}</span>
+                            <span>{{ __('Firmas Prod.') }}</span>
                         </a>
                     </div></div>
                 </div>
@@ -715,7 +715,7 @@
                             </a>
                             <a href="{{ route('contracts.route.config') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ __('Ruta de firma') }}</span>
+                                <span>{{ __('Firmas Prod.') }}</span>
                             </a>
                         </div></div>
                     </div>

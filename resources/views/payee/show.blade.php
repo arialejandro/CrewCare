@@ -45,6 +45,120 @@
             @endif
         </div>
 
+        {{-- Captura del TRATO (Infosheet): solo quien tiene alcance de captura (auto-edición). --}}
+        @can('capture', $payee)
+            <div class="mb-4">
+                <a href="{{ route('infosheet.edit', $payee->id) }}" class="btn btn-primary d-inline-flex align-items-center gap-1">
+                    @include('componentes._icon', ['name' => 'file-text', 'label' => null]) {{ __('Hoja de información / contrato') }}
+                </a>
+            </div>
+        @endcan
+
+        {{-- AUTORIZACIÓN del Infosheet (paso 2 → dispara el contrato). El trato del crew_work vigente
+             se autoriza con firma AUTÓGRAFA; al completar todos los casilleros se emite y envía a firma. --}}
+        @php
+            $dealContract = $payee->contracts->first(fn ($c) =>
+                $c->concept === \App\Models\PayeeContract::CONCEPT_CREW
+                && (int) $c->production_id === (int) \App\Support\CurrentProduction::id());
+            $dealEnvelope = $dealContract ? $dealContract->envelopes()->latest('id')->first() : null;
+            $authUser     = auth()->user();
+            $authStatus   = $dealContract ? \App\Support\InfosheetSigning::statusFor($dealContract) : [];
+            $canAuthDeal  = $dealContract && $authUser && \App\Support\InfosheetSigning::canAuthorize($authUser, $dealContract);
+        @endphp
+        @if($dealContract && (!empty($authStatus) || $dealEnvelope))
+            <div class="card mb-4">
+                <div class="card-header fw-semibold d-flex align-items-center gap-2">
+                    @include('componentes._icon', ['name' => 'file-text', 'label' => null]) {{ __('Autorización del Infosheet') }}
+                </div>
+                <div class="card-body">
+                    @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
+                    @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
+
+                    @if($dealEnvelope)
+                        <div class="alert alert-success d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                            <span class="d-inline-flex align-items-center gap-2">
+                                @include('componentes._icon', ['name' => 'check-circle', 'label' => null])
+                                {{ __('El contrato se generó y está en firma.') }}
+                            </span>
+                            <a href="{{ route('contracts.envelope.show', $dealEnvelope->id) }}" class="btn btn-sm btn-crew-soft">{{ __('Ver sobre de firma') }}</a>
+                        </div>
+                    @endif
+
+                    <div class="d-flex flex-column gap-3 mb-1">
+                        @foreach($authStatus as $st)
+                            @if($st['done'] && $st['auth'])
+                                @php $a = $st['auth']; $asig = $a->signatures()->latest('id')->first(); @endphp
+                                <div>
+                                    <div class="small text-muted mb-1">{{ $st['label'] }}</div>
+                                    @include('componentes._signature-block', [
+                                        'image'    => $a->signature_image,
+                                        'signer'   => $a->name,
+                                        'role'     => $st['label'],
+                                        'date'     => $a->accepted_at,
+                                        'hash'     => optional($asig)->document_hash,
+                                        'verified' => $a->verifyLatestSignature(),
+                                    ])
+                                </div>
+                            @else
+                                <div class="d-inline-flex align-items-center gap-2 text-muted">
+                                    @include('componentes._icon', ['name' => 'clock', 'class' => 'cc-ico-14', 'label' => null])
+                                    <span>{{ $st['label'] }} — {{ __('pendiente de autorizar') }}</span>
+                                </div>
+                            @endif
+                        @endforeach
+                    </div>
+
+                    @if($canAuthDeal && ! $dealEnvelope)
+                        <hr>
+                        <form method="POST" action="{{ route('infosheet.authorize', $payee->id) }}">
+                            @csrf
+                            <div class="small text-muted mb-2">{{ __('Autoriza este trato con tu firma. Al completarse las autorizaciones, el contrato se genera y se envía a firma automáticamente.') }}</div>
+                            @include('componentes._signature-pad', ['label' => __('Tu firma de autorización:'), 'adopted' => $authUser->adopted_signature])
+                            <button type="submit" class="btn btn-crew mt-2 d-inline-flex align-items-center gap-1">
+                                @include('componentes._icon', ['name' => 'check-circle', 'label' => null]) {{ __('Autorizar con mi firma') }}
+                            </button>
+                        </form>
+                    @endif
+                </div>
+            </div>
+        @endif
+
+        {{-- ACCESO DE FIRMA no-crew (Fase 4): usuario externo lite (sin contraseña) + enlace de un
+             solo uso. Solo para payees que NO son una persona del crew. --}}
+        @can('capture', $payee)
+            @php $extUser = $payee->user; $extCandidate = ! ($extUser && ! $extUser->is_external); @endphp
+            @if($extCandidate)
+                <div class="card mb-4">
+                    <div class="card-header fw-semibold d-flex align-items-center gap-2">
+                        @include('componentes._icon', ['name' => 'file-text', 'label' => null]) {{ __('Acceso de firma (no-crew)') }}
+                    </div>
+                    <div class="card-body">
+                        @if(session('external_link'))
+                            <div class="alert alert-success">
+                                <div class="mb-1 small">{{ __('Enlace de un solo uso — compártelo con quien firma (WhatsApp/correo):') }}</div>
+                                <input type="text" class="form-control" readonly value="{{ session('external_link') }}" onclick="this.select()">
+                            </div>
+                        @endif
+                        <p class="text-muted small mb-2">{{ __('Crea un acceso sin contraseña para el contratado externo. Entra por un enlace de un solo uso y firma con su RFC.') }}</p>
+                        <form method="POST" action="{{ route('external.provision', $payee->id) }}" class="row g-2 align-items-end">
+                            @csrf
+                            <div class="col-sm-6">
+                                <label class="form-label small mb-1">{{ __('Correo del firmante') }}</label>
+                                <input type="email" name="email" class="form-control" value="{{ old('email', optional($extUser)->email) }}" required>
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label small mb-1">{{ __('Nombre (opcional)') }}</label>
+                                <input type="text" name="name" class="form-control" value="{{ old('name', optional($extUser)->is_external ? $extUser->name : '') }}">
+                            </div>
+                            <div class="col-sm-2 d-grid">
+                                <button class="btn btn-crew">{{ __('Generar') }}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            @endif
+        @endcan
+
         {{-- ── Datos fiscales de la identidad ── --}}
         <div class="card mb-4">
             <div class="card-header fw-semibold">{{ __('Datos fiscales') }}</div>

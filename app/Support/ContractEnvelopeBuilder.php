@@ -30,47 +30,77 @@ class ContractEnvelopeBuilder
         $payee = $contract->payee;
         abort_unless($payee, 404);
 
-        $roles    = ContractEnvelopeRecipient::roleLabels();
-        $company  = trim((string) (Branding::get('company_name', '')));
-
-        // ── Resolver los internos POR PUESTO (congela vacante/duplicado con error claro) ──
-        $prepUser = SignaturePositions::soleUserForPosition($prod, SignaturePositions::preparerPositionId(), $roles[ContractEnvelopeRecipient::ROLE_PREPARER]);
-        $bindUser = SignaturePositions::soleUserForPosition($prod, SignaturePositions::binderPositionId(),   $roles[ContractEnvelopeRecipient::ROLE_BINDER]);
+        $roles   = ContractEnvelopeRecipient::roleLabels();
+        $company = trim((string) (Branding::get('company_name', '')));
 
         $contractedUser = $payee->user;
 
-        // Datos CONGELADOS por papel (nombre LEGAL, no el de créditos; cargo = puesto; empresa).
-        $frozen = [
-            ContractEnvelopeRecipient::ROLE_CONTRACTED => [
-                'name'     => $payee->name,
-                'email'    => $contractedEmail ?: optional($contractedUser)->email,
-                'cargo'    => 'Contratista',
-                'empresa'  => $payee->isMoral() ? $payee->name : null,
-                'user_id'  => optional($contractedUser)->id,
-                'payee_id' => $payee->id,
-            ],
-            ContractEnvelopeRecipient::ROLE_PREPARER => [
-                'name'     => trim($prepUser->name . ' ' . $prepUser->lname),
-                'email'    => $prepUser->email,
-                'cargo'    => optional(Position::find(SignaturePositions::preparerPositionId()))->name ?: $roles[ContractEnvelopeRecipient::ROLE_PREPARER],
-                'empresa'  => $company,
-                'user_id'  => $prepUser->id,
-                'payee_id' => null,
-            ],
-            ContractEnvelopeRecipient::ROLE_BINDER => [
-                'name'     => trim($bindUser->name . ' ' . $bindUser->lname),
-                'email'    => $bindUser->email,
-                'cargo'    => optional(Position::find(SignaturePositions::binderPositionId()))->name ?: $roles[ContractEnvelopeRecipient::ROLE_BINDER],
-                'empresa'  => $company,
-                'user_id'  => $bindUser->id,
-                'payee_id' => null,
-            ],
+        // El CONTRATADO se resuelve solo (la persona del contrato). Nombre LEGAL, no el de créditos.
+        $contractedSpec = [
+            'role'     => ContractEnvelopeRecipient::ROLE_CONTRACTED,
+            'name'     => $payee->name,
+            'email'    => $contractedEmail ?: optional($contractedUser)->email,
+            'cargo'    => 'Contratista',
+            'empresa'  => $payee->isMoral() ? $payee->name : null,
+            'user_id'  => optional($contractedUser)->id,
+            'payee_id' => $payee->id,
         ];
+
+        // ── LA RUTA (módulo de firma, config global). Dos caminos: ──
+        if (SignaturePositions::hasSignerList()) {
+            // NUEVO · lista configurable de N firmantes: contratado + cada PUESTO firmante en orden.
+            // El puesto DEFINE quién firma; el sobre CONGELA a la persona. Vacante/duplicado → error.
+            $route = [$contractedSpec];
+            foreach (SignaturePositions::signerEntries() as $entry) {
+                $label  = SignaturePositions::entryLabel($entry);
+                $signer = $entry === SignaturePositions::DEPT_HOD
+                    ? SignaturePositions::departmentHodUser($prod, $contract->department_id, $label)
+                    : SignaturePositions::soleUserForPosition($prod, (int) $entry, $label);
+                $route[] = [
+                    'role'     => ContractEnvelopeRecipient::ROLE_SIGNER,
+                    'name'     => trim($signer->name . ' ' . $signer->lname),
+                    'email'    => $signer->email,
+                    'cargo'    => $label,
+                    'empresa'  => $company,
+                    'user_id'  => $signer->id,
+                    'payee_id' => null,
+                ];
+            }
+        } else {
+            // CLÁSICO (compat) · preparador / contratado / obliga, en el orden configurable.
+            $prepUser = SignaturePositions::soleUserForPosition($prod, SignaturePositions::preparerPositionId(), $roles[ContractEnvelopeRecipient::ROLE_PREPARER]);
+            $bindUser = SignaturePositions::soleUserForPosition($prod, SignaturePositions::binderPositionId(),   $roles[ContractEnvelopeRecipient::ROLE_BINDER]);
+            $frozen = [
+                ContractEnvelopeRecipient::ROLE_CONTRACTED => $contractedSpec,
+                ContractEnvelopeRecipient::ROLE_PREPARER => [
+                    'role'     => ContractEnvelopeRecipient::ROLE_PREPARER,
+                    'name'     => trim($prepUser->name . ' ' . $prepUser->lname),
+                    'email'    => $prepUser->email,
+                    'cargo'    => optional(Position::find(SignaturePositions::preparerPositionId()))->name ?: $roles[ContractEnvelopeRecipient::ROLE_PREPARER],
+                    'empresa'  => $company,
+                    'user_id'  => $prepUser->id,
+                    'payee_id' => null,
+                ],
+                ContractEnvelopeRecipient::ROLE_BINDER => [
+                    'role'     => ContractEnvelopeRecipient::ROLE_BINDER,
+                    'name'     => trim($bindUser->name . ' ' . $bindUser->lname),
+                    'email'    => $bindUser->email,
+                    'cargo'    => optional(Position::find(SignaturePositions::binderPositionId()))->name ?: $roles[ContractEnvelopeRecipient::ROLE_BINDER],
+                    'empresa'  => $company,
+                    'user_id'  => $bindUser->id,
+                    'payee_id' => null,
+                ],
+            ];
+            $route = [];
+            foreach (SignaturePositions::routeOrder() as $role) {
+                $route[] = $frozen[$role];
+            }
+        }
 
         // ── Snapshot del paquete (byte-intact): carátula + clausulado + anexos activos ──
         $documents = self::snapshotDocuments($contract, $prod);
 
-        return DB::transaction(function () use ($contract, $prod, $documents, $frozen, $actor) {
+        return DB::transaction(function () use ($contract, $prod, $documents, $route, $actor) {
             $envelope = ContractEnvelope::create([
                 'payee_contract_id' => $contract->id,
                 'production_id'     => $prod,
@@ -79,11 +109,9 @@ class ContractEnvelopeBuilder
                 'created_by_id'     => optional($actor)->id,
             ]);
 
-            // Destinatarios en el ORDEN configurable de la ruta.
-            foreach (SignaturePositions::routeOrder() as $i => $role) {
-                $data = $frozen[$role];
-                $envelope->recipients()->create(array_merge($data, [
-                    'role'       => $role,
+            // Destinatarios en el ORDEN de la ruta.
+            foreach ($route as $i => $spec) {
+                $envelope->recipients()->create(array_merge($spec, [
                     'sort_order' => $i,
                     'status'     => ContractEnvelopeRecipient::STATUS_PENDING,
                 ]));

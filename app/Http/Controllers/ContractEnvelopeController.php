@@ -93,25 +93,50 @@ class ContractEnvelopeController extends Controller
             ->where(fn ($q) => $q->whereNull('production_id')->orWhere('production_id', $prodId))
             ->where('active', 1)->orderBy('sort_order')->orderBy('name')->get();
 
+        // Elegibles para el picker: SOLO cabezas de producción (no 200+ puestos). El nombre de una
+        // entrada YA configurada se resuelve contra TODOS los puestos (por si quedó una legacy).
+        $eligible = SignaturePositions::signerEligiblePositions($prodId);
+        $allById  = $positions->keyBy('id');
+        $mapEntries = fn (array $entries) => collect($entries)->map(function ($e) use ($allById) {
+            if ($e === SignaturePositions::DEPT_HOD) {
+                return ['id' => SignaturePositions::DEPT_HOD, 'name' => __('HOD del departamento')];
+            }
+            return ['id' => (int) $e, 'name' => optional($allById->get((int) $e))->name ?: ('#' . $e)];
+        })->values()->all();
+
         return view('contracts.route-config', [
             'positions'   => $positions,
+            'eligible'    => $eligible,
             'preparerId'  => SignaturePositions::preparerPositionId(),
             'binderId'    => SignaturePositions::binderPositionId(),
             'routeOrder'  => implode(',', SignaturePositions::routeOrder()),
+            'authorizers' => $mapEntries(SignaturePositions::authorizerEntries()),
+            'signers'     => $mapEntries(SignaturePositions::signerEntries()),
         ]);
     }
 
     public function updateConfig(Request $request)
     {
-        $data = $request->validate([
-            'preparer_position_id' => 'nullable|integer|exists:positions,id',
-            'binder_position_id'   => 'nullable|integer|exists:positions,id',
-            'route_order'          => 'nullable|string|max:120',
+        $request->validate([
+            'authorizer_position_ids'   => 'nullable|array',
+            'authorizer_position_ids.*' => 'string|max:20',
+            'signer_position_ids'       => 'nullable|array',
+            'signer_position_ids.*'     => 'string|max:20',
         ]);
 
-        Setting::updateOrCreate(['key' => SignaturePositions::KEY_PREPARER], ['value' => $data['preparer_position_id'] ?? '']);
-        Setting::updateOrCreate(['key' => SignaturePositions::KEY_BINDER],   ['value' => $data['binder_position_id'] ?? '']);
-        Setting::updateOrCreate(['key' => SignaturePositions::KEY_ORDER],    ['value' => $data['route_order'] ?? '']);
+        // Cada entrada es 'dept_hod' o un id de puesto existente; se sanea (descarta lo inválido).
+        $sanitize = fn ($arr) => collect($arr ?? [])->map(function ($v) {
+            if ($v === SignaturePositions::DEPT_HOD) {
+                return SignaturePositions::DEPT_HOD;
+            }
+            $id = (int) $v;
+            return ($id > 0 && Position::whereKey($id)->exists()) ? $id : null;
+        })->filter(fn ($v) => $v !== null)->values()->all();
+
+        // MÓDULO DE FIRMA · las dos listas (autorizadores del paso 2, firmantes del paso 4). La ruta
+        // clásica (preparador/obliga) se conserva SOLO como fallback en código; ya no se edita aquí.
+        Setting::updateOrCreate(['key' => SignaturePositions::KEY_AUTHORIZERS], ['value' => json_encode($sanitize($request->input('authorizer_position_ids')))]);
+        Setting::updateOrCreate(['key' => SignaturePositions::KEY_SIGNERS],     ['value' => json_encode($sanitize($request->input('signer_position_ids')))]);
         Branding::forget();
 
         return back()->with('status', __('Ruta de firma actualizada.'));

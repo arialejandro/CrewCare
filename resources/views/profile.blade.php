@@ -107,6 +107,9 @@
                     @endif
                 </div>
             </div>
+
+            {{-- ===== Hoja de información (Infosheet): mitad personal (intake) + mitad del trato ===== --}}
+            @include('componentes._infosheet-card', ['user' => $users, 'payee' => $payee, 'intakeSteps' => $intakeSteps, 'intakeUrl' => $intakeUrl, 'deal' => $dealContract])
         </div>
     </div>
 </div>
