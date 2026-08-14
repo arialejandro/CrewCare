@@ -256,12 +256,13 @@
                 </div></div>
             </div>
 
-            {{-- ===== CREW ===== --}}
-            @canany(['users.create', 'users.view', 'payees.view', 'periods.view'])
+            {{-- ===== CREW · etiqueta CONTEXTUAL: para un HOD de un solo depto muestra su departamento
+                 ("Arte", "Transpo"…) en vez del genérico; para quien ve todo, genérico. ===== --}}
+            @canany(['users.create', 'users.view'])
                 <div class="cc-sec" data-open="false">
                     <button type="button" class="cc-sec-head" aria-expanded="false">
                         @include('componentes._icon', ['name' => 'users', 'class' => 'cc-sec-head__ico', 'label' => null])
-                        <span class="cc-sec-head__label">{{ __('nav.sec_crew') }}</span>
+                        <span class="cc-sec-head__label">{{ $__u->soleDepartmentName() ?? __('nav.sec_crew') }}</span>
                         <span class="cc-sec-head__count" aria-hidden="true"></span>
                         @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
                     </button>
@@ -284,14 +285,26 @@
                                 </a>
                             @endcan
                         @endcan
-                        {{-- Quién cobra (Paso 4): identidades + contratos + documentos. Scope "quien contrata es quien ve". --}}
+                    </div></div>
+                </div>
+            @endcanany
+
+            {{-- ===== CONTABILIDAD · todo lo de PAGOS ===== --}}
+            @canany(['payees.view', 'periods.view'])
+                <div class="cc-sec" data-open="false">
+                    <button type="button" class="cc-sec-head" aria-expanded="false">
+                        @include('componentes._icon', ['name' => 'wallet', 'class' => 'cc-sec-head__ico', 'label' => null])
+                        <span class="cc-sec-head__label">{{ __('Contabilidad') }}</span>
+                        <span class="cc-sec-head__count" aria-hidden="true"></span>
+                        @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
+                    </button>
+                    <div class="cc-sec-body"><div class="cc-sec-body__inner">
                         @can('payees.view')
                             <a href="{{ route('payees.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'wallet', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('Quién cobra') }}</span>
                             </a>
                         @endcan
-                        {{-- Ventana de recepción por periodo de pago: el tablero de "quién falta". --}}
                         @can('periods.view')
                             <a href="{{ route('periods.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'calendar', 'class' => 'cc-item__ico', 'label' => null])
@@ -301,6 +314,24 @@
                     </div></div>
                 </div>
             @endcanany
+
+            {{-- ===== PRODUCCIÓN · contratos ===== --}}
+            @can('settings.manage')
+                <div class="cc-sec" data-open="false">
+                    <button type="button" class="cc-sec-head" aria-expanded="false">
+                        @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-sec-head__ico', 'label' => null])
+                        <span class="cc-sec-head__label">{{ __('Producción') }}</span>
+                        <span class="cc-sec-head__count" aria-hidden="true"></span>
+                        @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
+                    </button>
+                    <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                        <a href="{{ route('contracts.clauses.index') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Clausulados') }}</span>
+                        </a>
+                    </div></div>
+                </div>
+            @endcan
 
             {{-- ===== LOCACIONES ===== --}}
             @canany(['locations.view', 'locations.create', 'riskmap.issue'])
@@ -546,10 +577,6 @@
                             @include('componentes._icon', ['name' => 'settings', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('nav.settings_branding') }}</span>
                         </a>
-                        <a href="{{ route('contracts.clauses.index') }}" class="cc-item">
-                            @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
-                            <span>{{ __('Clausulados') }}</span>
-                        </a>
                         <a href="{{ route('features.index') }}" class="cc-item">
                             @include('componentes._icon', ['name' => 'activity', 'class' => 'cc-item__ico', 'label' => null])
                             <span>Feature Flags</span>
@@ -603,12 +630,12 @@
                     </div></div>
                 </div>
 
-                {{-- ===== CREW ===== --}}
+                {{-- ===== CREW · etiqueta CONTEXTUAL (depto del HOD) ===== --}}
                 @canany(['users.create', 'users.view'])
                     <div class="cc-sec" data-open="false">
                         <button type="button" class="cc-sec-head" aria-expanded="false">
                             @include('componentes._icon', ['name' => 'users', 'class' => 'cc-sec-head__ico', 'label' => null])
-                            <span class="cc-sec-head__label">{{ __('nav.sec_crew') }}</span>
+                            <span class="cc-sec-head__label">{{ $__u->soleDepartmentName() ?? __('nav.sec_crew') }}</span>
                             <span class="cc-sec-head__count" aria-hidden="true"></span>
                             @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
                         </button>
@@ -633,6 +660,50 @@
                         </div></div>
                     </div>
                 @endcanany
+
+                {{-- ===== CONTABILIDAD · pagos ===== --}}
+                @canany(['payees.view', 'periods.view'])
+                    <div class="cc-sec" data-open="false">
+                        <button type="button" class="cc-sec-head" aria-expanded="false">
+                            @include('componentes._icon', ['name' => 'wallet', 'class' => 'cc-sec-head__ico', 'label' => null])
+                            <span class="cc-sec-head__label">{{ __('Contabilidad') }}</span>
+                            <span class="cc-sec-head__count" aria-hidden="true"></span>
+                            @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
+                        </button>
+                        <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                            @can('payees.view')
+                                <a href="{{ route('payees.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'wallet', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Quién cobra') }}</span>
+                                </a>
+                            @endcan
+                            @can('periods.view')
+                                <a href="{{ route('periods.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'calendar', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Periodos de pago') }}</span>
+                                </a>
+                            @endcan
+                        </div></div>
+                    </div>
+                @endcanany
+
+                {{-- ===== PRODUCCIÓN · contratos ===== --}}
+                @can('settings.manage')
+                    <div class="cc-sec" data-open="false">
+                        <button type="button" class="cc-sec-head" aria-expanded="false">
+                            @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-sec-head__ico', 'label' => null])
+                            <span class="cc-sec-head__label">{{ __('Producción') }}</span>
+                            <span class="cc-sec-head__count" aria-hidden="true"></span>
+                            @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
+                        </button>
+                        <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                            <a href="{{ route('contracts.clauses.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Clausulados') }}</span>
+                            </a>
+                        </div></div>
+                    </div>
+                @endcan
 
                 {{-- ===== LOCACIONES ===== --}}
                 @canany(['locations.view', 'locations.create', 'riskmap.issue'])
@@ -872,10 +943,6 @@
                             <a href="{{ route('settings.branding.edit') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'settings', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.settings_branding') }}</span>
-                            </a>
-                            <a href="{{ route('contracts.clauses.index') }}" class="cc-item">
-                                @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ __('Clausulados') }}</span>
                             </a>
                             <a href="{{ route('features.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'activity', 'class' => 'cc-item__ico', 'label' => null])

@@ -111,6 +111,24 @@ class User extends Authenticatable
     }
 
     /**
+     * NOMBRE del departamento cuando el usuario tiene UN SOLO lente (un HOD de un depto): así el
+     * menú se personaliza ("Arte", "Transpo") en vez de un genérico "Crew". Devuelve null para
+     * quien ve TODOS los departamentos (line-producer/coordinator/super-admin → etiqueta genérica)
+     * o para quien no tiene exactamente un departamento. No otorga accesos: solo personaliza el título.
+     */
+    public function soleDepartmentName(): ?string
+    {
+        if ($this->can('crew.view.all-departments')) {
+            return null;   // ve todo → etiqueta genérica
+        }
+        $ids = $this->ownDepartmentIds();
+        if ($ids->count() !== 1) {
+            return null;
+        }
+        return optional(\App\Models\Department::find($ids->first()))->name;
+    }
+
+    /**
      * NOMBRE del departamento y del puesto para MOSTRAR — leídos de la FUENTE DE VERDAD (el
      * pivote production_user de la producción vigente), con fallback a la etiqueta legacy
      * (`users.zone` / `users.puestodepartamento`) SÓLO cuando no hay producción, no hay fila
