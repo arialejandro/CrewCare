@@ -21,9 +21,23 @@ class ContractTemplateTest extends QaTestCase
         CurrentProduction::forget();
     }
 
-    public function test_editor_gated_to_settings_manage(): void
+    public function test_builder_gated_to_contracts_author(): void
     {
+        // Abierto a quien REDACTA contratos: Line Producer y representante-legal.
+        $this->actingAs($this->makeUser('line-producer'));
+        $this->get(route('contracts.templates.index'))->assertOk();
+
+        $repLegal = $this->makeUser('representante-legal');
+        $this->actingAs($repLegal);
+        $this->get(route('contracts.templates.index'))->assertOk();
+        // La figura legal también FIRMA documentos (requisito del owner).
+        $this->assertTrue($repLegal->can('documents.sign'), 'representante-legal firma documentos');
+
+        // Cerrado a los demás: crew y coordinator NO tienen contracts.author.
         $this->actingAs($this->makeUser('crew'));
+        $this->get(route('contracts.templates.index'))->assertForbidden();
+
+        $this->actingAs($this->makeUser('coordinator'));
         $this->get(route('contracts.templates.index'))->assertForbidden();
     }
 

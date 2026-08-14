@@ -73,6 +73,10 @@ class RolesAndPermissionsSeeder extends Seeder
             // Documents (future module — vocabulary fixed from day 1)
             'documents.view', 'documents.create', 'documents.assign', 'documents.sign',
             'documents.manage-templates',
+            // Contract Builder — REDACTAR/ensamblar plantillas de contrato. Gate del builder; NO es
+            // settings.manage. Solo Line Producer / representante legal: el contenido LEGAL es de la
+            // PRODUCTORA (CrewCare solo ensambla, numera y estampa firmas; no redacta). 2026-08-14
+            'contracts.author',
             // Self profile
             'profile.update-own',
             // RBAC self-management — editar la matriz rol→permiso EN VIVO desde la UI.
@@ -92,10 +96,13 @@ class RolesAndPermissionsSeeder extends Seeder
             Permission::firstOrCreate(['name' => $p, 'guard_name' => $guard]);
         }
 
-        // ---- 2. Roles (8: 7 org-chart roles + auditor) ----
+        // ---- 2. Roles (9: 7 org-chart roles + auditor + representante-legal) ----
+        // representante-legal (2026-08-14): figura LEGAL de la productora — FIRMA documentos y
+        // CREA/ensambla contratos (Contract Builder). Roles son DATA: un rol nuevo = una fila + su set
+        // de permisos, sin cambio de esquema.
         $roleNames = [
             'super-admin', 'line-producer', 'coordinator', 'hod',
-            'medic', 'safety-officer', 'crew', 'auditor',
+            'medic', 'safety-officer', 'crew', 'auditor', 'representante-legal',
         ];
         $roles = [];
         foreach ($roleNames as $r) {
@@ -141,6 +148,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'medical.materials', // conteo interno de medicamentos (presupuesto/materialidad) — 2026-07-06
             'documents.view', 'documents.create', 'documents.assign', 'documents.sign',
             'documents.manage-templates',
+            'contracts.author', // redactar/ensamblar plantillas de contrato (2026-08-14)
             'badge.design', // diseñar plantilla de gafete (2026-07-06)
             'sds.view', 'sds.create', 'sds.manage', // SDS/consumibles SFX: autoridad verificadora (2026-07-16)
             'profile.update-own',
@@ -217,6 +225,16 @@ class RolesAndPermissionsSeeder extends Seeder
         // InjuryReportPolicy::viewMedical.)
         $roles['crew']->syncPermissions([
             'injury.create', 'hazards.create',
+            'documents.view', 'documents.sign',
+            'profile.update-own',
+        ]);
+
+        // representante-legal — figura LEGAL de la productora: FIRMA documentos y CREA/ensambla
+        // contratos (Contract Builder). NO es producción operativa: su acceso se acota a eso + su
+        // perfil. (Quién FIRMA cada sobre lo define el PUESTO en la ruta, no este rol; el rol solo da
+        // acceso a la app.) Si además debe ORIGINAR sobres para un payee, se le suma payees.view/capture.
+        $roles['representante-legal']->syncPermissions([
+            'contracts.author',
             'documents.view', 'documents.sign',
             'profile.update-own',
         ]);

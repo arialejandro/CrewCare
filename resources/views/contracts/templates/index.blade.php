@@ -17,6 +17,12 @@
             </a>
         </div>
 
+        {{-- Descargo legal — CrewCare no redacta ni asume responsabilidad legal (contract-builder-legal-boundary). --}}
+        <div class="alert alert-warning small mb-3" role="note">
+            <strong>{{ __('Responsabilidad legal de la productora.') }}</strong>
+            {{ __('El contenido jurídico lo define y respalda la productora. CrewCare solo ensambla, numera y estampa firmas: no redacta contratos ni brinda asesoría legal.') }}
+        </div>
+
         @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
 
         <div class="card">

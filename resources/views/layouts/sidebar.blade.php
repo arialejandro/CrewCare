@@ -316,7 +316,7 @@
             @endcanany
 
             {{-- ===== PRODUCCIÓN · contratos ===== --}}
-            @can('settings.manage')
+            @canany(['settings.manage', 'contracts.author'])
                 <div class="cc-sec" data-open="false">
                     <button type="button" class="cc-sec-head" aria-expanded="false">
                         @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-sec-head__ico', 'label' => null])
@@ -325,6 +325,7 @@
                         @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
                     </button>
                     <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                        @can('settings.manage')
                         <a href="{{ route('contracts.clauses.index') }}" class="cc-item">
                             @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('Clausulados') }}</span>
@@ -337,13 +338,16 @@
                             @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('Firmas Prod.') }}</span>
                         </a>
+                        @endcan
+                        @can('contracts.author')
                         <a href="{{ route('contracts.templates.index') }}" class="cc-item">
                             @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('Plantillas de contrato') }}</span>
                         </a>
+                        @endcan
                     </div></div>
                 </div>
-            @endcan
+            @endcanany
 
             {{-- ===== LOCACIONES ===== --}}
             @canany(['locations.view', 'locations.create', 'riskmap.issue'])
@@ -704,7 +708,7 @@
                 @endcanany
 
                 {{-- ===== PRODUCCIÓN · contratos ===== --}}
-                @can('settings.manage')
+                @canany(['settings.manage', 'contracts.author'])
                     <div class="cc-sec" data-open="false">
                         <button type="button" class="cc-sec-head" aria-expanded="false">
                             @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-sec-head__ico', 'label' => null])
@@ -713,6 +717,7 @@
                             @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
                         </button>
                         <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                            @can('settings.manage')
                             <a href="{{ route('contracts.clauses.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('Clausulados') }}</span>
@@ -725,13 +730,16 @@
                                 @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('Firmas Prod.') }}</span>
                             </a>
+                            @endcan
+                            @can('contracts.author')
                             <a href="{{ route('contracts.templates.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('Plantillas de contrato') }}</span>
                             </a>
+                            @endcan
                         </div></div>
                     </div>
-                @endcan
+                @endcanany
 
                 {{-- ===== LOCACIONES ===== --}}
                 @canany(['locations.view', 'locations.create', 'riskmap.issue'])

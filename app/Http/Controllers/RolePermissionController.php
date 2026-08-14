@@ -31,6 +31,7 @@ class RolePermissionController extends Controller
      */
     private const EDITABLE_ROLES = [
         'line-producer', 'coordinator', 'hod', 'medic', 'safety-officer', 'crew', 'auditor',
+        'representante-legal',
     ];
 
     /** Permiso que protege esta pantalla (para el guard anti-auto-bloqueo). */
@@ -115,6 +116,11 @@ class RolePermissionController extends Controller
             'documents.assign'           => 'Asignar documentos',
             'documents.sign'             => 'Firmar documentos',
             'documents.manage-templates' => 'Gestionar plantillas',
+        ],
+        'Contratos (legal)' => [
+            // Contract Builder — redactar/ensamblar plantillas. El contenido legal es de la
+            // productora; CrewCare solo ensambla. Por defecto: line-producer + representante-legal.
+            'contracts.author' => 'Redactar / ensamblar contratos (Contract Builder)',
         ],
         'Perfil' => [
             'profile.update-own' => 'Editar su propio perfil',

@@ -29,6 +29,7 @@ class RoleAssignmentController extends Controller
      */
     private const ASSIGNABLE = [
         'line-producer', 'coordinator', 'hod', 'medic', 'safety-officer', 'crew', 'auditor',
+        'representante-legal', // figura legal: firma documentos + crea contratos (2026-08-14)
     ];
 
     /**

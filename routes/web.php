@@ -927,7 +927,12 @@ Route::middleware(['auth','permission:settings.manage'])->group(function () {
     Route::get('/contratos/ruta-config',                [\App\Http\Controllers\ContractEnvelopeController::class, 'editConfig'])->name('contracts.route.config');
     Route::post('/contratos/ruta-config',               [\App\Http\Controllers\ContractEnvelopeController::class, 'updateConfig'])->name('contracts.route.config.update');
 
-    // CONTRACT BUILDER · editor de plantillas (contrato como documento generado con anclas de firma).
+});
+
+// CONTRACT BUILDER · editor de plantillas — gated a `contracts.author` (Line Producer / representante
+// legal), NO a settings.manage: el contenido LEGAL del contrato es de la productora; CrewCare solo
+// ensambla, numera y estampa firmas (ver contract-builder-legal-boundary).
+Route::middleware(['auth', 'permission:contracts.author'])->group(function () {
     Route::get('/contratos/plantillas',                    [\App\Http\Controllers\ContractTemplateController::class, 'index'])->name('contracts.templates.index');
     Route::get('/contratos/plantillas/nueva',              [\App\Http\Controllers\ContractTemplateController::class, 'create'])->name('contracts.templates.create');
     Route::post('/contratos/plantillas',                   [\App\Http\Controllers\ContractTemplateController::class, 'store'])->name('contracts.templates.store');
