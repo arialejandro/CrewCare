@@ -76,7 +76,7 @@ class ContractSignController extends Controller
             return view('contracts.sign-gate', [
                 'recipient' => $recipient, 'factor' => ContractSigning::factorType($envelope),
                 'verifyUrl' => URL::temporarySignedRoute('contracts.sign.verify', now()->addHours(3), ['recipient' => $recipient->id]),
-                'error' => __('Demasiados intentos. Espera un momento e inténtalo de nuevo.'), 'locked' => true,
+                'error' => __('Demasiados intentos por ahora. Espera un momento e inténtalo de nuevo, o avísale a producción.'), 'locked' => true,
             ]);
         }
         RateLimiter::hit($key, 3600);
@@ -90,7 +90,7 @@ class ContractSignController extends Controller
         return view('contracts.sign-gate', [
             'recipient' => $recipient, 'factor' => ContractSigning::factorType($envelope),
             'verifyUrl' => URL::temporarySignedRoute('contracts.sign.verify', now()->addHours(3), ['recipient' => $recipient->id]),
-            'error' => __('El dato no coincide. Revisa e inténtalo de nuevo.'), 'locked' => false,
+            'error' => __('El dato no coincide. Revísalo e inténtalo de nuevo; si sigue sin coincidir, avísale a producción.'), 'locked' => false,
         ]);
     }
 

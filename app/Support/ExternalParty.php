@@ -23,6 +23,9 @@ use Illuminate\Support\Str;
  */
 class ExternalParty
 {
+    /** Vigencia del enlace de acceso (días) desde que se genera. El token muere al usarse O al vencer. */
+    const ACCESS_TTL_DAYS = 7;
+
     /**
      * Provisiona (o reusa) el usuario externo lite de un payee. Idempotente: si el payee YA está
      * ligado a un usuario, se respeta (puede ser un crew real; no lo convertimos en externo). Liga
@@ -57,22 +60,29 @@ class ExternalParty
         return $user;
     }
 
-    /** Genera (o regenera) el token de UN SOLO USO y devuelve la URL de acceso. Reusar invalida el previo. */
+    /** Genera (o regenera) el token de UN SOLO USO y devuelve la URL. Reusar invalida el previo. */
     public static function mintAccessLink(User $user): string
     {
-        $user->external_access_token   = Str::random(48);   // NO fillable → asignación directa
-        $user->external_access_used_at = null;              // re-armable hasta que se use
+        $user->external_access_token      = Str::random(48);              // NO fillable → asignación directa
+        $user->external_access_used_at    = null;                         // re-armable hasta que se use
+        $user->external_access_expires_at = now()->addDays(self::ACCESS_TTL_DAYS);
         $user->save();
 
         return route('external.access', ['token' => $user->external_access_token]);
     }
 
-    /** Consume el token (un solo uso). Devuelve el usuario externo, o null si es inválido/ya usado. */
+    /**
+     * Consume el token. Devuelve el usuario externo, o null si es inválido, YA USADO o VENCIDO (los
+     * tres casos son indistinguibles para el que llega: el controlador responde 410 sin revelar de
+     * quién era). `expires_at` NULL = sin caducidad (tokens heredados anteriores a este delta).
+     */
     public static function consume(string $token): ?User
     {
         $user = User::where('external_access_token', $token)
             ->where('is_external', 1)
             ->whereNull('external_access_used_at')
+            ->where(fn ($q) => $q->whereNull('external_access_expires_at')
+                                 ->orWhere('external_access_expires_at', '>', now()))
             ->first();
         if (! $user) {
             return null;

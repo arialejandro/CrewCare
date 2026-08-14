@@ -63,6 +63,21 @@ class ExternalPartyTest extends QaTestCase
         $this->assertNull(ExternalParty::consume($token), 'segundo uso ya no');
     }
 
+    public function test_access_token_expires_after_ttl(): void
+    {
+        $payee = $this->nonCrewPayee();
+        $user  = ExternalParty::provisionForPayee($payee, 'prov@x.mx');
+        ExternalParty::mintAccessLink($user);
+        $token = $user->fresh()->external_access_token;
+
+        // Sin usarlo: pasado el plazo, deja de valer (y no se gasta al vencer).
+        $this->travel(ExternalParty::ACCESS_TTL_DAYS + 1)->days();
+        $this->assertNull(ExternalParty::consume($token), 'un token vencido no se consume');
+        // La ruta pública responde 410 igual que un token usado (sin revelar de quién era).
+        $this->get(route('external.access', ['token' => $token]))->assertStatus(410);
+        $this->travelBack();
+    }
+
     public function test_access_link_redirects_to_pending_sign_then_is_dead(): void
     {
         $payee = $this->nonCrewPayee();

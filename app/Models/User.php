@@ -78,9 +78,10 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'borndate' => 'date', // Añade esta línea para convertir a fecha
         // EL INFOSHEET · no-crew
-        'is_external'             => 'boolean',
-        'crewlist_visible'        => 'boolean',
-        'external_access_used_at' => 'datetime',
+        'is_external'                => 'boolean',
+        'crewlist_visible'           => 'boolean',
+        'external_access_used_at'    => 'datetime',
+        'external_access_expires_at' => 'datetime',
     ];
 
     /**

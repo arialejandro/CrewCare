@@ -139,7 +139,8 @@
                                 <input type="text" class="form-control" readonly value="{{ session('external_link') }}" onclick="this.select()">
                             </div>
                         @endif
-                        <p class="text-muted small mb-2">{{ __('Crea un acceso sin contraseña para el contratado externo. Entra por un enlace de un solo uso y firma con su RFC.') }}</p>
+                        <p class="text-muted small mb-2">{{ __('Crea un acceso sin contraseña para el contratado externo. Entra por un enlace de un solo uso y firma con su RFC.') }}
+                            {{ __('El enlace vence en :dias días o al usarse; vuelve a generarlo aquí si hace falta.', ['dias' => \App\Support\ExternalParty::ACCESS_TTL_DAYS]) }}</p>
                         <form method="POST" action="{{ route('external.provision', $payee->id) }}" class="row g-2 align-items-end">
                             @csrf
                             <div class="col-sm-6">
