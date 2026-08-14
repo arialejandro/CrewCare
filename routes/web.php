@@ -927,6 +927,11 @@ Route::middleware(['auth','permission:settings.manage'])->group(function () {
     Route::get('/contratos/ruta-config',                [\App\Http\Controllers\ContractEnvelopeController::class, 'editConfig'])->name('contracts.route.config');
     Route::post('/contratos/ruta-config',               [\App\Http\Controllers\ContractEnvelopeController::class, 'updateConfig'])->name('contracts.route.config.update');
 });
+// PREVISUALIZACIÓN de correos transaccionales (100% código → revisar el render antes de enviar). No envía nada.
+Route::middleware(['auth','permission:settings.manage'])->group(function () {
+    Route::get('/correos/preview',        [\App\Http\Controllers\EmailPreviewController::class, 'index'])->name('emails.preview.index');
+    Route::get('/correos/preview/{view}', [\App\Http\Controllers\EmailPreviewController::class, 'show'])->name('emails.preview.show')->where('view', '[a-z0-9-]+');
+});
 // El SOBRE: crear/enviar/ver/cancelar/servir doc — misma guarda del payee (dentro del controlador).
 Route::middleware(['auth'])->group(function () {
     Route::post('/contratos/{contract}/sobre',          [\App\Http\Controllers\ContractEnvelopeController::class, 'store'])->name('contracts.envelope.store')->whereNumber('contract');

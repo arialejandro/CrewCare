@@ -589,6 +589,10 @@
                             @include('componentes._icon', ['name' => 'activity', 'class' => 'cc-item__ico', 'label' => null])
                             <span>Feature Flags</span>
                         </a>
+                        <a href="{{ route('emails.preview.index') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'mail', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Correos') }}</span>
+                        </a>
                     </div></div>
                 </div>
             @endcan
@@ -963,6 +967,10 @@
                             <a href="{{ route('features.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'activity', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>Feature Flags</span>
+                            </a>
+                            <a href="{{ route('emails.preview.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'mail', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Correos') }}</span>
                             </a>
                         </div></div>
                     </div>
