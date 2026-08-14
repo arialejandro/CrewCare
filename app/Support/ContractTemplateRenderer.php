@@ -41,6 +41,30 @@ class ContractTemplateRenderer
         ];
     }
 
+    /**
+     * Anclas de firma disponibles (para el menú del editor): CLAVE → etiqueta. Deriva de "Firmas
+     * Prod." (la lista configurable de firmantes) + el contratado. Sin lista → sugerencias clásicas.
+     */
+    public static function anchorCatalog(): array
+    {
+        $out = ['contratado' => __('Contratado')];
+
+        foreach (SignaturePositions::signerEntries() as $entry) {
+            if ($entry === SignaturePositions::DEPT_HOD) {
+                $out['dept_hod'] = __('HOD del departamento del contrato');
+            } else {
+                $out['puesto:' . (int) $entry] = SignaturePositions::positionLabel((int) $entry);
+            }
+        }
+
+        if (count($out) === 1) {   // sin lista configurada → sugerencias útiles
+            $out['line_producer'] = __('Productor en Línea');
+            $out['dept_hod']      = __('HOD del departamento del contrato');
+        }
+
+        return $out;
+    }
+
     /** Valores del TRATO para llenar los `{{campos}}` (mismo origen que la carátula). */
     public static function valuesFor(PayeeContract $contract): array
     {

@@ -926,6 +926,15 @@ Route::middleware(['auth','permission:settings.manage'])->group(function () {
     Route::get('/contratos/anexos/{annex}/descargar',   [\App\Http\Controllers\ContractAnnexController::class, 'download'])->name('contracts.annexes.download')->whereNumber('annex');
     Route::get('/contratos/ruta-config',                [\App\Http\Controllers\ContractEnvelopeController::class, 'editConfig'])->name('contracts.route.config');
     Route::post('/contratos/ruta-config',               [\App\Http\Controllers\ContractEnvelopeController::class, 'updateConfig'])->name('contracts.route.config.update');
+
+    // CONTRACT BUILDER · editor de plantillas (contrato como documento generado con anclas de firma).
+    Route::get('/contratos/plantillas',                    [\App\Http\Controllers\ContractTemplateController::class, 'index'])->name('contracts.templates.index');
+    Route::get('/contratos/plantillas/nueva',              [\App\Http\Controllers\ContractTemplateController::class, 'create'])->name('contracts.templates.create');
+    Route::post('/contratos/plantillas',                   [\App\Http\Controllers\ContractTemplateController::class, 'store'])->name('contracts.templates.store');
+    Route::post('/contratos/plantillas-preview',           [\App\Http\Controllers\ContractTemplateController::class, 'preview'])->name('contracts.templates.preview');
+    Route::get('/contratos/plantillas/{template}',         [\App\Http\Controllers\ContractTemplateController::class, 'edit'])->name('contracts.templates.edit')->whereNumber('template');
+    Route::put('/contratos/plantillas/{template}',         [\App\Http\Controllers\ContractTemplateController::class, 'update'])->name('contracts.templates.update')->whereNumber('template');
+    Route::post('/contratos/plantillas/{template}/toggle', [\App\Http\Controllers\ContractTemplateController::class, 'toggle'])->name('contracts.templates.toggle')->whereNumber('template');
 });
 // PREVISUALIZACIÓN de correos transaccionales (100% código → revisar el render antes de enviar). No envía nada.
 Route::middleware(['auth','permission:settings.manage'])->group(function () {
