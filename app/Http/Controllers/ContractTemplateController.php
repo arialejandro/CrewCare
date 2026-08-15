@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ContractTemplate;
 use App\Models\PayeeContract;
 use App\Support\ContractArchitectures;
+use App\Support\ContractPageSizes;
 use App\Support\ContractTemplateRenderer;
 use App\Support\CurrentProduction;
 use Illuminate\Http\Request;
@@ -47,7 +48,7 @@ class ContractTemplateController extends Controller
 
         return $this->editView(new ContractTemplate([
             'name' => '', 'applies_to' => [PayeeContract::CONCEPT_CREW], 'language' => 'es',
-            'architecture' => $arch, 'bilingual' => false,
+            'architecture' => $arch, 'bilingual' => false, 'page_size' => ContractPageSizes::DEFAULT,
             'body' => ContractArchitectures::starter($arch), 'is_active' => false,
         ]));
     }
@@ -66,6 +67,7 @@ class ContractTemplateController extends Controller
             'anchors'       => ContractTemplateRenderer::anchorCatalog(),
             'architectures' => ContractArchitectures::all(),
             'starters'      => ContractArchitectures::starters(),
+            'pageSizes'     => ContractPageSizes::all(),
         ]);
     }
 
@@ -99,10 +101,11 @@ class ContractTemplateController extends Controller
     {
         $body = (string) $request->input('body', '');
         $arch = ContractArchitectures::normalize($request->input('architecture'));
+        $size = ContractPageSizes::normalize($request->input('page_size'));
         $tpl  = new ContractTemplate(['body' => $body]);
         $inner = ContractTemplateRenderer::render($tpl, self::sampleValues(), self::sampleSigMap());
 
-        return response(ContractTemplateRenderer::page($inner, $arch));
+        return response(ContractTemplateRenderer::page($inner, $arch, $size));
     }
 
     // ── Validación + datos de ejemplo ─────────────────────────────────────────
@@ -115,6 +118,7 @@ class ContractTemplateController extends Controller
             'language'     => 'nullable|string|max:5',
             'architecture' => 'nullable|string|max:32',
             'bilingual'    => 'nullable|boolean',
+            'page_size'    => 'nullable|string|max:16',
             'body'         => 'nullable|string',
             'is_active'    => 'nullable|boolean',
         ]);
@@ -122,6 +126,7 @@ class ContractTemplateController extends Controller
         $data['language']     = ($data['language'] ?? null) ?: 'es';
         $data['architecture'] = ContractArchitectures::normalize($data['architecture'] ?? null);
         $data['bilingual']    = $request->boolean('bilingual');
+        $data['page_size']    = ContractPageSizes::normalize($data['page_size'] ?? null);
 
         return $data;
     }

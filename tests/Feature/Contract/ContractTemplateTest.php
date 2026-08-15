@@ -90,6 +90,33 @@ class ContractTemplateTest extends QaTestCase
         $res->assertSee('id="tplArch"', false);                // el selector de formato existe
         $res->assertSee('id="tplCanvas"', false);              // canvas Word-lite (WYSIWYG)
         $res->assertSee('cc-toolbar', false);                  // barra de formato
+        $res->assertSee('cc-page', false);                     // la hoja (modo documento)
+        $res->assertSee('id="tplPageSize"', false);            // selector de tamaño de página
+    }
+
+    public function test_store_persists_page_size(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        $this->post(route('contracts.templates.store'), [
+            'name' => 'Contrato oficio', 'applies_to' => ['crew_work'],
+            'page_size' => 'legal', 'body' => '<p>x</p>', 'is_active' => 1,
+        ])->assertRedirect();
+
+        $this->assertSame('legal', ContractTemplate::firstWhere('name', 'Contrato oficio')->page_size);
+    }
+
+    public function test_preview_sets_page_size(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        $legal = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>', 'page_size' => 'legal']);
+        $legal->assertOk();
+        $this->assertStringContainsString('size:216mm 356mm', $legal->getContent(), 'Oficio/Legal');
+
+        // tamaño inválido -> se normaliza a carta
+        $carta = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>', 'page_size' => 'bogus']);
+        $this->assertStringContainsString('size:216mm 279mm', $carta->getContent(), 'default Carta');
     }
 
     public function test_store_persists_architecture(): void

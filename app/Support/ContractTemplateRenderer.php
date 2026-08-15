@@ -136,14 +136,17 @@ class ContractTemplateRenderer
 
     /**
      * Envuelve el documento renderizado en una hoja con estilos de contrato (serif, PDF-friendly).
-     * $architecture (opcional) añade el CSS propio del FORMATO (carátula/ficha/declaraciones).
+     * $architecture (opcional) añade el CSS del FORMATO; $pageSize (opcional) el `@page` (tamaño +
+     * margen) y el salto de página manual `.cc-pb` → PDF fiel (Browsershot) e impresión.
      */
-    public static function page(string $inner, ?string $architecture = null): string
+    public static function page(string $inner, ?string $architecture = null, ?string $pageSize = null): string
     {
         $extra = $architecture ? ContractArchitectures::pageCss($architecture) : '';
+        $paged = $pageSize ? ContractPageSizes::pageCss($pageSize) : '';
 
         return '<!doctype html><meta charset="utf-8">'
-            . '<style>body{font-family:Georgia,"Times New Roman",serif;color:#1a1a1a;margin:1.4rem;line-height:1.6}'
+            . '<style>' . $paged
+            . 'body{font-family:Georgia,"Times New Roman",serif;color:#1a1a1a;margin:1.4rem;line-height:1.6}'
             . 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #e2e2e2;padding-bottom:3px;margin-top:1.3rem}'
             . 'table{width:100%;border-collapse:collapse}' . $extra . '</style>' . $inner;
     }
