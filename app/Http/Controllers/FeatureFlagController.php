@@ -32,6 +32,8 @@ class FeatureFlagController extends Controller
             'sds_sfx'             => 'Módulo SDS / Efectos Especiales',
             'medical_addendum'    => 'Addendums médicos',
             'location_handover'   => 'Handover de locaciones — futuro',
+            'contracts_queue_email'   => 'Contratos · correos de firma en segundo plano (cola)',
+            'contracts_batch_signing' => 'Contratos · firma en lote (varios a la vez)',
         ];
     }
 

@@ -13,7 +13,7 @@
                 @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-ico', 'label' => null])
             </span>
             <div>
-                <h1 class="crew-title mb-0">{{ __('Firmas Prod.') }}</h1>
+                <h1 class="crew-title mb-0">{{ __('Roles de firma') }}</h1>
                 <p class="text-muted mb-0 small">{{ __('La ruta de firma de la producción, en orden. Se define por PUESTO una sola vez; cada firmante es un usuario con perfil que firma autenticado.') }}</p>
             </div>
         </div>

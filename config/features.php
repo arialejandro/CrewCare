@@ -33,4 +33,12 @@ return [
     // lienzos, incluido el aéreo de dron) ya está CONSTRUIDO como módulo real
     // (delta #48, /scoutings/{id}/mapeo), no como stub tras flag.
     'location_handover'   => false, // handover de responsabilidad Construcción→Rigging→Shooting
+
+    // Contratos — cola de firmas a gran escala (50-60 contratos). APAGADAS por defecto:
+    //  - queue_email:   manda el correo de "contrato firmado" en segundo plano (cola) en vez de
+    //                   bloquear el request. Sin worker de cola corre inline igual (seguro por default).
+    //  - batch_signing: deja a una figura interna (LP, Contador, Rep. Legal…) firmar varios de una vez.
+    //                   Por defecto la firma es UNO A UNO (el firmante ve los datos de cada contrato).
+    'contracts_queue_email'   => false,
+    'contracts_batch_signing' => false,
 ];

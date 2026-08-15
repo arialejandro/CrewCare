@@ -6,8 +6,8 @@ use App\Models\ContractEnvelope;
 use Illuminate\Foundation\Events\Dispatchable;
 
 /**
- * EL CONTRATO · PASO C — la ruta de firma del sobre se COMPLETÓ. Seam de "avisa": un listener puede
- * resolver destinatarios con {@see \App\Support\InvolvedResolver} y mandar el correo. Fired best-effort.
+ * EL CONTRATO · PASO C — la ruta de firma del sobre se COMPLETÓ. Seam de "avisa": el listener corre
+ * síncrono y despacha el Job del correo (a cola o inmediato, según el flag). Fired best-effort.
  */
 class ContractEnvelopeCompleted
 {

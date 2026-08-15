@@ -955,6 +955,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/contratos/sobre/{envelope}/doc/{index}', [\App\Http\Controllers\ContractEnvelopeController::class, 'document'])->name('contracts.envelope.document')->whereNumber('envelope')->whereNumber('index');
     // FASE 1c — el contrato ARMADO con la plantilla activa + las firmas reales del sobre (estampadas).
     Route::get('/contratos/sobre/{envelope}/plantilla', [\App\Http\Controllers\ContractEnvelopeController::class, 'templateDocument'])->name('contracts.envelope.template')->whereNumber('envelope');
+
+    // FIRMAS PENDIENTES (la "cola" de firmas a escala). Bandeja personal (auto-limitada al propio
+    // usuario) + lote detrás del flag; el TABLERO por figura es de administración (settings.manage).
+    Route::get('/contratos/firmas-pendientes',       [\App\Http\Controllers\PendingSignatureController::class, 'index'])->name('contracts.pending.index');
+    Route::post('/contratos/firmas-pendientes/lote', [\App\Http\Controllers\PendingSignatureController::class, 'batch'])->name('contracts.pending.batch');
+    Route::get('/contratos/firmas-por-figura',       [\App\Http\Controllers\PendingSignatureController::class, 'board'])->middleware('permission:settings.manage')->name('contracts.pending.board');
 });
 // FIRMAR: enlace FIRMADO por destinatario (el contratado firma sin sesión, con 2º factor).
 Route::middleware(['signed','throttle:30,1'])->group(function () {

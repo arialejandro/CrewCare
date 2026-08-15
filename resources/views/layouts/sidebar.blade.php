@@ -21,6 +21,9 @@
     // EN DISCO, no sólo que la columna venga llena — hay filas que apuntan a un archivo que
     // ya no existe y ésas eran justo las que pintaban el icono roto.
     $__foto = \App\Support\Avatar::url($__u);
+    // FIRMAS PENDIENTES · conteo de la cola personal (badge). Cualquier firmante lo tiene, sin permiso
+    // especial; se auto-limita a lo que le toca. Cacheado por-request en PendingSignatures.
+    $__pendingSign = \Auth::check() ? \App\Support\PendingSignatures::countForUser((int) \Auth::id()) : 0;
 @endphp
 
 <style>
@@ -253,6 +256,13 @@
                         @include('componentes._icon', ['name' => 'layout-dashboard', 'class' => 'cc-item__ico', 'label' => null])
                         <span>{{ __('nav.home') }}</span>
                     </a>
+                    @if(($__pendingSign ?? 0) > 0)
+                    <a href="{{ route('contracts.pending.index') }}" class="cc-item">
+                        @include('componentes._icon', ['name' => 'pencil', 'class' => 'cc-item__ico', 'label' => null])
+                        <span>{{ __('Contratos por firmar') }}</span>
+                        <span class="badge rounded-pill text-bg-primary ms-auto">{{ $__pendingSign }}</span>
+                    </a>
+                    @endif
                 </div></div>
             </div>
 
@@ -336,7 +346,11 @@
                         </a>
                         <a href="{{ route('contracts.route.config') }}" class="cc-item">
                             @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
-                            <span>{{ __('Firmas Prod.') }}</span>
+                            <span>{{ __('Roles de firma') }}</span>
+                        </a>
+                        <a href="{{ route('contracts.pending.board') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'users', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Seguimiento de firmas') }}</span>
                         </a>
                         @endcan
                         @can('contracts.author')
@@ -647,6 +661,13 @@
                             @include('componentes._icon', ['name' => 'layout-dashboard', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('nav.home') }}</span>
                         </a>
+                        @if(($__pendingSign ?? 0) > 0)
+                        <a href="{{ route('contracts.pending.index') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'pencil', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Contratos por firmar') }}</span>
+                            <span class="badge rounded-pill text-bg-primary ms-auto">{{ $__pendingSign }}</span>
+                        </a>
+                        @endif
                     </div></div>
                 </div>
 
@@ -728,7 +749,11 @@
                             </a>
                             <a href="{{ route('contracts.route.config') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ __('Firmas Prod.') }}</span>
+                                <span>{{ __('Roles de firma') }}</span>
+                            </a>
+                            <a href="{{ route('contracts.pending.board') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'users', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Seguimiento de firmas') }}</span>
                             </a>
                             @endcan
                             @can('contracts.author')
