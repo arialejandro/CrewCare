@@ -14,22 +14,22 @@ namespace App\Support;
 class ContractFonts
 {
     public const DEFAULT = 'mono';
-    public const SIZE_DEFAULT = '11';
+    public const SIZE_DEFAULT = '9';   // el corpus mono real = Courier New 9pt
 
-    /** key => [label, stack CSS]. El ORDEN define el del selector. */
+    /** key => [label, stack CSS]. El ORDEN define el del selector. Sólo fuentes del sistema. */
     public static function all(): array
     {
         return [
             'serif' => ['label' => 'Serif',      'stack' => 'Georgia,"Times New Roman",serif'],
             'sans'  => ['label' => 'Sans-serif', 'stack' => 'system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif'],
-            'mono'  => ['label' => 'Monospace',  'stack' => 'ui-monospace,"Cascadia Code","Segoe UI Mono",Consolas,monospace'],
+            'mono'  => ['label' => 'Monospace',  'stack' => '"Courier New",ui-monospace,Consolas,monospace'],
         ];
     }
 
-    /** Tamaños de letra base (pt). El corpus usa letra chica; default '11' (12 se veía enorme). */
+    /** Tamaños de letra base (pt). El corpus mono real es 9pt; default '9'. */
     public static function sizes(): array
     {
-        return ['10' => '10 pt', '11' => '11 pt', '12' => '12 pt'];
+        return ['9' => '9 pt', '10' => '10 pt', '11' => '11 pt', '12' => '12 pt'];
     }
 
     public static function normalizeSize(?string $key): string

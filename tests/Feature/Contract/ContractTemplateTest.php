@@ -191,8 +191,8 @@ class ContractTemplateTest extends QaTestCase
         $this->assertStringContainsString('font-family:Georgia', $serif->getContent());
         $this->assertStringContainsString('font-size:10pt', $serif->getContent());
         $mono = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>']);
-        $this->assertStringContainsString('ui-monospace', $mono->getContent(), 'default monospace');
-        $this->assertStringContainsString('font-size:11pt', $mono->getContent(), 'default 11pt');
+        $this->assertStringContainsString('Courier New', $mono->getContent(), 'default monospace = Courier New');
+        $this->assertStringContainsString('font-size:9pt', $mono->getContent(), 'default 9pt (corpus)');
         $this->assertStringNotContainsString('font-family:Georgia', $mono->getContent());
     }
 

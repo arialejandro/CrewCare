@@ -110,18 +110,26 @@
                 <span class="cc-tb-sep"></span>
                 <button type="button" class="cc-tb cc-tb--wide" id="tplAddClause">+ {{ __('Cláusula') }}</button>
                 <button type="button" class="cc-tb cc-tb--wide" id="tplPageBreak">⤶ {{ __('Salto de página') }}</button>
-                <select class="form-select form-select-sm cc-tb-select" id="tplInsField" aria-label="{{ __('Insertar dato') }}">
-                    <option value="">+ {{ __('Insertar dato…') }}</option>
-                    @foreach($fields as $key => $label)
-                        <option value="{{ $key }}">{{ $label }}</option>
-                    @endforeach
-                </select>
-                <select class="form-select form-select-sm cc-tb-select" id="tplInsSig" aria-label="{{ __('Insertar firma') }}">
-                    <option value="">+ {{ __('Insertar firma…') }}</option>
-                    @foreach($anchors as $key => $label)
-                        <option value="{{ $key }}">{{ $label }}</option>
-                    @endforeach
-                </select>
+                <div class="cc-ins">
+                    <button type="button" class="cc-tb cc-tb--wide" id="tplInsFieldBtn" aria-haspopup="true" aria-expanded="false">
+                        <svg class="cc-tb-ic" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4H7a2 2 0 0 0-2 2v3a2 2 0 0 1-2 2 2 2 0 0 1 2 2v3a2 2 0 0 0 2 2h1M16 4h1a2 2 0 0 1 2 2v3a2 2 0 0 0 2 2 2 2 0 0 0-2 2v3a2 2 0 0 1-2 2h-1"/></svg>{{ __('Dato') }}
+                    </button>
+                    <div class="cc-pop" id="tplFieldPop" role="menu" hidden>
+                        @foreach($fields as $key => $label)
+                            <button type="button" class="cc-pop-item" data-field="{{ $key }}" role="menuitem">{{ $label }}</button>
+                        @endforeach
+                    </div>
+                </div>
+                <div class="cc-ins">
+                    <button type="button" class="cc-tb cc-tb--wide" id="tplInsSigBtn" aria-haspopup="true" aria-expanded="false">
+                        <svg class="cc-tb-ic" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19s3-1 6-1 6 2 9 1M4 15c3-8 6-9 7-5s2 6 4 3"/></svg>{{ __('Firma') }}
+                    </button>
+                    <div class="cc-pop" id="tplSigPop" role="menu" hidden>
+                        @foreach($anchors as $key => $label)
+                            <button type="button" class="cc-pop-item cc-pop-item--sig" data-anchor="{{ $key }}" role="menuitem">{{ $label }}</button>
+                        @endforeach
+                    </div>
+                </div>
                 <button type="button" class="cc-tb ms-auto" id="tplToggleHtml" title="{{ __('Ver / editar HTML') }}">&lt;/&gt;</button>
             </div>
 
@@ -194,6 +202,14 @@
 .cc-seg-btn{flex:1;min-width:0;border:none;background:none;color:var(--muted,#6b7482);font-size:.8rem;font-weight:600;padding:5px 4px;border-radius:6px;cursor:pointer;transition:background .16s ease,color .16s ease,box-shadow .16s ease,transform .12s ease;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cc-seg-btn[aria-pressed="true"]{background:var(--surface,#fff);color:var(--text,#1a1a1a);box-shadow:0 1px 3px rgba(0,0,0,.14)}
 .cc-seg-btn:active{transform:scale(.97)}
+.cc-tb .cc-tb-ic{margin-right:5px;vertical-align:-2px}
+.cc-ins{position:relative;display:inline-block}
+.cc-pop{position:absolute;top:calc(100% + 6px);left:0;z-index:30;min-width:300px;max-height:340px;overflow:auto;background:var(--surface,#fff);border:1px solid var(--border,#d7dce4);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.20);padding:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.cc-pop[hidden]{display:none}
+.cc-pop-item{text-align:left;border:1px solid var(--border,#e2e5ec);background:var(--surface-2,#f6f7f9);color:var(--text,#1a1a1a);border-radius:9px;padding:9px 11px;font-size:.8rem;font-weight:600;cursor:pointer;transition:background .14s ease,border-color .14s ease,transform .1s ease}
+.cc-pop-item:hover{background:var(--surface,#fff);border-color:color-mix(in srgb,var(--brand,#ff0046) 45%,transparent)}
+.cc-pop-item:active{transform:scale(.97)}
+.cc-pop-item--sig:hover{border-color:color-mix(in srgb,#2563eb 45%,transparent)}
 </style>
 @endpush
 
@@ -447,8 +463,28 @@
         insertAtCaret('<p class="cc-clause"><strong>' + ordinal(n) + '. ' + esc('[Título de la cláusula]') + '</strong> ' + esc('[Redacta aquí el contenido de la cláusula.]') + '</p>');
     });
     document.getElementById('tplPageBreak').addEventListener('click', function(){ insertAtCaret('<p class="cc-pb" contenteditable="false"></p><p><br></p>'); });
-    document.getElementById('tplInsField').addEventListener('change', function(){ if(this.value){ insertAtCaret(fieldChip(this.value) + ' '); this.value = ''; } });
-    document.getElementById('tplInsSig').addEventListener('change', function(){ if(this.value){ insertAtCaret(anchorChip(this.value) + ' '); this.value = ''; } });
+    // ── Paleta visual: "Dato" / "Firma" abren un menú de mosaicos (en vez del dropdown) ──
+    function closeAllPops(){
+        document.querySelectorAll('.cc-pop').forEach(function(p){ p.setAttribute('hidden', ''); });
+        document.querySelectorAll('.cc-ins [aria-haspopup]').forEach(function(b){ b.setAttribute('aria-expanded', 'false'); });
+    }
+    function wirePalette(btnId, popId, attr, chipFn){
+        var btn = document.getElementById(btnId), pop = document.getElementById(popId);
+        if(!btn || !pop){ return; }
+        btn.addEventListener('click', function(e){
+            e.stopPropagation();
+            var wasOpen = ! pop.hasAttribute('hidden');
+            closeAllPops();
+            if(! wasOpen){ pop.removeAttribute('hidden'); btn.setAttribute('aria-expanded', 'true'); }
+        });
+        pop.addEventListener('click', function(e){ e.stopPropagation(); });
+        pop.querySelectorAll('.cc-pop-item').forEach(function(it){
+            it.addEventListener('click', function(){ insertAtCaret(chipFn(it.getAttribute(attr)) + ' '); closeAllPops(); });
+        });
+    }
+    wirePalette('tplInsFieldBtn', 'tplFieldPop', 'data-field', fieldChip);
+    wirePalette('tplInsSigBtn', 'tplSigPop', 'data-anchor', function(k){ return anchorChip(k); });
+    document.addEventListener('click', closeAllPops);
 
     // ── Cargar andamiaje ─────────────────────────────────────────────────
     document.getElementById('tplLoadScaffold').addEventListener('click', function(){
