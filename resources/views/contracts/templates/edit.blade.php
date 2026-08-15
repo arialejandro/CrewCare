@@ -46,31 +46,43 @@
                 <div class="cc-panel cc-toolbar">
                     <div class="cc-panel-h"><h3>{{ __('Insertar') }}</h3></div>
                     <div class="cc-panel-b cc-ins-list">
-                        <div class="cc-ins-cat">{{ __('Datos del trato') }}</div>
-                        @foreach($fields as $key => $label)
-                            <button type="button" class="cc-ins-row is-data" data-field="{{ $key }}">
-                                <span class="cc-ins-ic"><svg viewBox="0 0 24 24"><path d="M8 4H7a2 2 0 0 0-2 2v3a2 2 0 0 1-2 2 2 2 0 0 1 2 2v3a2 2 0 0 0 2 2h1M16 4h1a2 2 0 0 1 2 2v3a2 2 0 0 0 2 2 2 2 0 0 0-2 2v3a2 2 0 0 1-2 2h-1"/></svg></span>
-                                <span class="cc-ins-tx">{{ $label }}</span>
-                            </button>
-                        @endforeach
+                        <div class="cc-ins-group" data-open="1">
+                            <button type="button" class="cc-ins-cat" aria-expanded="true"><span>{{ __('Datos del trato') }}</span><svg class="cc-ins-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+                            <div class="cc-ins-rows">
+                                @foreach($fields as $key => $label)
+                                    <button type="button" class="cc-ins-row is-data" data-field="{{ $key }}">
+                                        <span class="cc-ins-ic"><svg viewBox="0 0 24 24"><path d="M8 4H7a2 2 0 0 0-2 2v3a2 2 0 0 1-2 2 2 2 0 0 1 2 2v3a2 2 0 0 0 2 2h1M16 4h1a2 2 0 0 1 2 2v3a2 2 0 0 0 2 2 2 2 0 0 0-2 2v3a2 2 0 0 1-2 2h-1"/></svg></span>
+                                        <span class="cc-ins-tx">{{ $label }}</span>
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
 
-                        <div class="cc-ins-cat">{{ __('Firmas') }}</div>
-                        @foreach($anchors as $key => $label)
-                            <button type="button" class="cc-ins-row is-sig" data-anchor="{{ $key }}">
-                                <span class="cc-ins-ic"><svg viewBox="0 0 24 24"><path d="M3 19s3-1 6-1 6 2 9 1M4 15c3-8 6-9 7-5s2 6 4 3"/></svg></span>
-                                <span class="cc-ins-tx">{{ $label }}</span>
-                            </button>
-                        @endforeach
+                        <div class="cc-ins-group" data-open="1">
+                            <button type="button" class="cc-ins-cat" aria-expanded="true"><span>{{ __('Firmas') }}</span><svg class="cc-ins-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+                            <div class="cc-ins-rows">
+                                @foreach($anchors as $key => $label)
+                                    <button type="button" class="cc-ins-row is-sig" data-anchor="{{ $key }}">
+                                        <span class="cc-ins-ic"><svg viewBox="0 0 24 24"><path d="M3 19s3-1 6-1 6 2 9 1M4 15c3-8 6-9 7-5s2 6 4 3"/></svg></span>
+                                        <span class="cc-ins-tx">{{ $label }}</span>
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
 
-                        <div class="cc-ins-cat">{{ __('Elementos') }}</div>
-                        <button type="button" class="cc-ins-row is-el" id="tplAddClause">
-                            <span class="cc-ins-ic"><svg viewBox="0 0 24 24"><path d="M7 4h12M7 9h12M7 15h12M7 20h8M3 4h.01M3 9h.01M3 15h.01M3 20h.01"/></svg></span>
-                            <span class="cc-ins-tx">{{ __('Cláusula') }}</span>
-                        </button>
-                        <button type="button" class="cc-ins-row is-el" id="tplInsTable">
-                            <span class="cc-ins-ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 10h18M9 4v16"/></svg></span>
-                            <span class="cc-ins-tx">{{ __('Tabla') }}</span>
-                        </button>
+                        <div class="cc-ins-group" data-open="1">
+                            <button type="button" class="cc-ins-cat" aria-expanded="true"><span>{{ __('Elementos') }}</span><svg class="cc-ins-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+                            <div class="cc-ins-rows">
+                                <button type="button" class="cc-ins-row is-el" id="tplAddClause">
+                                    <span class="cc-ins-ic"><svg viewBox="0 0 24 24"><path d="M7 4h12M7 9h12M7 15h12M7 20h8M3 4h.01M3 9h.01M3 15h.01M3 20h.01"/></svg></span>
+                                    <span class="cc-ins-tx">{{ __('Cláusula') }}</span>
+                                </button>
+                                <button type="button" class="cc-ins-row is-el" id="tplInsTable">
+                                    <span class="cc-ins-ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 10h18M9 4v16"/></svg></span>
+                                    <span class="cc-ins-tx">{{ __('Tabla') }}</span>
+                                </button>
+                            </div>
+                        </div>
 
                         <p class="cc-ins-note">{{ __('Un clic inserta donde está el cursor.') }}</p>
                     </div>
@@ -170,7 +182,7 @@
                                     <option value="{{ $key }}" @selected(old('architecture', $template->architecture ?: 'caratula_numbered') === $key)>{{ $a['label'] }}</option>
                                 @endforeach
                             </select>
-                            <button type="button" id="tplLoadScaffold" class="btn btn-sm btn-crew-soft w-100">{{ __('Cargar andamiaje') }}</button>
+                            <button type="button" id="tplLoadScaffold" class="btn btn-sm btn-crew-soft w-100">{{ __('Precargar formato') }}</button>
                         </div>
                         <div class="cc-field">
                             <label class="form-label fw-semibold d-block">{{ __('Tamaño de página') }}</label>
@@ -216,8 +228,13 @@
 
 /* Insertar: lista categorizada + etiquetada (estilo DocuSign: todo a la mano, iconos chicos) */
 .cc-ins-list{max-height:74vh;overflow:auto}
-.cc-ins-cat{margin:10px 2px 4px;font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted,#6b7482)}
-.cc-ins-cat:first-child{margin-top:2px}
+/* Secciones COLAPSABLES: el encabezado es un botón; su grupo se pliega con data-open */
+.cc-ins-cat{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;margin:8px 0 2px;padding:6px 7px;border:none;background:none;font:inherit;font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted,#6b7482);cursor:pointer;border-radius:8px}
+.cc-ins-group:first-child .cc-ins-cat{margin-top:2px}
+.cc-ins-cat:hover{background:var(--surface-2,#f6f7f9);color:var(--text,#1a1a1a)}
+.cc-ins-chev{width:13px;height:13px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;transition:transform .18s ease}
+.cc-ins-group[data-open="0"] .cc-ins-chev{transform:rotate(-90deg)}
+.cc-ins-group[data-open="0"] .cc-ins-rows{display:none}
 .cc-ins-row{display:flex;align-items:center;gap:9px;width:100%;padding:7px 8px;border-radius:9px;border:1px solid transparent;background:none;color:var(--text,#1a1a1a);font:inherit;text-align:left;cursor:pointer;transition:background .13s ease,border-color .13s ease}
 .cc-ins-row:hover{background:var(--surface-2,#f6f7f9);border-color:var(--border,#d7dce4)}
 .cc-ins-row:active{transform:scale(.99)}
@@ -583,6 +600,15 @@
     document.querySelectorAll('.cc-ins-row[data-anchor]').forEach(function(b){
         b.addEventListener('click', function(){ insertAtCaret(anchorChip(b.getAttribute('data-anchor')) + ' '); });
     });
+    // Secciones colapsables de INSERTAR (encabezado plega/despliega su grupo)
+    document.querySelectorAll('.cc-ins-cat').forEach(function(h){
+        h.addEventListener('click', function(){
+            var g = h.closest('.cc-ins-group'); if(!g){ return; }
+            var willOpen = g.getAttribute('data-open') === '0';
+            g.setAttribute('data-open', willOpen ? '1' : '0');
+            h.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        });
+    });
     document.getElementById('tplAddClause').addEventListener('click', function(){
         var n = canvas.querySelectorAll('p.cc-clause').length + 1;
         insertAtCaret('<p class="cc-clause"><strong>' + ordinal(n) + '. ' + esc('[Título de la cláusula]') + '</strong> ' + esc('[Redacta aquí el contenido de la cláusula.]') + '</p>');
@@ -595,7 +621,7 @@
     document.getElementById('tplLoadScaffold').addEventListener('click', function(){
         var s = archSel && starters[archSel.value]; if(s === undefined){ return; }
         var hasContent = htmlMode ? htmlArea.value.trim() : canvas.textContent.trim();
-        if(hasContent && !window.confirm(@json(__('Esto reemplazará el contenido del contrato con el andamiaje de este formato. ¿Continuar?')))){ return; }
+        if(hasContent && !window.confirm(@json(__('Esto reemplazará el contenido con la estructura base de este formato. ¿Continuar?')))){ return; }
         if(htmlMode){ htmlArea.value = s; } else { hydrate(s); }
         schedulePreview();
         scheduleGuides();

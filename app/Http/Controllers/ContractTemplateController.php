@@ -25,8 +25,8 @@ class ContractTemplateController extends Controller
     private function subtypes(): array
     {
         return [
-            PayeeContract::CONCEPT_CREW    => __('Trabajo de crew'),
-            PayeeContract::CONCEPT_RENTAL  => __('Renta de equipo'),
+            PayeeContract::CONCEPT_CREW    => __('Miembro de crew'),
+            PayeeContract::CONCEPT_RENTAL  => __('Equipo'),
             PayeeContract::CONCEPT_SERVICE => __('Servicio'),
         ];
     }
