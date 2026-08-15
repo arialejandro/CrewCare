@@ -113,8 +113,11 @@
                 <button type="button" class="cc-tb ms-auto" id="tplToggleHtml" title="{{ __('Ver / editar HTML') }}">&lt;/&gt;</button>
             </div>
 
-            <div class="cc-desk">
-                <div id="tplCanvas" class="cc-page" contenteditable="true" spellcheck="true"></div>
+            <div class="cc-desk" id="tplDesk">
+                <div class="cc-page-wrap">
+                    <div id="tplCanvas" class="cc-page" contenteditable="true" spellcheck="true"></div>
+                    <div id="tplGuides" class="cc-guides" aria-hidden="true"></div>
+                </div>
             </div>
 
             {{-- Escotilla HTML (oculta por defecto; para el owner) --}}
@@ -159,8 +162,12 @@
 .cc-tb-sep{width:1px;height:22px;background:var(--border,#d7dce4);margin:0 2px}
 .cc-tb-select{max-width:164px;height:32px}
 .cc-desk{padding:22px;border:1px solid var(--border,#d7dce4);border-radius:0 0 10px 10px;background:var(--surface-2,#e9edf2);max-height:74vh;overflow:auto}
-.cc-page{--pg-w:216mm;--pg-h:279mm;--pg-m:25mm;width:var(--pg-w);min-height:var(--pg-h);padding:var(--pg-m);margin:0 auto;background:#fff;color:#1a1a1a;box-shadow:0 3px 16px rgba(0,0,0,.20);font-family:Georgia,"Times New Roman",serif;line-height:1.6;font-size:12pt}
+.cc-page-wrap{position:relative;width:-moz-fit-content;width:fit-content;margin:0 auto}
+.cc-page{--pg-w:216mm;--pg-h:279mm;--pg-m:25mm;position:relative;width:var(--pg-w);min-height:var(--pg-h);padding:var(--pg-m);margin:0;background:#fff;color:#1a1a1a;box-shadow:0 3px 16px rgba(0,0,0,.20);font-family:Georgia,"Times New Roman",serif;line-height:1.6;font-size:12pt}
 .cc-page:focus{outline:none}
+.cc-guides{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:2}
+.cc-guide{position:absolute;left:0;right:0;border-top:2px dashed color-mix(in srgb, var(--brand,#ff0046) 45%, transparent)}
+.cc-guide span{position:absolute;right:8px;top:-9px;background:var(--surface-2,#e9edf2);color:var(--brand,#ff0046);font:600 .62rem system-ui,-apple-system,sans-serif;padding:0 6px;letter-spacing:.02em}
 .cc-page h1{font-size:1.4rem;text-align:center}
 .cc-page h2{font-size:1.05rem;border-bottom:1px solid #dddddd;padding-bottom:3px;margin-top:1.1rem}
 .cc-page table{width:100%;border-collapse:collapse}
@@ -187,6 +194,8 @@
     var archSel  = document.getElementById('tplArch');
     var pageSel  = document.getElementById('tplPageSize');
     var initialsChk = document.getElementById('tplInitials');
+    var guides = document.getElementById('tplGuides');
+    var gTimer = null;
     var LB = '{' + '{', RB = '}' + '}';   // evita que Blade parsee llaves literales en este script
 
     // Rúbrica de muestra (SVG cursivo) para la vista paginada.
@@ -238,6 +247,7 @@
         }
         canvas.querySelectorAll('.cc-pb').forEach(function(el){ el.setAttribute('contenteditable', 'false'); });
         schedulePreview();
+        scheduleGuides();
     }
 
     // ── Ordinales femeninos para "Añadir cláusula" ──────────────────────
@@ -333,6 +343,32 @@
     }
     function schedulePreview(){ if(!previewOn){ return; } clearTimeout(pvTimer); pvTimer = setTimeout(refresh, 450); }
 
+    // ── Saltos automáticos EN el editor: líneas-guía de página (medidas) ──
+    function drawGuides(){
+        if(!guides){ return; }
+        guides.innerHTML = '';
+        var d = (pageSel && PAGES[pageSel.value]) || { w: 216, h: 279, margin: 25 };
+        var contentH = (d.h - 2 * d.margin) * PXMM;
+        var kids = Array.prototype.slice.call(canvas.children);
+        if(!kids.length){ return; }
+        var items = kids.map(function(el){
+            var cs = getComputedStyle(el);
+            return { h: el.offsetHeight + parseFloat(cs.marginTop || 0) + parseFloat(cs.marginBottom || 0),
+                     br: el.classList.contains('cc-pb'), el: el };
+        });
+        var pages = splitPages(items, contentH);
+        for(var p = 0; p < pages.length - 1; p++){
+            var idxs = pages[p]; if(!idxs.length){ continue; }
+            var el = items[idxs[idxs.length - 1]].el;
+            var g = document.createElement('div');
+            g.className = 'cc-guide';
+            g.style.top = (el.offsetTop + el.offsetHeight) + 'px';
+            g.innerHTML = '<span>Página ' + (p + 2) + '</span>';
+            guides.appendChild(g);
+        }
+    }
+    function scheduleGuides(){ clearTimeout(gTimer); gTimer = setTimeout(drawGuides, 250); }
+
     function updateArchDesc(){ var m = archSel && archMeta[archSel.value]; var el = document.getElementById('tplArchDesc'); if(el){ el.textContent = m ? m.desc : ''; } }
 
     // ── Barra de formato ─────────────────────────────────────────────────
@@ -342,6 +378,7 @@
             canvas.focus();
             document.execCommand(cmd, false, cmd === 'formatBlock' ? '<' + arg + '>' : (arg || null));
             schedulePreview();
+            scheduleGuides();
         });
     });
     document.getElementById('tplAddClause').addEventListener('click', function(){
@@ -359,12 +396,14 @@
         if(hasContent && !window.confirm(@json(__('Esto reemplazará el contenido del contrato con el andamiaje de este formato. ¿Continuar?')))){ return; }
         if(htmlMode){ htmlArea.value = s; } else { hydrate(s); }
         schedulePreview();
+        scheduleGuides();
     });
 
     // ── Ver / editar HTML ────────────────────────────────────────────────
+    var deskEl = document.getElementById('tplDesk');
     document.getElementById('tplToggleHtml').addEventListener('click', function(){
-        if(!htmlMode){ htmlArea.value = serialize(); htmlArea.classList.remove('d-none'); canvas.parentElement.classList.add('d-none'); htmlMode = true; }
-        else { hydrate(htmlArea.value); htmlArea.classList.add('d-none'); canvas.parentElement.classList.remove('d-none'); htmlMode = false; }
+        if(!htmlMode){ htmlArea.value = serialize(); htmlArea.classList.remove('d-none'); if(deskEl){ deskEl.classList.add('d-none'); } htmlMode = true; }
+        else { hydrate(htmlArea.value); htmlArea.classList.add('d-none'); if(deskEl){ deskEl.classList.remove('d-none'); } htmlMode = false; scheduleGuides(); }
     });
 
     // ── Toggle "Vista con datos" ─────────────────────────────────────────
@@ -377,10 +416,10 @@
     });
 
     // ── Cambios -> preview ───────────────────────────────────────────────
-    canvas.addEventListener('input', schedulePreview);
+    canvas.addEventListener('input', function(){ schedulePreview(); scheduleGuides(); });
     htmlArea.addEventListener('input', schedulePreview);
-    if(archSel){ archSel.addEventListener('change', function(){ updateArchDesc(); schedulePreview(); }); }
-    if(pageSel){ pageSel.addEventListener('change', function(){ applyPageSize(); schedulePreview(); }); }
+    if(archSel){ archSel.addEventListener('change', function(){ updateArchDesc(); schedulePreview(); scheduleGuides(); }); }
+    if(pageSel){ pageSel.addEventListener('change', function(){ applyPageSize(); schedulePreview(); scheduleGuides(); }); }
     if(initialsChk){ initialsChk.addEventListener('change', schedulePreview); }
     document.getElementById('tplRefresh').addEventListener('click', function(){ previewOn = true; refresh(); });
 
@@ -391,6 +430,7 @@
     applyPageSize();
     hydrate(htmlArea.value);
     updateArchDesc();
+    scheduleGuides();
 })();
 </script>
 @endpush

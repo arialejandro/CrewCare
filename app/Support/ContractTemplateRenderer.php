@@ -145,8 +145,9 @@ class ContractTemplateRenderer
         $extra = $architecture ? ContractArchitectures::pageCss($architecture) : '';
         $paged = $pageSize ? ContractPageSizes::pageCss($pageSize) : '';
         $rubCss = $rubrica
-            ? '.cc-rubrica{position:fixed;bottom:6mm;right:10mm;text-align:center;font-size:8pt;color:#555}'
-              . '.cc-rubrica img{max-height:34px;max-width:120px;display:block;margin:0 auto}'
+            ? '.cc-rubrica{position:fixed;bottom:7mm;right:9mm;text-align:center;font-size:7.5pt;color:#666;'
+              . 'background:#fff;padding:1mm 2mm;border:1px solid #e6e6e6;border-radius:4px}'
+              . '.cc-rubrica img{max-height:28px;max-width:105px;display:block;margin:0 auto}'
             : '';
         $rubEl = $rubrica ? '<div class="cc-rubrica">' . $rubrica . '</div>' : '';
 
