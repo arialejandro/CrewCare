@@ -228,28 +228,26 @@ class ContractTemplateRenderer
         $ok     = ($p['verified'] ?? null) === true;
         $bad    = ($p['verified'] ?? null) === false;
         $accent = $bad ? '#b91c1c' : '#4b53d6';                        // corchete: índigo, rojo si alterada
-        $hcolor = $ok ? '#15803d' : ($bad ? '#b91c1c' : '#8a93a2');
-        $hlabel = $ok ? '✓ Verificada e íntegra' : ($bad ? '⚠ Alterada' : '');
+        $tick   = $ok ? '✓ ' : ($bad ? '⚠ ' : '');
+        $tcolor = $ok ? '#15803d' : ($bad ? '#b91c1c' : '#8a93a2');
 
         $mark = $img
             ? '<img src="' . e($img) . '" alt="Firma" style="max-width:170px;max-height:34px;display:inline-block;background:transparent;mix-blend-mode:multiply;">'
             : '<span style="display:inline-block;height:22px;"></span>';
 
-        // Formato DocuSign (como el corpus): corchete con "Firmado por:" + autógrafa; debajo, línea +
-        // NOMBRE + hash COMPLETO. El rol/descriptor va fuera (en `.cc-sign-role` de la celda).
+        // Formato DocuSign: el corchete envuelve "Firmado por:" + autógrafa + el HASH (donde DocuSign
+        // pone su id, pero COMPLETO); debajo, línea + NOMBRE. El rol va fuera (en `.cc-sign-role`).
         return '<span class="cc-sig-stamp" style="display:block;text-align:center;background:transparent;">'
             . '<span style="display:inline-flex;align-items:stretch;gap:5px;text-align:left;">'
                 . '<span style="flex:0 0 auto;width:6px;border:1.25px solid ' . $accent . ';border-right:0;border-radius:4px 0 0 4px;"></span>'
                 . '<span style="flex:1 1 auto;">'
                     . '<span style="display:block;font-size:7px;color:#6b7482;letter-spacing:.3px;">' . e(__('Firmado por:')) . '</span>'
                     . $mark
+                    . ($hash ? '<span style="display:block;font-size:6px;line-height:1.3;color:' . $tcolor . ';word-break:break-all;">' . $tick . '<code style="font-size:6px;color:#5b6472;">' . $hash . '</code></span>' : '')
                 . '</span>'
             . '</span>'
             . '<span style="display:block;border-top:1px solid #333;margin:1px auto 2px;max-width:220px;"></span>'
             . '<span style="display:block;font-weight:700;font-size:9.5px;color:#10151f;line-height:1.2;">' . $signer . '</span>'
-            . ($hash ? '<span style="display:block;margin:1px auto 0;max-width:230px;font-size:6px;line-height:1.35;color:' . $hcolor . ';">'
-                       . ($hlabel ? $hlabel . '<br>' : '')
-                       . '<code style="font-size:6px;color:#5b6472;word-break:break-all;">' . $hash . '</code></span>' : '')
             . '</span>';
     }
 
