@@ -288,6 +288,13 @@
 .cc-page table{width:100%;border-collapse:collapse}
 .cc-page td{padding:5px 7px;vertical-align:top}
 .cc-page .bili td{border:1px solid #333;width:50%}
+/* Bloque de firmas = rejilla flexible de slots protegidos (no una tabla) */
+.cc-page .cc-signs{display:flex;flex-wrap:wrap;justify-content:space-around;align-items:flex-end;gap:24px 30px;margin:28px 0 8px}
+.cc-page .cc-sign{position:relative;flex:1 1 260px;max-width:48%;text-align:center}
+.cc-page .cc-sign-role{font-size:11px;color:#555;margin-top:4px}
+.cc-page .cc-sign-role:focus{outline:1px dashed color-mix(in srgb,var(--brand,#ff0046) 50%,transparent);outline-offset:2px}
+.cc-page .cc-sign-del{position:absolute;top:-9px;right:4px;width:18px;height:18px;border-radius:50%;background:#fff;border:1px solid #d7dce4;color:#b91c1c;font-size:13px;line-height:15px;text-align:center;cursor:pointer;opacity:0;transition:opacity .12s;user-select:none}
+.cc-page .cc-sign:hover .cc-sign-del{opacity:1}
 .cc-page .cc-pb{height:0;margin:22px 0;border:0;border-top:2px dashed var(--brand,#ff0046);position:relative}
 .cc-tok{display:inline-block;padding:1px 8px;margin:0 1px;border-radius:999px;background:color-mix(in srgb, var(--brand,#ff0046) 12%, #fff);border:1px solid color-mix(in srgb, var(--brand,#ff0046) 35%, transparent);color:#10151f;font-family:system-ui,-apple-system,sans-serif;font-size:.78rem;white-space:nowrap;user-select:all;cursor:default}
 .cc-tok--sig{background:color-mix(in srgb, #2563eb 14%, #fff);border-color:color-mix(in srgb, #2563eb 38%, transparent)}
@@ -348,6 +355,7 @@
         out = out.replace(/\{\{\s*([a-z0-9_.]+)\s*\}\}/gi, function(_, k){ return fieldChip(k.toLowerCase()); });
         canvas.innerHTML = out;
         canvas.querySelectorAll('.cc-pb').forEach(function(el){ el.setAttribute('contenteditable', 'false'); });
+        markSignEditability();
     }
 
     // ── Serialize: hoja -> HTML limpio con tokens ────────────────────────
@@ -356,6 +364,7 @@
     function ser(node){
         if(node.nodeType === 3){ return esc(node.nodeValue); }
         if(node.nodeType !== 1){ return ''; }
+        if(node.classList && node.classList.contains('cc-sign-del')){ return ''; }   // la × de quitar no se guarda
         if(node.hasAttribute && node.hasAttribute('data-field')){ return LB + node.getAttribute('data-field') + RB; }
         if(node.hasAttribute && node.hasAttribute('data-anchor')){
             var ak = node.getAttribute('data-anchor');
@@ -366,6 +375,7 @@
             return '[[firma:' + ak + ']]';
         }
         var tag = ALLOWED[node.tagName];
+        if(node.tagName === 'DIV' && /cc-sign/.test(node.getAttribute('class') || '')){ tag = 'div'; }   // conserva la estructura de firmas
         var inner = ''; node.childNodes.forEach(function(c){ inner += ser(c); });
         if(!tag){ return inner; }
         if(tag === 'br'){ return '<br>'; }
@@ -434,7 +444,8 @@
             + '.sheet{width:' + d.w + 'mm;min-height:' + d.h + 'mm;box-sizing:border-box;padding:' + d.margin + 'mm;margin:0 auto 16px;background:#fff;color:#1a1a1a;box-shadow:0 2px 12px rgba(0,0,0,.22);position:relative;font-size:' + fontSizePt() + ';line-height:1.15}'
             + '.sheet-foot{position:absolute;bottom:' + (d.margin/2) + 'mm;right:' + d.margin + 'mm;font-size:9pt;color:#8a93a2}'
             + 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #ddd;padding-bottom:3px;margin-top:1.1rem}'
-            + 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}.bili td{border:1px solid #333;width:50%}';
+            + 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}.bili td{border:1px solid #333;width:50%}'
+            + '.cc-signs{display:flex;flex-wrap:wrap;justify-content:space-around;align-items:flex-end;gap:24px 30px;margin:28px 0 8px}.cc-sign{flex:1 1 260px;max-width:48%;text-align:center}.cc-sign-role{font-size:11px;color:#555;margin-top:4px}';
     }
 
     // CSS CANÓNICO de impresión — IDÉNTICO a ContractTemplateRenderer::page(): la MISMA tipografía en el
@@ -443,7 +454,8 @@
     function PRINT_CSS(contentW){
         return 'body{margin:0;width:' + contentW + 'px;font-family:' + fontStack() + ';font-size:' + fontSizePt() + ';line-height:1.15}'
             + 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #ddd;padding-bottom:3px;margin-top:1.1rem}'
-            + 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}.bili td{border:1px solid #333;width:50%}';
+            + 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}.bili td{border:1px solid #333;width:50%}'
+            + '.cc-signs{display:flex;flex-wrap:wrap;justify-content:space-around;align-items:flex-end;gap:24px 30px;margin:28px 0 8px}.cc-sign{flex:1 1 260px;max-width:48%;text-align:center}.cc-sign-role{font-size:11px;color:#555;margin-top:4px}';
     }
     // Alto/ancho ÚTIL de la hoja en px (una Carta/Oficio tiene tamaño físico fijo → nº de px conocido).
     function contentBox(){
@@ -598,8 +610,52 @@
     document.querySelectorAll('.cc-ins-row[data-field]').forEach(function(b){
         b.addEventListener('click', function(){ insertAtCaret(fieldChip(b.getAttribute('data-field')) + ' '); });
     });
+    // ── Bloque de FIRMAS = rejilla de slots protegidos (no una tabla) ──
+    function signCell(k){
+        return '<div class="cc-sign"><div class="cc-sign-anchor">' + anchorChip(k) + '</div><div class="cc-sign-role">' + esc(ANCHORS[k] || k) + '</div></div>';
+    }
+    // Slots NO editables (protegidos) + etiquetas editables + la × para quitar (la × no se serializa).
+    function markSignEditability(){
+        canvas.querySelectorAll('.cc-sign').forEach(function(c){
+            c.setAttribute('contenteditable', 'false');
+            if(!c.querySelector('.cc-sign-del')){
+                var x = document.createElement('span');
+                x.className = 'cc-sign-del'; x.setAttribute('contenteditable', 'false');
+                x.setAttribute('title', 'Quitar firmante'); x.textContent = '×';
+                c.appendChild(x);
+            }
+        });
+        canvas.querySelectorAll('.cc-sign-role').forEach(function(r){ r.setAttribute('contenteditable', 'true'); });
+    }
+    // Agregar firmante: añade un slot a la rejilla (la del cursor, o la última); si no hay, crea una.
+    function addSigner(k){
+        var grid = null, sel = window.getSelection();
+        if(sel && sel.rangeCount){ var n = sel.getRangeAt(0).startContainer; while(n && n !== canvas){ if(n.classList && n.classList.contains('cc-signs')){ grid = n; break; } n = n.parentNode; } }
+        if(!grid){ var all = canvas.querySelectorAll('.cc-signs'); grid = all.length ? all[all.length - 1] : null; }
+        if(grid){ grid.insertAdjacentHTML('beforeend', signCell(k)); }
+        else { insertAtCaret('<div class="cc-signs">' + signCell(k) + '</div><p><br></p>'); }
+        markSignEditability();
+        schedulePreview(); scheduleGuides();
+    }
     document.querySelectorAll('.cc-ins-row[data-anchor]').forEach(function(b){
-        b.addEventListener('click', function(){ insertAtCaret(anchorChip(b.getAttribute('data-anchor')) + ' '); });
+        b.addEventListener('click', function(){
+            var k = b.getAttribute('data-anchor');
+            if(k === 'rubrica'){ insertAtCaret(anchorChip('rubrica') + ' '); }   // la rúbrica es inline/arrastrable
+            else { addSigner(k); }
+        });
+    });
+    // Quitar un firmante (× del slot).
+    canvas.addEventListener('click', function(e){
+        var del = e.target && e.target.closest ? e.target.closest('.cc-sign-del') : null;
+        if(!del){ return; }
+        var cell = del.closest('.cc-sign'); if(cell && cell.parentNode){ cell.parentNode.removeChild(cell); schedulePreview(); scheduleGuides(); }
+    });
+    // Enter dentro de una etiqueta de firma NO rompe el bloque (para continuar el doc se usa el párrafo de después).
+    canvas.addEventListener('keydown', function(e){
+        if(e.key !== 'Enter'){ return; }
+        var sel = window.getSelection(); if(!sel || !sel.rangeCount){ return; }
+        var n = sel.getRangeAt(0).startContainer;
+        while(n && n !== canvas){ if(n.classList && n.classList.contains('cc-sign-role')){ e.preventDefault(); return; } n = n.parentNode; }
     });
     // Secciones colapsables de INSERTAR (encabezado plega/despliega su grupo)
     document.querySelectorAll('.cc-ins-cat').forEach(function(h){

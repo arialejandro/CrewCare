@@ -112,12 +112,14 @@ class ContractArchitectures
 
     // ── Andamiajes (estructura real; el cuerpo de cláusula es placeholder) ──────────────────
 
+    // Bloque de firmas = REJILLA flexible de slots (no una tabla): fluye al agregar firmantes y no se
+    // rompe al editar. Cada slot = ancla + etiqueta. Deja un <p> después para continuar el documento.
     private static function firmasBlock(string $izq, string $der): string
     {
-        return "<h2>Firmas</h2>\n<table style=\"width:100%\"><tr>\n"
-            . "  <td style=\"text-align:center;padding:12px;vertical-align:bottom\">[[firma:contratado]]<div style=\"font-size:11px;color:#555\">{$izq}</div></td>\n"
-            . "  <td style=\"text-align:center;padding:12px;vertical-align:bottom\">[[firma:dept_hod]]<div style=\"font-size:11px;color:#555\">{$der}</div></td>\n"
-            . "</tr></table>";
+        return "<h2>Firmas</h2>\n<div class=\"cc-signs\">\n"
+            . "  <div class=\"cc-sign\"><div class=\"cc-sign-anchor\">[[firma:contratado]]</div><div class=\"cc-sign-role\">{$izq}</div></div>\n"
+            . "  <div class=\"cc-sign\"><div class=\"cc-sign-anchor\">[[firma:dept_hod]]</div><div class=\"cc-sign-role\">{$der}</div></div>\n"
+            . "</div>\n<p><br></p>";
     }
 
     private static function starterCaratula(): string
@@ -196,10 +198,10 @@ class ContractArchitectures
 
     private static function firmasBili(string $enL, string $esL, string $enR, string $esR): string
     {
-        return "<h2>Signatures / Firmas</h2>\n<table style=\"width:100%\"><tr>\n"
-            . "  <td style=\"text-align:center;padding:12px;vertical-align:bottom\">[[firma:contratado]]<div style=\"font-size:11px;color:#555\">{$enL} / {$esL}</div></td>\n"
-            . "  <td style=\"text-align:center;padding:12px;vertical-align:bottom\">[[firma:dept_hod]]<div style=\"font-size:11px;color:#555\">{$enR} / {$esR}</div></td>\n"
-            . "</tr></table>";
+        return "<h2>Signatures / Firmas</h2>\n<div class=\"cc-signs\">\n"
+            . "  <div class=\"cc-sign\"><div class=\"cc-sign-anchor\">[[firma:contratado]]</div><div class=\"cc-sign-role\">{$enL} / {$esL}</div></div>\n"
+            . "  <div class=\"cc-sign\"><div class=\"cc-sign-anchor\">[[firma:dept_hod]]</div><div class=\"cc-sign-role\">{$enR} / {$esR}</div></div>\n"
+            . "</div>\n<p><br></p>";
     }
 
     private static function starterBilingualCrew(): string

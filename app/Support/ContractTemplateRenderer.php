@@ -175,7 +175,9 @@ class ContractTemplateRenderer
             . '<style>' . $paged
             . 'body{font-family:' . $font . ';color:#1a1a1a;margin:0;line-height:1.15;font-size:' . $sz . '}'
             . 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #e2e2e2;padding-bottom:3px;margin-top:1.1rem}'
-            . 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}' . $extra . '</style>' . $inner;
+            . 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}'
+            . '.cc-signs{display:flex;flex-wrap:wrap;justify-content:space-around;align-items:flex-end;gap:24px 30px;margin:28px 0 8px}.cc-sign{flex:1 1 260px;max-width:48%;text-align:center}.cc-sign-role{font-size:11px;color:#555;margin-top:4px}'
+            . $extra . '</style>' . $inner;
     }
 
     /** Reemplaza `{{token}}` por su valor (escapado). Token desconocido/vacío → cadena vacía. */
