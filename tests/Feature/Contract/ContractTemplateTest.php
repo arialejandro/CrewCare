@@ -165,6 +165,13 @@ class ContractTemplateTest extends QaTestCase
         $this->assertStringContainsString('cc-rubrica-stamp', $html, 'rúbrica compacta');
         $this->assertStringNotContainsString('cc-sig-stamp', $html, 'la rúbrica NO usa el sello grande con hash');
         $this->assertStringNotContainsString('[[firma:rubrica]]', $html, 'ancla resuelta');
+
+        // Movida libremente: [[firma:rubrica|dx,dy]] → transform:translate en el estampado.
+        $moved = $this->post(route('contracts.templates.preview'), ['body' => '<p>[[firma:rubrica|70,-45]]</p>']);
+        $moved->assertOk();
+        $this->assertStringContainsString('transform:translate(70px,-45px)', $moved->getContent(), 'la rúbrica conserva su desplazamiento');
+        // Sin offset no debe meter transform.
+        $this->assertStringNotContainsString('transform:translate', $html, 'sin offset, sin transform');
     }
 
     public function test_preview_fragment_returns_inner_only(): void

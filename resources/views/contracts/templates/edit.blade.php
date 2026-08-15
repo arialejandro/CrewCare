@@ -174,6 +174,8 @@
 .cc-page .cc-pb::before{content:"⤶ Salto de página";position:absolute;left:50%;top:-9px;transform:translateX(-50%);background:#fff;color:var(--brand,#ff0046);font:600 .66rem system-ui,-apple-system,sans-serif;padding:0 8px;letter-spacing:.02em;white-space:nowrap}
 .cc-tok{display:inline-block;padding:1px 8px;margin:0 1px;border-radius:999px;background:color-mix(in srgb, var(--brand,#ff0046) 12%, #fff);border:1px solid color-mix(in srgb, var(--brand,#ff0046) 35%, transparent);color:#10151f;font-family:system-ui,-apple-system,sans-serif;font-size:.78rem;white-space:nowrap;user-select:all;cursor:default}
 .cc-tok--sig{background:color-mix(in srgb, #2563eb 14%, #fff);border-color:color-mix(in srgb, #2563eb 38%, transparent)}
+.cc-tok--rub{cursor:move;touch-action:none}
+.cc-tok--rub:hover{box-shadow:0 0 0 2px color-mix(in srgb, #2563eb 40%, transparent)}
 </style>
 @endpush
 
@@ -207,11 +209,20 @@
 
     // ── Chips ────────────────────────────────────────────────────────────
     function fieldChip(k){ return '<span class="cc-tok" contenteditable="false" data-field="'+esc(k)+'">'+esc(FIELDS[k]||k)+'</span>'; }
-    function anchorChip(k){ return '<span class="cc-tok cc-tok--sig" contenteditable="false" data-anchor="'+esc(k)+'">✍ '+esc(ANCHORS[k]||k)+'</span>'; }
+    // La rúbrica lleva desplazamiento libre (data-x/data-y en px) → se arrastra; el resto de firmas no.
+    function anchorChip(k, dx, dy){
+        var isRub = (k === 'rubrica');
+        var x = isRub ? (parseInt(dx, 10) || 0) : 0, y = isRub ? (parseInt(dy, 10) || 0) : 0;
+        var cls = 'cc-tok cc-tok--sig' + (isRub ? ' cc-tok--rub' : '');
+        var da  = isRub ? ' data-x="' + x + '" data-y="' + y + '"' : '';
+        var st  = (x || y) ? ' style="transform:translate(' + x + 'px,' + y + 'px)"' : '';
+        var tip = isRub ? ' ✥' : '';   // manija: la rúbrica se arrastra libremente
+        return '<span class="' + cls + '" contenteditable="false" data-anchor="' + esc(k) + '"' + da + st + '>✍ ' + esc(ANCHORS[k]||k) + tip + '</span>';
+    }
 
     // ── Hydrate: body con tokens -> hoja con chips ───────────────────────
     function hydrate(html){
-        var out = String(html || '').replace(/\[\[firma:([a-z0-9_:\-]+)\]\]/gi, function(_, k){ return anchorChip(k.toLowerCase()); });
+        var out = String(html || '').replace(/\[\[firma:([a-z0-9_:\-]+)(?:\|(-?\d+),(-?\d+))?\]\]/gi, function(_, k, dx, dy){ return anchorChip(k.toLowerCase(), dx, dy); });
         out = out.replace(/\{\{\s*([a-z0-9_.]+)\s*\}\}/gi, function(_, k){ return fieldChip(k.toLowerCase()); });
         canvas.innerHTML = out;
         canvas.querySelectorAll('.cc-pb').forEach(function(el){ el.setAttribute('contenteditable', 'false'); });
@@ -224,7 +235,14 @@
         if(node.nodeType === 3){ return esc(node.nodeValue); }
         if(node.nodeType !== 1){ return ''; }
         if(node.hasAttribute && node.hasAttribute('data-field')){ return LB + node.getAttribute('data-field') + RB; }
-        if(node.hasAttribute && node.hasAttribute('data-anchor')){ return '[[firma:' + node.getAttribute('data-anchor') + ']]'; }
+        if(node.hasAttribute && node.hasAttribute('data-anchor')){
+            var ak = node.getAttribute('data-anchor');
+            if(ak === 'rubrica'){
+                var rx = parseInt(node.getAttribute('data-x') || '0', 10) || 0, ry = parseInt(node.getAttribute('data-y') || '0', 10) || 0;
+                return (rx || ry) ? '[[firma:rubrica|' + rx + ',' + ry + ']]' : '[[firma:rubrica]]';
+            }
+            return '[[firma:' + ak + ']]';
+        }
         var tag = ALLOWED[node.tagName];
         var inner = ''; node.childNodes.forEach(function(c){ inner += ser(c); });
         if(!tag){ return inner; }
@@ -424,6 +442,31 @@
         this.classList.toggle('btn-crew-soft', ! previewOn);
         if(previewOn){ refresh(); }
     });
+
+    // ── Arrastre LIBRE de la rúbrica ─────────────────────────────────────
+    // Mueve la inicial por transform:translate SIN sacarla del flujo → sigue cayendo en su página al
+    // paginar; el offset (data-x/data-y) se serializa como [[firma:rubrica|dx,dy]] y se estampa igual
+    // en el PDF. No afecta la medición del salto de página (transform no toca el layout).
+    (function(){
+        var drag = null;
+        canvas.addEventListener('pointerdown', function(e){
+            var chip = e.target && e.target.closest ? e.target.closest('.cc-tok--rub') : null;
+            if(!chip){ return; }
+            e.preventDefault();
+            drag = { chip: chip, sx: e.clientX, sy: e.clientY,
+                     x0: parseInt(chip.getAttribute('data-x') || '0', 10) || 0,
+                     y0: parseInt(chip.getAttribute('data-y') || '0', 10) || 0 };
+        });
+        document.addEventListener('pointermove', function(e){
+            if(!drag){ return; }
+            var x = drag.x0 + (e.clientX - drag.sx), y = drag.y0 + (e.clientY - drag.sy);
+            drag.chip.setAttribute('data-x', x); drag.chip.setAttribute('data-y', y);
+            drag.chip.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+        });
+        function endDrag(){ if(drag){ drag = null; schedulePreview(); scheduleGuides(); } }
+        document.addEventListener('pointerup', endDrag);
+        document.addEventListener('pointercancel', endDrag);
+    })();
 
     // ── Cambios -> preview ───────────────────────────────────────────────
     canvas.addEventListener('input', function(){ schedulePreview(); scheduleGuides(); });

@@ -185,14 +185,25 @@ class ContractTemplateRenderer
         }, $body);
     }
 
-    /** Reemplaza `[[firma:CLAVE]]` por el sello (autógrafa+hash) o el placeholder de pendiente. */
+    /**
+     * Reemplaza `[[firma:CLAVE]]` por el sello (autógrafa+hash) o el placeholder de pendiente.
+     * La rúbrica admite un desplazamiento LIBRE `[[firma:rubrica|dx,dy]]` (px): sigue anclada en el
+     * flujo —así cae sola en su página al paginar— pero se mueve visualmente con `transform:translate`
+     * (no afecta el layout ni la paginación). Es lo que persiste el arrastre del editor.
+     */
     public static function stampAnchors(string $body, array $sigMap): string
     {
-        return preg_replace_callback('/\[\[firma:([a-z0-9_:\-]+)\]\]/i', function ($m) use ($sigMap) {
+        return preg_replace_callback('/\[\[firma:([a-z0-9_:\-]+)(?:\|(-?\d+),(-?\d+))?\]\]/i', function ($m) use ($sigMap) {
             $key  = strtolower($m[1]);
             $data = $sigMap[$key] ?? null;
-            if ($key === 'rubrica') {   // ancla compacta: inicial que el redactor coloca a mano
-                return is_array($data) ? self::rubricaStamp($data) : self::rubricaPending();
+            if ($key === 'rubrica') {   // ancla compacta: inicial que el redactor coloca (y mueve) a mano
+                $stamp = is_array($data) ? self::rubricaStamp($data) : self::rubricaPending();
+                $dx = isset($m[2]) && $m[2] !== '' ? (int) $m[2] : 0;
+                $dy = isset($m[3]) && $m[3] !== '' ? (int) $m[3] : 0;
+                if ($dx !== 0 || $dy !== 0) {
+                    $stamp = '<span style="display:inline-block;transform:translate(' . $dx . 'px,' . $dy . 'px)">' . $stamp . '</span>';
+                }
+                return $stamp;
             }
             return is_array($data) ? self::signatureStamp($data) : self::pendingStamp($sigMap['__labels'][$key] ?? $key);
         }, $body);
