@@ -77,6 +77,11 @@
                                     <option value="{{ $k }}" @selected(old('page_size', $template->page_size ?: 'carta') === $k)>{{ $p['label'] }}</option>
                                 @endforeach
                             </select>
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" name="initials_each_page" value="1" id="tplInitials"
+                                       @checked(old('initials_each_page', $template->initials_each_page))>
+                                <label class="form-check-label small" for="tplInitials">{{ __('Rúbrica del contratado en cada página') }}</label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -181,7 +186,15 @@
     var bodyIn   = document.getElementById('tplBodyInput');
     var archSel  = document.getElementById('tplArch');
     var pageSel  = document.getElementById('tplPageSize');
+    var initialsChk = document.getElementById('tplInitials');
     var LB = '{' + '{', RB = '}' + '}';   // evita que Blade parsee llaves literales en este script
+
+    // Rúbrica de muestra (SVG cursivo) para la vista paginada.
+    function rubricaSvg(){
+        return '<div class="sheet-rubrica"><svg xmlns="http://www.w3.org/2000/svg" width="140" height="40">'
+            + '<text x="6" y="27" font-family="Segoe Script,Brush Script MT,cursive" font-size="22" font-style="italic" fill="#0f1115">M. G. Ríos</text>'
+            + '</svg><span>Rúbrica</span></div>';
+    }
 
     function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 
@@ -272,6 +285,8 @@
         return 'body{background:#e9edf2;margin:0;padding:16px;font-family:Georgia,"Times New Roman",serif}'
             + '.sheet{width:' + d.w + 'mm;min-height:' + d.h + 'mm;box-sizing:border-box;padding:' + d.margin + 'mm;margin:0 auto 16px;background:#fff;color:#1a1a1a;box-shadow:0 2px 12px rgba(0,0,0,.22);position:relative;font-size:12pt;line-height:1.6}'
             + '.sheet-foot{position:absolute;bottom:' + (d.margin/2) + 'mm;right:' + d.margin + 'mm;font-size:9pt;color:#8a93a2}'
+            + '.sheet-rubrica{position:absolute;bottom:' + (d.margin/2) + 'mm;left:' + d.margin + 'mm;text-align:left}'
+            + '.sheet-rubrica svg{height:26px;display:block}.sheet-rubrica span{font-size:7pt;color:#888}'
             + 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #ddd;padding-bottom:3px;margin-top:1.1rem}'
             + 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}';
     }
@@ -297,9 +312,10 @@
         document.body.removeChild(ifr);
         var pages = splitPages(items, contentH);
         var total = pages.length;
+        var rub = (initialsChk && initialsChk.checked) ? rubricaSvg() : '';
         var sheets = pages.map(function(idxs, i){
             var b = idxs.map(function(j){ return items[j].html; }).join('');
-            return '<div class="sheet">' + b + '<div class="sheet-foot">Página ' + (i + 1) + ' de ' + total + '</div></div>';
+            return '<div class="sheet">' + b + rub + '<div class="sheet-foot">Página ' + (i + 1) + ' de ' + total + '</div></div>';
         }).join('');
         return '<!doctype html><meta charset="utf-8"><style>' + sheetCss(d) + '</style>' + sheets;
     }
@@ -365,6 +381,7 @@
     htmlArea.addEventListener('input', schedulePreview);
     if(archSel){ archSel.addEventListener('change', function(){ updateArchDesc(); schedulePreview(); }); }
     if(pageSel){ pageSel.addEventListener('change', function(){ applyPageSize(); schedulePreview(); }); }
+    if(initialsChk){ initialsChk.addEventListener('change', schedulePreview); }
     document.getElementById('tplRefresh').addEventListener('click', function(){ previewOn = true; refresh(); });
 
     // ── Al enviar: vuelca el cuerpo serializado ──────────────────────────

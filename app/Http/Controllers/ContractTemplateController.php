@@ -111,7 +111,11 @@ class ContractTemplateController extends Controller
             return response($inner);
         }
 
-        return response(ContractTemplateRenderer::page($inner, $arch, $size));
+        $rubrica = $request->boolean('initials_each_page')
+            ? ContractTemplateRenderer::rubricaFor(self::sampleRubricaImage(), 'María G. Ríos')
+            : null;
+
+        return response(ContractTemplateRenderer::page($inner, $arch, $size, $rubrica));
     }
 
     // ── Validación + datos de ejemplo ─────────────────────────────────────────
@@ -125,14 +129,16 @@ class ContractTemplateController extends Controller
             'architecture' => 'nullable|string|max:32',
             'bilingual'    => 'nullable|boolean',
             'page_size'    => 'nullable|string|max:16',
+            'initials_each_page' => 'nullable|boolean',
             'body'         => 'nullable|string',
             'is_active'    => 'nullable|boolean',
         ]);
-        $data['is_active']    = $request->boolean('is_active');
-        $data['language']     = ($data['language'] ?? null) ?: 'es';
-        $data['architecture'] = ContractArchitectures::normalize($data['architecture'] ?? null);
-        $data['bilingual']    = $request->boolean('bilingual');
-        $data['page_size']    = ContractPageSizes::normalize($data['page_size'] ?? null);
+        $data['is_active']          = $request->boolean('is_active');
+        $data['language']           = ($data['language'] ?? null) ?: 'es';
+        $data['architecture']       = ContractArchitectures::normalize($data['architecture'] ?? null);
+        $data['bilingual']          = $request->boolean('bilingual');
+        $data['page_size']          = ContractPageSizes::normalize($data['page_size'] ?? null);
+        $data['initials_each_page'] = $request->boolean('initials_each_page');
 
         return $data;
     }
@@ -174,5 +180,14 @@ class ContractTemplateController extends Controller
         $map['__labels'] = $labels;
 
         return $map;
+    }
+
+    /** Rúbrica de muestra (SVG cursivo) para el preview de "rúbrica en cada página". */
+    private static function sampleRubricaImage(): string
+    {
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="150" height="44">'
+            . '<text x="6" y="30" font-family="Segoe Script,Brush Script MT,cursive" font-size="24" font-style="italic" fill="#0f1115">M. G. Ríos</text></svg>';
+
+        return 'data:image/svg+xml;base64,' . base64_encode($svg);
     }
 }

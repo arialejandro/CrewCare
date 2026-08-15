@@ -137,18 +137,34 @@ class ContractTemplateRenderer
     /**
      * Envuelve el documento renderizado en una hoja con estilos de contrato (serif, PDF-friendly).
      * $architecture (opcional) añade el CSS del FORMATO; $pageSize (opcional) el `@page` (tamaño +
-     * margen) y el salto de página manual `.cc-pb` → PDF fiel (Browsershot) e impresión.
+     * margen) y el salto de página manual `.cc-pb`; $rubrica (opcional, HTML) = rúbrica del contratado
+     * que se REPITE en cada página vía `position:fixed` (Chrome/Browsershot la pinta en cada hoja).
      */
-    public static function page(string $inner, ?string $architecture = null, ?string $pageSize = null): string
+    public static function page(string $inner, ?string $architecture = null, ?string $pageSize = null, ?string $rubrica = null): string
     {
         $extra = $architecture ? ContractArchitectures::pageCss($architecture) : '';
         $paged = $pageSize ? ContractPageSizes::pageCss($pageSize) : '';
+        $rubCss = $rubrica
+            ? '.cc-rubrica{position:fixed;bottom:6mm;right:10mm;text-align:center;font-size:8pt;color:#555}'
+              . '.cc-rubrica img{max-height:34px;max-width:120px;display:block;margin:0 auto}'
+            : '';
+        $rubEl = $rubrica ? '<div class="cc-rubrica">' . $rubrica . '</div>' : '';
 
         return '<!doctype html><meta charset="utf-8">'
             . '<style>' . $paged
             . 'body{font-family:Georgia,"Times New Roman",serif;color:#1a1a1a;margin:1.4rem;line-height:1.6}'
             . 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #e2e2e2;padding-bottom:3px;margin-top:1.3rem}'
-            . 'table{width:100%;border-collapse:collapse}' . $extra . '</style>' . $inner;
+            . 'table{width:100%;border-collapse:collapse}' . $extra . $rubCss . '</style>' . $rubEl . $inner;
+    }
+
+    /** Rúbrica pequeña del contratado (copia reducida de su firma) para repetir por página. */
+    public static function rubricaFor(?string $signatureImage, ?string $signerName = null): string
+    {
+        if ($signatureImage) {
+            return '<img src="' . e($signatureImage) . '" alt="Rúbrica">'
+                . '<span style="display:block;font-size:7pt">' . e((string) $signerName) . '</span>';
+        }
+        return '<span>' . e((string) ($signerName ?: 'Rúbrica')) . '</span>';
     }
 
     /** Reemplaza `{{token}}` por su valor (escapado). Token desconocido/vacío → cadena vacía. */

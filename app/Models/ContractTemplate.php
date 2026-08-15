@@ -22,14 +22,15 @@ class ContractTemplate extends Model
 
     protected $fillable = [
         'production_id', 'name', 'applies_to', 'body', 'language', 'architecture', 'bilingual',
-        'page_size', 'version', 'is_active', 'created_by_id',
+        'page_size', 'initials_each_page', 'version', 'is_active', 'created_by_id',
     ];
 
     protected $casts = [
-        'applies_to' => 'array',
-        'version'    => 'integer',
-        'is_active'  => 'boolean',
-        'bilingual'  => 'boolean',
+        'applies_to'         => 'array',
+        'version'            => 'integer',
+        'is_active'          => 'boolean',
+        'bilingual'          => 'boolean',
+        'initials_each_page' => 'boolean',
     ];
 
     public function createdBy(): BelongsTo

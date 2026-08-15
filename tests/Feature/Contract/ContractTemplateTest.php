@@ -133,6 +133,27 @@ class ContractTemplateTest extends QaTestCase
         $this->assertFalse($tpl->bilingual);
     }
 
+    public function test_initials_each_page_persists_and_renders(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        $this->post(route('contracts.templates.store'), [
+            'name' => 'Con rúbrica', 'applies_to' => ['crew_work'],
+            'initials_each_page' => 1, 'body' => '<p>x</p>', 'is_active' => 1,
+        ])->assertRedirect();
+        $this->assertTrue(ContractTemplate::firstWhere('name', 'Con rúbrica')->initials_each_page);
+
+        // preview (hoja completa) con rúbrica → elemento FIJO que se repite en cada página del PDF.
+        $on = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>', 'initials_each_page' => 1]);
+        $on->assertOk();
+        $this->assertStringContainsString('cc-rubrica', $on->getContent());
+        $this->assertStringContainsString('position:fixed', $on->getContent());
+
+        // sin la casilla → sin rúbrica.
+        $off = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>']);
+        $this->assertStringNotContainsString('cc-rubrica', $off->getContent());
+    }
+
     public function test_preview_fragment_returns_inner_only(): void
     {
         $this->actingAs($this->makeUser('super-admin'));

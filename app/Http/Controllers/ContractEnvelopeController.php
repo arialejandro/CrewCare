@@ -84,7 +84,14 @@ class ContractEnvelopeController extends Controller
             ContractTemplateRenderer::sigMapForEnvelope($envelope)
         );
 
-        return response(ContractTemplateRenderer::page($inner, $template->architecture, $template->page_size));
+        // Rúbrica del contratado en cada página (copia reducida de su firma congelada), si la plantilla lo pide.
+        $rubrica = null;
+        if ($template->initials_each_page) {
+            $c = $envelope->recipients->firstWhere('anchor_key', 'contratado');
+            $rubrica = ContractTemplateRenderer::rubricaFor(optional($c)->signature_image, optional($c)->name);
+        }
+
+        return response(ContractTemplateRenderer::page($inner, $template->architecture, $template->page_size, $rubrica));
     }
 
     public function cancel(Request $request, ContractEnvelope $envelope)
