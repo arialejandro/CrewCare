@@ -58,8 +58,8 @@
                             </div>
                         </div>
 
-                        <div class="cc-ins-group" data-open="1">
-                            <button type="button" class="cc-ins-cat" aria-expanded="true"><span>{{ __('Firmas') }}</span><svg class="cc-ins-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+                        <div class="cc-ins-group" data-open="0">
+                            <button type="button" class="cc-ins-cat" aria-expanded="false"><span>{{ __('Firmas') }}</span><svg class="cc-ins-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
                             <div class="cc-ins-rows">
                                 @foreach($anchors as $key => $label)
                                     <button type="button" class="cc-ins-row is-sig" data-anchor="{{ $key }}">
@@ -70,8 +70,8 @@
                             </div>
                         </div>
 
-                        <div class="cc-ins-group" data-open="1">
-                            <button type="button" class="cc-ins-cat" aria-expanded="true"><span>{{ __('Elementos') }}</span><svg class="cc-ins-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+                        <div class="cc-ins-group" data-open="0">
+                            <button type="button" class="cc-ins-cat" aria-expanded="false"><span>{{ __('Elementos') }}</span><svg class="cc-ins-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
                             <div class="cc-ins-rows">
                                 <button type="button" class="cc-ins-row is-el" id="tplAddClause">
                                     <span class="cc-ins-ic"><svg viewBox="0 0 24 24"><path d="M7 4h12M7 9h12M7 15h12M7 20h8M3 4h.01M3 9h.01M3 15h.01M3 20h.01"/></svg></span>
