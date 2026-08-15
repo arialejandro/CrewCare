@@ -6,7 +6,7 @@
      toggle, no un split permanente. El body se serializa a HTML con {{tokens}} al enviar. --}}
 @php $isNew = ! $template->exists; @endphp
 <div class="crew-page">
-    <div class="container-fluid px-3 px-md-4 py-4" style="max-width:1180px">
+    <div class="container-fluid px-3 px-md-4 py-4" style="max-width:1360px">
 
         <div class="mb-3">
             <a href="{{ route('contracts.templates.index') }}" class="btn btn-sm btn-crew-soft d-inline-flex align-items-center gap-1">
@@ -24,11 +24,9 @@
             </div>
         </div>
 
-        {{-- Descargo legal — CrewCare no redacta ni asume responsabilidad legal (contract-builder-legal-boundary). --}}
-        <div class="alert alert-warning small mb-3" role="note">
-            <strong>{{ __('Responsabilidad legal de la productora.') }}</strong>
-            {{ __('El contenido jurídico del contrato lo define y respalda la productora (su área legal). CrewCare solo ensambla los datos del trato, numera y estampa las firmas: no redacta contratos ni brinda asesoría legal.') }}
-        </div>
+        {{-- El descargo de responsabilidad legal se traslada al Contrato de Uso de la app (EULA) que se
+             firma con el cliente (decisión del owner 2026-08-15): estorbaba la experiencia en el editor.
+             El gating (contracts.author + representante-legal) y el cero clausulado de fábrica siguen. --}}
 
         @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
         @if($errors->any())<div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>@endif
@@ -48,10 +46,13 @@
                     <div class="cc-panel-h"><h3>{{ __('Insertar') }}</h3></div>
                     <div class="cc-panel-b">
                         <div class="cc-palette">
-                            <button type="button" class="cc-tile is-struct" id="tplInsTitle">
+                            <button type="button" class="cc-tile is-struct" id="tplInsTitle" title="{{ __('Título del contrato (centrado, grande)') }}">
                                 <span class="cc-tile-ic"><svg viewBox="0 0 24 24"><path d="M4 7V5h16v2M9 5v14M7 19h4"/></svg></span><span>{{ __('Título') }}</span>
                             </button>
-                            <button type="button" class="cc-tile is-struct" id="tplInsText">
+                            <button type="button" class="cc-tile is-struct" id="tplInsSection" title="{{ __('Encabezado de sección (con línea)') }}">
+                                <span class="cc-tile-ic"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 11h9M4 16h16M4 20h11"/></svg></span><span>{{ __('Sección') }}</span>
+                            </button>
+                            <button type="button" class="cc-tile is-struct" id="tplInsText" title="{{ __('Párrafo de texto normal') }}">
                                 <span class="cc-tile-ic"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h11"/></svg></span><span>{{ __('Texto') }}</span>
                             </button>
                             <div class="cc-ins">
@@ -88,9 +89,6 @@
                             </button>
                             <button type="button" class="cc-tile is-struct" id="tplPageBreak">
                                 <span class="cc-tile-ic"><svg viewBox="0 0 24 24"><path d="M4 9h16M4 15h5m4 0h7"/><path d="M6 5l-2 4 2 4"/></svg></span><span>{{ __('Salto') }}</span>
-                            </button>
-                            <button type="button" class="cc-tile is-struct" disabled title="{{ __('Próximamente') }}">
-                                <span class="cc-tile-ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span><span>{{ __('Imagen') }}</span>
                             </button>
                         </div>
                         <p class="cc-palette-note">{{ __('Un clic inserta el bloque donde está el cursor.') }}</p>
@@ -144,13 +142,13 @@
                         </div>
                         <div class="cc-field">
                             <label class="form-label fw-semibold d-block">{{ __('Aplica a') }}</label>
-                            @foreach($subtypes as $val => $label)
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="applies_to[]" value="{{ $val }}"
+                            <div class="cc-chips">
+                                @foreach($subtypes as $val => $label)
+                                    <input type="checkbox" class="cc-chip-input" name="applies_to[]" value="{{ $val }}"
                                            id="st_{{ $val }}" @checked(in_array($val, old('applies_to', $template->applies_to ?? []), true))>
-                                    <label class="form-check-label" for="st_{{ $val }}">{{ $label }}</label>
-                                </div>
-                            @endforeach
+                                    <label class="cc-chip" for="st_{{ $val }}">{{ $label }}</label>
+                                @endforeach
+                            </div>
                         </div>
                         <div class="cc-field">
                             <label class="form-label fw-semibold d-block">{{ __('Formato del contrato') }}</label>
@@ -186,6 +184,14 @@
                             </div>
                         </div>
                         <div class="cc-field">
+                            <label class="form-label fw-semibold d-block">{{ __('Estilo de texto') }}</label>
+                            <div class="cc-marks" role="group" aria-label="{{ __('Estilo de texto') }}">
+                                <button type="button" class="cc-mark-btn" data-cmd="bold" title="{{ __('Negrita') }} (Ctrl+B)"><span style="font-weight:800">B</span></button>
+                                <button type="button" class="cc-mark-btn" data-cmd="italic" title="{{ __('Cursiva') }} (Ctrl+I)"><span style="font-style:italic;font-family:Georgia,serif">I</span></button>
+                                <button type="button" class="cc-mark-btn" data-cmd="underline" title="{{ __('Subrayado') }} (Ctrl+U)"><span style="text-decoration:underline">U</span></button>
+                            </div>
+                        </div>
+                        <div class="cc-field">
                             <label class="form-label fw-semibold d-block">{{ __('Alineación') }}</label>
                             <div class="cc-align" role="group" aria-label="{{ __('Alineación') }}">
                                 <button type="button" class="cc-align-btn" data-align="justifyLeft" title="{{ __('Izquierda') }}"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h13"/></svg></button>
@@ -206,13 +212,26 @@
 @push('styles')
 <style>
 /* ── Rejilla del editor: INSERTAR · hoja · AJUSTES ── */
-.cc-editor-grid{display:grid;grid-template-columns:230px minmax(0,1fr) 268px;gap:16px;align-items:start}
-@media (max-width:980px){.cc-editor-grid{grid-template-columns:1fr}}
+/* Laterales angostos + hoja al centro. La hoja Carta mide 816px: para que NO se corte en 3 columnas,
+   el contenedor va ancho y, por debajo de ~1310px, las columnas se APILAN (hoja a ancho completo). */
+.cc-editor-grid{display:grid;grid-template-columns:190px minmax(0,1fr) 240px;gap:14px;align-items:start}
+@media (max-width:1309px){.cc-editor-grid{grid-template-columns:1fr}}
 .cc-panel{background:var(--surface,#fff);border:1px solid var(--border,#d7dce4);border-radius:14px;box-shadow:0 1px 2px rgba(16,20,30,.04),0 8px 24px rgba(16,20,30,.06)}
 .cc-panel-h{padding:14px 16px 10px}
 .cc-panel-h h3{margin:0;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted,#6b7482)}
 .cc-panel-b{padding:6px 14px 16px}
 /* .cc-toolbar: clase-ancla que conserva el test de la vista; su aspecto lo da .cc-panel */
+/* Botón "suave" DENTRO de un panel (fondo --surface): darle --surface-2 + borde para que no se funda
+   con el panel y quede legible también en modo oscuro (p. ej. "Cargar andamiaje"). */
+.cc-panel .btn-crew-soft{background:var(--surface-2,#f6f7f9);border:1px solid var(--border,#d7dce4);color:var(--text,#1a1a1a)}
+.cc-panel .btn-crew-soft:hover,.cc-panel .btn-crew-soft:focus{background:var(--surface-3,#eceef3);color:var(--text,#1a1a1a)}
+/* Chips-píldora (Aplica a): casillas reales ocultas → el form sigue enviando applies_to[] sin JS */
+.cc-chips{display:flex;flex-wrap:wrap;gap:6px}
+.cc-chip-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.cc-chip{display:inline-flex;align-items:center;padding:6px 13px;border-radius:999px;border:1px solid var(--border,#d7dce4);background:var(--surface-2,#f6f7f9);color:var(--muted,#6b7482);font-size:.8rem;font-weight:600;cursor:pointer;transition:background .15s ease,border-color .15s ease,color .15s ease}
+.cc-chip:hover{border-color:color-mix(in srgb,var(--brand,#ff0046) 40%,transparent);color:var(--text,#1a1a1a)}
+.cc-chip-input:checked + .cc-chip{background:color-mix(in srgb,var(--brand,#ff0046) 13%,var(--surface,#fff));border-color:var(--brand,#ff0046);color:var(--brand,#ff0046)}
+.cc-chip-input:focus-visible + .cc-chip{outline:2px solid var(--brand,#ff0046);outline-offset:2px}
 
 /* Paleta de mosaicos (INSERTAR) */
 .cc-palette{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -232,11 +251,13 @@
 .cc-field{margin:0 0 14px}
 .cc-field > .form-label{font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted,#6b7482);margin-bottom:6px}
 .cc-align{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-.cc-align-btn{display:grid;place-items:center;height:36px;border:1px solid var(--border,#d7dce4);border-radius:9px;background:var(--surface-2,#f6f7f9);color:var(--text,#1a1a1a);cursor:pointer;transition:background .16s ease,border-color .16s ease,transform .12s ease}
-.cc-align-btn:hover{background:var(--surface,#fff);border-color:var(--brand,#ff0046)}
-.cc-align-btn:active{transform:scale(.95)}
+.cc-marks{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.cc-align-btn,.cc-mark-btn{display:grid;place-items:center;height:36px;border:1px solid var(--border,#d7dce4);border-radius:9px;background:var(--surface-2,#f6f7f9);color:var(--text,#1a1a1a);cursor:pointer;font-size:.92rem;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .12s ease}
+.cc-align-btn:hover,.cc-mark-btn:hover{background:var(--surface,#fff);border-color:var(--brand,#ff0046)}
+.cc-align-btn:active,.cc-mark-btn:active{transform:scale(.95)}
+.cc-align-btn[aria-pressed="true"],.cc-mark-btn[aria-pressed="true"]{background:color-mix(in srgb,var(--brand,#ff0046) 14%,var(--surface,#fff));border-color:var(--brand,#ff0046);color:var(--brand,#ff0046)}
 .cc-align-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
-.cc-desk{padding:22px;border:1px solid var(--border,#d7dce4);border-radius:12px;background:var(--surface-2,#e9edf2);max-height:74vh;overflow:auto}
+.cc-desk{padding:18px;border:1px solid var(--border,#d7dce4);border-radius:12px;background:var(--surface-2,#e9edf2);max-height:76vh;overflow:auto}
 .cc-page-wrap{position:relative;width:-moz-fit-content;width:fit-content;margin:0 auto}
 .cc-page{--pg-w:216mm;--pg-h:279mm;--pg-m:25mm;position:relative;width:var(--pg-w);min-height:var(--pg-h);padding:var(--pg-m);margin:0;background:#fff;color:#1a1a1a;box-shadow:0 3px 16px rgba(0,0,0,.20);font-family:Georgia,"Times New Roman",serif;line-height:1.15;font-size:12pt}
 .cc-page:focus{outline:none}
@@ -258,7 +279,7 @@
 .cc-seg-btn[aria-pressed="true"]{background:var(--surface,#fff);color:var(--text,#1a1a1a);box-shadow:0 1px 3px rgba(0,0,0,.14)}
 .cc-seg-btn:active{transform:scale(.97)}
 .cc-ins{position:relative;display:block}
-.cc-pop{position:absolute;top:calc(100% + 6px);left:0;z-index:30;min-width:300px;max-height:340px;overflow:auto;background:var(--surface,#fff);border:1px solid var(--border,#d7dce4);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.20);padding:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.cc-pop{position:absolute;top:calc(100% + 6px);left:0;z-index:30;width:max-content;min-width:190px;max-width:250px;max-height:320px;overflow:auto;background:var(--surface,#fff);border:1px solid var(--border,#d7dce4);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.20);padding:8px;display:grid;grid-template-columns:1fr;gap:5px}
 .cc-pop[hidden]{display:none}
 .cc-pop-item{text-align:left;border:1px solid var(--border,#e2e5ec);background:var(--surface-2,#f6f7f9);color:var(--text,#1a1a1a);border-radius:9px;padding:9px 11px;font-size:.8rem;font-weight:600;cursor:pointer;transition:background .14s ease,border-color .14s ease,transform .1s ease}
 .cc-pop-item:hover{background:var(--surface,#fff);border-color:color-mix(in srgb,var(--brand,#ff0046) 45%,transparent)}
@@ -502,12 +523,42 @@
     function scheduleGuides(){ clearTimeout(gTimer); gTimer = setTimeout(drawGuides, 250); }
 
 
-    // ── Paleta INSERTAR: cada mosaico reusa las MISMAS funciones del editor ──
-    function tileFormat(tag){ canvas.focus(); document.execCommand('formatBlock', false, '<' + tag + '>'); schedulePreview(); scheduleGuides(); }
+    // ── Paleta INSERTAR: los mosaicos de estructura fijan el bloque y lo LIMPIAN para que "vuelva" a su
+    //    formato canónico (h1 = título centrado grande · h2 = sección con línea · p = texto normal). ──
+    function selectedBlocks(){
+        var sel = window.getSelection();
+        if(!sel || !sel.rangeCount){ return []; }
+        var range = sel.getRangeAt(0);
+        var blocks = Array.prototype.slice.call(canvas.children).filter(function(el){
+            try{ return el.nodeType === 1 && range.intersectsNode(el); }catch(e){ return false; }
+        });
+        if(!blocks.length){   // selección colapsada: sube hasta el hijo directo del canvas
+            var n = range.startContainer;
+            while(n && n.parentNode !== canvas){ n = n.parentNode; }
+            if(n && n.nodeType === 1){ blocks = [n]; }
+        }
+        return blocks;
+    }
+    // "Regresar a ese estado": quita estilos en línea/clases para que mande el CSS canónico de la hoja.
+    // Solo toca títulos/párrafos (no tablas ni listas, para no borrar sus atributos).
+    function cleanBlock(b){
+        if(!b || b.nodeType !== 1 || !/^(P|H1|H2|H3)$/.test(b.tagName)){ return; }
+        b.removeAttribute('style'); b.removeAttribute('align');
+        b.classList.remove('cc-clause');
+        if(!b.getAttribute('class')){ b.removeAttribute('class'); }
+    }
+    function applyFormat(tag){
+        canvas.focus();
+        document.execCommand('formatBlock', false, '<' + tag + '>');
+        selectedBlocks().forEach(cleanBlock);
+        schedulePreview(); scheduleGuides();
+    }
     var elTitle = document.getElementById('tplInsTitle');
-    if(elTitle){ elTitle.addEventListener('click', function(){ tileFormat('h2'); }); }
+    if(elTitle){ elTitle.addEventListener('click', function(){ applyFormat('h1'); }); }
+    var elSection = document.getElementById('tplInsSection');
+    if(elSection){ elSection.addEventListener('click', function(){ applyFormat('h2'); }); }
     var elText = document.getElementById('tplInsText');
-    if(elText){ elText.addEventListener('click', function(){ tileFormat('p'); }); }
+    if(elText){ elText.addEventListener('click', function(){ applyFormat('p'); }); }
     var elList = document.getElementById('tplInsList');
     if(elList){ elList.addEventListener('click', function(){ canvas.focus(); document.execCommand('insertUnorderedList', false, null); schedulePreview(); scheduleGuides(); }); }
     var elRub = document.getElementById('tplInsRubrica');
@@ -515,13 +566,32 @@
     var elTable = document.getElementById('tplInsTable');
     if(elTable){ elTable.addEventListener('click', function(){ insertAtCaret('<table border="1" cellpadding="6" style="border-collapse:collapse;width:100%"><tr><td>&nbsp;</td><td>&nbsp;</td></tr><tr><td>&nbsp;</td><td>&nbsp;</td></tr></table><p><br></p>'); }); }
 
-    // ── Alineación (panel de ajustes) ──
+    // ── Negrita / Cursiva / Subrayado (grupo "Estilo de texto") ──
+    //    execCommand en modo ETIQUETA (<b>/<i>/<u>, styleWithCSS=false) → sobrevive a la serialización y al PDF.
+    function reflectMarks(){
+        document.querySelectorAll('.cc-mark-btn').forEach(function(b){
+            var on = false; try{ on = document.queryCommandState(b.getAttribute('data-cmd')); }catch(e){}
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+    }
+    document.querySelectorAll('.cc-mark-btn').forEach(function(b){
+        b.addEventListener('click', function(){
+            canvas.focus();
+            document.execCommand(b.getAttribute('data-cmd'), false, null);
+            reflectMarks(); schedulePreview(); scheduleGuides();
+        });
+    });
+    document.addEventListener('selectionchange', function(){ if(document.activeElement === canvas){ reflectMarks(); } });
+
+    // ── Alineación (panel de ajustes): directo sobre el/los bloque(s) → fiable en todo el contenido ──
+    var ALIGN = { justifyLeft:'left', justifyCenter:'center', justifyRight:'right', justifyFull:'justify' };
     document.querySelectorAll('.cc-align-btn').forEach(function(b){
         b.addEventListener('click', function(){
             canvas.focus();
-            document.execCommand(b.getAttribute('data-align'), false, null);
-            schedulePreview();
-            scheduleGuides();
+            var css = ALIGN[b.getAttribute('data-align')] || 'left';
+            selectedBlocks().forEach(function(el){ if(el.nodeType === 1){ el.style.textAlign = css; } });
+            document.querySelectorAll('.cc-align-btn').forEach(function(x){ x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+            schedulePreview(); scheduleGuides();
         });
     });
     document.getElementById('tplAddClause').addEventListener('click', function(){
@@ -634,6 +704,7 @@
     document.getElementById('tplForm').addEventListener('submit', function(){ bodyIn.value = currentBody(); });
 
     // ── Init ─────────────────────────────────────────────────────────────
+    try{ document.execCommand('styleWithCSS', false, false); }catch(e){}   // B/I/U como <b>/<i>/<u>, no spans con style
     applyPageSize();
     applyCanvasFont();
     hydrate(htmlArea.value);
