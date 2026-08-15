@@ -111,7 +111,7 @@
                         </div>
 
                         <div class="fp-foot">
-                            <span class="fp-docs">@include('componentes._icon', ['name' => 'files', 'class' => '', 'label' => null]) {{ trans_choice('{0}Sin documentos|{1}:count documento|[2,*]:count documentos', $docCount, ['count' => $docCount]) }}</span>
+                            <span class="fp-docs">@include('componentes._icon', ['name' => 'files', 'class' => 'cc-ico', 'label' => null]) {{ trans_choice('{0}Sin documentos|{1}:count documento|[2,*]:count documentos', $docCount, ['count' => $docCount]) }}</span>
                             <a href="{{ \App\Http\Controllers\ContractSignController::signUrl($r) }}" class="btn btn-sm btn-crew ms-auto">{{ __('Revisar y firmar') }}</a>
                         </div>
                     </div>

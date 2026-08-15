@@ -55,7 +55,7 @@
             @foreach($groups as $figure => $envelopes)
                 <div class="fb-fig">
                     <div class="fb-fighead">
-                        @include('componentes._icon', ['name' => 'pencil', 'class' => 'cc-item__ico', 'label' => null])
+                        @include('componentes._icon', ['name' => 'pencil', 'class' => 'cc-ico', 'label' => null])
                         <span class="fb-figname">{{ $figure ?: __('Sin asignar') }}</span>
                         <span class="fb-figcount">{{ trans_choice('{1}:count contrato|[2,*]:count contratos', $envelopes->count(), ['count' => $envelopes->count()]) }}</span>
                     </div>
