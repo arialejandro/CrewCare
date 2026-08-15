@@ -102,9 +102,9 @@ class ContractArchitectures
                 return 'body{text-align:justify}h2{text-align:center}';
             case 'bilingual_crew':
             case 'bilingual_vendor':
-                return '.bili{width:100%}.bili>tbody>tr>td{vertical-align:top;width:50%}.bili td:first-child{border-right:2px solid #333}';
             case 'bilingual_main_terms':
-                return '.bili{width:100%}.bili>tbody>tr>td{vertical-align:top;width:50%;padding:2px 10px}.bili td:first-child{border-right:1px solid #999}';
+                // Rejilla completa (cada apartado en su recuadro + divisor central EN|ES), como el corpus.
+                return '.bili{width:100%}.bili td{border:1px solid #333;vertical-align:top;width:50%;padding:5px 7px}';
             default:
                 return '';
         }

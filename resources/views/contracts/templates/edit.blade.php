@@ -287,6 +287,7 @@
 .cc-page h2{font-size:1.02rem;border-bottom:1px solid #dddddd;padding-bottom:3px;margin-top:1.1rem}
 .cc-page table{width:100%;border-collapse:collapse}
 .cc-page td{padding:5px 7px;vertical-align:top}
+.cc-page .bili td{border:1px solid #333;width:50%}
 .cc-page .cc-pb{height:0;margin:22px 0;border:0;border-top:2px dashed var(--brand,#ff0046);position:relative}
 .cc-tok{display:inline-block;padding:1px 8px;margin:0 1px;border-radius:999px;background:color-mix(in srgb, var(--brand,#ff0046) 12%, #fff);border:1px solid color-mix(in srgb, var(--brand,#ff0046) 35%, transparent);color:#10151f;font-family:system-ui,-apple-system,sans-serif;font-size:.78rem;white-space:nowrap;user-select:all;cursor:default}
 .cc-tok--sig{background:color-mix(in srgb, #2563eb 14%, #fff);border-color:color-mix(in srgb, #2563eb 38%, transparent)}
@@ -433,7 +434,7 @@
             + '.sheet{width:' + d.w + 'mm;min-height:' + d.h + 'mm;box-sizing:border-box;padding:' + d.margin + 'mm;margin:0 auto 16px;background:#fff;color:#1a1a1a;box-shadow:0 2px 12px rgba(0,0,0,.22);position:relative;font-size:' + fontSizePt() + ';line-height:1.15}'
             + '.sheet-foot{position:absolute;bottom:' + (d.margin/2) + 'mm;right:' + d.margin + 'mm;font-size:9pt;color:#8a93a2}'
             + 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #ddd;padding-bottom:3px;margin-top:1.1rem}'
-            + 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}';
+            + 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}.bili td{border:1px solid #333;width:50%}';
     }
 
     // CSS CANÓNICO de impresión — IDÉNTICO a ContractTemplateRenderer::page(): la MISMA tipografía en el
@@ -442,7 +443,7 @@
     function PRINT_CSS(contentW){
         return 'body{margin:0;width:' + contentW + 'px;font-family:' + fontStack() + ';font-size:' + fontSizePt() + ';line-height:1.15}'
             + 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #ddd;padding-bottom:3px;margin-top:1.1rem}'
-            + 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}';
+            + 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}.bili td{border:1px solid #333;width:50%}';
     }
     // Alto/ancho ÚTIL de la hoja en px (una Carta/Oficio tiene tamaño físico fijo → nº de px conocido).
     function contentBox(){
