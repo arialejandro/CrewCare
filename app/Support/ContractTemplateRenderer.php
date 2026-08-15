@@ -66,7 +66,7 @@ class ContractTemplateRenderer
         // Rúbrica: un ancla MÁS que el redactor coloca A MANO donde quiera (no se repite sola). Se
         // estampa con la inicial del contratado, en formato compacto. Va al final para no romper el
         // check de "sin lista configurada" de arriba.
-        $out['rubrica'] = __('Rúbrica (inicial del contratado)');
+        $out['rubrica'] = __('Rúbrica');
 
         return $out;
     }
@@ -176,7 +176,7 @@ class ContractTemplateRenderer
             . 'body{font-family:' . $font . ';color:#1a1a1a;margin:0;line-height:1.15;font-size:' . $sz . '}'
             . 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #e2e2e2;padding-bottom:3px;margin-top:1.1rem}'
             . 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}'
-            . '.cc-signs{display:flex;flex-wrap:wrap;justify-content:space-around;align-items:flex-end;gap:24px 30px;margin:28px 0 8px}.cc-sign{flex:1 1 260px;max-width:48%;text-align:center}.cc-sign-anchor{min-height:68px}.cc-sign-role{font-size:11px;color:#555;margin-top:4px}'
+            . '.cc-signs{display:flex;flex-wrap:wrap;justify-content:space-around;align-items:flex-end;gap:24px 30px;margin:28px 0 8px}.cc-sign{flex:1 1 260px;max-width:48%;text-align:center}.cc-sign-anchor{min-height:88px}.cc-sign-role{font-size:11px;color:#555;margin-top:4px}'
             . $extra . '</style>' . $inner;
     }
 
@@ -222,33 +222,34 @@ class ContractTemplateRenderer
      */
     private static function signatureStamp(array $p): string
     {
-        $img     = $p['image']  ?? null;
-        $signer  = e((string) ($p['signer'] ?? ''));
-        $hash    = $p['hash'] ? (string) $p['hash'] : '';
-        $shortid = $hash !== '' ? e(substr($hash, 0, 16)) . '…' : '';   // id corto tipo DocuSign; el hash COMPLETO vive en el certificado del sobre
-        $ok      = ($p['verified'] ?? null) === true;
-        $bad     = ($p['verified'] ?? null) === false;
-        $accent  = $bad ? '#b91c1c' : '#4b53d6';                        // corchete: índigo, rojo si alterada
-        $tick    = $ok ? '✓ ' : ($bad ? '⚠ ' : '');
-        $tcolor  = $ok ? '#15803d' : ($bad ? '#b91c1c' : '#8a93a2');
+        $img    = $p['image']  ?? null;
+        $signer = e((string) ($p['signer'] ?? ''));
+        $hash   = $p['hash'] ? e((string) $p['hash']) : '';            // hash COMPLETO (transparencia: el doc se autocertifica)
+        $ok     = ($p['verified'] ?? null) === true;
+        $bad    = ($p['verified'] ?? null) === false;
+        $accent = $bad ? '#b91c1c' : '#4b53d6';                        // corchete: índigo, rojo si alterada
+        $hcolor = $ok ? '#15803d' : ($bad ? '#b91c1c' : '#8a93a2');
+        $hlabel = $ok ? '✓ Verificada e íntegra' : ($bad ? '⚠ Alterada' : '');
 
         $mark = $img
             ? '<img src="' . e($img) . '" alt="Firma" style="max-width:170px;max-height:34px;display:inline-block;background:transparent;mix-blend-mode:multiply;">'
             : '<span style="display:inline-block;height:22px;"></span>';
 
-        // Formato DocuSign (como el corpus): corchete con "Firmado por:" + autógrafa + id corto;
-        // debajo, línea + NOMBRE. El rol/descriptor va fuera (en `.cc-sign-role` de la celda).
+        // Formato DocuSign (como el corpus): corchete con "Firmado por:" + autógrafa; debajo, línea +
+        // NOMBRE + hash COMPLETO. El rol/descriptor va fuera (en `.cc-sign-role` de la celda).
         return '<span class="cc-sig-stamp" style="display:block;text-align:center;background:transparent;">'
             . '<span style="display:inline-flex;align-items:stretch;gap:5px;text-align:left;">'
                 . '<span style="flex:0 0 auto;width:6px;border:1.25px solid ' . $accent . ';border-right:0;border-radius:4px 0 0 4px;"></span>'
                 . '<span style="flex:1 1 auto;">'
                     . '<span style="display:block;font-size:7px;color:#6b7482;letter-spacing:.3px;">' . e(__('Firmado por:')) . '</span>'
                     . $mark
-                    . ($shortid ? '<span style="display:block;font-size:6.5px;color:' . $tcolor . ';">' . $tick . '<code style="font-size:6.5px;color:#5b6472;">' . $shortid . '</code></span>' : '')
                 . '</span>'
             . '</span>'
             . '<span style="display:block;border-top:1px solid #333;margin:1px auto 2px;max-width:220px;"></span>'
             . '<span style="display:block;font-weight:700;font-size:9.5px;color:#10151f;line-height:1.2;">' . $signer . '</span>'
+            . ($hash ? '<span style="display:block;margin:1px auto 0;max-width:230px;font-size:6px;line-height:1.35;color:' . $hcolor . ';">'
+                       . ($hlabel ? $hlabel . '<br>' : '')
+                       . '<code style="font-size:6px;color:#5b6472;word-break:break-all;">' . $hash . '</code></span>' : '')
             . '</span>';
     }
 

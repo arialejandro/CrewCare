@@ -156,7 +156,7 @@ class ContractTemplateTest extends QaTestCase
         $this->actingAs($this->makeUser('super-admin'));
 
         // El redactor la encuentra en el menú "Insertar firma".
-        $this->get(route('contracts.templates.create'))->assertSee('Rúbrica (inicial del contratado)');
+        $this->get(route('contracts.templates.create'))->assertSee('Rúbrica');
 
         // Colocada a mano, se estampa COMPACTA (no el sello grande) y se resuelve.
         $res  = $this->post(route('contracts.templates.preview'), ['body' => '<p>[[firma:rubrica]]</p>']);
