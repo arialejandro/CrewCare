@@ -1,5 +1,6 @@
 @extends('layouts.app')
 @section('content')
+@include('contracts._route-styles')
 {{-- EL SOBRE (Paso C) — paquete carátula+clausulado+anexos, ruta secuencial. El certificado de cada
      destinatario: nombre/correo/cargo/empresa congelados + 4 marcas de tiempo + IP + método. --}}
 @php
@@ -60,60 +61,71 @@
             </div>
         </div>
 
-        {{-- Ruta / destinatarios (certificado) --}}
+        {{-- Ruta / destinatarios (certificado) — cadena secuencial con estados vivos --}}
+        @php
+            $svg = fn ($inner) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $inner . '</svg>';
+            $icoCheck = '<polyline points="20 6 9 17 4 12"/>';
+            $icoUser  = '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>';
+            $icoEye   = '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>';
+            $icoClock = '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>';
+            $icoSend  = '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>';
+            $curId  = (int) $envelope->current_recipient_id;
+            $isSent = $envelope->isSent();
+        @endphp
         <div class="card">
             <div class="card-header fw-semibold">{{ __('Ruta de firma') }}</div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table align-middle mb-0">
-                        <thead><tr>
-                            <th>#</th><th>{{ __('Papel') }}</th><th>{{ __('Firmante') }}</th><th>{{ __('Estado') }}</th>
-                            <th>{{ __('Enviado') }}</th><th>{{ __('Visto') }}</th><th>{{ __('Firmado') }}</th><th>{{ __('IP / método') }}</th>
-                        </tr></thead>
-                        <tbody>
-                            @foreach($envelope->orderedRecipients()->get() as $r)
-                                <tr @class(['table-active' => (int) $envelope->current_recipient_id === (int) $r->id])>
-                                    <td>{{ $r->sort_order + 1 }}</td>
-                                    <td>{{ $r->roleLabel() }}</td>
-                                    <td>
-                                        <div class="fw-semibold">{{ $r->name ?: '—' }}</div>
-                                        <div class="small text-muted">{{ $r->email ?: '—' }} · {{ $r->cargo ?: '—' }}@if($r->empresa) · {{ $r->empresa }}@endif</div>
-                                    </td>
-                                    <td>
-                                        @switch($r->status)
-                                            @case('signed')<span class="badge text-bg-success">{{ __('Firmado') }}</span>@break
-                                            @case('viewed')<span class="badge text-bg-info">{{ __('Visto') }}</span>@break
-                                            @case('sent')<span class="badge text-bg-primary">{{ __('Enviado') }}</span>@break
-                                            @default<span class="badge text-bg-secondary">{{ __('Pendiente') }}</span>
-                                        @endswitch
-                                    </td>
-                                    <td class="small">{{ $fmt($r->sent_at) }}@if($r->resent_at)<div class="text-muted">{{ __('reenv.') }} {{ $fmt($r->resent_at) }}</div>@endif</td>
-                                    <td class="small">{{ $fmt($r->viewed_at) }}</td>
-                                    <td class="small">{{ $fmt($r->signed_at) }}</td>
-                                    <td class="small">{{ $r->ip_address ?: '—' }}<div class="text-muted">{{ $r->sign_method ?: '' }}</div></td>
-                                </tr>
-                                @if($r->signature_image)
-                                    @php $sig = $r->signatures()->latest('id')->first(); @endphp
-                                    <tr><td colspan="8" class="bg-body-tertiary">
-                                        @include('componentes._signature-block', [
-                                            'image'    => $r->signature_image,
-                                            'signer'   => $r->name,
-                                            'role'     => $r->cargo ?: $r->roleLabel(),
-                                            'date'     => $r->signed_at,
-                                            'hash'     => optional($sig)->document_hash,
-                                            'verified' => $r->verifyLatestSignature(),
-                                        ])
-                                    </td></tr>
-                                @endif
-                                @if($envelope->isSent() && (int) $envelope->current_recipient_id === (int) $r->id)
-                                    <tr><td colspan="8" class="bg-body-tertiary">
-                                        <span class="small text-muted">{{ __('Enlace de firma de este destinatario:') }}</span>
-                                        <a href="{{ \App\Http\Controllers\ContractSignController::signUrl($r) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success ms-2">{{ __('Abrir firma') }}</a>
-                                    </td></tr>
-                                @endif
-                            @endforeach
-                        </tbody>
-                    </table>
+            <div class="card-body">
+                <div class="cc-route">
+                    <div class="cc-route__list">
+                        @foreach($envelope->orderedRecipients()->get() as $r)
+                            @php
+                                $isContracted = $r->role === \App\Models\ContractEnvelopeRecipient::ROLE_CONTRACTED;
+                                $isNow  = $isSent && $curId === (int) $r->id && $r->status !== 'signed';
+                                $stepClass = $r->status === 'signed' ? 'cc-step--done' : ($isNow ? 'cc-step--now' : '');
+                                switch ($r->status) {
+                                    case 'signed': $chip = ['done', __('Firmado'), $icoCheck]; break;
+                                    case 'viewed': $chip = [$isNow ? 'now' : 'view', $isNow ? __('En turno') : __('Visto'), $icoEye]; break;
+                                    case 'sent':   $chip = [$isNow ? 'now' : '', $isNow ? __('En turno') : __('Enviado'), $isNow ? $icoSend : $icoSend]; break;
+                                    default:       $chip = [$isNow ? 'now' : '', $isNow ? __('En turno') : __('Pendiente'), $icoClock];
+                                }
+                            @endphp
+                            <div class="cc-step {{ $stepClass }}">
+                                <div class="cc-step__rail"><span class="cc-step__num">{!! $r->status === 'signed' ? $svg($icoCheck) : ($r->sort_order + 1) !!}</span></div>
+                                <div class="cc-step__card">
+                                    <div class="cc-step__main">
+                                        <span class="cc-step__pill {{ $isContracted ? 'cc-step__pill--lead' : 'cc-step__pill--sign' }}">{{ $r->roleLabel() }}</span>
+                                        <div class="cc-step__title">{{ $r->name ?: '—' }}</div>
+                                        <div class="cc-step__who">{!! $svg($icoUser) !!}<span>{{ $r->email ?: '—' }}@if($r->cargo) · {{ $r->cargo }}@endif @if($r->empresa) · {{ $r->empresa }}@endif</span></div>
+                                        <div class="cc-step__times">
+                                            <span>{{ __('Enviado') }}: <b>{{ $fmt($r->sent_at) }}</b>@if($r->resent_at) · {{ __('reenv.') }} {{ $fmt($r->resent_at) }}@endif</span>
+                                            <span>{{ __('Visto') }}: <b>{{ $fmt($r->viewed_at) }}</b></span>
+                                            <span>{{ __('Firmado') }}: <b>{{ $fmt($r->signed_at) }}</b></span>
+                                            @if($r->ip_address)<span>{{ __('IP') }}: <b>{{ $r->ip_address }}</b>@if($r->sign_method) · {{ $r->sign_method }}@endif</span>@endif
+                                        </div>
+                                        @if($r->signature_image)
+                                            @php $sig = $r->signatures()->latest('id')->first(); @endphp
+                                            <div class="mt-2">
+                                                @include('componentes._signature-block', [
+                                                    'image'    => $r->signature_image,
+                                                    'signer'   => $r->name,
+                                                    'role'     => $r->cargo ?: $r->roleLabel(),
+                                                    'date'     => $r->signed_at,
+                                                    'hash'     => optional($sig)->document_hash,
+                                                    'verified' => $r->verifyLatestSignature(),
+                                                ])
+                                            </div>
+                                        @endif
+                                    </div>
+                                    <div class="cc-step__side">
+                                        <span class="cc-step__state cc-step__state--{{ $chip[0] }}">{!! $svg($chip[2]) !!}{{ $chip[1] }}</span>
+                                        @if($isNow)
+                                            <a href="{{ \App\Http\Controllers\ContractSignController::signUrl($r) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success">{{ __('Abrir firma') }}</a>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
             </div>
         </div>

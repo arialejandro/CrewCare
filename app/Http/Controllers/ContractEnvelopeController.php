@@ -14,7 +14,9 @@ use App\Support\ContractSigning;
 use App\Support\ContractTemplateRenderer;
 use App\Support\CurrentProduction;
 use App\Support\SignaturePositions;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -134,10 +136,26 @@ class ContractEnvelopeController extends Controller
         $allById  = $positions->keyBy('id');
         $mapEntries = fn (array $entries) => collect($entries)->map(function ($e) use ($allById) {
             if ($e === SignaturePositions::DEPT_HOD) {
-                return ['id' => SignaturePositions::DEPT_HOD, 'name' => __('HOD del departamento')];
+                return ['id' => SignaturePositions::DEPT_HOD, 'name' => __('HOD del departamento del contrato')];
             }
             return ['id' => (int) $e, 'name' => optional($allById->get((int) $e))->name ?: ('#' . $e)];
         })->values()->all();
+
+        $authorizers = $mapEntries(SignaturePositions::authorizerEntries());
+        $signers     = $mapEntries(SignaturePositions::signerEntries());
+
+        // OCUPANTE resuelto por puesto (para el preview de la ruta, estilo Signus): quién ocupa HOY
+        // cada puesto en esta producción, o si está vacante / duplicado. El token dinámico dept_hod
+        // se resuelve por el departamento de CADA contrato, así que aquí no tiene ocupante fijo.
+        $needIds = $eligible->pluck('id')
+            ->merge(collect($authorizers)->pluck('id'))
+            ->merge(collect($signers)->pluck('id'))
+            ->reject(fn ($id) => $id === SignaturePositions::DEPT_HOD)
+            ->map(fn ($id) => (int) $id)->filter()->unique()->values();
+        $occupants = [];
+        foreach ($needIds as $pid) {
+            $occupants[$pid] = self::occupantFor($prodId, $pid);
+        }
 
         return view('contracts.route-config', [
             'positions'   => $positions,
@@ -145,9 +163,28 @@ class ContractEnvelopeController extends Controller
             'preparerId'  => SignaturePositions::preparerPositionId(),
             'binderId'    => SignaturePositions::binderPositionId(),
             'routeOrder'  => implode(',', SignaturePositions::routeOrder()),
-            'authorizers' => $mapEntries(SignaturePositions::authorizerEntries()),
-            'signers'     => $mapEntries(SignaturePositions::signerEntries()),
+            'authorizers' => $authorizers,
+            'signers'     => $signers,
+            'occupants'   => $occupants,
         ]);
+    }
+
+    /** Ocupante ÚNICO de un puesto en la producción (sin excepción): ok / vacante / duplicado. */
+    private static function occupantFor(int $prodId, int $positionId): array
+    {
+        $userIds = DB::table('production_user')
+            ->where('production_id', $prodId)
+            ->where('position_id', $positionId)
+            ->pluck('user_id');
+
+        if ($userIds->count() === 0) {
+            return ['state' => 'vacant', 'name' => null];
+        }
+        if ($userIds->count() > 1) {
+            return ['state' => 'duplicate', 'name' => null];
+        }
+
+        return ['state' => 'ok', 'name' => optional(User::find($userIds->first()))->name];
     }
 
     public function updateConfig(Request $request)

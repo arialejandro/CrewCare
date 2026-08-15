@@ -1,17 +1,20 @@
 @extends('layouts.app')
 @section('content')
-{{-- MÓDULO DE FIRMA (config global, al iniciar el proyecto). Dos listas de PUESTOS:
-     (a) AUTORIZADORES del Infosheet (paso 2) · (b) FIRMANTES del contrato (paso 4). El puesto
-     DEFINE quién firma; el sobre CONGELA a la persona al crear. No lo cambia ningún departamento. --}}
+@include('contracts._route-styles')
+{{-- MÓDULO DE FIRMA · la RUTA de la producción como una cadena ordenada (estilo Signus/Logical
+     Contracts). Dos fases: (1) APROBACIÓN del trato (Infosheet) → al aprobarse se genera el contrato;
+     (2) FIRMA del contrato, en el orden que se defina. El PUESTO define quién; el sobre CONGELA a la
+     persona al crear. El token "HOD del departamento" se resuelve por el departamento de cada
+     contrato. Se guarda en dos listas ordenadas de puestos (no cambia el backend). --}}
 <div class="crew-page">
-    <div class="container-fluid px-3 px-md-4 py-4" style="max-width:760px">
-        <div class="crew-header d-flex align-items-center gap-3 mb-4">
+    <div class="container-fluid px-3 px-md-4 py-4" style="max-width:840px">
+        <div class="crew-header d-flex align-items-center gap-3 mb-3">
             <span class="crew-header-icon d-inline-flex align-items-center justify-content-center rounded-3">
                 @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-ico', 'label' => null])
             </span>
             <div>
                 <h1 class="crew-title mb-0">{{ __('Firmas Prod.') }}</h1>
-                <p class="text-muted mb-0 small">{{ __('Quiénes autorizan y quiénes firman los contratos. Se define por PUESTO, una vez, para toda la producción. Cada firmante es un usuario con perfil (firma autenticado).') }}</p>
+                <p class="text-muted mb-0 small">{{ __('La ruta de firma de la producción, en orden. Se define por PUESTO una sola vez; cada firmante es un usuario con perfil que firma autenticado.') }}</p>
             </div>
         </div>
 
@@ -21,46 +24,65 @@
         <form method="POST" action="{{ route('contracts.route.config.update') }}">
             @csrf
 
-            {{-- (a) Autorizadores del Infosheet (paso 2) --}}
-            <div class="card mb-3">
-                <div class="card-body">
-                    <label class="form-label fw-semibold mb-1">{{ __('Autorizadores del Infosheet') }}</label>
-                    <div class="form-text mb-2">{{ __('Quién aprueba el trato antes de generar el contrato (por defecto el Line Producer; se puede añadir HOD u otros).') }}</div>
-                    <div class="cc-picker" data-name="authorizer_position_ids">
-                        <div class="d-flex gap-2">
-                            <select class="form-select cc-picker__select">
-                                <option value="">{{ __('— Puesto —') }}</option>
+            <div class="cc-route">
+                {{-- ── FASE 1 · Aprobación (Infosheet) ─────────────────────────────── --}}
+                <section class="cc-route__phase">
+                    <div class="cc-route__phead">
+                        <span class="cc-route__pnum">1</span>
+                        <div>
+                            <div class="cc-route__ptitle">{{ __('Aprobación del trato') }}</div>
+                            <div class="cc-route__psub">{{ __('Quién autoriza el Infosheet antes de generar el contrato.') }}</div>
+                        </div>
+                        <span class="cc-route__pcount" data-count="authorizers"></span>
+                    </div>
+
+                    <div class="cc-route__list" data-phase="authorizers"></div>
+
+                    <div class="cc-route__add">
+                        <div></div>
+                        <div class="cc-route__add-inner">
+                            <select class="form-select form-select-sm cc-add-select" data-phase="authorizers" aria-label="{{ __('Agregar autorizador') }}">
+                                <option value="">{{ __('— Agregar puesto —') }}</option>
                                 <option value="dept_hod">{{ __('HOD del departamento del contrato (dinámico)') }}</option>
                                 @foreach($eligible as $p)<option value="{{ $p->id }}">{{ $p->name }}</option>@endforeach
                             </select>
-                            <button type="button" class="btn btn-crew-soft cc-picker__add">{{ __('Agregar') }}</button>
+                            <button type="button" class="btn btn-sm btn-crew-soft cc-add-btn" data-phase="authorizers">{{ __('Agregar') }}</button>
                         </div>
-                        <div class="cc-picker__chips d-flex flex-wrap gap-2 mt-2"></div>
                     </div>
-                </div>
-            </div>
+                </section>
 
-            {{-- (b) Firmantes del contrato (paso 4) --}}
-            <div class="card mb-3">
-                <div class="card-body">
-                    <label class="form-label fw-semibold mb-1">{{ __('Firmantes del contrato') }}</label>
-                    <div class="form-text mb-2">{{ __('Quiénes firman el contrato y los documentos, en orden (HOD, Gerente de Producción, Line Producer, Fiscales, Legal…). El contratado firma siempre.') }}</div>
-                    <div class="cc-picker" data-name="signer_position_ids">
-                        <div class="d-flex gap-2">
-                            <select class="form-select cc-picker__select">
-                                <option value="">{{ __('— Puesto —') }}</option>
+                {{-- ── FASE 2 · Firma del contrato ─────────────────────────────────── --}}
+                <section class="cc-route__phase">
+                    <div class="cc-route__phead">
+                        <span class="cc-route__pnum">2</span>
+                        <div>
+                            <div class="cc-route__ptitle">{{ __('Firma del contrato') }}</div>
+                            <div class="cc-route__psub">{{ __('Quiénes firman, en orden. El contratado firma siempre, primero.') }}</div>
+                        </div>
+                        <span class="cc-route__pcount" data-count="signers"></span>
+                    </div>
+
+                    <div class="cc-route__list" data-phase="signers"></div>
+
+                    <div class="cc-route__add">
+                        <div></div>
+                        <div class="cc-route__add-inner">
+                            <select class="form-select form-select-sm cc-add-select" data-phase="signers" aria-label="{{ __('Agregar firmante') }}">
+                                <option value="">{{ __('— Agregar puesto —') }}</option>
                                 <option value="dept_hod">{{ __('HOD del departamento del contrato (dinámico)') }}</option>
                                 @foreach($eligible as $p)<option value="{{ $p->id }}">{{ $p->name }}</option>@endforeach
                             </select>
-                            <button type="button" class="btn btn-crew-soft cc-picker__add">{{ __('Agregar') }}</button>
+                            <button type="button" class="btn btn-sm btn-crew-soft cc-add-btn" data-phase="signers">{{ __('Agregar') }}</button>
                         </div>
-                        <div class="cc-picker__chips d-flex flex-wrap gap-2 mt-2"></div>
                     </div>
-                    <div class="form-text mt-1">{{ __('Si dejas esta lista vacía, se usa la ruta clásica de abajo (preparador / obliga).') }}</div>
-                </div>
+                    <div class="form-text mt-2">{{ __('Si dejas la fase de firma vacía, se usa la ruta clásica (preparador / obliga).') }}</div>
+                </section>
             </div>
 
-            <button class="btn btn-crew">{{ __('Guardar') }}</button>
+            <div class="d-flex align-items-center gap-2 mt-4">
+                <button class="btn btn-crew">{{ __('Guardar ruta') }}</button>
+                <span class="text-muted small">{{ __('El ocupante se congela al crear cada sobre; aquí solo se previsualiza.') }}</span>
+            </div>
         </form>
     </div>
 </div>
@@ -69,45 +91,179 @@
 @push('scripts')
 <script>
 (function () {
-    var INIT = {
-        authorizer_position_ids: @json($authorizers ?? []),
-        signer_position_ids:     @json($signers ?? [])
+    var STATE = {
+        authorizers: @json($authorizers ?? []),
+        signers:     @json($signers ?? [])
     };
-    document.querySelectorAll('.cc-picker').forEach(function (root) {
-        var name   = root.getAttribute('data-name');
-        var select = root.querySelector('.cc-picker__select');
-        var addBtn = root.querySelector('.cc-picker__add');
-        var chips  = root.querySelector('.cc-picker__chips');
-        var items  = (INIT[name] || []).slice();
+    var OCC = @json($occupants ?? []);   // { "<position_id>": {state:'ok'|'vacant'|'duplicate', name} }
+    var FIELD = { authorizers: 'authorizer_position_ids', signers: 'signer_position_ids' };
 
-        function render() {
-            chips.innerHTML = '';
-            items.forEach(function (it, i) {
-                var chip = document.createElement('span');
-                chip.className = 'cc-chip cc-chip--brand d-inline-flex align-items-center gap-1';
-                chip.appendChild(document.createTextNode((i + 1) + '. ' + it.name));
-                var x = document.createElement('button');
-                x.type = 'button'; x.className = 'btn btn-sm p-0 border-0 bg-transparent';
-                x.textContent = '×'; x.style.fontWeight = '700'; x.style.lineHeight = '1';
-                x.addEventListener('click', function () { items.splice(i, 1); render(); });
-                chip.appendChild(x);
-                chips.appendChild(chip);
-                var hid = document.createElement('input');
-                hid.type = 'hidden'; hid.name = name + '[]'; hid.value = it.id;
-                chips.appendChild(hid);
-            });
+    var T = {
+        approve:  @json(__('Aprobación')),
+        sign:     @json(__('Firma')),
+        contracted: @json(__('Contratado')),
+        contractedTitle: @json(__('El contratado')),
+        contractedWho:   @json(__('La persona o proveedor del contrato — firma siempre.')),
+        defaultAuth:     @json(__('Productor en Línea')),
+        defaultAuthWho:  @json(__('Por defecto, si no agregas autorizadores.')),
+        ocupa:    @json(__('Ocupa:')),
+        vacant:   @json(__('Puesto sin titular en esta producción')),
+        dup:      @json(__('Dos personas ocupan este puesto (ambiguo)')),
+        dynamic:  @json(__('Se resuelve por el departamento de cada contrato')),
+        check:    @json(__('Se verifica al crear el sobre')),
+        up:       @json(__('Subir')),
+        down:     @json(__('Bajar')),
+        remove:   @json(__('Quitar'))
+    };
+
+    function svg(inner) {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + inner + '</svg>';
+    }
+    var ICON = {
+        user: svg('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
+        warn: svg('<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'),
+        dyn:  svg('<path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>'),
+        contract: svg('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>'),
+        up:   svg('<polyline points="18 15 12 9 6 15"/>'),
+        down: svg('<polyline points="6 9 12 15 18 9"/>'),
+        x:    svg('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>')
+    };
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
+    // Línea de "quién ocupa" el puesto (ok / vacante / duplicado / dinámico / por verificar).
+    function whoHtml(item) {
+        if (String(item.id) === 'dept_hod') {
+            return { cls: '', html: ICON.dyn + '<span>' + esc(T.dynamic) + '</span>' };
         }
-        addBtn.addEventListener('click', function () {
-            var raw = select.value;
+        var o = OCC[String(item.id)];
+        if (!o) {
+            return { cls: '', html: ICON.user + '<span>' + esc(T.check) + '</span>' };
+        }
+        if (o.state === 'ok') {
+            return { cls: 'cc-step__who--ok', html: ICON.user + '<span>' + esc(T.ocupa) + ' <strong>' + esc(o.name || '—') + '</strong></span>' };
+        }
+        if (o.state === 'duplicate') {
+            return { cls: 'cc-step__who--warn', html: ICON.warn + '<span>' + esc(T.dup) + '</span>' };
+        }
+        return { cls: 'cc-step__who--warn', html: ICON.warn + '<span>' + esc(T.vacant) + '</span>' };
+    }
+
+    function stepShell(num, extraClass) {
+        var wrap = document.createElement('div');
+        wrap.className = 'cc-step' + (extraClass ? ' ' + extraClass : '');
+        wrap.innerHTML =
+            '<div class="cc-step__rail"><span class="cc-step__num">' + num + '</span></div>' +
+            '<div class="cc-step__card"><div class="cc-step__main"></div></div>';
+        return wrap;
+    }
+
+    // Paso EDITABLE (un puesto configurado): pill de fase + título + ocupante + acciones.
+    function itemStep(phase, item, i, count, num) {
+        var wrap = stepShell(num);
+        var main = wrap.querySelector('.cc-step__main');
+        var card = wrap.querySelector('.cc-step__card');
+        var who = whoHtml(item);
+        var pillClass = phase === 'authorizers' ? 'cc-step__pill--approve' : 'cc-step__pill--sign';
+        var pillText  = phase === 'authorizers' ? T.approve : T.sign;
+        main.innerHTML =
+            '<span class="cc-step__pill ' + pillClass + '">' + esc(pillText) + '</span>' +
+            '<div class="cc-step__title">' + esc(item.name) + '</div>' +
+            '<div class="cc-step__who ' + who.cls + '">' + who.html + '</div>';
+
+        var acts = document.createElement('div');
+        acts.className = 'cc-step__acts';
+        var up = mkAct(ICON.up, T.up, i === 0);
+        var down = mkAct(ICON.down, T.down, i === count - 1);
+        var del = mkAct(ICON.x, T.remove, false, 'cc-step__act--del');
+        up.addEventListener('click', function () { swap(phase, i, i - 1); });
+        down.addEventListener('click', function () { swap(phase, i, i + 1); });
+        del.addEventListener('click', function () { STATE[phase].splice(i, 1); render(phase); });
+        acts.appendChild(up); acts.appendChild(down); acts.appendChild(del);
+        card.appendChild(acts);
+
+        var hid = document.createElement('input');
+        hid.type = 'hidden'; hid.name = FIELD[phase] + '[]'; hid.value = item.id;
+        wrap.appendChild(hid);
+        return wrap;
+    }
+
+    function mkAct(icon, label, disabled, extra) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'cc-step__act' + (extra ? ' ' + extra : '');
+        b.innerHTML = icon;
+        b.setAttribute('aria-label', label);
+        b.title = label;
+        if (disabled) { b.disabled = true; }
+        return b;
+    }
+
+    // Ancla FIJA (Contratado) al inicio de la fase de firma — no editable, no se envía.
+    function anchorStep(num) {
+        var wrap = stepShell(num, 'cc-step--anchor');
+        wrap.querySelector('.cc-step__main').innerHTML =
+            '<span class="cc-step__pill cc-step__pill--lead">' + esc(T.contracted) + '</span>' +
+            '<div class="cc-step__title">' + esc(T.contractedTitle) + '</div>' +
+            '<div class="cc-step__who">' + ICON.contract + '<span>' + esc(T.contractedWho) + '</span></div>';
+        return wrap;
+    }
+
+    // Paso "por defecto" cuando la fase de aprobación está vacía (fiel al backend: LP por defecto).
+    function ghostAuthStep(num) {
+        var wrap = stepShell(num, 'cc-step--ghost');
+        wrap.querySelector('.cc-step__main').innerHTML =
+            '<span class="cc-step__pill cc-step__pill--approve">' + esc(T.approve) + '</span>' +
+            '<div class="cc-step__title">' + esc(T.defaultAuth) + '</div>' +
+            '<div class="cc-step__who">' + ICON.user + '<span>' + esc(T.defaultAuthWho) + '</span></div>';
+        return wrap;
+    }
+
+    function swap(phase, a, b) {
+        var arr = STATE[phase];
+        if (b < 0 || b >= arr.length) { return; }
+        var t = arr[a]; arr[a] = arr[b]; arr[b] = t;
+        render(phase);
+    }
+
+    function render(phase) {
+        var host = document.querySelector('.cc-route__list[data-phase="' + phase + '"]');
+        host.innerHTML = '';
+        var items = STATE[phase];
+        var num = 1;
+        if (phase === 'signers') { host.appendChild(anchorStep(num++)); }
+        if (phase === 'authorizers' && items.length === 0) { host.appendChild(ghostAuthStep(num++)); }
+        items.forEach(function (it, i) { host.appendChild(itemStep(phase, it, i, items.length, num++)); });
+
+        var badge = document.querySelector('.cc-route__pcount[data-count="' + phase + '"]');
+        if (badge) {
+            var total = items.length + (phase === 'signers' ? 1 : 0);
+            badge.textContent = total + ' ' + (total === 1 ? 'paso' : 'pasos');
+        }
+    }
+
+    // Agregar un puesto a una fase (dedup por id).
+    document.querySelectorAll('.cc-add-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var phase = btn.getAttribute('data-phase');
+            var sel = document.querySelector('.cc-add-select[data-phase="' + phase + '"]');
+            var raw = sel.value;
             if (!raw) { return; }
             var id = (raw === 'dept_hod') ? 'dept_hod' : parseInt(raw, 10);
-            if (!id || items.some(function (it) { return String(it.id) === String(id); })) { return; }
-            items.push({ id: id, name: select.options[select.selectedIndex].textContent.trim() });
-            select.value = '';
-            render();
+            if (!id) { return; }
+            if (STATE[phase].some(function (it) { return String(it.id) === String(id); })) { sel.value = ''; return; }
+            STATE[phase].push({ id: id, name: sel.options[sel.selectedIndex].textContent.trim() });
+            sel.value = '';
+            render(phase);
         });
-        render();
     });
+
+    render('authorizers');
+    render('signers');
 })();
 </script>
 @endpush
