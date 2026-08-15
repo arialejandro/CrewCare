@@ -58,7 +58,7 @@
                                 </div>
                             @endforeach
                         </div>
-                        <div class="col-12 col-md-8">
+                        <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold d-block">{{ __('Formato del contrato') }}</label>
                             <div class="d-flex flex-wrap gap-2 align-items-center">
                                 <select name="architecture" id="tplArch" class="form-select form-select-sm" style="max-width:340px">
@@ -68,9 +68,8 @@
                                 </select>
                                 <button type="button" id="tplLoadScaffold" class="btn btn-sm btn-crew-soft">{{ __('Cargar andamiaje') }}</button>
                             </div>
-                            <div class="form-text" id="tplArchDesc"></div>
                         </div>
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-md-3">
                             <label class="form-label fw-semibold d-block">{{ __('Tamaño de página') }}</label>
                             <select name="page_size" id="tplPageSize" class="form-select form-select-sm">
                                 @foreach($pageSizes as $k => $p)
@@ -78,8 +77,23 @@
                                 @endforeach
                             </select>
                             {{-- "Rúbrica del contratado en cada página": las iniciales por hoja se colocan por
-                                 COORDENADAS en inc.3c-2 (arrastre tipo DocuSign, excluyendo la hoja de Firmas).
-                                 El casillero se reintroduce ahí; por ahora no se muestra un control que no rinde. --}}
+                                 COORDENADAS (arrastre tipo DocuSign, excluyendo la hoja de Firmas). Ver rúbrica-chip. --}}
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <label class="form-label fw-semibold d-block">{{ __('Tipografía') }}</label>
+                            <input type="hidden" name="font_family" id="tplFontInput" value="{{ old('font_family', $template->font_family ?: 'mono') }}">
+                            <div class="cc-seg mb-2" role="group" id="tplFont" aria-label="{{ __('Familia de letra') }}">
+                                @foreach($fonts as $k => $f)
+                                    <button type="button" class="cc-seg-btn" data-font="{{ $k }}" data-stack="{{ $f['stack'] }}"
+                                            style="font-family:{{ $f['stack'] }}">{{ $f['label'] }}</button>
+                                @endforeach
+                            </div>
+                            <input type="hidden" name="font_size" id="tplSizeInput" value="{{ old('font_size', $template->font_size ?: '11') }}">
+                            <div class="cc-seg" role="group" id="tplSize" aria-label="{{ __('Tamaño de letra') }}">
+                                @foreach($fontSizes as $k => $label)
+                                    <button type="button" class="cc-seg-btn" data-size="{{ $k }}">{{ $label }}</button>
+                                @endforeach
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -176,6 +190,10 @@
 .cc-tok--sig{background:color-mix(in srgb, #2563eb 14%, #fff);border-color:color-mix(in srgb, #2563eb 38%, transparent)}
 .cc-tok--rub{cursor:move;touch-action:none}
 .cc-tok--rub:hover{box-shadow:0 0 0 2px color-mix(in srgb, #2563eb 40%, transparent)}
+.cc-seg{display:flex;gap:2px;background:var(--surface-2,#f6f7f9);border:1px solid var(--border,#d7dce4);border-radius:9px;padding:3px}
+.cc-seg-btn{flex:1;min-width:0;border:none;background:none;color:var(--muted,#6b7482);font-size:.8rem;font-weight:600;padding:5px 4px;border-radius:6px;cursor:pointer;transition:background .16s ease,color .16s ease,box-shadow .16s ease,transform .12s ease;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cc-seg-btn[aria-pressed="true"]{background:var(--surface,#fff);color:var(--text,#1a1a1a);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.cc-seg-btn:active{transform:scale(.97)}
 </style>
 @endpush
 
@@ -193,8 +211,22 @@
     var bodyIn   = document.getElementById('tplBodyInput');
     var archSel  = document.getElementById('tplArch');
     var pageSel  = document.getElementById('tplPageSize');
+    var fontInput = document.getElementById('tplFontInput');
+    var sizeInput = document.getElementById('tplSizeInput');
     var initialsChk = document.getElementById('tplInitials');
     var guides = document.getElementById('tplGuides');
+    // Familia y tamaño de la tipografía elegida (los mismos en hoja, medidor y PDF → salto al píxel).
+    function fontStack(){
+        var b = document.querySelector('#tplFont .cc-seg-btn[aria-pressed="true"]')
+             || document.querySelector('#tplFont .cc-seg-btn[data-font="' + (fontInput ? fontInput.value : 'mono') + '"]');
+        return b ? b.getAttribute('data-stack') : 'ui-monospace,Consolas,monospace';
+    }
+    function fontSizePt(){
+        var b = document.querySelector('#tplSize .cc-seg-btn[aria-pressed="true"]')
+             || document.querySelector('#tplSize .cc-seg-btn[data-size="' + (sizeInput ? sizeInput.value : '11') + '"]');
+        return (b ? b.getAttribute('data-size') : '11') + 'pt';
+    }
+    function applyCanvasFont(){ if(canvas){ canvas.style.fontFamily = fontStack(); canvas.style.fontSize = fontSizePt(); } }
     var gTimer = null;
     var LB = '{' + '{', RB = '}' + '}';   // evita que Blade parsee llaves literales en este script
 
@@ -308,8 +340,8 @@
     }
 
     function sheetCss(d){
-        return 'body{background:#e9edf2;margin:0;padding:16px;font-family:Georgia,"Times New Roman",serif}'
-            + '.sheet{width:' + d.w + 'mm;min-height:' + d.h + 'mm;box-sizing:border-box;padding:' + d.margin + 'mm;margin:0 auto 16px;background:#fff;color:#1a1a1a;box-shadow:0 2px 12px rgba(0,0,0,.22);position:relative;font-size:12pt;line-height:1.6}'
+        return 'body{background:#e9edf2;margin:0;padding:16px;font-family:' + fontStack() + '}'
+            + '.sheet{width:' + d.w + 'mm;min-height:' + d.h + 'mm;box-sizing:border-box;padding:' + d.margin + 'mm;margin:0 auto 16px;background:#fff;color:#1a1a1a;box-shadow:0 2px 12px rgba(0,0,0,.22);position:relative;font-size:' + fontSizePt() + ';line-height:1.6}'
             + '.sheet-foot{position:absolute;bottom:' + (d.margin/2) + 'mm;right:' + d.margin + 'mm;font-size:9pt;color:#8a93a2}'
             + '.sheet-rubrica{position:absolute;bottom:' + (d.margin/2) + 'mm;left:' + d.margin + 'mm;text-align:left}'
             + '.sheet-rubrica svg{height:26px;display:block}.sheet-rubrica span{font-size:7pt;color:#888}'
@@ -321,7 +353,7 @@
     // medidor y en el PDF ⇒ el salto de página se calcula al PÍXEL real. Si cambias una medida acá,
     // cámbiala también en page() (y en `.cc-page`).
     function PRINT_CSS(contentW){
-        return 'body{margin:0;width:' + contentW + 'px;font-family:Georgia,"Times New Roman",serif;font-size:12pt;line-height:1.6}'
+        return 'body{margin:0;width:' + contentW + 'px;font-family:' + fontStack() + ';font-size:' + fontSizePt() + ';line-height:1.6}'
             + 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #ddd;padding-bottom:3px;margin-top:1.1rem}'
             + 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}';
     }
@@ -369,6 +401,8 @@
             body: 'body=' + encodeURIComponent(currentBody())
                 + '&architecture=' + encodeURIComponent(archSel ? archSel.value : '')
                 + '&page_size=' + encodeURIComponent(pageSel ? pageSel.value : '')
+                + '&font_family=' + encodeURIComponent(fontInput ? fontInput.value : '')
+                + '&font_size=' + encodeURIComponent(sizeInput ? sizeInput.value : '')
                 + '&fragment=1'
         }).then(function(r){ return r.text(); }).then(function(inner){ frame.srcdoc = paginate(inner); });
     }
@@ -397,7 +431,6 @@
     }
     function scheduleGuides(){ clearTimeout(gTimer); gTimer = setTimeout(drawGuides, 250); }
 
-    function updateArchDesc(){ var m = archSel && archMeta[archSel.value]; var el = document.getElementById('tplArchDesc'); if(el){ el.textContent = m ? m.desc : ''; } }
 
     // ── Barra de formato ─────────────────────────────────────────────────
     document.querySelectorAll('.cc-tb[data-cmd]').forEach(function(b){
@@ -471,8 +504,27 @@
     // ── Cambios -> preview ───────────────────────────────────────────────
     canvas.addEventListener('input', function(){ schedulePreview(); scheduleGuides(); });
     htmlArea.addEventListener('input', schedulePreview);
-    if(archSel){ archSel.addEventListener('change', function(){ updateArchDesc(); schedulePreview(); scheduleGuides(); }); }
+    if(archSel){ archSel.addEventListener('change', function(){ schedulePreview(); scheduleGuides(); }); }
     if(pageSel){ pageSel.addEventListener('change', function(){ applyPageSize(); schedulePreview(); scheduleGuides(); }); }
+    // Tipografía base: marca la activa y, al cambiar, re-aplica a la hoja + re-mide (salto al píxel).
+    document.querySelectorAll('#tplFont .cc-seg-btn').forEach(function(b){
+        b.setAttribute('aria-pressed', b.getAttribute('data-font') === (fontInput ? fontInput.value : 'mono') ? 'true' : 'false');
+        b.addEventListener('click', function(){
+            document.querySelectorAll('#tplFont .cc-seg-btn').forEach(function(x){ x.setAttribute('aria-pressed', 'false'); });
+            this.setAttribute('aria-pressed', 'true');
+            if(fontInput){ fontInput.value = this.getAttribute('data-font'); }
+            applyCanvasFont(); schedulePreview(); scheduleGuides();
+        });
+    });
+    document.querySelectorAll('#tplSize .cc-seg-btn').forEach(function(b){
+        b.setAttribute('aria-pressed', b.getAttribute('data-size') === (sizeInput ? sizeInput.value : '11') ? 'true' : 'false');
+        b.addEventListener('click', function(){
+            document.querySelectorAll('#tplSize .cc-seg-btn').forEach(function(x){ x.setAttribute('aria-pressed', 'false'); });
+            this.setAttribute('aria-pressed', 'true');
+            if(sizeInput){ sizeInput.value = this.getAttribute('data-size'); }
+            applyCanvasFont(); schedulePreview(); scheduleGuides();
+        });
+    });
     if(initialsChk){ initialsChk.addEventListener('change', schedulePreview); }
     document.getElementById('tplRefresh').addEventListener('click', function(){ previewOn = true; refresh(); });
 
@@ -481,6 +533,7 @@
 
     // ── Init ─────────────────────────────────────────────────────────────
     applyPageSize();
+    applyCanvasFont();
     hydrate(htmlArea.value);
     updateArchDesc();
     scheduleGuides();

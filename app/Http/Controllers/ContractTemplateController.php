@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ContractTemplate;
 use App\Models\PayeeContract;
 use App\Support\ContractArchitectures;
+use App\Support\ContractFonts;
 use App\Support\ContractPageSizes;
 use App\Support\ContractTemplateRenderer;
 use App\Support\CurrentProduction;
@@ -49,6 +50,7 @@ class ContractTemplateController extends Controller
         return $this->editView(new ContractTemplate([
             'name' => '', 'applies_to' => [PayeeContract::CONCEPT_CREW], 'language' => 'es',
             'architecture' => $arch, 'bilingual' => false, 'page_size' => ContractPageSizes::DEFAULT,
+            'font_family' => ContractFonts::DEFAULT, 'font_size' => ContractFonts::SIZE_DEFAULT,
             'body' => ContractArchitectures::starter($arch), 'is_active' => false,
         ]));
     }
@@ -68,6 +70,8 @@ class ContractTemplateController extends Controller
             'architectures' => ContractArchitectures::all(),
             'starters'      => ContractArchitectures::starters(),
             'pageSizes'     => ContractPageSizes::all(),
+            'fonts'         => ContractFonts::all(),
+            'fontSizes'     => ContractFonts::sizes(),
         ]);
     }
 
@@ -113,7 +117,9 @@ class ContractTemplateController extends Controller
 
         // La "rúbrica en cada página" (initials_each_page) se coloca por coordenadas en inc.3c-2;
         // el render base ya no la pinta (ver ContractTemplateRenderer::page).
-        return response(ContractTemplateRenderer::page($inner, $arch, $size));
+        $font = ContractFonts::normalize($request->input('font_family'));
+        $fsize = ContractFonts::normalizeSize($request->input('font_size'));
+        return response(ContractTemplateRenderer::page($inner, $arch, $size, null, $font, $fsize));
     }
 
     // ── Validación + datos de ejemplo ─────────────────────────────────────────
@@ -127,6 +133,8 @@ class ContractTemplateController extends Controller
             'architecture' => 'nullable|string|max:32',
             'bilingual'    => 'nullable|boolean',
             'page_size'    => 'nullable|string|max:16',
+            'font_family'  => 'nullable|string|max:16',
+            'font_size'    => 'nullable|string|max:8',
             'initials_each_page' => 'nullable|boolean',
             'body'         => 'nullable|string',
             'is_active'    => 'nullable|boolean',
@@ -136,6 +144,8 @@ class ContractTemplateController extends Controller
         $data['architecture']       = ContractArchitectures::normalize($data['architecture'] ?? null);
         $data['bilingual']          = $request->boolean('bilingual');
         $data['page_size']          = ContractPageSizes::normalize($data['page_size'] ?? null);
+        $data['font_family']        = ContractFonts::normalize($data['font_family'] ?? null);
+        $data['font_size']          = ContractFonts::normalizeSize($data['font_size'] ?? null);
         $data['initials_each_page'] = $request->boolean('initials_each_page');
 
         return $data;

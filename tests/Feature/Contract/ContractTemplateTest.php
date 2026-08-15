@@ -174,6 +174,28 @@ class ContractTemplateTest extends QaTestCase
         $this->assertStringNotContainsString('transform:translate', $html, 'sin offset, sin transform');
     }
 
+    public function test_font_family_persists_and_preview_applies_it(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        $this->post(route('contracts.templates.store'), [
+            'name' => 'Con fuente', 'applies_to' => ['crew_work'],
+            'font_family' => 'serif', 'font_size' => '10', 'body' => '<p>x</p>', 'is_active' => 1,
+        ])->assertRedirect();
+        $tpl = ContractTemplate::firstWhere('name', 'Con fuente');
+        $this->assertSame('serif', $tpl->font_family);
+        $this->assertSame('10', $tpl->font_size);
+
+        // serif+10pt → Georgia y 10pt en el body; default (mono, 11pt) → ui-monospace y 11pt.
+        $serif = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>', 'font_family' => 'serif', 'font_size' => '10']);
+        $this->assertStringContainsString('font-family:Georgia', $serif->getContent());
+        $this->assertStringContainsString('font-size:10pt', $serif->getContent());
+        $mono = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>']);
+        $this->assertStringContainsString('ui-monospace', $mono->getContent(), 'default monospace');
+        $this->assertStringContainsString('font-size:11pt', $mono->getContent(), 'default 11pt');
+        $this->assertStringNotContainsString('font-family:Georgia', $mono->getContent());
+    }
+
     public function test_preview_fragment_returns_inner_only(): void
     {
         $this->actingAs($this->makeUser('super-admin'));

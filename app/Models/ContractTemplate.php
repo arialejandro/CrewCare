@@ -22,7 +22,7 @@ class ContractTemplate extends Model
 
     protected $fillable = [
         'production_id', 'name', 'applies_to', 'body', 'language', 'architecture', 'bilingual',
-        'page_size', 'initials_each_page', 'version', 'is_active', 'created_by_id',
+        'page_size', 'font_family', 'font_size', 'initials_each_page', 'version', 'is_active', 'created_by_id',
     ];
 
     protected $casts = [

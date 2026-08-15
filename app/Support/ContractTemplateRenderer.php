@@ -157,20 +157,23 @@ class ContractTemplateRenderer
      * hoja se colocarán por COORDENADAS en inc.3c-2 (arrastre tipo DocuSign, eligiendo hoja y posición
      * y excluyendo la de Firmas). $rubrica se conserva por compatibilidad y por ahora se ignora.
      */
-    public static function page(string $inner, ?string $architecture = null, ?string $pageSize = null, ?string $rubrica = null): string
+    public static function page(string $inner, ?string $architecture = null, ?string $pageSize = null, ?string $rubrica = null, ?string $fontFamily = null, ?string $fontSize = null): string
     {
         $extra = $architecture ? ContractArchitectures::pageCss($architecture) : '';
         // Siempre emitimos @page (tamaño + margen). El margen físico es EXACTAMENTE el de
         // ContractPageSizes — sin margen extra en `body` — para que el editor pueda calcular al PÍXEL
         // dónde cae el salto de página (una Carta/Oficio tiene alto útil fijo y conocido).
         $paged = ContractPageSizes::pageCss($pageSize ?: ContractPageSizes::DEFAULT);
+        $font  = ContractFonts::stack($fontFamily);   // familia del sistema elegida por la plantilla
+        $sz    = ContractFonts::sizePt($fontSize);    // tamaño base en pt (10/11/12)
 
-        // ⚠ TIPOGRAFÍA CANÓNICA de impresión. DEBE coincidir EXACTO con `.cc-page` y el iframe medidor
-        // de edit.blade (PRINT_CSS) — si cambias una medida aquí, cámbiala allá, o la guía de salto de
+        // ⚠ TIPOGRAFÍA CANÓNICA de impresión. Familia y tamaño salen de ContractFonts; el resto
+        // (interlínea 1.6, h1/h2, td) DEBE coincidir EXACTO con `.cc-page` y el iframe medidor de
+        // edit.blade (PRINT_CSS) — si cambias una medida aquí, cámbiala allá, o la guía de salto de
         // página del editor dejará de caer donde realmente cae.
         return '<!doctype html><meta charset="utf-8">'
             . '<style>' . $paged
-            . 'body{font-family:Georgia,"Times New Roman",serif;color:#1a1a1a;margin:0;line-height:1.6;font-size:12pt}'
+            . 'body{font-family:' . $font . ';color:#1a1a1a;margin:0;line-height:1.6;font-size:' . $sz . '}'
             . 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #e2e2e2;padding-bottom:3px;margin-top:1.1rem}'
             . 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}' . $extra . '</style>' . $inner;
     }

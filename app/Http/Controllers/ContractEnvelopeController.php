@@ -86,7 +86,9 @@ class ContractEnvelopeController extends Controller
 
         // La "rúbrica en cada página" (initials_each_page) se coloca por coordenadas en inc.3c-2
         // (excluyendo la hoja de Firmas); el render base ya no la pinta.
-        return response(ContractTemplateRenderer::page($inner, $template->architecture, $template->page_size));
+        return response(ContractTemplateRenderer::page(
+            $inner, $template->architecture, $template->page_size, null, $template->font_family, $template->font_size
+        ));
     }
 
     public function cancel(Request $request, ContractEnvelope $envelope)
