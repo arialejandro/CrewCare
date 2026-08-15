@@ -177,8 +177,8 @@ class ContractTemplateController extends Controller
     private static function sampleSigMap(): array
     {
         $auto = function ($name) {
-            $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="70">'
-                . '<text x="8" y="48" font-family="Segoe Script,Brush Script MT,cursive" font-size="36" font-style="italic" fill="#0f1115">'
+            $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="440" height="64">'
+                . '<text x="8" y="44" font-family="Segoe Script,Brush Script MT,cursive" font-size="30" font-style="italic" fill="#0f1115">'
                 . htmlspecialchars($name) . '</text></svg>';
             return 'data:image/svg+xml;base64,' . base64_encode($svg);
         };

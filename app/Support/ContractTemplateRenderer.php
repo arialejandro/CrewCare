@@ -176,7 +176,7 @@ class ContractTemplateRenderer
             . 'body{font-family:' . $font . ';color:#1a1a1a;margin:0;line-height:1.15;font-size:' . $sz . '}'
             . 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #e2e2e2;padding-bottom:3px;margin-top:1.1rem}'
             . 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}'
-            . '.cc-signs{display:flex;flex-wrap:wrap;justify-content:space-around;align-items:flex-end;gap:24px 30px;margin:28px 0 8px}.cc-sign{flex:1 1 260px;max-width:48%;text-align:center}.cc-sign-role{font-size:11px;color:#555;margin-top:4px}'
+            . '.cc-signs{display:flex;flex-wrap:wrap;justify-content:space-around;align-items:flex-end;gap:24px 30px;margin:28px 0 8px}.cc-sign{flex:1 1 260px;max-width:48%;text-align:center}.cc-sign-anchor{min-height:68px}.cc-sign-role{font-size:11px;color:#555;margin-top:4px}'
             . $extra . '</style>' . $inner;
     }
 
@@ -222,44 +222,42 @@ class ContractTemplateRenderer
      */
     private static function signatureStamp(array $p): string
     {
-        $img    = $p['image']    ?? null;
-        $signer = e((string) ($p['signer'] ?? ''));
-        $role   = e((string) ($p['role']   ?? ''));
-        $date   = $p['date'] ? e(Carbon::parse($p['date'])->format('d/m/Y H:i')) : '';
-        $hash   = $p['hash'] ? e((string) $p['hash']) : '';         // hash COMPLETO (verificable)
-        $ok     = ($p['verified'] ?? null) === true;
-        $bad    = ($p['verified'] ?? null) === false;
-        $accent = $bad ? '#b91c1c' : '#4b53d6';                     // corchete: índigo, rojo si alterada
-        $hcolor = $ok ? '#15803d' : ($bad ? '#b91c1c' : '#6b7482');
-        $hlabel = $ok ? '✓ Verificada e íntegra' : ($bad ? '⚠ Alterada' : '');
+        $img     = $p['image']  ?? null;
+        $signer  = e((string) ($p['signer'] ?? ''));
+        $hash    = $p['hash'] ? (string) $p['hash'] : '';
+        $shortid = $hash !== '' ? e(substr($hash, 0, 16)) . '…' : '';   // id corto tipo DocuSign; el hash COMPLETO vive en el certificado del sobre
+        $ok      = ($p['verified'] ?? null) === true;
+        $bad     = ($p['verified'] ?? null) === false;
+        $accent  = $bad ? '#b91c1c' : '#4b53d6';                        // corchete: índigo, rojo si alterada
+        $tick    = $ok ? '✓ ' : ($bad ? '⚠ ' : '');
+        $tcolor  = $ok ? '#15803d' : ($bad ? '#b91c1c' : '#8a93a2');
 
         $mark = $img
-            ? '<img src="' . e($img) . '" alt="Firma" style="max-width:200px;max-height:52px;display:block;background:transparent;mix-blend-mode:multiply;">'
-            : '<span style="display:block;height:30px;"></span>';
+            ? '<img src="' . e($img) . '" alt="Firma" style="max-width:170px;max-height:34px;display:inline-block;background:transparent;mix-blend-mode:multiply;">'
+            : '<span style="display:inline-block;height:22px;"></span>';
 
-        return '<span class="cc-sig-stamp" style="display:inline-flex;align-items:stretch;gap:7px;'
-            . 'vertical-align:bottom;min-width:210px;max-width:320px;background:transparent;">'
-            . '<span style="flex:0 0 auto;width:9px;border:1.5px solid ' . $accent . ';border-right:0;border-radius:6px 0 0 6px;"></span>'
-            . '<span style="flex:1 1 auto;display:block;text-align:left;">'
-                . '<span style="display:block;font-size:8.5px;color:#6b7482;letter-spacing:.3px;">' . e(__('Firmado por:')) . '</span>'
-                . $mark
-                . '<span style="display:block;border-top:1px solid #9aa1ad;margin:1px 0 2px;"></span>'
-                . '<span style="display:block;font-weight:700;font-size:12px;color:#10151f;">' . $signer . '</span>'
-                . ($role ? '<span style="display:block;font-size:10px;color:#6b7482;">' . $role . '</span>' : '')
-                . ($date ? '<span style="display:block;font-size:10px;color:#6b7482;">' . $date . '</span>' : '')
-                . ($hash ? '<span style="display:block;margin-top:2px;font-size:8px;line-height:1.35;color:' . $hcolor . ';">'
-                           . ($hlabel ? $hlabel . ' ' : '')
-                           . '<code style="font-size:8px;color:#5b6472;word-break:break-all;">' . $hash . '</code></span>' : '')
+        // Formato DocuSign (como el corpus): corchete con "Firmado por:" + autógrafa + id corto;
+        // debajo, línea + NOMBRE. El rol/descriptor va fuera (en `.cc-sign-role` de la celda).
+        return '<span class="cc-sig-stamp" style="display:block;text-align:center;background:transparent;">'
+            . '<span style="display:inline-flex;align-items:stretch;gap:5px;text-align:left;">'
+                . '<span style="flex:0 0 auto;width:6px;border:1.25px solid ' . $accent . ';border-right:0;border-radius:4px 0 0 4px;"></span>'
+                . '<span style="flex:1 1 auto;">'
+                    . '<span style="display:block;font-size:7px;color:#6b7482;letter-spacing:.3px;">' . e(__('Firmado por:')) . '</span>'
+                    . $mark
+                    . ($shortid ? '<span style="display:block;font-size:6.5px;color:' . $tcolor . ';">' . $tick . '<code style="font-size:6.5px;color:#5b6472;">' . $shortid . '</code></span>' : '')
+                . '</span>'
             . '</span>'
+            . '<span style="display:block;border-top:1px solid #333;margin:1px auto 2px;max-width:220px;"></span>'
+            . '<span style="display:block;font-weight:700;font-size:9.5px;color:#10151f;line-height:1.2;">' . $signer . '</span>'
             . '</span>';
     }
 
     /** Placeholder de firma PENDIENTE (aún no firma ese puesto). */
     private static function pendingStamp(string $label): string
     {
-        return '<span class="cc-sig-pending" style="display:inline-block;border:1px dashed #c3c9d4;border-radius:10px;'
-            . 'padding:14px 16px;min-width:190px;min-height:60px;text-align:center;color:#8a93a2;font-style:italic;font-size:12px;'
-            . 'vertical-align:bottom;background:transparent;">Pendiente de firma<br><span style="font-style:normal;font-size:11px;">' . e($label) . '</span></span>';
+        return '<span class="cc-sig-pending" style="display:inline-block;border:1px dashed #c3c9d4;border-radius:8px;'
+            . 'padding:10px 12px;min-width:150px;min-height:44px;text-align:center;color:#8a93a2;font-style:italic;font-size:11px;'
+            . 'vertical-align:bottom;background:transparent;">Pendiente de firma<br><span style="font-style:normal;font-size:9.5px;">' . e($label) . '</span></span>';
     }
 
     /**

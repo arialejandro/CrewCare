@@ -291,6 +291,7 @@
 /* Bloque de firmas = rejilla flexible de slots protegidos (no una tabla) */
 .cc-page .cc-signs{display:flex;flex-wrap:wrap;justify-content:space-around;align-items:flex-end;gap:24px 30px;margin:28px 0 8px}
 .cc-page .cc-sign{position:relative;flex:1 1 260px;max-width:48%;text-align:center}
+.cc-page .cc-sign-anchor{min-height:68px}
 .cc-page .cc-sign-role{font-size:11px;color:#555;margin-top:4px}
 .cc-page .cc-sign-role:focus{outline:1px dashed color-mix(in srgb,var(--brand,#ff0046) 50%,transparent);outline-offset:2px}
 .cc-page .cc-sign-del{position:absolute;top:-9px;right:4px;width:18px;height:18px;border-radius:50%;background:#fff;border:1px solid #d7dce4;color:#b91c1c;font-size:13px;line-height:15px;text-align:center;cursor:pointer;opacity:0;transition:opacity .12s;user-select:none}
@@ -445,7 +446,7 @@
             + '.sheet-foot{position:absolute;bottom:' + (d.margin/2) + 'mm;right:' + d.margin + 'mm;font-size:9pt;color:#8a93a2}'
             + 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #ddd;padding-bottom:3px;margin-top:1.1rem}'
             + 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}.bili td{border:1px solid #333;width:50%}'
-            + '.cc-signs{display:flex;flex-wrap:wrap;justify-content:space-around;align-items:flex-end;gap:24px 30px;margin:28px 0 8px}.cc-sign{flex:1 1 260px;max-width:48%;text-align:center}.cc-sign-role{font-size:11px;color:#555;margin-top:4px}';
+            + '.cc-signs{display:flex;flex-wrap:wrap;justify-content:space-around;align-items:flex-end;gap:24px 30px;margin:28px 0 8px}.cc-sign{flex:1 1 260px;max-width:48%;text-align:center}.cc-sign-anchor{min-height:68px}.cc-sign-role{font-size:11px;color:#555;margin-top:4px}';
     }
 
     // CSS CANÓNICO de impresión — IDÉNTICO a ContractTemplateRenderer::page(): la MISMA tipografía en el
@@ -455,7 +456,7 @@
         return 'body{margin:0;width:' + contentW + 'px;font-family:' + fontStack() + ';font-size:' + fontSizePt() + ';line-height:1.15}'
             + 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #ddd;padding-bottom:3px;margin-top:1.1rem}'
             + 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}.bili td{border:1px solid #333;width:50%}'
-            + '.cc-signs{display:flex;flex-wrap:wrap;justify-content:space-around;align-items:flex-end;gap:24px 30px;margin:28px 0 8px}.cc-sign{flex:1 1 260px;max-width:48%;text-align:center}.cc-sign-role{font-size:11px;color:#555;margin-top:4px}';
+            + '.cc-signs{display:flex;flex-wrap:wrap;justify-content:space-around;align-items:flex-end;gap:24px 30px;margin:28px 0 8px}.cc-sign{flex:1 1 260px;max-width:48%;text-align:center}.cc-sign-anchor{min-height:68px}.cc-sign-role{font-size:11px;color:#555;margin-top:4px}';
     }
     // Alto/ancho ÚTIL de la hoja en px (una Carta/Oficio tiene tamaño físico fijo → nº de px conocido).
     function contentBox(){
