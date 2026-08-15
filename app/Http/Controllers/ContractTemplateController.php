@@ -111,11 +111,9 @@ class ContractTemplateController extends Controller
             return response($inner);
         }
 
-        $rubrica = $request->boolean('initials_each_page')
-            ? ContractTemplateRenderer::rubricaFor(self::sampleRubricaImage(), 'María G. Ríos')
-            : null;
-
-        return response(ContractTemplateRenderer::page($inner, $arch, $size, $rubrica));
+        // La "rúbrica en cada página" (initials_each_page) se coloca por coordenadas en inc.3c-2;
+        // el render base ya no la pinta (ver ContractTemplateRenderer::page).
+        return response(ContractTemplateRenderer::page($inner, $arch, $size));
     }
 
     // ── Validación + datos de ejemplo ─────────────────────────────────────────
@@ -177,17 +175,13 @@ class ContractTemplateController extends Controller
             ];
             $i++;
         }
+        // En el preview, la rúbrica muestra la MISMA inicial que el contratado (fiel al render real).
+        if (isset($map['contratado'])) {
+            $map['rubrica'] = $map['contratado'];
+        }
         $map['__labels'] = $labels;
 
         return $map;
     }
 
-    /** Rúbrica de muestra (SVG cursivo) para el preview de "rúbrica en cada página". */
-    private static function sampleRubricaImage(): string
-    {
-        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="150" height="44">'
-            . '<text x="6" y="30" font-family="Segoe Script,Brush Script MT,cursive" font-size="24" font-style="italic" fill="#0f1115">M. G. Ríos</text></svg>';
-
-        return 'data:image/svg+xml;base64,' . base64_encode($svg);
-    }
 }

@@ -63,6 +63,11 @@ class ContractTemplateRenderer
             $out['dept_hod']      = __('HOD del departamento del contrato');
         }
 
+        // Rúbrica: un ancla MÁS que el redactor coloca A MANO donde quiera (no se repite sola). Se
+        // estampa con la inicial del contratado, en formato compacto. Va al final para no romper el
+        // check de "sin lista configurada" de arriba.
+        $out['rubrica'] = __('Rúbrica (inicial del contratado)');
+
         return $out;
     }
 
@@ -131,41 +136,43 @@ class ContractTemplateRenderer
             ];
         }
 
+        // La RÚBRICA es la inicial del contratado: usa su misma firma congelada (render compacto).
+        if (array_key_exists('contratado', $map)) {
+            $map['rubrica'] = $map['contratado'];
+            $map['__labels']['rubrica'] = __('Rúbrica');
+        }
+
         return $map;
     }
 
     /**
      * Envuelve el documento renderizado en una hoja con estilos de contrato (serif, PDF-friendly).
      * $architecture (opcional) añade el CSS del FORMATO; $pageSize (opcional) el `@page` (tamaño +
-     * margen) y el salto de página manual `.cc-pb`; $rubrica (opcional, HTML) = rúbrica del contratado
-     * que se REPITE en cada página vía `position:fixed` (Chrome/Browsershot la pinta en cada hoja).
+     * margen) y el salto de página manual `.cc-pb`.
+     *
+     * NOTA (inc.3c-1 → 3c-2): la "rúbrica en cada página" NO se pinta aquí. En la impresión de Chrome
+     * un `position:fixed` cae DENTRO del área de contenido (tapa el texto) y se repite en TODAS las
+     * hojas —incluida la de Firmas, donde duplica la firma y parece un error—. No hay forma fiable de
+     * anclarlo al margen físico ni de excluir la última hoja (comprobado con sonda). Las iniciales por
+     * hoja se colocarán por COORDENADAS en inc.3c-2 (arrastre tipo DocuSign, eligiendo hoja y posición
+     * y excluyendo la de Firmas). $rubrica se conserva por compatibilidad y por ahora se ignora.
      */
     public static function page(string $inner, ?string $architecture = null, ?string $pageSize = null, ?string $rubrica = null): string
     {
         $extra = $architecture ? ContractArchitectures::pageCss($architecture) : '';
-        $paged = $pageSize ? ContractPageSizes::pageCss($pageSize) : '';
-        $rubCss = $rubrica
-            ? '.cc-rubrica{position:fixed;bottom:7mm;right:9mm;text-align:center;font-size:7.5pt;color:#666;'
-              . 'background:#fff;padding:1mm 2mm;border:1px solid #e6e6e6;border-radius:4px}'
-              . '.cc-rubrica img{max-height:28px;max-width:105px;display:block;margin:0 auto}'
-            : '';
-        $rubEl = $rubrica ? '<div class="cc-rubrica">' . $rubrica . '</div>' : '';
+        // Siempre emitimos @page (tamaño + margen). El margen físico es EXACTAMENTE el de
+        // ContractPageSizes — sin margen extra en `body` — para que el editor pueda calcular al PÍXEL
+        // dónde cae el salto de página (una Carta/Oficio tiene alto útil fijo y conocido).
+        $paged = ContractPageSizes::pageCss($pageSize ?: ContractPageSizes::DEFAULT);
 
+        // ⚠ TIPOGRAFÍA CANÓNICA de impresión. DEBE coincidir EXACTO con `.cc-page` y el iframe medidor
+        // de edit.blade (PRINT_CSS) — si cambias una medida aquí, cámbiala allá, o la guía de salto de
+        // página del editor dejará de caer donde realmente cae.
         return '<!doctype html><meta charset="utf-8">'
             . '<style>' . $paged
-            . 'body{font-family:Georgia,"Times New Roman",serif;color:#1a1a1a;margin:1.4rem;line-height:1.6}'
-            . 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #e2e2e2;padding-bottom:3px;margin-top:1.3rem}'
-            . 'table{width:100%;border-collapse:collapse}' . $extra . $rubCss . '</style>' . $rubEl . $inner;
-    }
-
-    /** Rúbrica pequeña del contratado (copia reducida de su firma) para repetir por página. */
-    public static function rubricaFor(?string $signatureImage, ?string $signerName = null): string
-    {
-        if ($signatureImage) {
-            return '<img src="' . e($signatureImage) . '" alt="Rúbrica">'
-                . '<span style="display:block;font-size:7pt">' . e((string) $signerName) . '</span>';
-        }
-        return '<span>' . e((string) ($signerName ?: 'Rúbrica')) . '</span>';
+            . 'body{font-family:Georgia,"Times New Roman",serif;color:#1a1a1a;margin:0;line-height:1.6;font-size:12pt}'
+            . 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #e2e2e2;padding-bottom:3px;margin-top:1.1rem}'
+            . 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}' . $extra . '</style>' . $inner;
     }
 
     /** Reemplaza `{{token}}` por su valor (escapado). Token desconocido/vacío → cadena vacía. */
@@ -184,34 +191,50 @@ class ContractTemplateRenderer
         return preg_replace_callback('/\[\[firma:([a-z0-9_:\-]+)\]\]/i', function ($m) use ($sigMap) {
             $key  = strtolower($m[1]);
             $data = $sigMap[$key] ?? null;
+            if ($key === 'rubrica') {   // ancla compacta: inicial que el redactor coloca a mano
+                return is_array($data) ? self::rubricaStamp($data) : self::rubricaPending();
+            }
             return is_array($data) ? self::signatureStamp($data) : self::pendingStamp($sigMap['__labels'][$key] ?? $key);
         }, $body);
     }
 
-    /** Sello de firma APLICADA (estilo DocuSign) — autocontenido con estilos inline (PDF-safe). */
+    /**
+     * Sello de firma APLICADA — formato tipo DocuSign, TRANSPARENTE (no tapa el contenido de abajo):
+     * corchete de color + “Firmado por:” + autógrafa congelada + línea + hash COMPLETO (verde=íntegra,
+     * rojo=alterada). Estilos inline, PDF-safe. La autógrafa lleva `mix-blend-mode:multiply` para que
+     * incluso un PNG con fondo blanco deje ver lo que tiene debajo.
+     */
     private static function signatureStamp(array $p): string
     {
         $img    = $p['image']    ?? null;
         $signer = e((string) ($p['signer'] ?? ''));
         $role   = e((string) ($p['role']   ?? ''));
         $date   = $p['date'] ? e(Carbon::parse($p['date'])->format('d/m/Y H:i')) : '';
-        $hash   = $p['hash'] ? e(substr((string) $p['hash'], 0, 20)) . '…' : '';
+        $hash   = $p['hash'] ? e((string) $p['hash']) : '';         // hash COMPLETO (verificable)
         $ok     = ($p['verified'] ?? null) === true;
         $bad    = ($p['verified'] ?? null) === false;
+        $accent = $bad ? '#b91c1c' : '#4b53d6';                     // corchete: índigo, rojo si alterada
         $hcolor = $ok ? '#15803d' : ($bad ? '#b91c1c' : '#6b7482');
         $hlabel = $ok ? '✓ Verificada e íntegra' : ($bad ? '⚠ Alterada' : '');
 
         $mark = $img
-            ? '<img src="' . e($img) . '" alt="Firma" style="max-width:170px;max-height:60px;display:block;">'
-            : '';
+            ? '<img src="' . e($img) . '" alt="Firma" style="max-width:200px;max-height:52px;display:block;background:transparent;mix-blend-mode:multiply;">'
+            : '<span style="display:block;height:30px;"></span>';
 
-        return '<span class="cc-sig-stamp" style="display:inline-block;border:1px solid #d7dce4;border-radius:10px;'
-            . 'padding:8px 12px;background:#fafbfc;vertical-align:bottom;min-width:190px;">'
-            . '<span style="display:block;border-bottom:1px solid #c3c9d4;padding-bottom:4px;margin-bottom:4px;min-height:60px;">' . $mark . '</span>'
-            . '<span style="display:block;font-weight:700;font-size:13px;color:#10151f;">' . $signer . '</span>'
-            . ($role ? '<span style="display:block;font-size:11px;color:#6b7482;">' . $role . '</span>' : '')
-            . ($date ? '<span style="display:block;font-size:11px;color:#6b7482;">' . $date . '</span>' : '')
-            . ($hash ? '<span style="display:block;margin-top:2px;font-size:10px;color:' . $hcolor . ';">' . $hlabel . ' <code style="font-size:10px;">' . $hash . '</code></span>' : '')
+        return '<span class="cc-sig-stamp" style="display:inline-flex;align-items:stretch;gap:7px;'
+            . 'vertical-align:bottom;min-width:210px;max-width:320px;background:transparent;">'
+            . '<span style="flex:0 0 auto;width:9px;border:1.5px solid ' . $accent . ';border-right:0;border-radius:6px 0 0 6px;"></span>'
+            . '<span style="flex:1 1 auto;display:block;text-align:left;">'
+                . '<span style="display:block;font-size:8.5px;color:#6b7482;letter-spacing:.3px;">' . e(__('Firmado por:')) . '</span>'
+                . $mark
+                . '<span style="display:block;border-top:1px solid #9aa1ad;margin:1px 0 2px;"></span>'
+                . '<span style="display:block;font-weight:700;font-size:12px;color:#10151f;">' . $signer . '</span>'
+                . ($role ? '<span style="display:block;font-size:10px;color:#6b7482;">' . $role . '</span>' : '')
+                . ($date ? '<span style="display:block;font-size:10px;color:#6b7482;">' . $date . '</span>' : '')
+                . ($hash ? '<span style="display:block;margin-top:2px;font-size:8px;line-height:1.35;color:' . $hcolor . ';">'
+                           . ($hlabel ? $hlabel . ' ' : '')
+                           . '<code style="font-size:8px;color:#5b6472;word-break:break-all;">' . $hash . '</code></span>' : '')
+            . '</span>'
             . '</span>';
     }
 
@@ -220,6 +243,42 @@ class ContractTemplateRenderer
     {
         return '<span class="cc-sig-pending" style="display:inline-block;border:1px dashed #c3c9d4;border-radius:10px;'
             . 'padding:14px 16px;min-width:190px;min-height:60px;text-align:center;color:#8a93a2;font-style:italic;font-size:12px;'
-            . 'vertical-align:bottom;background:#fff;">Pendiente de firma<br><span style="font-style:normal;font-size:11px;">' . e($label) . '</span></span>';
+            . 'vertical-align:bottom;background:transparent;">Pendiente de firma<br><span style="font-style:normal;font-size:11px;">' . e($label) . '</span></span>';
+    }
+
+    /**
+     * RÚBRICA — versión COMPACTA de la firma del contratado (inicial). Es un ancla que el redactor
+     * coloca A MANO donde quiera (pie de hoja, al margen…); no se repite sola. Transparente, con un
+     * corchete mínimo tipo DocuSign. NO carga el hash completo (el sello autoritativo va en el bloque
+     * de Firmas); solo un ✓/⚠ de integridad.
+     */
+    private static function rubricaStamp(array $p): string
+    {
+        $img    = $p['image'] ?? null;
+        $ok     = ($p['verified'] ?? null) === true;
+        $bad    = ($p['verified'] ?? null) === false;
+        $accent = $bad ? '#b91c1c' : '#4b53d6';
+        $tick   = $ok ? ' ✓' : ($bad ? ' ⚠' : '');
+
+        $mark = $img
+            ? '<img src="' . e($img) . '" alt="Rúbrica" style="max-width:120px;max-height:34px;display:block;background:transparent;mix-blend-mode:multiply;">'
+            : '<span style="display:block;height:22px;"></span>';
+
+        return '<span class="cc-rubrica-stamp" style="display:inline-flex;align-items:stretch;gap:5px;'
+            . 'vertical-align:bottom;background:transparent;">'
+            . '<span style="flex:0 0 auto;width:6px;border:1.5px solid ' . $accent . ';border-right:0;border-radius:4px 0 0 4px;"></span>'
+            . '<span style="flex:1 1 auto;display:block;text-align:left;">'
+                . $mark
+                . '<span style="display:block;border-top:1px solid #b6bcc7;margin-top:1px;"></span>'
+                . '<span style="display:block;font-size:7pt;color:#8a93a2;">' . e(__('Rúbrica')) . $tick . '</span>'
+            . '</span></span>';
+    }
+
+    /** Placeholder compacto de rúbrica PENDIENTE (aún no firma el contratado). */
+    private static function rubricaPending(): string
+    {
+        return '<span class="cc-rubrica-pending" style="display:inline-block;border:1px dashed #c3c9d4;border-radius:6px;'
+            . 'padding:4px 9px;font-size:7.5pt;color:#8a93a2;font-style:italic;vertical-align:bottom;background:transparent;">'
+            . 'Rúbrica pendiente</span>';
     }
 }

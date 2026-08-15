@@ -77,11 +77,9 @@
                                     <option value="{{ $k }}" @selected(old('page_size', $template->page_size ?: 'carta') === $k)>{{ $p['label'] }}</option>
                                 @endforeach
                             </select>
-                            <div class="form-check form-switch mt-2">
-                                <input class="form-check-input" type="checkbox" name="initials_each_page" value="1" id="tplInitials"
-                                       @checked(old('initials_each_page', $template->initials_each_page))>
-                                <label class="form-check-label small" for="tplInitials">{{ __('Rúbrica del contratado en cada página') }}</label>
-                            </div>
+                            {{-- "Rúbrica del contratado en cada página": las iniciales por hoja se colocan por
+                                 COORDENADAS en inc.3c-2 (arrastre tipo DocuSign, excluyendo la hoja de Firmas).
+                                 El casillero se reintroduce ahí; por ahora no se muestra un control que no rinde. --}}
                         </div>
                     </div>
                 </div>
@@ -168,8 +166,8 @@
 .cc-guides{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:2}
 .cc-guide{position:absolute;left:0;right:0;border-top:2px dashed color-mix(in srgb, var(--brand,#ff0046) 45%, transparent)}
 .cc-guide span{position:absolute;right:8px;top:-9px;background:var(--surface-2,#e9edf2);color:var(--brand,#ff0046);font:600 .62rem system-ui,-apple-system,sans-serif;padding:0 6px;letter-spacing:.02em}
-.cc-page h1{font-size:1.4rem;text-align:center}
-.cc-page h2{font-size:1.05rem;border-bottom:1px solid #dddddd;padding-bottom:3px;margin-top:1.1rem}
+.cc-page h1{font-size:1.3rem;text-align:center}
+.cc-page h2{font-size:1.02rem;border-bottom:1px solid #dddddd;padding-bottom:3px;margin-top:1.1rem}
 .cc-page table{width:100%;border-collapse:collapse}
 .cc-page td{padding:5px 7px;vertical-align:top}
 .cc-page .cc-pb{height:0;margin:22px 0;border:0;border-top:2px dashed var(--brand,#ff0046);position:relative}
@@ -301,33 +299,48 @@
             + 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}';
     }
 
-    // Mide el contenido en un iframe AISLADO (sin CSS de la app) y arma las hojas reales.
-    function paginate(inner){
+    // CSS CANÓNICO de impresión — IDÉNTICO a ContractTemplateRenderer::page(): la MISMA tipografía en el
+    // medidor y en el PDF ⇒ el salto de página se calcula al PÍXEL real. Si cambias una medida acá,
+    // cámbiala también en page() (y en `.cc-page`).
+    function PRINT_CSS(contentW){
+        return 'body{margin:0;width:' + contentW + 'px;font-family:Georgia,"Times New Roman",serif;font-size:12pt;line-height:1.6}'
+            + 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #ddd;padding-bottom:3px;margin-top:1.1rem}'
+            + 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}';
+    }
+    // Alto/ancho ÚTIL de la hoja en px (una Carta/Oficio tiene tamaño físico fijo → nº de px conocido).
+    function contentBox(){
         var d = (pageSel && PAGES[pageSel.value]) || { w: 216, h: 279, margin: 25 };
-        var contentW = (d.w - 2 * d.margin) * PXMM;
-        var contentH = (d.h - 2 * d.margin) * PXMM;
+        return { d: d, w: (d.w - 2 * d.margin) * PXMM, h: (d.h - 2 * d.margin) * PXMM };
+    }
+    // Mide cada bloque de nivel superior en un iframe AISLADO con el CSS de impresión (alturas fieles).
+    function measureItems(html, contentW){
         var ifr = document.createElement('iframe');
         ifr.style.cssText = 'position:absolute;left:-99999px;top:0;width:' + contentW + 'px;height:10px;border:0;visibility:hidden';
         document.body.appendChild(ifr);
         var doc = ifr.contentDocument;
         doc.open();
-        doc.write('<!doctype html><meta charset="utf-8"><style>body{margin:0;width:' + contentW + 'px;font-family:Georgia,"Times New Roman",serif;font-size:12pt;line-height:1.6}h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #ddd;padding-bottom:3px;margin-top:1.1rem}table{width:100%;border-collapse:collapse}td{padding:5px 7px}</style>' + inner);
+        doc.write('<!doctype html><meta charset="utf-8"><style>' + PRINT_CSS(contentW) + '</style>' + html);
         doc.close();
-        var kids = Array.prototype.slice.call(doc.body.children);
-        var items = kids.map(function(el){
+        var items = Array.prototype.slice.call(doc.body.children).map(function(el){
             var cs = ifr.contentWindow.getComputedStyle(el);
-            var mh = parseFloat(cs.marginTop || 0) + parseFloat(cs.marginBottom || 0);
-            return { h: el.offsetHeight + mh, br: el.classList.contains('cc-pb'), html: el.outerHTML };
+            return { h: el.offsetHeight + parseFloat(cs.marginTop || 0) + parseFloat(cs.marginBottom || 0),
+                     br: el.classList.contains('cc-pb'), html: el.outerHTML };
         });
         document.body.removeChild(ifr);
-        var pages = splitPages(items, contentH);
+        return items;
+    }
+
+    // Reparte el contenido en HOJAS reales (vista "con datos").
+    function paginate(inner){
+        var box = contentBox();
+        var items = measureItems(inner, box.w);
+        var pages = splitPages(items, box.h);
         var total = pages.length;
-        var rub = (initialsChk && initialsChk.checked) ? rubricaSvg() : '';
         var sheets = pages.map(function(idxs, i){
             var b = idxs.map(function(j){ return items[j].html; }).join('');
-            return '<div class="sheet">' + b + rub + '<div class="sheet-foot">Página ' + (i + 1) + ' de ' + total + '</div></div>';
+            return '<div class="sheet">' + b + '<div class="sheet-foot">Página ' + (i + 1) + ' de ' + total + '</div></div>';
         }).join('');
-        return '<!doctype html><meta charset="utf-8"><style>' + sheetCss(d) + '</style>' + sheets;
+        return '<!doctype html><meta charset="utf-8"><style>' + sheetCss(box.d) + '</style>' + sheets;
     }
 
     function refresh(){
@@ -343,23 +356,20 @@
     }
     function schedulePreview(){ if(!previewOn){ return; } clearTimeout(pvTimer); pvTimer = setTimeout(refresh, 450); }
 
-    // ── Saltos automáticos EN el editor: líneas-guía de página (medidas) ──
+    // ── Salto de página EN el editor: guía MEDIDA con el CSS de impresión (cae donde realmente cae) ──
+    // Mide el cuerpo serializado (tokens como texto, sin las pastillas) con la MISMA rutina que la vista
+    // paginada, y ancla la línea al mismo bloque en el canvas. Así la guía coincide con el salto real.
     function drawGuides(){
         if(!guides){ return; }
         guides.innerHTML = '';
-        var d = (pageSel && PAGES[pageSel.value]) || { w: 216, h: 279, margin: 25 };
-        var contentH = (d.h - 2 * d.margin) * PXMM;
-        var kids = Array.prototype.slice.call(canvas.children);
-        if(!kids.length){ return; }
-        var items = kids.map(function(el){
-            var cs = getComputedStyle(el);
-            return { h: el.offsetHeight + parseFloat(cs.marginTop || 0) + parseFloat(cs.marginBottom || 0),
-                     br: el.classList.contains('cc-pb'), el: el };
-        });
-        var pages = splitPages(items, contentH);
+        var ckids = Array.prototype.slice.call(canvas.children);
+        if(!ckids.length){ return; }
+        var box = contentBox();
+        var items = measureItems(serialize(), box.w);
+        var pages = splitPages(items, box.h);
         for(var p = 0; p < pages.length - 1; p++){
             var idxs = pages[p]; if(!idxs.length){ continue; }
-            var el = items[idxs[idxs.length - 1]].el;
+            var el = ckids[idxs[idxs.length - 1]]; if(!el){ continue; }   // mismo bloque, ya en el canvas
             var g = document.createElement('div');
             g.className = 'cc-guide';
             g.style.top = (el.offsetTop + el.offsetHeight) + 'px';

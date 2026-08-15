@@ -133,25 +133,38 @@ class ContractTemplateTest extends QaTestCase
         $this->assertFalse($tpl->bilingual);
     }
 
-    public function test_initials_each_page_persists_and_renders(): void
+    public function test_initials_each_page_persists_but_render_defers_to_coordinates(): void
     {
         $this->actingAs($this->makeUser('super-admin'));
 
+        // La bandera SIGUE persistiendo (la usará inc.3c-2 para las iniciales por coordenadas).
         $this->post(route('contracts.templates.store'), [
             'name' => 'Con rúbrica', 'applies_to' => ['crew_work'],
             'initials_each_page' => 1, 'body' => '<p>x</p>', 'is_active' => 1,
         ])->assertRedirect();
         $this->assertTrue(ContractTemplate::firstWhere('name', 'Con rúbrica')->initials_each_page);
 
-        // preview (hoja completa) con rúbrica → elemento FIJO que se repite en cada página del PDF.
+        // …pero el render base YA NO pinta la rúbrica fija: en impresión de Chrome un position:fixed
+        // tapa el texto y se repite en la hoja de Firmas (duplicado). Se difiere a inc.3c-2.
         $on = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>', 'initials_each_page' => 1]);
         $on->assertOk();
-        $this->assertStringContainsString('cc-rubrica', $on->getContent());
-        $this->assertStringContainsString('position:fixed', $on->getContent());
+        $this->assertStringNotContainsString('cc-rubrica', $on->getContent(), 'sin rúbrica fija (diferida a 3c-2)');
+    }
 
-        // sin la casilla → sin rúbrica.
-        $off = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>']);
-        $this->assertStringNotContainsString('cc-rubrica', $off->getContent());
+    public function test_rubrica_is_an_anchor_placed_by_hand_and_renders_compact(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        // El redactor la encuentra en el menú "Insertar firma".
+        $this->get(route('contracts.templates.create'))->assertSee('Rúbrica (inicial del contratado)');
+
+        // Colocada a mano, se estampa COMPACTA (no el sello grande) y se resuelve.
+        $res  = $this->post(route('contracts.templates.preview'), ['body' => '<p>[[firma:rubrica]]</p>']);
+        $res->assertOk();
+        $html = $res->getContent();
+        $this->assertStringContainsString('cc-rubrica-stamp', $html, 'rúbrica compacta');
+        $this->assertStringNotContainsString('cc-sig-stamp', $html, 'la rúbrica NO usa el sello grande con hash');
+        $this->assertStringNotContainsString('[[firma:rubrica]]', $html, 'ancla resuelta');
     }
 
     public function test_preview_fragment_returns_inner_only(): void
