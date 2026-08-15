@@ -72,6 +72,8 @@ class ContractTemplateController extends Controller
             'pageSizes'     => ContractPageSizes::all(),
             'fonts'         => ContractFonts::all(),
             'fontSizes'     => ContractFonts::sizes(),
+            'fontFamily'    => ContractFonts::normalize($template->font_family),   // resuelve alias mono→couriernew
+            'fontSize'      => ContractFonts::normalizeSize($template->font_size),
         ]);
     }
 

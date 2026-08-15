@@ -178,22 +178,27 @@ class ContractTemplateTest extends QaTestCase
     {
         $this->actingAs($this->makeUser('super-admin'));
 
+        // Fuentes UNIVERSALES nombradas (Arial/…/Georgia/Courier New/…). 'georgia' persiste tal cual.
         $this->post(route('contracts.templates.store'), [
             'name' => 'Con fuente', 'applies_to' => ['crew_work'],
-            'font_family' => 'serif', 'font_size' => '10', 'body' => '<p>x</p>', 'is_active' => 1,
+            'font_family' => 'georgia', 'font_size' => '10', 'body' => '<p>x</p>', 'is_active' => 1,
         ])->assertRedirect();
         $tpl = ContractTemplate::firstWhere('name', 'Con fuente');
-        $this->assertSame('serif', $tpl->font_family);
+        $this->assertSame('georgia', $tpl->font_family);
         $this->assertSame('10', $tpl->font_size);
 
-        // serif+10pt → Georgia y 10pt en el body; default (mono, 11pt) → ui-monospace y 11pt.
-        $serif = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>', 'font_family' => 'serif', 'font_size' => '10']);
-        $this->assertStringContainsString('font-family:Georgia', $serif->getContent());
-        $this->assertStringContainsString('font-size:10pt', $serif->getContent());
+        // georgia+10pt → Georgia y 10pt; default (Courier New, 9pt) → Courier New y 9pt.
+        $g = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>', 'font_family' => 'georgia', 'font_size' => '10']);
+        $this->assertStringContainsString('font-family:Georgia', $g->getContent());
+        $this->assertStringContainsString('font-size:10pt', $g->getContent());
         $mono = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>']);
-        $this->assertStringContainsString('Courier New', $mono->getContent(), 'default monospace = Courier New');
+        $this->assertStringContainsString('Courier New', $mono->getContent(), 'default = Courier New');
         $this->assertStringContainsString('font-size:9pt', $mono->getContent(), 'default 9pt (corpus)');
         $this->assertStringNotContainsString('font-family:Georgia', $mono->getContent());
+
+        // Compat: el valor viejo 'mono' se resuelve a Courier New (alias).
+        $legacy = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>', 'font_family' => 'mono']);
+        $this->assertStringContainsString('Courier New', $legacy->getContent(), 'alias mono→Courier New');
     }
 
     public function test_preview_fragment_returns_inner_only(): void

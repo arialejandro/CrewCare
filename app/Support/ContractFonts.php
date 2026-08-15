@@ -5,24 +5,34 @@ namespace App\Support;
 /**
  * CONTRACT BUILDER · tipografía base del contrato.
  *
- * SOLO fuentes del SISTEMA (cero peso extra, nada que cargar) en 3 familias básicas. La MISMA pila se
- * usa en las TRES superficies —hoja del editor (`.cc-page`), medidor del salto (`PRINT_CSS`) y PDF
- * (`ContractTemplateRenderer::page`)— para que el salto de página caiga al píxel real.
+ * SOLO fuentes UNIVERSALES (las 8 clásicas "web-safe" que el owner citó): están en el sistema en la
+ * práctica y cada stack termina en una familia genérica (sans-serif/serif/monospace) → degradan bien
+ * en cualquier plataforma y en el PDF (Browsershot en Windows las tiene todas). Cero carga de fuentes.
+ * La MISMA pila se usa en las TRES superficies —hoja del editor (`.cc-page`), medidor del salto
+ * (`PRINT_CSS`) y PDF (`ContractTemplateRenderer::page`)— para que el salto de página caiga al píxel.
  *
- * Default 'mono' (neutra, tipo máquina) por decisión del owner.
+ * Default 'couriernew' (el corpus real de contratos = Courier New 9pt).
  */
 class ContractFonts
 {
-    public const DEFAULT = 'mono';
+    public const DEFAULT = 'couriernew';
     public const SIZE_DEFAULT = '9';   // el corpus mono real = Courier New 9pt
 
-    /** key => [label, stack CSS]. El ORDEN define el del selector. Sólo fuentes del sistema. */
+    /** Alias de valores viejos (mig 088 nació con mono/serif/sans) → nuevas claves nombradas. */
+    private const ALIASES = ['mono' => 'couriernew', 'serif' => 'georgia', 'sans' => 'arial'];
+
+    /** key => [label, stack CSS]. El ORDEN define el del selector. Solo fuentes universales del sistema. */
     public static function all(): array
     {
         return [
-            'serif' => ['label' => 'Serif',      'stack' => 'Georgia,"Times New Roman",serif'],
-            'sans'  => ['label' => 'Sans-serif', 'stack' => 'system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif'],
-            'mono'  => ['label' => 'Monospace',  'stack' => '"Courier New",ui-monospace,Consolas,monospace'],
+            'arial'      => ['label' => 'Arial',           'stack' => 'Arial,Helvetica,sans-serif'],
+            'helvetica'  => ['label' => 'Helvetica',       'stack' => 'Helvetica,Arial,sans-serif'],
+            'verdana'    => ['label' => 'Verdana',         'stack' => 'Verdana,Geneva,sans-serif'],
+            'tahoma'     => ['label' => 'Tahoma',          'stack' => 'Tahoma,Geneva,sans-serif'],
+            'times'      => ['label' => 'Times New Roman', 'stack' => '"Times New Roman",Times,serif'],
+            'georgia'    => ['label' => 'Georgia',         'stack' => 'Georgia,"Times New Roman",serif'],
+            'couriernew' => ['label' => 'Courier New',     'stack' => '"Courier New",Courier,monospace'],
+            'courier'    => ['label' => 'Courier',         'stack' => 'Courier,"Courier New",monospace'],
         ];
     }
 
@@ -50,6 +60,10 @@ class ContractFonts
 
     public static function normalize(?string $key): string
     {
+        if ($key !== null && isset(self::ALIASES[$key])) {
+            return self::ALIASES[$key];
+        }
+
         return self::isValid($key) ? $key : self::DEFAULT;
     }
 
