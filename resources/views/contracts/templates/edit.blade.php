@@ -246,14 +246,64 @@
         canvas.style.setProperty('--pg-m', d.margin + 'mm');
     }
 
-    // ── Preview (toggle "Vista con datos") ───────────────────────────────
+    // ── Preview PAGINADA (toggle "Vista con datos") — inc.3b ─────────────
     var frame = document.getElementById('tplPreview');
     var wrap  = document.getElementById('tplPreviewWrap');
     var meta  = document.querySelector('meta[name="csrf-token"]');
     var token = meta ? meta.content : '';
     var url   = @json(route('contracts.templates.preview'));
     var htmlMode = false, previewOn = false, pvTimer = null;
+    var PXMM = 96 / 25.4;   // px por mm (referencia CSS)
     function currentBody(){ return htmlMode ? htmlArea.value : serialize(); }
+
+    // Reparte bloques en páginas (PURO, testeable): items=[{h,br}] + alto de página -> [[idx...],...].
+    function splitPages(items, contentH){
+        var pages = [[]], h = 0;
+        for(var i = 0; i < items.length; i++){
+            if(items[i].br){ if(pages[pages.length-1].length){ pages.push([]); } h = 0; continue; }
+            if(h > 0 && h + items[i].h > contentH){ pages.push([]); h = 0; }
+            pages[pages.length-1].push(i); h += items[i].h;
+        }
+        if(pages.length > 1 && pages[pages.length-1].length === 0){ pages.pop(); }
+        return pages;
+    }
+
+    function sheetCss(d){
+        return 'body{background:#e9edf2;margin:0;padding:16px;font-family:Georgia,"Times New Roman",serif}'
+            + '.sheet{width:' + d.w + 'mm;min-height:' + d.h + 'mm;box-sizing:border-box;padding:' + d.margin + 'mm;margin:0 auto 16px;background:#fff;color:#1a1a1a;box-shadow:0 2px 12px rgba(0,0,0,.22);position:relative;font-size:12pt;line-height:1.6}'
+            + '.sheet-foot{position:absolute;bottom:' + (d.margin/2) + 'mm;right:' + d.margin + 'mm;font-size:9pt;color:#8a93a2}'
+            + 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #ddd;padding-bottom:3px;margin-top:1.1rem}'
+            + 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}';
+    }
+
+    // Mide el contenido en un iframe AISLADO (sin CSS de la app) y arma las hojas reales.
+    function paginate(inner){
+        var d = (pageSel && PAGES[pageSel.value]) || { w: 216, h: 279, margin: 25 };
+        var contentW = (d.w - 2 * d.margin) * PXMM;
+        var contentH = (d.h - 2 * d.margin) * PXMM;
+        var ifr = document.createElement('iframe');
+        ifr.style.cssText = 'position:absolute;left:-99999px;top:0;width:' + contentW + 'px;height:10px;border:0;visibility:hidden';
+        document.body.appendChild(ifr);
+        var doc = ifr.contentDocument;
+        doc.open();
+        doc.write('<!doctype html><meta charset="utf-8"><style>body{margin:0;width:' + contentW + 'px;font-family:Georgia,"Times New Roman",serif;font-size:12pt;line-height:1.6}h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #ddd;padding-bottom:3px;margin-top:1.1rem}table{width:100%;border-collapse:collapse}td{padding:5px 7px}</style>' + inner);
+        doc.close();
+        var kids = Array.prototype.slice.call(doc.body.children);
+        var items = kids.map(function(el){
+            var cs = ifr.contentWindow.getComputedStyle(el);
+            var mh = parseFloat(cs.marginTop || 0) + parseFloat(cs.marginBottom || 0);
+            return { h: el.offsetHeight + mh, br: el.classList.contains('cc-pb'), html: el.outerHTML };
+        });
+        document.body.removeChild(ifr);
+        var pages = splitPages(items, contentH);
+        var total = pages.length;
+        var sheets = pages.map(function(idxs, i){
+            var b = idxs.map(function(j){ return items[j].html; }).join('');
+            return '<div class="sheet">' + b + '<div class="sheet-foot">Página ' + (i + 1) + ' de ' + total + '</div></div>';
+        }).join('');
+        return '<!doctype html><meta charset="utf-8"><style>' + sheetCss(d) + '</style>' + sheets;
+    }
+
     function refresh(){
         if(!previewOn){ return; }
         fetch(url, {
@@ -262,7 +312,8 @@
             body: 'body=' + encodeURIComponent(currentBody())
                 + '&architecture=' + encodeURIComponent(archSel ? archSel.value : '')
                 + '&page_size=' + encodeURIComponent(pageSel ? pageSel.value : '')
-        }).then(function(r){ return r.text(); }).then(function(h){ frame.srcdoc = h; });
+                + '&fragment=1'
+        }).then(function(r){ return r.text(); }).then(function(inner){ frame.srcdoc = paginate(inner); });
     }
     function schedulePreview(){ if(!previewOn){ return; } clearTimeout(pvTimer); pvTimer = setTimeout(refresh, 450); }
 

@@ -133,6 +133,19 @@ class ContractTemplateTest extends QaTestCase
         $this->assertFalse($tpl->bilingual);
     }
 
+    public function test_preview_fragment_returns_inner_only(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        // fragment=1 → el paginador del cliente mide ESTO (sin `<style>`/`@page`).
+        $res = $this->post(route('contracts.templates.preview'), ['body' => '<p>{{payee_nombre}}</p>', 'fragment' => 1]);
+        $res->assertOk();
+        $html = $res->getContent();
+        $this->assertStringContainsString('María González Ríos', $html, 'campo lleno');
+        $this->assertStringNotContainsString('@page', $html, 'el fragmento no lleva @page');
+        $this->assertStringNotContainsString('<style', $html, 'el fragmento no lleva estilos');
+    }
+
     public function test_preview_applies_format_css(): void
     {
         $this->actingAs($this->makeUser('super-admin'));

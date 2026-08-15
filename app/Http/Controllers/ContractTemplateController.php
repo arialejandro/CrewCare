@@ -105,6 +105,12 @@ class ContractTemplateController extends Controller
         $tpl  = new ContractTemplate(['body' => $body]);
         $inner = ContractTemplateRenderer::render($tpl, self::sampleValues(), self::sampleSigMap());
 
+        // `fragment=1`: solo el contenido (sin `<style>`/`@page`) para que el paginador del cliente
+        // lo mida y lo reparta en hojas reales (inc.3b). Sin fragment: la hoja completa (PDF/impresión).
+        if ($request->boolean('fragment')) {
+            return response($inner);
+        }
+
         return response(ContractTemplateRenderer::page($inner, $arch, $size));
     }
 
