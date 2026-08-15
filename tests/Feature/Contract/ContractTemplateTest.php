@@ -228,4 +228,27 @@ class ContractTemplateTest extends QaTestCase
         $res2->assertOk();
         $this->assertStringNotContainsString('text-align:justify', $res2->getContent());
     }
+
+    public function test_bilingual_architectures_load_scaffold_persist_and_apply_css(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        // create con ?arch= precarga el andamiaje bilingüe (doble columna EN|ES).
+        $res = $this->get(route('contracts.templates.create', ['arch' => 'bilingual_crew']));
+        $res->assertOk();
+        $res->assertSee('FRONT PAGE');   // encabezado EN del andamiaje bilingüe
+        $res->assertSee('CARÁTULA');     // encabezado ES
+
+        // El preview aplica el CSS del formato bilingüe (clase .bili de doble columna).
+        $prev = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>', 'architecture' => 'bilingual_vendor']);
+        $prev->assertOk();
+        $this->assertStringContainsString('.bili', $prev->getContent());
+
+        // Persiste como arquitectura válida (no cae al default).
+        $this->post(route('contracts.templates.store'), [
+            'name' => 'Bilingüe crew', 'applies_to' => ['crew_work'],
+            'architecture' => 'bilingual_crew', 'body' => '<p>x</p>', 'is_active' => 1,
+        ])->assertRedirect();
+        $this->assertSame('bilingual_crew', ContractTemplate::firstWhere('name', 'Bilingüe crew')->architecture);
+    }
 }
