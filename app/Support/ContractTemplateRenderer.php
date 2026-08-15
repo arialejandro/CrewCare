@@ -173,7 +173,7 @@ class ContractTemplateRenderer
         // página del editor dejará de caer donde realmente cae.
         return '<!doctype html><meta charset="utf-8">'
             . '<style>' . $paged
-            . 'body{font-family:' . $font . ';color:#1a1a1a;margin:0;line-height:1.6;font-size:' . $sz . '}'
+            . 'body{font-family:' . $font . ';color:#1a1a1a;margin:0;line-height:1.15;font-size:' . $sz . '}'
             . 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #e2e2e2;padding-bottom:3px;margin-top:1.1rem}'
             . 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}' . $extra . '</style>' . $inner;
     }

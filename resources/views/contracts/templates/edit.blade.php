@@ -40,46 +40,136 @@
             <input type="hidden" name="language" value="{{ old('language', $template->language ?: 'es') }}">
             <input type="hidden" name="bilingual" value="0">
 
-            {{-- ── Ajustes de la plantilla ── --}}
-            <div class="card mb-3">
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold">{{ __('Nombre') }}</label>
-                            <input type="text" name="name" class="form-control" value="{{ old('name', $template->name) }}" required>
+            <div class="cc-editor-grid">
+
+                {{-- ── IZQUIERDA · Insertar (paleta de mosaicos) ── --}}
+                {{-- La clase cc-toolbar se conserva como ancla del test de la vista; el aspecto lo da .cc-panel. --}}
+                <div class="cc-panel cc-toolbar">
+                    <div class="cc-panel-h"><h3>{{ __('Insertar') }}</h3></div>
+                    <div class="cc-panel-b">
+                        <div class="cc-palette">
+                            <button type="button" class="cc-tile is-struct" id="tplInsTitle">
+                                <span class="cc-tile-ic"><svg viewBox="0 0 24 24"><path d="M4 7V5h16v2M9 5v14M7 19h4"/></svg></span><span>{{ __('Título') }}</span>
+                            </button>
+                            <button type="button" class="cc-tile is-struct" id="tplInsText">
+                                <span class="cc-tile-ic"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h11"/></svg></span><span>{{ __('Texto') }}</span>
+                            </button>
+                            <div class="cc-ins">
+                                <button type="button" class="cc-tile is-data" id="tplInsFieldBtn" aria-haspopup="true" aria-expanded="false">
+                                    <span class="cc-tile-ic"><svg viewBox="0 0 24 24"><path d="M8 4H7a2 2 0 0 0-2 2v3a2 2 0 0 1-2 2 2 2 0 0 1 2 2v3a2 2 0 0 0 2 2h1M16 4h1a2 2 0 0 1 2 2v3a2 2 0 0 0 2 2 2 2 0 0 0-2 2v3a2 2 0 0 1-2 2h-1"/></svg></span><span>{{ __('Dato') }}</span>
+                                </button>
+                                <div class="cc-pop" id="tplFieldPop" role="menu" hidden>
+                                    @foreach($fields as $key => $label)
+                                        <button type="button" class="cc-pop-item" data-field="{{ $key }}" role="menuitem">{{ $label }}</button>
+                                    @endforeach
+                                </div>
+                            </div>
+                            <div class="cc-ins">
+                                <button type="button" class="cc-tile is-sig" id="tplInsSigBtn" aria-haspopup="true" aria-expanded="false">
+                                    <span class="cc-tile-ic"><svg viewBox="0 0 24 24"><path d="M3 19s3-1 6-1 6 2 9 1M4 15c3-8 6-9 7-5s2 6 4 3"/></svg></span><span>{{ __('Firma') }}</span>
+                                </button>
+                                <div class="cc-pop" id="tplSigPop" role="menu" hidden>
+                                    @foreach($anchors as $key => $label)
+                                        <button type="button" class="cc-pop-item cc-pop-item--sig" data-anchor="{{ $key }}" role="menuitem">{{ $label }}</button>
+                                    @endforeach
+                                </div>
+                            </div>
+                            <button type="button" class="cc-tile is-sig" id="tplInsRubrica">
+                                <span class="cc-tile-ic"><svg viewBox="0 0 24 24"><path d="M5 18c4 0 3-9 6-9s2 5 4 5"/><path d="M4 21h16"/></svg></span><span>{{ __('Rúbrica') }}</span>
+                            </button>
+                            <button type="button" class="cc-tile is-struct" id="tplAddClause">
+                                <span class="cc-tile-ic"><svg viewBox="0 0 24 24"><path d="M7 4h12M7 9h12M7 15h12M7 20h8M3 4h.01M3 9h.01M3 15h.01M3 20h.01"/></svg></span><span>{{ __('Cláusula') }}</span>
+                            </button>
+                            <button type="button" class="cc-tile is-struct" id="tplInsList">
+                                <span class="cc-tile-ic"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span><span>{{ __('Lista') }}</span>
+                            </button>
+                            <button type="button" class="cc-tile is-struct" id="tplInsTable">
+                                <span class="cc-tile-ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 10h18M9 4v16"/></svg></span><span>{{ __('Tabla') }}</span>
+                            </button>
+                            <button type="button" class="cc-tile is-struct" id="tplPageBreak">
+                                <span class="cc-tile-ic"><svg viewBox="0 0 24 24"><path d="M4 9h16M4 15h5m4 0h7"/><path d="M6 5l-2 4 2 4"/></svg></span><span>{{ __('Salto') }}</span>
+                            </button>
+                            <button type="button" class="cc-tile is-struct" disabled title="{{ __('Próximamente') }}">
+                                <span class="cc-tile-ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span><span>{{ __('Imagen') }}</span>
+                            </button>
                         </div>
-                        <div class="col-12 col-md-6">
+                        <p class="cc-palette-note">{{ __('Un clic inserta el bloque donde está el cursor.') }}</p>
+                    </div>
+                </div>
+
+                {{-- ── CENTRO · La hoja ── --}}
+                <div class="cc-center">
+                    <div class="cc-desk" id="tplDesk">
+                        <div class="cc-page-wrap">
+                            <div id="tplCanvas" class="cc-page" contenteditable="true" spellcheck="true"></div>
+                            <div id="tplGuides" class="cc-guides" aria-hidden="true"></div>
+                        </div>
+                    </div>
+
+                    {{-- Escotilla HTML (oculta por defecto; para el owner) --}}
+                    <textarea id="tplHtml" class="form-control cc-html d-none mt-2" rows="16"
+                              style="font-family:ui-monospace,Consolas,monospace;font-size:.84rem;">{{ old('body', $template->body) }}</textarea>
+
+                    <div class="d-flex align-items-center flex-wrap gap-3 mt-3">
+                        <button class="btn btn-crew">{{ __('Guardar') }}</button>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_active" value="1" id="is_active"
+                                   @checked(old('is_active', $template->is_active))>
+                            <label class="form-check-label" for="is_active">{{ __('Activa') }}</label>
+                        </div>
+                        <button type="button" id="tplTogglePreview" class="btn btn-sm btn-crew-soft ms-auto">{{ __('Vista con datos') }}</button>
+                        <button type="button" id="tplToggleHtml" class="btn btn-sm btn-crew-soft" title="{{ __('Ver / editar HTML') }}">{{ __('Ver HTML') }}</button>
+                    </div>
+
+                    {{-- ── Vista previa con datos de ejemplo (toggle) ── --}}
+                    <div id="tplPreviewWrap" class="card mt-3 d-none">
+                        <div class="card-header d-flex align-items-center justify-content-between">
+                            <span class="fw-semibold">{{ __('Vista previa') }} <span class="text-muted small">({{ __('datos de ejemplo') }})</span></span>
+                            <button type="button" id="tplRefresh" class="btn btn-sm btn-crew-soft">{{ __('Actualizar') }}</button>
+                        </div>
+                        <div class="card-body">
+                            <iframe id="tplPreview" title="{{ __('Vista previa') }}" sandbox=""
+                                    style="width:100%;height:600px;border:1px solid var(--border, #d7dce4);border-radius:10px;background:#fff;"></iframe>
+                        </div>
+                    </div>
+                </div>{{-- /cc-center --}}
+
+                {{-- ── DERECHA · Ajustes del documento ── --}}
+                <div class="cc-panel">
+                    <div class="cc-panel-h"><h3>{{ __('Ajustes del documento') }}</h3></div>
+                    <div class="cc-panel-b">
+                        <div class="cc-field">
+                            <label class="form-label fw-semibold">{{ __('Nombre') }}</label>
+                            <input type="text" name="name" class="form-control form-control-sm" value="{{ old('name', $template->name) }}" required>
+                        </div>
+                        <div class="cc-field">
                             <label class="form-label fw-semibold d-block">{{ __('Aplica a') }}</label>
                             @foreach($subtypes as $val => $label)
-                                <div class="form-check form-check-inline">
+                                <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="applies_to[]" value="{{ $val }}"
                                            id="st_{{ $val }}" @checked(in_array($val, old('applies_to', $template->applies_to ?? []), true))>
                                     <label class="form-check-label" for="st_{{ $val }}">{{ $label }}</label>
                                 </div>
                             @endforeach
                         </div>
-                        <div class="col-12 col-md-6">
+                        <div class="cc-field">
                             <label class="form-label fw-semibold d-block">{{ __('Formato del contrato') }}</label>
-                            <div class="d-flex flex-wrap gap-2 align-items-center">
-                                <select name="architecture" id="tplArch" class="form-select form-select-sm" style="max-width:340px">
-                                    @foreach($architectures as $key => $a)
-                                        <option value="{{ $key }}" @selected(old('architecture', $template->architecture ?: 'caratula_numbered') === $key)>{{ $a['label'] }}</option>
-                                    @endforeach
-                                </select>
-                                <button type="button" id="tplLoadScaffold" class="btn btn-sm btn-crew-soft">{{ __('Cargar andamiaje') }}</button>
-                            </div>
+                            <select name="architecture" id="tplArch" class="form-select form-select-sm mb-2">
+                                @foreach($architectures as $key => $a)
+                                    <option value="{{ $key }}" @selected(old('architecture', $template->architecture ?: 'caratula_numbered') === $key)>{{ $a['label'] }}</option>
+                                @endforeach
+                            </select>
+                            <button type="button" id="tplLoadScaffold" class="btn btn-sm btn-crew-soft w-100">{{ __('Cargar andamiaje') }}</button>
                         </div>
-                        <div class="col-12 col-md-3">
+                        <div class="cc-field">
                             <label class="form-label fw-semibold d-block">{{ __('Tamaño de página') }}</label>
                             <select name="page_size" id="tplPageSize" class="form-select form-select-sm">
                                 @foreach($pageSizes as $k => $p)
                                     <option value="{{ $k }}" @selected(old('page_size', $template->page_size ?: 'carta') === $k)>{{ $p['label'] }}</option>
                                 @endforeach
                             </select>
-                            {{-- "Rúbrica del contratado en cada página": las iniciales por hoja se colocan por
-                                 COORDENADAS (arrastre tipo DocuSign, excluyendo la hoja de Firmas). Ver rúbrica-chip. --}}
                         </div>
-                        <div class="col-12 col-md-3">
+                        <div class="cc-field">
                             <label class="form-label fw-semibold d-block">{{ __('Tipografía') }}</label>
                             <input type="hidden" name="font_family" id="tplFontInput" value="{{ old('font_family', $template->font_family ?: 'mono') }}">
                             <div class="cc-seg mb-2" role="group" id="tplFont" aria-label="{{ __('Familia de letra') }}">
@@ -95,78 +185,19 @@
                                 @endforeach
                             </div>
                         </div>
+                        <div class="cc-field">
+                            <label class="form-label fw-semibold d-block">{{ __('Alineación') }}</label>
+                            <div class="cc-align" role="group" aria-label="{{ __('Alineación') }}">
+                                <button type="button" class="cc-align-btn" data-align="justifyLeft" title="{{ __('Izquierda') }}"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h13"/></svg></button>
+                                <button type="button" class="cc-align-btn" data-align="justifyCenter" title="{{ __('Centrar') }}"><svg viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M6 18h12"/></svg></button>
+                                <button type="button" class="cc-align-btn" data-align="justifyRight" title="{{ __('Derecha') }}"><svg viewBox="0 0 24 24"><path d="M4 6h16M10 12h10M7 18h13"/></svg></button>
+                                <button type="button" class="cc-align-btn" data-align="justifyFull" title="{{ __('Justificar') }}"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {{-- ── El documento ── --}}
-            <div class="cc-toolbar" role="toolbar" aria-label="{{ __('Formato del texto') }}">
-                <button type="button" class="cc-tb" data-cmd="formatBlock" data-arg="h2" title="{{ __('Título de sección') }}"><strong>H</strong></button>
-                <button type="button" class="cc-tb" data-cmd="formatBlock" data-arg="p" title="{{ __('Texto normal') }}">¶</button>
-                <span class="cc-tb-sep"></span>
-                <button type="button" class="cc-tb" data-cmd="bold" title="{{ __('Negrita') }}"><strong>B</strong></button>
-                <button type="button" class="cc-tb" data-cmd="italic" title="{{ __('Cursiva') }}"><em>I</em></button>
-                <button type="button" class="cc-tb" data-cmd="insertUnorderedList" title="{{ __('Lista') }}">&bull;</button>
-                <span class="cc-tb-sep"></span>
-                <button type="button" class="cc-tb cc-tb--wide" id="tplAddClause">+ {{ __('Cláusula') }}</button>
-                <button type="button" class="cc-tb cc-tb--wide" id="tplPageBreak">⤶ {{ __('Salto de página') }}</button>
-                <div class="cc-ins">
-                    <button type="button" class="cc-tb cc-tb--wide" id="tplInsFieldBtn" aria-haspopup="true" aria-expanded="false">
-                        <svg class="cc-tb-ic" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4H7a2 2 0 0 0-2 2v3a2 2 0 0 1-2 2 2 2 0 0 1 2 2v3a2 2 0 0 0 2 2h1M16 4h1a2 2 0 0 1 2 2v3a2 2 0 0 0 2 2 2 2 0 0 0-2 2v3a2 2 0 0 1-2 2h-1"/></svg>{{ __('Dato') }}
-                    </button>
-                    <div class="cc-pop" id="tplFieldPop" role="menu" hidden>
-                        @foreach($fields as $key => $label)
-                            <button type="button" class="cc-pop-item" data-field="{{ $key }}" role="menuitem">{{ $label }}</button>
-                        @endforeach
-                    </div>
-                </div>
-                <div class="cc-ins">
-                    <button type="button" class="cc-tb cc-tb--wide" id="tplInsSigBtn" aria-haspopup="true" aria-expanded="false">
-                        <svg class="cc-tb-ic" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19s3-1 6-1 6 2 9 1M4 15c3-8 6-9 7-5s2 6 4 3"/></svg>{{ __('Firma') }}
-                    </button>
-                    <div class="cc-pop" id="tplSigPop" role="menu" hidden>
-                        @foreach($anchors as $key => $label)
-                            <button type="button" class="cc-pop-item cc-pop-item--sig" data-anchor="{{ $key }}" role="menuitem">{{ $label }}</button>
-                        @endforeach
-                    </div>
-                </div>
-                <button type="button" class="cc-tb ms-auto" id="tplToggleHtml" title="{{ __('Ver / editar HTML') }}">&lt;/&gt;</button>
-            </div>
-
-            <div class="cc-desk" id="tplDesk">
-                <div class="cc-page-wrap">
-                    <div id="tplCanvas" class="cc-page" contenteditable="true" spellcheck="true"></div>
-                    <div id="tplGuides" class="cc-guides" aria-hidden="true"></div>
-                </div>
-            </div>
-
-            {{-- Escotilla HTML (oculta por defecto; para el owner) --}}
-            <textarea id="tplHtml" class="form-control cc-html d-none mt-2" rows="16"
-                      style="font-family:ui-monospace,Consolas,monospace;font-size:.84rem;">{{ old('body', $template->body) }}</textarea>
-
-            <div class="form-text mt-2">{{ __('Inserta datos y firmas desde la barra: se ven como etiquetas y se rellenan al emitir el contrato.') }}</div>
-
-            <div class="d-flex align-items-center flex-wrap gap-3 mt-3">
-                <button class="btn btn-crew">{{ __('Guardar') }}</button>
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" name="is_active" value="1" id="is_active"
-                           @checked(old('is_active', $template->is_active))>
-                    <label class="form-check-label" for="is_active">{{ __('Activa') }}</label>
-                </div>
-                <button type="button" id="tplTogglePreview" class="btn btn-sm btn-crew-soft ms-auto">{{ __('Vista con datos') }}</button>
-            </div>
-
-            {{-- ── Vista previa con datos de ejemplo (toggle) ── --}}
-            <div id="tplPreviewWrap" class="card mt-3 d-none">
-                <div class="card-header d-flex align-items-center justify-content-between">
-                    <span class="fw-semibold">{{ __('Vista previa') }} <span class="text-muted small">({{ __('datos de ejemplo') }})</span></span>
-                    <button type="button" id="tplRefresh" class="btn btn-sm btn-crew-soft">{{ __('Actualizar') }}</button>
-                </div>
-                <div class="card-body">
-                    <iframe id="tplPreview" title="{{ __('Vista previa') }}" sandbox=""
-                            style="width:100%;height:600px;border:1px solid var(--border, #d7dce4);border-radius:10px;background:#fff;"></iframe>
-                </div>
-            </div>
+            </div>{{-- /cc-editor-grid --}}
         </form>
     </div>
 </div>
@@ -174,16 +205,40 @@
 
 @push('styles')
 <style>
-.cc-toolbar{position:sticky;top:0;z-index:3;display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px;border:1px solid var(--border,#d7dce4);border-bottom:0;border-radius:10px 10px 0 0;background:var(--surface-2,#f6f7f9)}
-.cc-tb{min-width:32px;height:32px;padding:0 9px;border:1px solid var(--border,#d7dce4);border-radius:7px;background:var(--surface,#fff);color:var(--text,#1a1a1a);cursor:pointer;font-size:.9rem;line-height:1;transition:transform .12s ease, background .12s ease}
-.cc-tb:hover{background:var(--surface-2,#eef1f5)}
-.cc-tb:active{transform:scale(.96)}
-.cc-tb--wide{width:auto;font-weight:600;color:var(--brand,#ff0046)}
-.cc-tb-sep{width:1px;height:22px;background:var(--border,#d7dce4);margin:0 2px}
-.cc-tb-select{max-width:164px;height:32px}
-.cc-desk{padding:22px;border:1px solid var(--border,#d7dce4);border-radius:0 0 10px 10px;background:var(--surface-2,#e9edf2);max-height:74vh;overflow:auto}
+/* ── Rejilla del editor: INSERTAR · hoja · AJUSTES ── */
+.cc-editor-grid{display:grid;grid-template-columns:230px minmax(0,1fr) 268px;gap:16px;align-items:start}
+@media (max-width:980px){.cc-editor-grid{grid-template-columns:1fr}}
+.cc-panel{background:var(--surface,#fff);border:1px solid var(--border,#d7dce4);border-radius:14px;box-shadow:0 1px 2px rgba(16,20,30,.04),0 8px 24px rgba(16,20,30,.06)}
+.cc-panel-h{padding:14px 16px 10px}
+.cc-panel-h h3{margin:0;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted,#6b7482)}
+.cc-panel-b{padding:6px 14px 16px}
+/* .cc-toolbar: clase-ancla que conserva el test de la vista; su aspecto lo da .cc-panel */
+
+/* Paleta de mosaicos (INSERTAR) */
+.cc-palette{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cc-tile{display:flex;flex-direction:column;align-items:center;gap:7px;width:100%;padding:14px 8px;border-radius:12px;border:1px solid var(--border,#d7dce4);background:var(--surface-2,#f6f7f9);color:var(--text,#1a1a1a);font:inherit;cursor:pointer;transition:transform .16s ease,background .16s ease,border-color .16s ease,box-shadow .16s ease}
+.cc-tile:hover{background:var(--surface,#fff);border-color:var(--brand,#ff0046);box-shadow:0 8px 22px rgba(16,20,30,.10);transform:translateY(-2px)}
+.cc-tile:active{transform:translateY(0) scale(.97)}
+.cc-tile:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.cc-tile span{font-size:.75rem;font-weight:600}
+.cc-tile-ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:color-mix(in srgb,var(--brand,#ff0046) 12%,var(--surface,#fff));color:var(--brand,#ff0046)}
+.cc-tile-ic svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.cc-tile.is-data .cc-tile-ic{background:color-mix(in srgb,#7c3aed 14%,var(--surface,#fff));color:#7c3aed}
+.cc-tile.is-sig .cc-tile-ic{background:color-mix(in srgb,#2563eb 14%,var(--surface,#fff));color:#2563eb}
+.cc-tile.is-struct .cc-tile-ic{background:var(--surface-3,#eceef3);color:var(--muted,#6b7482)}
+.cc-palette-note{margin:12px 2px 0;font-size:.72rem;color:var(--muted,#6b7482);line-height:1.5}
+
+/* Campos y alineación (AJUSTES) */
+.cc-field{margin:0 0 14px}
+.cc-field > .form-label{font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted,#6b7482);margin-bottom:6px}
+.cc-align{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.cc-align-btn{display:grid;place-items:center;height:36px;border:1px solid var(--border,#d7dce4);border-radius:9px;background:var(--surface-2,#f6f7f9);color:var(--text,#1a1a1a);cursor:pointer;transition:background .16s ease,border-color .16s ease,transform .12s ease}
+.cc-align-btn:hover{background:var(--surface,#fff);border-color:var(--brand,#ff0046)}
+.cc-align-btn:active{transform:scale(.95)}
+.cc-align-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.cc-desk{padding:22px;border:1px solid var(--border,#d7dce4);border-radius:12px;background:var(--surface-2,#e9edf2);max-height:74vh;overflow:auto}
 .cc-page-wrap{position:relative;width:-moz-fit-content;width:fit-content;margin:0 auto}
-.cc-page{--pg-w:216mm;--pg-h:279mm;--pg-m:25mm;position:relative;width:var(--pg-w);min-height:var(--pg-h);padding:var(--pg-m);margin:0;background:#fff;color:#1a1a1a;box-shadow:0 3px 16px rgba(0,0,0,.20);font-family:Georgia,"Times New Roman",serif;line-height:1.6;font-size:12pt}
+.cc-page{--pg-w:216mm;--pg-h:279mm;--pg-m:25mm;position:relative;width:var(--pg-w);min-height:var(--pg-h);padding:var(--pg-m);margin:0;background:#fff;color:#1a1a1a;box-shadow:0 3px 16px rgba(0,0,0,.20);font-family:Georgia,"Times New Roman",serif;line-height:1.15;font-size:12pt}
 .cc-page:focus{outline:none}
 .cc-guides{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:2}
 .cc-guide{position:absolute;left:0;right:0;border-top:2px dashed color-mix(in srgb, var(--brand,#ff0046) 45%, transparent)}
@@ -202,8 +257,7 @@
 .cc-seg-btn{flex:1;min-width:0;border:none;background:none;color:var(--muted,#6b7482);font-size:.8rem;font-weight:600;padding:5px 4px;border-radius:6px;cursor:pointer;transition:background .16s ease,color .16s ease,box-shadow .16s ease,transform .12s ease;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cc-seg-btn[aria-pressed="true"]{background:var(--surface,#fff);color:var(--text,#1a1a1a);box-shadow:0 1px 3px rgba(0,0,0,.14)}
 .cc-seg-btn:active{transform:scale(.97)}
-.cc-tb .cc-tb-ic{margin-right:5px;vertical-align:-2px}
-.cc-ins{position:relative;display:inline-block}
+.cc-ins{position:relative;display:block}
 .cc-pop{position:absolute;top:calc(100% + 6px);left:0;z-index:30;min-width:300px;max-height:340px;overflow:auto;background:var(--surface,#fff);border:1px solid var(--border,#d7dce4);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.20);padding:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .cc-pop[hidden]{display:none}
 .cc-pop-item{text-align:left;border:1px solid var(--border,#e2e5ec);background:var(--surface-2,#f6f7f9);color:var(--text,#1a1a1a);border-radius:9px;padding:9px 11px;font-size:.8rem;font-weight:600;cursor:pointer;transition:background .14s ease,border-color .14s ease,transform .1s ease}
@@ -357,7 +411,7 @@
 
     function sheetCss(d){
         return 'body{background:#e9edf2;margin:0;padding:16px;font-family:' + fontStack() + '}'
-            + '.sheet{width:' + d.w + 'mm;min-height:' + d.h + 'mm;box-sizing:border-box;padding:' + d.margin + 'mm;margin:0 auto 16px;background:#fff;color:#1a1a1a;box-shadow:0 2px 12px rgba(0,0,0,.22);position:relative;font-size:' + fontSizePt() + ';line-height:1.6}'
+            + '.sheet{width:' + d.w + 'mm;min-height:' + d.h + 'mm;box-sizing:border-box;padding:' + d.margin + 'mm;margin:0 auto 16px;background:#fff;color:#1a1a1a;box-shadow:0 2px 12px rgba(0,0,0,.22);position:relative;font-size:' + fontSizePt() + ';line-height:1.15}'
             + '.sheet-foot{position:absolute;bottom:' + (d.margin/2) + 'mm;right:' + d.margin + 'mm;font-size:9pt;color:#8a93a2}'
             + '.sheet-rubrica{position:absolute;bottom:' + (d.margin/2) + 'mm;left:' + d.margin + 'mm;text-align:left}'
             + '.sheet-rubrica svg{height:26px;display:block}.sheet-rubrica span{font-size:7pt;color:#888}'
@@ -369,7 +423,7 @@
     // medidor y en el PDF ⇒ el salto de página se calcula al PÍXEL real. Si cambias una medida acá,
     // cámbiala también en page() (y en `.cc-page`).
     function PRINT_CSS(contentW){
-        return 'body{margin:0;width:' + contentW + 'px;font-family:' + fontStack() + ';font-size:' + fontSizePt() + ';line-height:1.6}'
+        return 'body{margin:0;width:' + contentW + 'px;font-family:' + fontStack() + ';font-size:' + fontSizePt() + ';line-height:1.15}'
             + 'h1{font-size:1.3rem;text-align:center}h2{font-size:1.02rem;border-bottom:1px solid #ddd;padding-bottom:3px;margin-top:1.1rem}'
             + 'table{width:100%;border-collapse:collapse}td{padding:5px 7px;vertical-align:top}';
     }
@@ -448,12 +502,24 @@
     function scheduleGuides(){ clearTimeout(gTimer); gTimer = setTimeout(drawGuides, 250); }
 
 
-    // ── Barra de formato ─────────────────────────────────────────────────
-    document.querySelectorAll('.cc-tb[data-cmd]').forEach(function(b){
+    // ── Paleta INSERTAR: cada mosaico reusa las MISMAS funciones del editor ──
+    function tileFormat(tag){ canvas.focus(); document.execCommand('formatBlock', false, '<' + tag + '>'); schedulePreview(); scheduleGuides(); }
+    var elTitle = document.getElementById('tplInsTitle');
+    if(elTitle){ elTitle.addEventListener('click', function(){ tileFormat('h2'); }); }
+    var elText = document.getElementById('tplInsText');
+    if(elText){ elText.addEventListener('click', function(){ tileFormat('p'); }); }
+    var elList = document.getElementById('tplInsList');
+    if(elList){ elList.addEventListener('click', function(){ canvas.focus(); document.execCommand('insertUnorderedList', false, null); schedulePreview(); scheduleGuides(); }); }
+    var elRub = document.getElementById('tplInsRubrica');
+    if(elRub){ elRub.addEventListener('click', function(){ insertAtCaret(anchorChip('rubrica') + ' '); }); }
+    var elTable = document.getElementById('tplInsTable');
+    if(elTable){ elTable.addEventListener('click', function(){ insertAtCaret('<table border="1" cellpadding="6" style="border-collapse:collapse;width:100%"><tr><td>&nbsp;</td><td>&nbsp;</td></tr><tr><td>&nbsp;</td><td>&nbsp;</td></tr></table><p><br></p>'); }); }
+
+    // ── Alineación (panel de ajustes) ──
+    document.querySelectorAll('.cc-align-btn').forEach(function(b){
         b.addEventListener('click', function(){
-            var cmd = b.getAttribute('data-cmd'), arg = b.getAttribute('data-arg');
             canvas.focus();
-            document.execCommand(cmd, false, cmd === 'formatBlock' ? '<' + arg + '>' : (arg || null));
+            document.execCommand(b.getAttribute('data-align'), false, null);
             schedulePreview();
             scheduleGuides();
         });
@@ -571,7 +637,6 @@
     applyPageSize();
     applyCanvasFont();
     hydrate(htmlArea.value);
-    updateArchDesc();
     scheduleGuides();
 })();
 </script>
