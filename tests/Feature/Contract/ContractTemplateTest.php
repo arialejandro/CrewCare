@@ -74,7 +74,7 @@ class ContractTemplateTest extends QaTestCase
         $res->assertOk();
         $html = $res->getContent();
 
-        $this->assertStringContainsString('María González Ríos', $html, 'el campo se llenó');
+        $this->assertStringContainsString('Juan Pérez López', $html, 'el campo se llenó');
         $this->assertStringNotContainsString('{{payee_nombre}}', $html, 'no queda token crudo');
         $this->assertStringNotContainsString('[[firma:contratado]]', $html, 'no queda ancla cruda');
         $this->assertStringContainsString('cc-sig-stamp', $html, 'la firma se estampó');
@@ -182,7 +182,7 @@ class ContractTemplateTest extends QaTestCase
         $res = $this->post(route('contracts.templates.preview'), ['body' => '<p>{{payee_nombre}}</p>', 'fragment' => 1]);
         $res->assertOk();
         $html = $res->getContent();
-        $this->assertStringContainsString('María González Ríos', $html, 'campo lleno');
+        $this->assertStringContainsString('Juan Pérez López', $html, 'campo lleno');
         $this->assertStringNotContainsString('@page', $html, 'el fragmento no lleva @page');
         $this->assertStringNotContainsString('<style', $html, 'el fragmento no lleva estilos');
     }

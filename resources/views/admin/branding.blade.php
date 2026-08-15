@@ -101,12 +101,12 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Nombre de marca</label>
-                        <input type="text" name="brand_name" class="form-control" value="{{ old('brand_name', $current['brand_name']) }}" placeholder="Ej: Pimienta / ENEG">
+                        <input type="text" name="brand_name" class="form-control" value="{{ old('brand_name', $current['brand_name']) }}" placeholder="Ej: Tu marca">
                         <div class="form-text">Reemplaza el nombre del proyecto en reportes y encabezados.</div>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Título de la app / PWA</label>
-                        <input type="text" name="app_title" class="form-control" value="{{ old('app_title', $current['app_title']) }}" placeholder="Ej: CrewCare | Pimienta">
+                        <input type="text" name="app_title" class="form-control" value="{{ old('app_title', $current['app_title']) }}" placeholder="Ej: CrewCare | Tu marca">
                         <div class="form-text">Pestaña del navegador y nombre al instalar la app.</div>
                     </div>
                 </div>
@@ -197,12 +197,12 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Compañía de producción</label>
-                        <input type="text" name="company_name" class="form-control" value="{{ old('company_name', $current['company_name'] ?? '') }}" placeholder="Ej: Pimienta Films S.A. de C.V.">
+                        <input type="text" name="company_name" class="form-control" value="{{ old('company_name', $current['company_name'] ?? '') }}" placeholder="Ej: Productora S.A. de C.V.">
                         <div class="form-text">“Production Company”. Vacío ⇒ se usa el nombre de marca.</div>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Domicilio de oficina de producción</label>
-                        <input type="text" name="office_address" class="form-control" value="{{ old('office_address', $current['office_address'] ?? '') }}" placeholder="Ej: Av. Reforma 222, CDMX">
+                        <input type="text" name="office_address" class="form-control" value="{{ old('office_address', $current['office_address'] ?? '') }}" placeholder="Ej: Calle y número, Colonia, Ciudad">
                         <div class="form-text">“Production Office Address”. Vacío ⇒ se muestra “—”.</div>
                     </div>
                 </div>

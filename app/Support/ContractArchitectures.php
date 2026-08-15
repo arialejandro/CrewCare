@@ -26,12 +26,12 @@ class ContractArchitectures
         return [
             'caratula_numbered' => [
                 'label'     => 'Carátula numerada + cláusulas (1 columna)',
-                'desc'      => 'Tabla “Carátula” con apartados numerados y cláusulas ordinales. Ej.: Redrum, Cuadernos de Cine.',
+                'desc'      => 'Tabla “Carátula” con apartados numerados y cláusulas ordinales.',
                 'bilingual' => false,
             ],
             'field_sheet' => [
                 'label'     => 'Ficha de datos (etiqueta: valor) + cláusulas',
-                'desc'      => 'Abre con una lista de campos “Etiqueta: valor”, rica en logística. Ej.: K&K Films.',
+                'desc'      => 'Abre con una lista de campos “Etiqueta: valor”, rica en logística de producción.',
                 'bilingual' => false,
             ],
             'declarations' => [

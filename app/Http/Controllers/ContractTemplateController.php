@@ -141,16 +141,23 @@ class ContractTemplateController extends Controller
         return $data;
     }
 
+    /**
+     * Datos de EJEMPLO para el preview. ⚖ NUNCA nombres reales de productoras ni personas (indicio de
+     * piratería / uso indebido de marca). La empresa sale de la MARCA de la app; si no hay, genérico
+     * “Productora S.A. de C.V.”. La persona es un genérico evidente (Juan Pérez López) + RFC genérico
+     * del SAT (XAXX010101000). Los datos REALES del contrato salen de valuesFor(), no de aquí.
+     */
     private static function sampleValues(): array
     {
         return [
-            'fecha_hoy' => now()->format('d/m/Y'),
-            'empresa' => 'Pimienta Films SA de CV', 'representante_legal' => 'Jorge Ruiz Mena',
-            'domicilio_empresa' => 'Av. Reforma 222, CDMX',
-            'payee_nombre' => 'María González Ríos', 'payee_rfc' => 'GORM900101AB2',
-            'puesto' => 'Supervisora de Salud y Seguridad', 'actividad' => 'plan de emergencias y bitácora diaria',
-            'credito' => 'María G. Ríos', 'honorarios' => '$180,000.00', 'moneda' => 'MXN',
-            'vigencia_inicio' => '01/09/2026', 'vigencia_fin' => '20/12/2026',
+            'fecha_hoy'           => now()->format('d/m/Y'),
+            'empresa'             => \App\Support\Branding::get('company_name') ?: 'Productora S.A. de C.V.',
+            'representante_legal' => \App\Support\Branding::get('representante_legal') ?: 'Representante Legal',
+            'domicilio_empresa'   => \App\Support\Branding::get('office_address') ?: 'Domicilio de la Empresa',
+            'payee_nombre'        => 'Juan Pérez López', 'payee_rfc' => 'XAXX010101000',
+            'puesto'              => 'Puesto del contratado', 'actividad' => 'Actividad / entregable del contrato',
+            'credito'             => 'Crédito en pantalla', 'honorarios' => '$00,000.00', 'moneda' => 'MXN',
+            'vigencia_inicio'     => '01/01/2026', 'vigencia_fin' => '31/12/2026',
         ];
     }
 
@@ -167,7 +174,7 @@ class ContractTemplateController extends Controller
         $map = [];
         $i = 0;
         foreach ($labels as $key => $label) {
-            $names = ['María González', 'Ana Pérez', 'Jorge Ruiz', 'Luis Mena', 'Sofía Lara'];
+            $names = ['Juan Pérez López', 'Ana García', 'Luis Martínez', 'Sofía Hernández', 'Carlos Ramírez'];
             $map[$key] = [
                 'image' => $auto($names[$i % count($names)]), 'signer' => $names[$i % count($names)],
                 'role' => $label, 'date' => now()->format('Y-m-d H:i'),
