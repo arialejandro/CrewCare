@@ -6,8 +6,10 @@ use App\Events\ContractEnvelopeCompleted;
 use App\Exceptions\ContractEnvelopeException;
 use App\Models\ContractConsent;
 use App\Models\ContractEnvelope;
+use App\Models\ContractEnvelopeEvent;
 use App\Models\ContractEnvelopeRecipient;
 use App\Models\PayeeContract;
+use App\Support\ContractEventLog;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -38,6 +40,12 @@ class ContractSigning
         if ($first) {
             $first->update(['status' => ContractEnvelopeRecipient::STATUS_SENT, 'sent_at' => now()]);
         }
+
+        ContractEventLog::record($envelope, ContractEnvelopeEvent::SENT, [
+            'recipient' => $first,
+            'payload'   => ['to' => optional($first)->name],
+        ]);
+
         return $envelope->fresh();
     }
 
@@ -48,6 +56,10 @@ class ContractSigning
             $r->update([
                 'viewed_at' => now(),
                 'status'    => $r->isSigned() ? $r->status : ContractEnvelopeRecipient::STATUS_VIEWED,
+            ]);
+            // "Visto" ≠ "firmado": el evento que prueba que la persona TUVO el documento a la vista.
+            ContractEventLog::record($r->envelope, ContractEnvelopeEvent::VIEWED, [
+                'recipient' => $r, 'actor_id' => $r->user_id, 'actor_label' => $r->name,
             ]);
         }
     }
@@ -68,6 +80,10 @@ class ContractSigning
             'accepted_at'    => now(),
             'ip_address'     => $ip,
             'production_id'  => optional($r->envelope)->production_id,
+        ]);
+
+        ContractEventLog::record($r->envelope, ContractEnvelopeEvent::CONSENTED, [
+            'recipient' => $r, 'actor_id' => $r->user_id, 'actor_label' => $r->name, 'ip' => $ip,
         ]);
     }
 
@@ -107,6 +123,11 @@ class ContractSigning
         // internos firman logueados; el contratado no-crew no tiene user → sello sin persona).
         $r->signDocument($r->user);
 
+        ContractEventLog::record($envelope, ContractEnvelopeEvent::SIGNED, [
+            'recipient' => $r, 'actor_id' => $r->user_id, 'actor_label' => $r->name, 'ip' => $ip,
+            'payload'   => ['method' => $method, 'cargo' => $r->cargo, 'role' => $r->role],
+        ]);
+
         // Avanza al siguiente en la ruta; si no hay, COMPLETA y avisa.
         $next = $envelope->orderedRecipients()->where('sort_order', '>', $r->sort_order)->first();
         if ($next) {
@@ -118,6 +139,7 @@ class ContractSigning
                 'completed_at'         => now(),
                 'current_recipient_id' => null,
             ]);
+            ContractEventLog::record($envelope, ContractEnvelopeEvent::COMPLETED, ['ip' => $ip]);
             try {
                 event(new ContractEnvelopeCompleted($envelope->fresh()));
             } catch (\Throwable $e) {

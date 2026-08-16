@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\ContractEnvelopeException;
 use App\Models\ContractEnvelope;
+use App\Models\ContractEnvelopeEvent;
 use App\Models\ContractTemplate;
 use App\Models\PayeeContract;
 use App\Models\Position;
 use App\Models\Setting;
 use App\Support\Branding;
 use App\Support\ContractEnvelopeBuilder;
+use App\Support\ContractEventLog;
 use App\Support\ContractSigning;
 use App\Support\ContractTemplateRenderer;
 use App\Support\CurrentProduction;
@@ -100,6 +102,10 @@ class ContractEnvelopeController extends Controller
 
         if (! $envelope->isCompleted()) {
             $envelope->update(['status' => ContractEnvelope::STATUS_CANCELLED, 'cancelled_at' => now()]);
+            // (Fase 2 le agregará el MOTIVO obligatorio; por ahora queda el evento con actor + hora.)
+            ContractEventLog::record($envelope, ContractEnvelopeEvent::CANCELLED, [
+                'payload' => ['reason' => $request->input('reason')],
+            ]);
         }
         return back()->with('status', __('Sobre cancelado.'));
     }

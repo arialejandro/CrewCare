@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Exceptions\ContractEnvelopeException;
 use App\Models\ContractAnnex;
 use App\Models\ContractEnvelope;
+use App\Models\ContractEnvelopeEvent;
 use App\Models\ContractEnvelopeRecipient;
 use App\Models\PayeeContract;
 use App\Models\Position;
@@ -123,6 +124,12 @@ class ContractEnvelopeBuilder
 
             // Sella la INTEGRIDAD del paquete (el `documents` congelado entra al hash).
             $envelope->signDocumentAsSystem('sobre creado');
+
+            // Primer eslabón de la bitácora: el sobre nace registrado.
+            ContractEventLog::record($envelope, ContractEnvelopeEvent::CREATED, [
+                'actor_id' => optional($actor)->id,
+                'payload'  => ['recipients' => count($route), 'documents' => count($documents)],
+            ]);
 
             return $envelope->fresh('recipients');
         });

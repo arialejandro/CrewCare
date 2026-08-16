@@ -3,11 +3,13 @@
 namespace App\Console\Commands;
 
 use App\Models\ContractEnvelope;
+use App\Models\ContractEnvelopeEvent;
 use App\Models\ContractEnvelopeRecipient;
 use App\Models\Department;
 use App\Models\Payee;
 use App\Models\PayeeContract;
 use App\Models\User;
+use App\Support\ContractEventLog;
 use App\Support\CurrentProduction;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -113,6 +115,14 @@ class SeedPendingSignaturesDemo extends Command
                 ]);
                 $env->update(['current_recipient_id' => $rec->id]);
 
+                // Bitácora demo: un rastro realista para que la Bitácora del sobre se vea poblada.
+                $ip = '187.190.0.1';
+                ContractEventLog::record($env, ContractEnvelopeEvent::CREATED, ['actor_id' => $user->id, 'ip' => $ip, 'payload' => ['recipients' => 2, 'documents' => 0]]);
+                ContractEventLog::record($env, ContractEnvelopeEvent::SENT, ['actor_id' => $user->id, 'ip' => $ip, 'recipient' => $c0]);
+                ContractEventLog::record($env, ContractEnvelopeEvent::VIEWED, ['recipient' => $c0, 'actor_label' => $name, 'ip' => $ip]);
+                ContractEventLog::record($env, ContractEnvelopeEvent::CONSENTED, ['recipient' => $c0, 'actor_label' => $name, 'ip' => $ip]);
+                ContractEventLog::record($env, ContractEnvelopeEvent::SIGNED, ['recipient' => $c0, 'actor_label' => $name, 'ip' => $ip, 'payload' => ['method' => 'autograph', 'role' => 'contracted']]);
+
                 $man['payees'][]     = $payee->id;
                 $man['contracts'][]  = $contract->id;
                 $man['envelopes'][]  = $env->id;
@@ -146,6 +156,10 @@ class SeedPendingSignaturesDemo extends Command
                 if (! empty($man[$key])) {
                     DB::table('digital_signatures')->where('documentable_type', $type)->whereIn('documentable_id', $man[$key])->delete();
                 }
+            }
+            // Bitácora demo (raw DB: el modelo es append-only por diseño).
+            if (! empty($man['envelopes'])) {
+                DB::table('contract_envelope_events')->whereIn('envelope_id', $man['envelopes'])->delete();
             }
             if (! empty($man['recipients'])) {
                 ContractEnvelopeRecipient::whereIn('id', $man['recipients'])->delete();

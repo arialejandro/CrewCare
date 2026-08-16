@@ -129,6 +129,70 @@
                 </div>
             </div>
         </div>
+
+        {{-- BITÁCORA (append-only, cadena de hashes). El estado del sobre se DERIVA de estos eventos.
+             Guardado por si la tabla aún no existe (antes del owner-apply) → la página no truena. --}}
+        @php $ccHasLog = \Illuminate\Support\Facades\Schema::hasTable('contract_envelope_events'); @endphp
+        @if($ccHasLog)
+            @php
+                $ccEvents = \App\Support\ContractEventLog::forEnvelope($envelope);
+                $ccChain  = \App\Support\ContractEventLog::verifyChain($envelope);
+                $ccLabels = \App\Support\ContractEventLog::labels();
+            @endphp
+            <div class="card mt-4">
+                <div class="card-header d-flex align-items-center gap-2">
+                    <span class="fw-semibold">{{ __('Bitácora') }}</span>
+                    @if($ccEvents->isNotEmpty())
+                        @if($ccChain['ok'])
+                            <span class="badge text-bg-success ms-auto">{{ __('Cadena íntegra') }} · {{ $ccChain['count'] }}</span>
+                        @else
+                            <span class="badge text-bg-danger ms-auto">{{ __('Cadena alterada') }}</span>
+                        @endif
+                    @endif
+                </div>
+                <div class="card-body">
+                    @if($ccEvents->isEmpty())
+                        <div class="text-muted small">{{ __('Este sobre es anterior a la bitácora; los eventos se registran desde ahora.') }}</div>
+                    @else
+                        <ol class="cc-log">
+                            @foreach($ccEvents as $ev)
+                                <li class="cc-log__item">
+                                    <span class="cc-log__dot"></span>
+                                    <div class="cc-log__body">
+                                        <div class="cc-log__head">
+                                            <span class="cc-log__event">{{ $ccLabels[$ev->event] ?? $ev->event }}</span>
+                                            <span class="cc-log__time">{{ optional($ev->occurred_at)->format('d/m/Y H:i:s') }} <small>{{ $ev->display_timezone }}</small></span>
+                                        </div>
+                                        @php
+                                            $ccMeta  = $ev->actor_label ?: __('Sistema');
+                                            $ccRecip = $ev->recipient_id ? optional($ev->recipient)->name : null;
+                                            if ($ccRecip && $ccRecip !== $ev->actor_label) { $ccMeta .= ' · ' . $ccRecip; }
+                                            if ($ev->ip_address) { $ccMeta .= ' · ' . $ev->ip_address; }
+                                        @endphp
+                                        <div class="cc-log__meta">{{ $ccMeta }}</div>
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ol>
+                    @endif
+                </div>
+            </div>
+        @endif
     </div>
 </div>
 @endsection
+
+@push('styles')
+<style>
+    .cc-log { list-style: none; margin: 0; padding: 0; position: relative; }
+    .cc-log::before { content: ""; position: absolute; left: 5px; top: 6px; bottom: 6px; width: 2px; background: var(--border); }
+    .cc-log__item { position: relative; padding: 0 0 14px 22px; }
+    .cc-log__item:last-child { padding-bottom: 0; }
+    .cc-log__dot { position: absolute; left: 0; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2px solid var(--brand-primary); box-sizing: border-box; }
+    .cc-log__head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    .cc-log__event { font-weight: 600; color: var(--text); font-size: 13.5px; }
+    .cc-log__time { margin-left: auto; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    .cc-log__time small { opacity: .7; }
+    .cc-log__meta { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+</style>
+@endpush
