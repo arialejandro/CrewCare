@@ -95,6 +95,14 @@
           <input name="elector_credential" value="{{ $val('elector_credential') }}">
           <label>Estado civil</label>
           <input name="marital_status" value="{{ $val('marital_status') }}">
+          <div class="row2">
+            <div><label>Teléfono</label><input name="phone" value="{{ $val('phone') }}" inputmode="tel" autocomplete="tel"></div>
+            <div><label>Correo electrónico</label><input name="email" type="email" value="{{ $val('email') }}" autocomplete="email"></div>
+          </div>
+          @if($payee->isMoral())
+            <label>Representante legal</label>
+            <input name="legal_representative" value="{{ $val('legal_representative') }}">
+          @endif
           <label>Calle</label>
           <input name="addr_street" value="{{ $val('addr_street') }}" autocomplete="address-line1">
           <div class="row2">

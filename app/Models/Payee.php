@@ -36,6 +36,7 @@ class Payee extends Model
         'notes', 'is_active', 'sort_order', 'created_by_id',
         // PASO 3 · intake autoservicio
         'nationality', 'elector_credential', 'marital_status',
+        'phone', 'email', 'legal_representative',
         'addr_street', 'addr_ext_no', 'addr_int_no', 'addr_colonia', 'addr_municipio',
         'addr_cp', 'addr_city', 'addr_state',
         'emergency_contact_name', 'emergency_contact_phone',
@@ -122,6 +123,43 @@ class Payee extends Model
     public function isMoral(): bool
     {
         return $this->legal_nature === self::NATURE_MORAL;
+    }
+
+    /**
+     * Domicilio en UNA línea, para documentos (contrato, carátula). Compone las partes de
+     * `addr_*` y omite las vacías → nunca deja "No. ," ni comas sueltas. Cadena vacía si no hay
+     * domicilio (el render lo pinta en blanco, jamás "[CONFIRMAR]").
+     */
+    public function fullAddress(): string
+    {
+        $line1 = trim(implode(' ', array_filter([
+            $this->addr_street,
+            $this->addr_ext_no ? 'No. ' . $this->addr_ext_no : null,
+            $this->addr_int_no ? 'Int. ' . $this->addr_int_no : null,
+        ])));
+
+        $parts = array_filter([
+            $line1,
+            $this->addr_colonia ? 'Col. ' . $this->addr_colonia : null,
+            $this->addr_municipio,
+            $this->addr_city,
+            $this->addr_state,
+            $this->addr_cp ? 'C.P. ' . $this->addr_cp : null,
+        ], fn ($p) => trim((string) $p) !== '');
+
+        return implode(', ', $parts);
+    }
+
+    /** Teléfono del contratado: el propio de la ficha, o el del usuario ligado (crew). */
+    public function contactPhone(): ?string
+    {
+        return $this->phone ?: optional($this->user)->phone;
+    }
+
+    /** Correo del contratado: el propio de la ficha, o el del usuario ligado (crew). */
+    public function contactEmail(): ?string
+    {
+        return $this->email ?: optional($this->user)->email;
     }
 
     public function scopeActive($query)

@@ -26,8 +26,18 @@ class ContractTemplateRenderer
     public static function fieldCatalog(): array
     {
         return [
-            'payee_nombre'        => 'Nombre del contratado',
-            'payee_rfc'           => 'RFC del contratado',
+            // ── Del CONTRATADO (la persona/entidad que cobra: su ficha de "quién cobra") ──
+            'payee_nombre'                   => 'Nombre del contratado',
+            'payee_rfc'                      => 'RFC del contratado',
+            'domicilio_contratado'           => 'Domicilio del contratado',
+            'tel_contratado'                 => 'Teléfono del contratado',
+            'correo_contratado'              => 'Correo del contratado',
+            'emergencia_contratado'          => 'Contacto de emergencia del contratado',
+            'beneficiario_contratado'        => 'Beneficiario del contratado',
+            'representante_legal_contratado' => 'Representante legal del contratado (moral)',
+            'loanout_contratado'             => 'Empresa / loanout del contratado (moral)',
+            'regimen_fiscal'                 => 'Régimen fiscal del contrato',
+            // ── Del TRATO ──
             'puesto'              => 'Puesto',
             'actividad'           => 'Actividad / entregable',
             'credito'             => 'Nombre en créditos',
@@ -35,8 +45,10 @@ class ContractTemplateRenderer
             'moneda'              => 'Moneda',
             'vigencia_inicio'     => 'Inicio de vigencia',
             'vigencia_fin'        => 'Fin de vigencia',
+            'titulo_programa'     => 'Título del programa / producción',
+            // ── De la EMPRESA contratante (la productora, desde la Marca) ──
             'empresa'             => 'Empresa contratante',
-            'representante_legal' => 'Representante legal',
+            'representante_legal' => 'Representante legal (empresa)',
             'domicilio_empresa'   => 'Domicilio de la empresa',
             'fecha_hoy'           => 'Fecha de hoy',
         ];
@@ -78,9 +90,37 @@ class ContractTemplateRenderer
         $fin   = $contract->definitive_end_date ?: $contract->estimated_end_date;
         $fmt   = fn ($d) => $d ? Carbon::parse($d)->format('d/m/Y') : null;
 
+        // ── Datos del CONTRATADO (su ficha de "quién cobra"). El dato que NO se capturó cae a
+        // cadena vacía (fill() la pinta en blanco), NUNCA a "[CONFIRMAR]". "En su caso" (loanout /
+        // representante legal) solo aplica a persona MORAL: en física quedan en blanco. ──
+        $isMoral = $payee && $payee->isMoral();
+
+        // Emergencia: nombre + teléfono en una línea, sin dejar guion suelto.
+        $emergName  = optional($payee)->emergency_contact_name;
+        $emergPhone = optional($payee)->emergency_contact_phone;
+        $emergencia = trim($emergName . ($emergName && $emergPhone ? ' — ' : '') . ($emergPhone ?: ''));
+
+        // Beneficiario: el CONGELADO en el contrato (si ya se emitió) o el primero de la ficha.
+        $firstBen   = $payee ? $payee->beneficiaries()->first() : null;
+        $benName    = $contract->beneficiary_name ?: optional($firstBen)->full_name;
+        $benRel     = $contract->beneficiary_relationship ?: optional($firstBen)->relationship;
+        $beneficiario = trim((string) $benName . ($benName && $benRel ? ' (' . $benRel . ')' : ''));
+
+        // Régimen fiscal: el elegido para ESTE contrato o, si no, el primero de la ficha.
+        $firstReg   = $payee ? $payee->fiscalRegimes()->first() : null;
+        $regimen    = optional($contract->fiscalRegime)->name ?: optional($firstReg)->name;
+
         return [
-            'payee_nombre'        => optional($payee)->name,
-            'payee_rfc'           => optional($payee)->rfc,
+            'payee_nombre'                   => optional($payee)->name,
+            'payee_rfc'                      => optional($payee)->rfc,
+            'domicilio_contratado'           => $payee ? $payee->fullAddress() : null,
+            'tel_contratado'                 => $payee ? $payee->contactPhone() : null,
+            'correo_contratado'              => $payee ? $payee->contactEmail() : null,
+            'emergencia_contratado'          => $emergencia,
+            'beneficiario_contratado'        => $beneficiario,
+            'representante_legal_contratado' => $isMoral ? $payee->legal_representative : null,
+            'loanout_contratado'             => $isMoral ? $payee->name : null,
+            'regimen_fiscal'                 => $regimen,
             'puesto'              => $contract->title,
             'actividad'           => $contract->crew_activity,
             'credito'             => $contract->credit_name,
@@ -88,6 +128,7 @@ class ContractTemplateRenderer
             'moneda'              => $contract->fee_currency,
             'vigencia_inicio'     => $fmt($contract->effective_date),
             'vigencia_fin'        => $fmt($fin),
+            'titulo_programa'     => optional($contract->production)->name,
             'empresa'             => Branding::get('company_name'),
             'representante_legal' => Branding::get('representante_legal'),
             'domicilio_empresa'   => Branding::get('office_address'),

@@ -135,7 +135,7 @@ class ContractArchitectures
             . "  <tr><td><strong>3. Crédito en pantalla</strong></td><td>{{credito}}</td></tr>\n"
             . "  <tr><td><strong>4. Contraprestación</strong></td><td>{{honorarios}} {{moneda}}, más IVA y menos las retenciones aplicables</td></tr>\n"
             . "  <tr><td><strong>5. Vigencia</strong></td><td>Del {{vigencia_inicio}} al {{vigencia_fin}}</td></tr>\n"
-            . "  <tr><td><strong>6. Beneficiario en caso de fallecimiento</strong></td><td>&nbsp;</td></tr>\n"
+            . "  <tr><td><strong>6. Beneficiario en caso de fallecimiento</strong></td><td>{{beneficiario_contratado}}</td></tr>\n"
             . "</table>\n"
             . "<h2>Declaraciones</h2>\n<p>Las partes se reconocen mutuamente la capacidad para suscribir el presente contrato.</p>\n"
             . "<h2>Cláusulas</h2>\n"
@@ -193,8 +193,10 @@ class ContractArchitectures
 
     // ── Bilingües 2 columnas (EN|ES) ────────────────────────────────────────────────────────
     // El andamiaje bilingüe es una TABLA `.bili` de dos columnas (izq inglés, der español) que el
-    // redactor rellena. Los datos son tokens {{...}} (mismo valor en ambas) y [CONFIRMAR] cuando el
-    // dato no existe como token (igual que las plantillas reales). Cero clausulado de fábrica.
+    // redactor rellena. Los DATOS del contratado y del trato son tokens {{...}} (mismo valor en
+    // ambas) que se auto-llenan desde la ficha (ContractTemplateRenderer::valuesFor). Solo queda
+    // [CONFIRMAR] en lo que NO es dato de ficha: términos NEGOCIADOS por contrato (renta de caja/auto,
+    // fecha-lugar-forma de pago, entrega) — el redactor los confirma. Cero clausulado de fábrica.
 
     private static function firmasBili(string $enL, string $esL, string $enR, string $esR): string
     {
@@ -211,12 +213,12 @@ class ContractArchitectures
             . "  <td style=\"text-align:center\"><strong>FRONT PAGE</strong><br>SERVICE AGREEMENT FOR CREW MEMBERS<br><br><strong>{{empresa}}</strong> (the “Producer”)<br>represented herein by {{representante_legal}}<br>with address at {{domicilio_empresa}}<br><br>and by<br><br><strong>{{payee_nombre}}</strong> (the “Contractor”)</td>\n"
             . "  <td style=\"text-align:center\"><strong>CARÁTULA</strong><br>CONTRATO DE PRESTACIÓN DE SERVICIOS<br><br><strong>{{empresa}}</strong> (el “Productor”)<br>representada por {{representante_legal}}<br>con domicilio en {{domicilio_empresa}}<br><br>y por otra parte<br><br><strong>{{payee_nombre}}</strong> (el “Contratista”)</td>\n"
             . "</tr>\n"
-            . "<tr><td><strong>2. PROGRAM TITLE:</strong> [CONFIRMAR]</td><td><strong>2. TÍTULO DEL PROGRAMA:</strong> [CONFIRMAR]</td></tr>\n"
-            . "<tr><td><strong>3. CONTRACTOR’S INFORMATION:</strong><br>a) Address: [CONFIRMAR]<br>b) Legal representative: [CONFIRMAR]<br>c) Phone: [CONFIRMAR]<br>d) Cellphone: [CONFIRMAR]<br>e) Emergency contact &amp; phone: [CONFIRMAR]<br>f) E-mail: [CONFIRMAR]<br>g) Loanout company (if any): [CONFIRMAR]<br>h) Beneficiary (if any): [CONFIRMAR]<br>i) Tax ID (RFC): {{payee_rfc}}</td>"
-            . "<td><strong>3. INFORMACIÓN DEL CONTRATISTA:</strong><br>a) Domicilio: [CONFIRMAR]<br>b) Representante legal: [CONFIRMAR]<br>c) Teléfono: [CONFIRMAR]<br>d) Celular: [CONFIRMAR]<br>e) Contacto de emergencia y teléfono: [CONFIRMAR]<br>f) Correo: [CONFIRMAR]<br>g) Empresa que proporciona (en su caso): [CONFIRMAR]<br>h) Beneficiario (en su caso): [CONFIRMAR]<br>i) RFC: {{payee_rfc}}</td></tr>\n"
+            . "<tr><td><strong>2. PROGRAM TITLE:</strong> {{titulo_programa}}</td><td><strong>2. TÍTULO DEL PROGRAMA:</strong> {{titulo_programa}}</td></tr>\n"
+            . "<tr><td><strong>3. CONTRACTOR’S INFORMATION:</strong><br>a) Address: {{domicilio_contratado}}<br>b) Legal representative: {{representante_legal_contratado}}<br>c) Phone: {{tel_contratado}}<br>d) Emergency contact &amp; phone: {{emergencia_contratado}}<br>e) E-mail: {{correo_contratado}}<br>f) Loanout company (if any): {{loanout_contratado}}<br>g) Beneficiary (if any): {{beneficiario_contratado}}<br>h) Tax ID (RFC): {{payee_rfc}}</td>"
+            . "<td><strong>3. INFORMACIÓN DEL CONTRATISTA:</strong><br>a) Domicilio: {{domicilio_contratado}}<br>b) Representante legal: {{representante_legal_contratado}}<br>c) Teléfono: {{tel_contratado}}<br>d) Contacto de emergencia y teléfono: {{emergencia_contratado}}<br>e) Correo: {{correo_contratado}}<br>f) Empresa que proporciona (en su caso): {{loanout_contratado}}<br>g) Beneficiario (en su caso): {{beneficiario_contratado}}<br>h) RFC: {{payee_rfc}}</td></tr>\n"
             . "<tr><td><strong>4. REMUNERATION:</strong> {{honorarios}} {{moneda}} weekly, plus VAT minus the withholdings required by law.</td><td><strong>4. REMUNERACIÓN:</strong> {{honorarios}} {{moneda}} semanales, más IVA y menos las retenciones fiscales correspondientes.</td></tr>\n"
             . "<tr><td><strong>5. SERVICE TO BE SUPPLIED:</strong> {{puesto}} — {{actividad}}</td><td><strong>5. DESCRIPCIÓN DE LOS SERVICIOS:</strong> {{puesto}} — {{actividad}}</td></tr>\n"
-            . "<tr><td><strong>6. TERMS OF AGREEMENT:</strong><br>a) Date of agreement: [CONFIRMAR]<br>b) Start date: {{vigencia_inicio}}<br>c) Finish date: {{vigencia_fin}}</td><td><strong>6. TÉRMINOS DE CONTRATO:</strong><br>a) Fecha de contrato: [CONFIRMAR]<br>b) Fecha de comienzo: {{vigencia_inicio}}<br>c) Fecha de terminación: {{vigencia_fin}}</td></tr>\n"
+            . "<tr><td><strong>6. TERMS OF AGREEMENT:</strong><br>a) Date of agreement: {{fecha_hoy}}<br>b) Start date: {{vigencia_inicio}}<br>c) Finish date: {{vigencia_fin}}</td><td><strong>6. TÉRMINOS DE CONTRATO:</strong><br>a) Fecha de contrato: {{fecha_hoy}}<br>b) Fecha de comienzo: {{vigencia_inicio}}<br>c) Fecha de terminación: {{vigencia_fin}}</td></tr>\n"
             . "<tr><td><strong>7. BOX / CAR RENTAL:</strong> ( ) Yes ( ) No — Amount: [CONFIRMAR]</td><td><strong>7. RENTA DE CAJA / AUTO:</strong> ( ) Sí ( ) No — Cantidad: [CONFIRMAR]</td></tr>\n"
             . "<tr><td><strong>8. ADDITIONAL PROVISIONS:</strong> [Draft here — reviewed by your legal team.]</td><td><strong>8. PROVISIONES ADICIONALES:</strong> [Redacta aquí — revisado por tu área legal.]</td></tr>\n"
             . "</table>\n"
@@ -233,7 +235,7 @@ class ContractArchitectures
             . "  <td style=\"text-align:center\"><strong>GOODS AND SERVICES SUPPLY AGREEMENT</strong><br>entered into by<br><br><strong>{{empresa}}</strong> (the “Producer”)<br>represented herein by {{representante_legal}}<br>with address at {{domicilio_empresa}}<br><br>and by<br><br><strong>{{payee_nombre}}</strong> (the “Vendor”)</td>\n"
             . "  <td style=\"text-align:center\"><strong>CONTRATO DE SUMINISTRO DE BIENES Y SERVICIOS</strong><br>que celebran, por una parte<br><br><strong>{{empresa}}</strong> (el “Productor”)<br>representada por {{representante_legal}}<br>con domicilio en {{domicilio_empresa}}<br><br>y por otra parte<br><br><strong>{{payee_nombre}}</strong> (el “Proveedor”)</td>\n"
             . "</tr>\n"
-            . "<tr><td><strong>1. Vendor’s address and email:</strong> [CONFIRMAR]</td><td><strong>1. Domicilio y correo del Proveedor:</strong> [CONFIRMAR]</td></tr>\n"
+            . "<tr><td><strong>1. Vendor’s address and email:</strong> {{domicilio_contratado}} · {{correo_contratado}}</td><td><strong>1. Domicilio y correo del Proveedor:</strong> {{domicilio_contratado}} · {{correo_contratado}}</td></tr>\n"
             . "<tr><td><strong>2. Tax Identity Number:</strong> {{payee_rfc}}</td><td><strong>2. Registro Federal de Contribuyentes:</strong> {{payee_rfc}}</td></tr>\n"
             . "<tr><td><strong>3. Goods and services to be supplied:</strong> {{actividad}}</td><td><strong>3. Descripción de los bienes y/o servicios contratados:</strong> {{actividad}}</td></tr>\n"
             . "<tr><td><strong>4. Agreed remuneration:</strong> {{honorarios}} {{moneda}} plus VAT, less the corresponding deductions.</td><td><strong>4. Contraprestación pactada:</strong> {{honorarios}} {{moneda}} más IVA, menos las deducciones correspondientes.</td></tr>\n"
@@ -254,9 +256,9 @@ class ContractArchitectures
     {
         return "<table class=\"bili\" style=\"width:100%\">\n"
             . "<tr><td style=\"text-align:center\"><strong>CREW AND VENDORS AGREEMENT</strong><br>MAIN TERMS</td><td style=\"text-align:center\"><strong>CONTRATO ENTRE PERSONAL DE PRODUCCIÓN (CREW) Y PROVEEDORES</strong><br>TÉRMINOS PRINCIPALES</td></tr>\n"
-            . "<tr><td><strong>DATED:</strong> [CONFIRMAR]</td><td><strong>FECHA:</strong> [CONFIRMAR]</td></tr>\n"
+            . "<tr><td><strong>DATED:</strong> {{fecha_hoy}}</td><td><strong>FECHA:</strong> {{fecha_hoy}}</td></tr>\n"
             . "<tr><td><strong>PARTIES:</strong><br>(1) <strong>{{empresa}}</strong>, with registered address at {{domicilio_empresa}} (the “Company”); and<br>(2) <strong>{{payee_nombre}}</strong> (the “Individual”).</td><td><strong>PARTES:</strong><br>(1) <strong>{{empresa}}</strong>, con domicilio en {{domicilio_empresa}} (la “Empresa”); y<br>(2) <strong>{{payee_nombre}}</strong> (el “Individuo”).</td></tr>\n"
-            . "<tr><td><strong>1. PRODUCTION:</strong> [CONFIRMAR] (the “Project”).</td><td><strong>1. PRODUCCIÓN:</strong> [CONFIRMAR] (el “Proyecto”).</td></tr>\n"
+            . "<tr><td><strong>1. PRODUCTION:</strong> {{titulo_programa}} (the “Project”).</td><td><strong>1. PRODUCCIÓN:</strong> {{titulo_programa}} (el “Proyecto”).</td></tr>\n"
             . "<tr><td><strong>2. SERVICES:</strong> The Individual’s capacity as {{puesto}} — {{actividad}}, as set out in the Purchase Order.</td><td><strong>2. SERVICIOS:</strong> La capacidad del Individuo como {{puesto}} — {{actividad}}, según la Orden de Compra.</td></tr>\n"
             . "<tr><td><strong>3. PURCHASE ORDER:</strong> Numbered purchase order(s) detailing the consideration and pre-approved expenses (Schedule 2). The remuneration is set out there, not in these Main Terms.</td><td><strong>3. ORDEN DE COMPRA:</strong> Orden(es) de compra numerada(s) con el importe de la contraprestación y los gastos preaprobados (Anexo 2). La remuneración se establece ahí, no en estos Términos Principales.</td></tr>\n"
             . "</table>\n"

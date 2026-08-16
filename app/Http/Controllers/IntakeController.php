@@ -180,6 +180,8 @@ class IntakeController extends Controller
                 $request->validate([
                     'name' => 'nullable|string|max:255', 'nationality' => 'nullable|in:mexicana,extranjera',
                     'elector_credential' => 'nullable|string|max:30', 'marital_status' => 'nullable|string|max:30',
+                    'phone' => 'nullable|string|max:40', 'email' => 'nullable|email|max:191',
+                    'legal_representative' => 'nullable|string|max:200',
                     'addr_street' => 'nullable|string|max:160', 'addr_ext_no' => 'nullable|string|max:20',
                     'addr_int_no' => 'nullable|string|max:20', 'addr_colonia' => 'nullable|string|max:120',
                     'addr_municipio' => 'nullable|string|max:120', 'addr_cp' => 'nullable|string|max:10',
@@ -187,6 +189,7 @@ class IntakeController extends Controller
                 ]);
                 $payee->fill($request->only([
                     'name', 'nationality', 'elector_credential', 'marital_status',
+                    'phone', 'email', 'legal_representative',
                     'addr_street', 'addr_ext_no', 'addr_int_no', 'addr_colonia', 'addr_municipio',
                     'addr_cp', 'addr_city', 'addr_state',
                 ]));

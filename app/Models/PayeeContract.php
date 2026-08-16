@@ -118,6 +118,12 @@ class PayeeContract extends Model
         return $this->belongsTo(PayeeFiscalRegime::class, 'fiscal_regime_id');
     }
 
+    /** La producción del contrato (su nombre es el "Título del programa" del documento). */
+    public function production(): BelongsTo
+    {
+        return $this->belongsTo(Production::class, 'production_id');
+    }
+
     /** QUIÉN CONTRATA. Su departamento (vía production_user) resuelve el scope del Paso 4. */
     public function contractedBy(): BelongsTo
     {
