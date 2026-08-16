@@ -25,10 +25,26 @@ class EmailSignedContractToParty
     public function handle(ContractEnvelopeCompleted $event): void
     {
         try {
-            if (Features::enabled('contracts_queue_email')) {
-                DeliverSignedContractEmail::dispatch($event->envelope);
+            $envelope = $event->envelope;
+            $queue    = Features::enabled('contracts_queue_email');
+
+            // Contratado (comportamiento histórico).
+            if ($queue) {
+                DeliverSignedContractEmail::dispatch($envelope);
             } else {
-                DeliverSignedContractEmail::dispatchSync($event->envelope);
+                DeliverSignedContractEmail::dispatchSync($envelope);
+            }
+
+            // B1 · copias / acuse: cada destinatario de copia con correo recibe su entrega certificada.
+            foreach ($envelope->copyRecipients()->get() as $copy) {
+                if (! $copy->email || $copy->isDelivered()) {
+                    continue;
+                }
+                if ($queue) {
+                    DeliverSignedContractEmail::dispatch($envelope, $copy->id);
+                } else {
+                    DeliverSignedContractEmail::dispatchSync($envelope, $copy->id);
+                }
             }
         } catch (\Throwable $e) {
             // Nunca romper la firma: el correo es secundario.

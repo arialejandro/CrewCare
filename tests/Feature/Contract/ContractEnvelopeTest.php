@@ -181,6 +181,84 @@ class ContractEnvelopeTest extends QaTestCase
         $this->assertSame('signed_link_2fa', $r->sign_method);
     }
 
+    // ── B1 · DESTINATARIOS DE COPIA / ENTREGA-CERTIFICADA ────────────────────
+
+    /** Una copia NO entra a la ruta de firma: no es turno, no bloquea, no cuenta para completar. */
+    public function test_copy_recipient_stays_out_of_the_signing_route(): void
+    {
+        Storage::fake('local');
+        $this->seatInternals();
+        $env  = ContractEnvelopeBuilder::build($this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee()), null);
+        $copy = $env->recipients()->create([
+            'role' => ContractEnvelopeRecipient::ROLE_COPY, 'delivery_mode' => ContractEnvelopeRecipient::DELIVERY_COPY,
+            'sort_order' => 99, 'name' => 'Contabilidad', 'email' => 'conta@qa.test', 'status' => 'pending',
+        ]);
+
+        ContractSigning::send($env);
+        $this->assertNotSame((int) $copy->id, (int) $env->fresh()->current_recipient_id, 'el turno nunca es la copia');
+        $this->assertTrue($env->fresh()->currentRecipient->isSigner());
+
+        foreach ($env->orderedRecipients()->get() as $r) {
+            ContractSigning::sign($r->fresh(), 'authenticated', '1.1.1.1');
+        }
+        $this->assertTrue($env->fresh()->isCompleted(), 'completa solo con firmantes; la copia no bloquea');
+        $this->assertFalse($copy->fresh()->isSigned());
+        $this->assertFalse($env->orderedRecipients()->get()->contains('id', $copy->id), 'la ruta excluye la copia');
+        $this->assertTrue($env->copyRecipients()->get()->contains('id', $copy->id), 'la copia vive en copyRecipients');
+    }
+
+    /** Al COMPLETARSE, cada copia recibe su entrega certificada: correo + delivered_at + evento. */
+    public function test_completion_delivers_certified_copy_to_copy_recipients(): void
+    {
+        Storage::fake('local');
+        $this->seatInternals();
+        $env  = ContractEnvelopeBuilder::build($this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee()), null);
+        $copy = $env->recipients()->create([
+            'role' => ContractEnvelopeRecipient::ROLE_COPY, 'delivery_mode' => ContractEnvelopeRecipient::DELIVERY_COPY,
+            'sort_order' => 99, 'name' => 'Legal', 'email' => 'legal@qa.test', 'status' => 'pending',
+        ]);
+        ContractSigning::send($env);
+
+        $autograph = 'data:image/png;base64,' . str_repeat('A', 160);
+        foreach ($env->orderedRecipients()->get() as $r) {
+            ContractSigning::sign($r->fresh(), 'authenticated', '9.9.9.9', $autograph);
+        }
+        $this->assertTrue($env->fresh()->isCompleted());
+
+        $this->assertNotNull($copy->fresh()->delivered_at, 'delivered_at sellado');
+        $this->assertNotNull(
+            \App\Models\ContractEnvelopeEvent::where('envelope_id', $env->id)
+                ->where('event', \App\Models\ContractEnvelopeEvent::COPY_DELIVERED)->first(),
+            'quedó el evento copy_delivered en la bitácora'
+        );
+
+        $toLegal = collect(Mail::getSymfonyTransport()->messages())
+            ->contains(fn ($m) => $m->getOriginalMessage()->getTo()[0]->getAddress() === 'legal@qa.test');
+        $this->assertTrue($toLegal, 'la copia recibió su correo de entrega');
+    }
+
+    /** El controlador agrega/quita copias con la guarda de captura; un sobre retirado no admite copias. */
+    public function test_add_and_remove_copy_via_controller(): void
+    {
+        Storage::fake('local');
+        $this->seatInternals();
+        $this->actingAsRole('super-admin');
+        $env = ContractEnvelopeBuilder::build($this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee()), null);
+
+        $this->post(route('contracts.envelope.copy.add', $env), ['name' => 'Conta', 'email' => 'conta@qa.test'])->assertRedirect();
+        $copy = $env->copyRecipients()->first();
+        $this->assertNotNull($copy);
+        $this->assertSame('conta@qa.test', $copy->email);
+
+        $this->delete(route('contracts.envelope.copy.remove', ['envelope' => $env->id, 'recipient' => $copy->id]))->assertRedirect();
+        $this->assertSame(0, $env->copyRecipients()->count(), 'la copia no entregada se puede quitar');
+
+        // Sobre anulado (retirado): no admite copias.
+        $env->update(['status' => ContractEnvelope::STATUS_CANCELLED, 'cancelled_at' => now()]);
+        $this->post(route('contracts.envelope.copy.add', $env->fresh()), ['name' => 'X', 'email' => 'x@qa.test']);
+        $this->assertSame(0, $env->copyRecipients()->count(), 'un sobre retirado rechaza copias');
+    }
+
     // ── FASE 5 · ROBUSTEZ ───────────────────────────────────────────────────
 
     /** Un solo sobre EN CURSO por contrato (un contrato por persona). */

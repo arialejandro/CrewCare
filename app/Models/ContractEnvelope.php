@@ -72,10 +72,26 @@ class ContractEnvelope extends Model
         return $this->hasMany(ContractEnvelopeRecipient::class, 'envelope_id');
     }
 
-    /** Destinatarios en ORDEN de ruta. */
+    /**
+     * La RUTA DE FIRMA en orden: SOLO firmantes (excluye las copias de B1). NULL histórico cuenta
+     * como firmante. La usan enviar/firmar (turno) y el certificado/stepper — todos quieren firmantes.
+     */
     public function orderedRecipients()
     {
-        return $this->recipients()->orderBy('sort_order')->orderBy('id');
+        return $this->recipients()
+            ->where(function ($q) {
+                $q->whereNull('delivery_mode')
+                  ->orWhere('delivery_mode', '!=', ContractEnvelopeRecipient::DELIVERY_COPY);
+            })
+            ->orderBy('sort_order')->orderBy('id');
+    }
+
+    /** B1 · destinatarios de COPIA / acuse (solo reciben; fuera de la ruta de firma). */
+    public function copyRecipients()
+    {
+        return $this->recipients()
+            ->where('delivery_mode', ContractEnvelopeRecipient::DELIVERY_COPY)
+            ->orderBy('sort_order')->orderBy('id');
     }
 
     public function currentRecipient(): BelongsTo

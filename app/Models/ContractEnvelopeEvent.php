@@ -33,6 +33,9 @@ class ContractEnvelopeEvent extends Model
     const CORRECTED = 'corrected';  // Fase 2
     const SEALED    = 'sealed';     // Fase 3 · documento firmado renderizado y congelado (con su hash)
     const DOWNLOADED = 'downloaded';
+    // B1 · destinatarios de COPIA / entrega-certificada.
+    const COPY_ADDED     = 'copy_added';       // se sumó una copia/acuse a la lista de entrega
+    const COPY_DELIVERED = 'copy_delivered';   // se entregó la copia certificada (al completarse)
 
     protected $fillable = [
         'envelope_id', 'recipient_id', 'event', 'actor_id', 'actor_label',

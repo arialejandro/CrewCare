@@ -36,6 +36,8 @@ class ContractEventLog
             ContractEnvelopeEvent::CORRECTED  => __('Corregido'),
             ContractEnvelopeEvent::SEALED     => __('Documento firmado sellado'),
             ContractEnvelopeEvent::DOWNLOADED => __('Descargado'),
+            ContractEnvelopeEvent::COPY_ADDED     => __('Copia agregada'),
+            ContractEnvelopeEvent::COPY_DELIVERED => __('Copia entregada'),
         ];
     }
 

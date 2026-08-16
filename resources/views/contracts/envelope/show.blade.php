@@ -160,6 +160,60 @@
             </div>
         </div>
 
+        {{-- B1 · Copias / acuse — destinatarios que solo RECIBEN el contrato firmado + certificado
+             (copia legal, contabilidad, acuse). No firman ni entran a la ruta; se entregan al completar. --}}
+        @php $ccCopies = $envelope->copyRecipients()->get(); @endphp
+        <div class="card mb-4">
+            <div class="card-header fw-semibold d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <span>{{ __('Copias / acuse') }}</span>
+                <span class="text-muted small fw-normal">{{ __('Reciben el contrato firmado y el certificado; no firman.') }}</span>
+            </div>
+            <div class="card-body">
+                @if($ccCopies->isNotEmpty())
+                    <ul class="list-group list-group-flush mb-3">
+                        @foreach($ccCopies as $c)
+                            <li class="list-group-item d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                                <span>
+                                    <span class="fw-semibold">{{ $c->name ?: '—' }}</span>
+                                    <span class="text-muted">· {{ $c->email }}</span>
+                                    @if($c->isDelivered())
+                                        <span class="badge text-bg-success ms-1">{{ __('Entregada') }} · {{ $fmt($c->delivered_at) }}</span>
+                                    @else
+                                        <span class="badge text-bg-light border ms-1">{{ __('Pendiente de entrega') }}</span>
+                                    @endif
+                                </span>
+                                @if(!$c->isDelivered() && !$envelope->isStoppedShort())
+                                    <form method="POST" action="{{ route('contracts.envelope.copy.remove', ['envelope' => $envelope->id, 'recipient' => $c->id]) }}" onsubmit="return confirm('{{ __('¿Quitar esta copia?') }}')">
+                                        @csrf @method('DELETE')
+                                        <button class="btn btn-sm btn-outline-danger">{{ __('Quitar') }}</button>
+                                    </form>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <p class="text-muted small mb-3">{{ __('Aún no hay copias. Agrega una para que reciba el contrato firmado al completarse.') }}</p>
+                @endif
+
+                @unless($envelope->isStoppedShort())
+                    <form method="POST" action="{{ route('contracts.envelope.copy.add', $envelope) }}" class="row g-2 align-items-end">
+                        @csrf
+                        <div class="col-12 col-md-4">
+                            <label class="form-label small mb-1">{{ __('Nombre') }}</label>
+                            <input name="name" class="form-control form-control-sm" required maxlength="191" placeholder="{{ __('Ej. Contabilidad de producción') }}">
+                        </div>
+                        <div class="col-12 col-md-5">
+                            <label class="form-label small mb-1">{{ __('Correo') }}</label>
+                            <input name="email" type="email" class="form-control form-control-sm" required maxlength="191" placeholder="correo@ejemplo.mx">
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <button class="btn btn-sm btn-crew-soft w-100">{{ __('Agregar copia') }}</button>
+                        </div>
+                    </form>
+                @endunless
+            </div>
+        </div>
+
         {{-- BITÁCORA (append-only, cadena de hashes). El estado del sobre se DERIVA de estos eventos.
              Guardado por si la tabla aún no existe (antes del owner-apply) → la página no truena. --}}
         @php $ccHasLog = \Illuminate\Support\Facades\Schema::hasTable('contract_envelope_events'); @endphp

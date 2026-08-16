@@ -19,10 +19,14 @@
         {{-- Cuerpo --}}
         <tr>
           <td style="padding:22px 34px 6px;color:#1f2a3a;">
-            <h1 style="font-size:22px;margin:0 0 4px;font-weight:700;">{{ __('Tu contrato está firmado') }}</h1>
+            <h1 style="font-size:22px;margin:0 0 4px;font-weight:700;">{{ ($isCopy ?? false) ? __('Copia del contrato firmado') : __('Tu contrato está firmado') }}</h1>
             <p style="font-size:14px;line-height:1.7;color:#3d4757;margin:10px 0;">
               {{ __('Hola') }} <strong>{{ $toName ?: __('colega') }}</strong>,<br>
-              {{ __('Todas las partes firmaron tu paquete de contratación. Adjuntamos los documentos firmados para tu resguardo. Abajo encontrarás el certificado de firma con la constancia de integridad de cada firmante.') }}
+              @if($isCopy ?? false)
+                {{ __('Recibes esta COPIA del contrato firmado para tu acuse y resguardo. Adjuntamos los documentos firmados y el certificado de firma con la constancia de integridad de cada firmante.') }}
+              @else
+                {{ __('Todas las partes firmaron tu paquete de contratación. Adjuntamos los documentos firmados para tu resguardo. Abajo encontrarás el certificado de firma con la constancia de integridad de cada firmante.') }}
+              @endif
             </p>
             @if($completedAt)
               <p style="font-size:13px;color:#6b7482;margin:4px 0 0;">{{ __('Firma completada:') }} <strong>{{ $completedAt }}</strong></p>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\ContractEnvelopeException;
 use App\Models\ContractEnvelope;
 use App\Models\ContractEnvelopeEvent;
+use App\Models\ContractEnvelopeRecipient;
 use App\Models\ContractTemplate;
 use App\Models\PayeeContract;
 use App\Models\Position;
@@ -134,6 +135,78 @@ class ContractEnvelopeController extends Controller
         }
 
         return back()->with('status', __('Recordatorio de firma registrado.'));
+    }
+
+    /**
+     * B1 · AGREGAR COPIA / acuse — un destinatario que solo RECIBE el contrato firmado + certificado
+     * (copia legal, contabilidad, acuse al contratado). No firma ni entra a la ruta. Se entrega al
+     * COMPLETARSE el sobre; si ya está completado, se entrega en el acto. No aplica a sobres retirados
+     * (anulado/rechazado/vencido: no hay documento firmado que entregar).
+     */
+    public function addCopy(Request $request, ContractEnvelope $envelope)
+    {
+        abort_unless($envelope->contract && $envelope->contract->payee, 404);
+        $this->authorize('capture', $envelope->contract->payee);
+
+        if ($envelope->isStoppedShort()) {
+            return back()->with('error', __('Este sobre no admite copias (fue anulado, rechazado o venció).'));
+        }
+
+        $data = $request->validate([
+            'name'  => 'required|string|max:191',
+            'email' => 'required|email|max:191',
+        ]);
+
+        // Las copias van al FINAL (fuera de la ruta): sort_order tras el último destinatario.
+        $maxOrder = (int) $envelope->recipients()->max('sort_order');
+        $copy = $envelope->recipients()->create([
+            'role'          => ContractEnvelopeRecipient::ROLE_COPY,
+            'delivery_mode' => ContractEnvelopeRecipient::DELIVERY_COPY,
+            'sort_order'    => $maxOrder + 1,
+            'name'          => trim($data['name']),
+            'email'         => trim($data['email']),
+            'status'        => ContractEnvelopeRecipient::STATUS_PENDING,
+        ]);
+
+        ContractEventLog::record($envelope, ContractEnvelopeEvent::COPY_ADDED, [
+            'recipient' => $copy,
+            'payload'   => ['name' => $copy->name, 'email' => $copy->email],
+        ]);
+
+        // Si el sobre YA está completado, se entrega la copia certificada en el acto.
+        if ($envelope->isCompleted()) {
+            try {
+                if (\App\Support\Features::enabled('contracts_queue_email')) {
+                    \App\Jobs\DeliverSignedContractEmail::dispatch($envelope, $copy->id);
+                } else {
+                    \App\Jobs\DeliverSignedContractEmail::dispatchSync($envelope, $copy->id);
+                }
+            } catch (\Throwable $e) {
+                // la entrega nunca rompe la acción
+            }
+            return back()->with('status', __('Copia agregada y entregada.'));
+        }
+
+        return back()->with('status', __('Copia agregada. Recibirá el contrato firmado al completarse.'));
+    }
+
+    /** B1 · QUITAR COPIA — solo una copia de ESTE sobre que aún NO se entregó (la entregada es evidencia). */
+    public function removeCopy(Request $request, ContractEnvelope $envelope, ContractEnvelopeRecipient $recipient)
+    {
+        abort_unless($envelope->contract && $envelope->contract->payee, 404);
+        $this->authorize('capture', $envelope->contract->payee);
+
+        abort_unless((int) $recipient->envelope_id === (int) $envelope->id && $recipient->isCopy(), 404);
+        if ($recipient->isDelivered()) {
+            return back()->with('error', __('Esta copia ya fue entregada; no se puede quitar.'));
+        }
+
+        ContractEventLog::record($envelope, ContractEnvelopeEvent::CORRECTED, [
+            'payload' => ['removed_copy' => $recipient->email],
+        ]);
+        $recipient->delete();
+
+        return back()->with('status', __('Copia quitada.'));
     }
 
     /**

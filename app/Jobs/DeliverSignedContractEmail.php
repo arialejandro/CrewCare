@@ -3,8 +3,10 @@
 namespace App\Jobs;
 
 use App\Models\ContractEnvelope;
+use App\Models\ContractEnvelopeEvent;
 use App\Models\ContractEnvelopeRecipient;
 use App\Support\ContractCompletionCertificate;
+use App\Support\ContractEventLog;
 use App\Support\ContractPdf;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -35,7 +37,11 @@ class DeliverSignedContractEmail implements ShouldQueue
     /** Best-effort: un solo intento; el correo es secundario a la firma. */
     public int $tries = 1;
 
-    public function __construct(public ContractEnvelope $envelope)
+    /**
+     * $copyRecipientId — B1: si se pasa, entrega la COPIA CERTIFICADA a ese destinatario de copia (en
+     * vez del contratado). null = entrega histórica al contratado.
+     */
+    public function __construct(public ContractEnvelope $envelope, public ?int $copyRecipientId = null)
     {
     }
 
@@ -47,9 +53,33 @@ class DeliverSignedContractEmail implements ShouldQueue
                 return;
             }
 
-            $payee = optional($envelope->contract)->payee;
+            $payee       = optional($envelope->contract)->payee;
+            $attachments = self::buildAttachments($envelope);
+            $data        = [
+                'payeeName'   => optional($payee)->name,
+                'signers'     => self::signerRows($envelope),
+                'completedAt' => optional($envelope->completed_at)->format('d/m/Y H:i'),
+            ];
+            $subjectBase = optional($payee)->name ?: 'CrewCare';
 
-            // El contratado es a quien se le entrega el paquete firmado.
+            // ── B1 · COPIA CERTIFICADA a un destinatario de copia (acuse/legal/contabilidad) ──
+            if ($this->copyRecipientId !== null) {
+                $copy = $envelope->copyRecipients()->whereKey($this->copyRecipientId)->first();
+                if (! $copy || ! $copy->email || $copy->isDelivered()) {
+                    return;   // ya entregada, sin correo, o no es copia de este sobre
+                }
+                self::mailTo($copy->email, $copy->name, __('Copia del contrato firmado').' — '.$subjectBase,
+                    $data + ['toName' => $copy->name, 'isCopy' => true], $attachments);
+
+                $copy->update(['delivered_at' => now()]);
+                ContractEventLog::record($envelope, ContractEnvelopeEvent::COPY_DELIVERED, [
+                    'recipient' => $copy, 'actor_label' => $copy->name,
+                    'payload'   => ['to' => $copy->email],
+                ]);
+                return;
+            }
+
+            // ── Contratado (comportamiento histórico): a quien se le entrega el paquete firmado ──
             $contracted = $envelope->recipients()
                 ->where('role', ContractEnvelopeRecipient::ROLE_CONTRACTED)->first();
             $to = optional($contracted)->email ?: optional(optional($payee)->user)->email;
@@ -58,41 +88,40 @@ class DeliverSignedContractEmail implements ShouldQueue
                 return;
             }
             $toName = optional($contracted)->name ?: optional($payee)->name;
-
-            // Certificado: quién firmó, cuándo, con qué integridad (hash del sello, recortado).
-            $signers = $envelope->orderedRecipients()->get()->map(function ($r) {
-                $sig = $r->signatures()->latest('id')->first();
-                return [
-                    'name'      => $r->name,
-                    'role'      => $r->cargo ?: $r->roleLabel(),
-                    'signed_at' => optional($r->signed_at)->format('d/m/Y H:i'),
-                    'method'    => $r->sign_method,
-                    'hash'      => $sig ? substr($sig->document_hash, 0, 24) : null,
-                ];
-            })->all();
-
-            $data = [
-                'toName'      => $toName,
-                'payeeName'   => optional($payee)->name,
-                'signers'     => $signers,
-                'completedAt' => optional($envelope->completed_at)->format('d/m/Y H:i'),
-            ];
-
-            $subject     = __('Tu contrato firmado').' — '.(optional($payee)->name ?: 'CrewCare');
-            $attachments = self::buildAttachments($envelope);
-
-            Mail::send('correos.contract-signed', $data, function ($m) use ($to, $toName, $subject, $attachments) {
-                $m->from('noreply@crewcare.mx', 'CrewCare');
-                $m->to($to, $toName ?: null);
-                $m->subject($subject);
-                foreach ($attachments as $a) {
-                    $m->attachData($a['bytes'], $a['name'], ['mime' => 'application/pdf']);
-                }
-            });
+            self::mailTo($to, $toName, __('Tu contrato firmado').' — '.$subjectBase,
+                $data + ['toName' => $toName], $attachments);
         } catch (\Throwable $e) {
             // Nunca romper la firma: el correo es secundario.
             Log::error('DeliverSignedContractEmail: fallo — '.$e->getMessage());
         }
+    }
+
+    /** Filas de firmantes para el certificado del correo (quién firmó, cuándo, con qué integridad). */
+    private static function signerRows(ContractEnvelope $envelope): array
+    {
+        return $envelope->orderedRecipients()->get()->map(function ($r) {
+            $sig = $r->signatures()->latest('id')->first();
+            return [
+                'name'      => $r->name,
+                'role'      => $r->cargo ?: $r->roleLabel(),
+                'signed_at' => optional($r->signed_at)->format('d/m/Y H:i'),
+                'method'    => $r->sign_method,
+                'hash'      => $sig ? substr($sig->document_hash, 0, 24) : null,
+            ];
+        })->all();
+    }
+
+    /** Envía el correo de cierre (mismo cuerpo) a un destinatario, con los adjuntos ya armados. */
+    private static function mailTo(string $to, ?string $toName, string $subject, array $data, array $attachments): void
+    {
+        Mail::send('correos.contract-signed', $data, function ($m) use ($to, $toName, $subject, $attachments) {
+            $m->from('noreply@crewcare.mx', 'CrewCare');
+            $m->to($to, $toName ?: null);
+            $m->subject($subject);
+            foreach ($attachments as $a) {
+                $m->attachData($a['bytes'], $a['name'], ['mime' => 'application/pdf']);
+            }
+        });
     }
 
     /**
