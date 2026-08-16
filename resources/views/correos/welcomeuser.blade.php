@@ -131,6 +131,12 @@
 		<br><br>
 		<a href="{{$resetUrl}}" style="display:inline-block;background-color:#ff0046;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:5px;font-weight:bold;">Establecer/Restablecer tu contraseña</a>
 		<br><br><br>
+		@isset($intakeUrl)
+		También necesitamos que <strong>completes tu hoja de información</strong> (datos fiscales, documentos y contacto). Solo tú tienes tu CLABE, tu identificación y tu domicilio; con eso se genera tu contrato. Puedes hacerlo desde aquí, sin necesidad de contraseña:
+		<br><br>
+		<a href="{{$intakeUrl}}" style="display:inline-block;background-color:#0b6bcb;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:5px;font-weight:bold;">Llenar mi hoja de información</a>
+		<br><br><br>
+		@endisset
 		Además, te invitamos a subir una <strong>foto de perfil</strong> dentro de la aplicación para facilitar tu identificación por parte del equipo. <br>
 		¡Gracias y bienvenido nuevamente!
   </div>
