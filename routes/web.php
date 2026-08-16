@@ -958,6 +958,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/contratos/sobre/{envelope}/plantilla', [\App\Http\Controllers\ContractEnvelopeController::class, 'templateDocument'])->name('contracts.envelope.template')->whereNumber('envelope');
     // FASE 3 — el CONTRATO FIRMADO congelado (PDF con autógrafas), servido byte-intact del disco.
     Route::get('/contratos/sobre/{envelope}/firmado',   [\App\Http\Controllers\ContractEnvelopeController::class, 'signedDocument'])->name('contracts.envelope.signed')->whereNumber('envelope');
+    // FASE 3c — el CERTIFICADO DE CIERRE (constancia del proceso de firma). HTML, o ?pdf=1 para PDF.
+    Route::get('/contratos/sobre/{envelope}/certificado', [\App\Http\Controllers\ContractEnvelopeController::class, 'certificate'])->name('contracts.envelope.certificate')->whereNumber('envelope');
 
     // FIRMAS PENDIENTES (la "cola" de firmas a escala). Bandeja personal (auto-limitada al propio
     // usuario) + lote detrás del flag; el TABLERO por figura es de administración (settings.manage).

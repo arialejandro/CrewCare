@@ -136,6 +136,28 @@ class ContractEnvelopeController extends Controller
         return back()->with('status', __('Recordatorio de firma registrado.'));
     }
 
+    /**
+     * FASE 3c — CERTIFICADO DE CIERRE (constancia del proceso de firma). Es una vista de datos ya
+     * sellados; en pantalla (HTML) o como PDF (`?pdf=1`, Chrome headless).
+     */
+    public function certificate(Request $request, ContractEnvelope $envelope)
+    {
+        abort_unless($envelope->contract && $envelope->contract->payee, 404);
+        $this->authorize('view', $envelope->contract->payee);
+
+        $html = \App\Support\ContractCompletionCertificate::html($envelope);
+
+        if ($request->boolean('pdf')) {
+            $bytes = \App\Support\ContractPdf::render($html);
+            return response($bytes, 200, [
+                'Content-Type'        => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="Certificado-' . $envelope->folio() . '.pdf"',
+            ]);
+        }
+
+        return response($html);
+    }
+
     /** FASE 3 — sirve el CONTRATO FIRMADO congelado (PDF con autógrafas) del disco privado. */
     public function signedDocument(Request $request, ContractEnvelope $envelope)
     {

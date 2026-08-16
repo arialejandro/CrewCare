@@ -49,11 +49,11 @@ abstract class QaTestCase extends TestCase
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        // FASE 3 — el render del contrato firmado corre al completar un sobre (ContractSigning::sign).
-        // En pruebas NUNCA levantamos Chrome/Browsershot: sustituimos el motor PDF por un doble que
-        // devuelve bytes deterministas. Así el flujo (guardar + sellar + evento) se ejerce sin Chrome
-        // y sin colgar la suite con timeouts. Los tests que necesiten bytes concretos lo re-sustituyen.
-        \App\Support\ContractSignedRenderer::$pdfEngine = fn (string $html) => 'TESTPDF:' . strlen($html);
+        // FASE 3 — el render del contrato firmado (y el del certificado) corre al completar un sobre y
+        // al mandar el correo. En pruebas NUNCA levantamos Chrome/Browsershot: sustituimos el motor PDF
+        // (costura compartida ContractPdf) por un doble determinista. Así el flujo (render → guardar →
+        // sellar → adjuntar) se ejerce sin Chrome ni timeouts.
+        \App\Support\ContractPdf::$engine = fn (string $html) => 'TESTPDF:' . strlen($html);
     }
 
     /**

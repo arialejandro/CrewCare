@@ -17,18 +17,10 @@ use Illuminate\Support\Facades\Storage;
  *
  * DEFENSIVO por diseño: si la producción no tiene plantilla activa para el subtipo, no hay nada que
  * congelar (se sigue entregando el paquete byte-intact) → devuelve null sin tocar nada. El motor PDF
- * es una costura sustituible ($pdfEngine) para poder probar el flujo sin levantar Chrome.
+ * es una costura compartida ({@see ContractPdf}) para poder probar el flujo sin levantar Chrome.
  */
 class ContractSignedRenderer
 {
-    /**
-     * Motor HTML→PDF. Por defecto Chrome headless (PdfExporter::fromHtml). Los tests lo sustituyen por
-     * un doble que devuelve bytes falsos, así el flujo (guardar + sellar + evento) se prueba sin Chrome.
-     *
-     * @var callable|null  fn(string $html): string
-     */
-    public static $pdfEngine = null;
-
     /**
      * El CONTRATO FIRMADO como HTML autónomo (listo para PDF), o null si no hay plantilla activa para
      * el subtipo del contrato. Idéntica composición a templateDocument(), pero como servicio reusable.
@@ -70,9 +62,8 @@ class ContractSignedRenderer
             return null;
         }
 
-        $engine = self::$pdfEngine ?: fn (string $h) => PdfExporter::fromHtml($h);
-        $bytes  = $engine($html);
-        if (! is_string($bytes) || $bytes === '') {
+        $bytes = ContractPdf::render($html);
+        if ($bytes === '') {
             return null;
         }
 

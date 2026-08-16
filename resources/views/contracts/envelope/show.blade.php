@@ -38,6 +38,9 @@
                 @if($envelope->isSent())
                     <form method="POST" action="{{ route('contracts.envelope.resend', $envelope) }}">@csrf<button class="btn btn-sm btn-crew-soft">{{ __('Reenviar') }}</button></form>
                 @endif
+                @unless($envelope->isDraft())
+                    <a href="{{ route('contracts.envelope.certificate', $envelope) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">{{ __('Certificado') }}</a>
+                @endunless
                 @unless($envelope->isStopped())
                     <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#ccAnularModal">{{ __('Anular') }}</button>
                 @endunless
