@@ -95,19 +95,45 @@ class ContractEnvelopeController extends Controller
         ));
     }
 
+    /** ANULAR (Fase 2) — con MOTIVO obligatorio. Estado terminal; queda el motivo + el evento. */
     public function cancel(Request $request, ContractEnvelope $envelope)
     {
         abort_unless($envelope->contract && $envelope->contract->payee, 404);
         $this->authorize('capture', $envelope->contract->payee);
 
-        if (! $envelope->isCompleted()) {
-            $envelope->update(['status' => ContractEnvelope::STATUS_CANCELLED, 'cancelled_at' => now()]);
-            // (Fase 2 le agregará el MOTIVO obligatorio; por ahora queda el evento con actor + hora.)
-            ContractEventLog::record($envelope, ContractEnvelopeEvent::CANCELLED, [
-                'payload' => ['reason' => $request->input('reason')],
-            ]);
+        $data = $request->validate(['reason' => 'required|string|max:500']);
+
+        if ($envelope->isStopped()) {
+            return back()->with('error', __('Este sobre ya está cerrado; no se puede anular.'));
         }
-        return back()->with('status', __('Sobre cancelado.'));
+
+        $reason = trim($data['reason']);
+        $envelope->update([
+            'status'               => ContractEnvelope::STATUS_CANCELLED,
+            'cancelled_at'         => now(),
+            'resolution_reason'    => $reason,
+            'current_recipient_id' => null,
+        ]);
+        ContractEventLog::record($envelope, ContractEnvelopeEvent::CANCELLED, [
+            'payload' => ['reason' => $reason],
+        ]);
+
+        return back()->with('status', __('Sobre anulado.'));
+    }
+
+    /** REENVIAR (Fase 2) — recordatorio manual al turno actual: sella resent_at + registra el evento. */
+    public function resend(Request $request, ContractEnvelope $envelope)
+    {
+        abort_unless($envelope->contract && $envelope->contract->payee, 404);
+        $this->authorize('capture', $envelope->contract->payee);
+
+        try {
+            ContractSigning::resend($envelope, $request->user());
+        } catch (ContractEnvelopeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('status', __('Recordatorio de firma registrado.'));
     }
 
     /** Servir un documento del paquete (byte-intact) a un viewer autenticado con alcance. */

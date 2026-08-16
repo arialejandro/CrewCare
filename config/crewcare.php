@@ -72,4 +72,21 @@ return [
         'key' => $sealKey,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Contratos · caminos de escape (Fase 2)
+    |--------------------------------------------------------------------------
+    |
+    | `expire_days` — ventana de vigencia de un sobre en firma. Al ENVIAR se fija
+    | `expires_at = sent_at + expire_days`. El barrido `contracts:expire-stale`
+    | marca 'expired' los sobres cuyo plazo ya pasó (o, para sobres viejos sin
+    | expires_at, cuyo sent_at rebasó la ventana). El barrido es MANUAL/programable
+    | por el owner — no vence nada solo. Súbelo/bájalo según qué tan lentas sean
+    | las producciones; NO es agresivo (un contrato vencido es un estado terminal).
+    |
+    */
+    'contracts' => [
+        'expire_days' => (int) env('CONTRACTS_EXPIRE_DAYS', 45),
+    ],
+
 ];

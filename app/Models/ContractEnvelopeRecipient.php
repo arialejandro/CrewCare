@@ -40,10 +40,11 @@ class ContractEnvelopeRecipient extends Model
     // MÓDULO DE FIRMA · firmante genérico de la lista configurable (su `cargo` guarda el puesto real).
     const ROLE_SIGNER     = 'signer';
 
-    const STATUS_PENDING = 'pending';
-    const STATUS_SENT    = 'sent';
-    const STATUS_VIEWED  = 'viewed';
-    const STATUS_SIGNED  = 'signed';
+    const STATUS_PENDING  = 'pending';
+    const STATUS_SENT     = 'sent';
+    const STATUS_VIEWED   = 'viewed';
+    const STATUS_SIGNED   = 'signed';
+    const STATUS_DECLINED = 'declined';   // FASE 2 · el firmante se negó (con motivo)
 
     protected $fillable = [
         'envelope_id', 'role', 'sort_order',
@@ -72,6 +73,7 @@ class ContractEnvelopeRecipient extends Model
 
     public function isContracted(): bool { return $this->role === self::ROLE_CONTRACTED; }
     public function isSigned(): bool     { return $this->status === self::STATUS_SIGNED; }
+    public function isDeclined(): bool   { return $this->status === self::STATUS_DECLINED; }
 
     /** Etiqueta legible del papel. */
     public static function roleLabels(): array

@@ -32,8 +32,9 @@ class ContractSignController extends Controller
         $envelope = $recipient->envelope;
         abort_unless($envelope, 404);
 
-        // Estado de la ruta.
-        if ($envelope->isCompleted() || $envelope->isCancelled() || $recipient->isSigned()) {
+        // Estado de la ruta. Cualquier estado TERMINAL (completado/anulado/rechazado/vencido) o el
+        // propio destinatario ya firmado → nada que hacer aquí (la vista adapta el texto al estado).
+        if ($envelope->isStopped() || $recipient->isSigned()) {
             return view('contracts.sign', ['recipient' => $recipient, 'envelope' => $envelope, 'stage' => 'done']);
         }
         if ((int) $envelope->current_recipient_id !== (int) $recipient->id) {
@@ -62,6 +63,7 @@ class ContractSignController extends Controller
             'stage'        => 'sign',
             'needsConsent' => $needsConsent,
             'signUrl'      => URL::temporarySignedRoute('contracts.sign.do', now()->addHours(3), ['recipient' => $recipient->id]),
+            'declineUrl'   => URL::temporarySignedRoute('contracts.sign.decline', now()->addHours(3), ['recipient' => $recipient->id]),
             'docUrl'       => fn ($i) => URL::temporarySignedRoute('contracts.sign.document', now()->addHours(3), ['recipient' => $recipient->id, 'index' => $i]),
         ]);
     }
@@ -130,6 +132,31 @@ class ContractSignController extends Controller
         }
 
         return redirect(self::signUrl($recipient, 14))->with('status', __('Firma registrada.'));
+    }
+
+    /**
+     * RECHAZAR (Fase 2) — el firmante en turno se niega, con MOTIVO obligatorio. Misma guarda del
+     * factor que firmar (solo quien pasó el 2º factor, o el interno logueado, puede rechazar). Detiene
+     * el sobre. Vuelve a la misma página, que ahora muestra el estado "rechazado".
+     */
+    public function decline(Request $request, ContractEnvelopeRecipient $recipient)
+    {
+        $envelope = $recipient->envelope;
+        abort_unless($envelope, 404);
+
+        if ($this->needsFactor($request, $recipient) && ! $this->factorPassed($recipient)) {
+            abort(403);
+        }
+
+        $data = $request->validate(['reason' => 'required|string|max:500']);
+
+        try {
+            ContractSigning::decline($recipient, $request->ip(), $data['reason']);
+        } catch (ContractEnvelopeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect(self::signUrl($recipient, 14))->with('status', __('Registramos que no firmarás este contrato.'));
     }
 
     public function document(Request $request, ContractEnvelopeRecipient $recipient, int $index)

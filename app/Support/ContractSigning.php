@@ -9,6 +9,7 @@ use App\Models\ContractEnvelope;
 use App\Models\ContractEnvelopeEvent;
 use App\Models\ContractEnvelopeRecipient;
 use App\Models\PayeeContract;
+use App\Models\User;
 use App\Support\ContractEventLog;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -32,9 +33,13 @@ class ContractSigning
             return $envelope;
         }
         $first = $envelope->orderedRecipients()->first();
+        $days  = (int) config('crewcare.contracts.expire_days', 45);
         $envelope->update([
             'status'               => ContractEnvelope::STATUS_SENT,
             'sent_at'              => now(),
+            // Plazo de vigencia: el barrido (contracts:expire-stale) lo usa para vencer sobres
+            // olvidados. Metadato de ruta (fuera del hash del sello).
+            'expires_at'           => $days > 0 ? now()->addDays($days) : null,
             'current_recipient_id' => optional($first)->id,
         ]);
         if ($first) {
@@ -99,7 +104,7 @@ class ContractSigning
     {
         $envelope = $r->envelope;
 
-        if ($envelope->isCompleted() || $envelope->isCancelled()) {
+        if ($envelope->isStopped()) {
             throw new ContractEnvelopeException('El sobre ya no admite firmas.');
         }
         if ((int) $envelope->current_recipient_id !== (int) $r->id) {
@@ -146,6 +151,94 @@ class ContractSigning
                 // el aviso nunca rompe la firma
             }
         }
+
+        return $envelope->fresh();
+    }
+
+    /**
+     * RECHAZAR (Fase 2) — el firmante en turno se NIEGA a firmar, con MOTIVO obligatorio. Detiene el
+     * sobre: nadie más firma, el turno se libera y el estado pasa a 'declined'. NO se sella (rechazar
+     * no es un acto de firma), pero SÍ queda como evento terminal en la cadena inviolable.
+     *
+     * El motivo es obligatorio a nivel de dominio (no solo del formulario): un rechazo sin razón no
+     * sirve a producción para corregir y reemitir.
+     */
+    public static function decline(ContractEnvelopeRecipient $r, ?string $ip, string $reason): ContractEnvelope
+    {
+        $envelope = $r->envelope;
+        $reason   = trim($reason);
+
+        if ($envelope->isStopped()) {
+            throw new ContractEnvelopeException('El sobre ya no admite cambios.');
+        }
+        if ((int) $envelope->current_recipient_id !== (int) $r->id) {
+            throw new ContractEnvelopeException('No es el turno de esta persona en la ruta.');
+        }
+        if ($reason === '') {
+            throw new ContractEnvelopeException('El motivo del rechazo es obligatorio.');
+        }
+
+        $r->update(['status' => ContractEnvelopeRecipient::STATUS_DECLINED]);
+        $envelope->update([
+            'status'               => ContractEnvelope::STATUS_DECLINED,
+            'declined_at'          => now(),
+            'resolution_reason'    => $reason,
+            'current_recipient_id' => null,
+        ]);
+
+        ContractEventLog::record($envelope, ContractEnvelopeEvent::DECLINED, [
+            'recipient' => $r, 'actor_id' => $r->user_id, 'actor_label' => $r->name, 'ip' => $ip,
+            'payload'   => ['reason' => $reason, 'cargo' => $r->cargo, 'role' => $r->role],
+        ]);
+
+        return $envelope->fresh();
+    }
+
+    /**
+     * REENVIAR (Fase 2) — vuelve a poner el sobre frente a quien tiene el turno AHORA (recordatorio
+     * manual). Sella el `resent_at` del destinatario en curso y lo registra. El aviso real (correo /
+     * notificación) es de la Fase 4; aquí queda la marca de tiempo y el evento para la bitácora.
+     */
+    public static function resend(ContractEnvelope $envelope, ?User $actor = null): ContractEnvelope
+    {
+        if (! $envelope->isSent() || ! $envelope->current_recipient_id) {
+            throw new ContractEnvelopeException('Solo se puede reenviar un sobre en firma con un turno activo.');
+        }
+
+        $current = $envelope->currentRecipient;
+        if ($current) {
+            $current->update(['resent_at' => now()]);
+        }
+
+        ContractEventLog::record($envelope, ContractEnvelopeEvent::RESENT, [
+            'recipient'   => $current,
+            'actor_id'    => $actor ? $actor->id : optional(auth()->user())->id,
+            'payload'     => ['to' => optional($current)->name, 'cargo' => optional($current)->cargo],
+        ]);
+
+        return $envelope->fresh();
+    }
+
+    /**
+     * VENCER (Fase 2) — marca 'expired' un sobre en firma que rebasó su plazo. Solo aplica a sobres
+     * SENT (un borrador no vence; uno terminal ya cerró). Lo dispara el barrido contracts:expire-stale
+     * (manual/programable) — nada vence solo. Libera el turno y deja el evento en la cadena.
+     */
+    public static function expire(ContractEnvelope $envelope): ContractEnvelope
+    {
+        if (! $envelope->isSent()) {
+            return $envelope;
+        }
+
+        $envelope->update([
+            'status'               => ContractEnvelope::STATUS_EXPIRED,
+            'expired_at'           => now(),
+            'current_recipient_id' => null,
+        ]);
+
+        ContractEventLog::record($envelope, ContractEnvelopeEvent::EXPIRED, [
+            'payload' => ['expires_at' => optional($envelope->expires_at)->toDateTimeString()],
+        ]);
 
         return $envelope->fresh();
     }

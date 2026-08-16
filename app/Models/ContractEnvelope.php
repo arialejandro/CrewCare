@@ -26,15 +26,24 @@ class ContractEnvelope extends Model
     const STATUS_SENT      = 'sent';
     const STATUS_COMPLETED = 'completed';
     const STATUS_CANCELLED = 'cancelled';
+    // FASE 2 · caminos de escape: el firmante se NIEGA (declined) o el sobre VENCE (expired).
+    const STATUS_DECLINED  = 'declined';
+    const STATUS_EXPIRED   = 'expired';
 
-    /** Estado de la RUTA: fuera del hash (mutable). El `documents` congelado SÍ entra al sello. */
+    /**
+     * Estado de la RUTA: fuera del hash (mutable). El `documents` congelado SÍ entra al sello. Las
+     * columnas de Fase 2 (expires_at/declined_at/expired_at/resolution_reason) son metadato de ruta →
+     * también se excluyen para que los sobres YA sellados NO se vuelvan "alterados" al agregarlas.
+     */
     protected $signatureExcludes = [
         'status', 'current_recipient_id', 'sent_at', 'completed_at', 'cancelled_at',
+        'expires_at', 'declined_at', 'expired_at', 'resolution_reason',
     ];
 
     protected $fillable = [
         'payee_contract_id', 'production_id', 'status', 'documents',
         'current_recipient_id', 'sent_at', 'completed_at', 'cancelled_at', 'created_by_id',
+        'expires_at', 'declined_at', 'expired_at', 'resolution_reason',
     ];
 
     protected $casts = [
@@ -42,6 +51,9 @@ class ContractEnvelope extends Model
         'sent_at'      => 'datetime',
         'completed_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'expires_at'   => 'datetime',
+        'declined_at'  => 'datetime',
+        'expired_at'   => 'datetime',
     ];
 
     public function contract(): BelongsTo
@@ -74,4 +86,22 @@ class ContractEnvelope extends Model
     public function isSent(): bool      { return $this->status === self::STATUS_SENT; }
     public function isCompleted(): bool { return $this->status === self::STATUS_COMPLETED; }
     public function isCancelled(): bool { return $this->status === self::STATUS_CANCELLED; }
+    public function isDeclined(): bool  { return $this->status === self::STATUS_DECLINED; }
+    public function isExpired(): bool   { return $this->status === self::STATUS_EXPIRED; }
+
+    /** Estados TERMINALES: el sobre ya no admite acciones de firma/ruta. */
+    public function isStopped(): bool
+    {
+        return in_array($this->status, [
+            self::STATUS_COMPLETED, self::STATUS_CANCELLED, self::STATUS_DECLINED, self::STATUS_EXPIRED,
+        ], true);
+    }
+
+    /** ¿La firma se detuvo por un camino de escape (no por completarse)? Muestra el motivo. */
+    public function isStoppedShort(): bool
+    {
+        return in_array($this->status, [
+            self::STATUS_CANCELLED, self::STATUS_DECLINED, self::STATUS_EXPIRED,
+        ], true);
+    }
 }

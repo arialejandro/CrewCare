@@ -8,7 +8,9 @@
         \App\Models\ContractEnvelope::STATUS_DRAFT     => ['text-bg-secondary', __('Borrador')],
         \App\Models\ContractEnvelope::STATUS_SENT      => ['text-bg-primary',   __('Enviado')],
         \App\Models\ContractEnvelope::STATUS_COMPLETED => ['text-bg-success',   __('Completado')],
-        \App\Models\ContractEnvelope::STATUS_CANCELLED => ['text-bg-danger',    __('Cancelado')],
+        \App\Models\ContractEnvelope::STATUS_CANCELLED => ['text-bg-danger',    __('Anulado')],
+        \App\Models\ContractEnvelope::STATUS_DECLINED  => ['text-bg-danger',    __('Rechazado')],
+        \App\Models\ContractEnvelope::STATUS_EXPIRED   => ['text-bg-warning',   __('Vencido')],
     ][$envelope->status] ?? ['text-bg-light', $envelope->status];
     $fmt = fn ($d) => $d ? $d->format('d/m/Y H:i') : '—';
 @endphp
@@ -33,11 +35,28 @@
                 @if($envelope->isDraft())
                     <form method="POST" action="{{ route('contracts.envelope.send', $envelope) }}">@csrf<button class="btn btn-sm btn-crew">{{ __('Enviar a firma') }}</button></form>
                 @endif
-                @unless($envelope->isCompleted() || $envelope->isCancelled())
-                    <form method="POST" action="{{ route('contracts.envelope.cancel', $envelope) }}">@csrf<button class="btn btn-sm btn-outline-danger">{{ __('Cancelar') }}</button></form>
+                @if($envelope->isSent())
+                    <form method="POST" action="{{ route('contracts.envelope.resend', $envelope) }}">@csrf<button class="btn btn-sm btn-crew-soft">{{ __('Reenviar') }}</button></form>
+                @endif
+                @unless($envelope->isStopped())
+                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#ccAnularModal">{{ __('Anular') }}</button>
                 @endunless
             </div>
         </div>
+
+        {{-- Motivo del cierre por camino de escape (anulado / rechazado) o aviso de vencimiento. --}}
+        @if($envelope->isStoppedShort())
+            <div class="alert alert-warning d-flex align-items-start gap-2">
+                <span class="fw-semibold text-nowrap">
+                    @if($envelope->isCancelled()){{ __('Anulado') }}@elseif($envelope->isDeclined()){{ __('Rechazado') }}@else{{ __('Vencido') }}@endif:
+                </span>
+                <span>
+                    @if($envelope->resolution_reason){{ $envelope->resolution_reason }}@else{{ __('El sobre venció sin completar la ruta de firma.') }}@endif
+                </span>
+            </div>
+        @elseif($envelope->isSent() && $envelope->expires_at)
+            <p class="text-muted small mb-3">{{ __('Vence el') }} {{ $envelope->expires_at->format('d/m/Y') }}.</p>
+        @endif
 
         {{-- Documentos del paquete --}}
         <div class="card mb-4">
@@ -178,6 +197,31 @@
                 </div>
             </div>
         @endif
+
+        {{-- ANULAR (Fase 2) — con MOTIVO obligatorio: estado terminal, queda el motivo en la bitácora. --}}
+        @unless($envelope->isStopped())
+            <div class="modal fade" id="ccAnularModal" tabindex="-1" aria-labelledby="ccAnularLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <form method="POST" action="{{ route('contracts.envelope.cancel', $envelope) }}" class="modal-content">
+                        @csrf
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="ccAnularLabel">{{ __('Anular sobre de firma') }}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('Cerrar') }}"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="text-muted small mb-2">{{ __('El sobre se detiene y nadie más podrá firmarlo. El motivo queda registrado en la bitácora.') }}</p>
+                            <label for="ccAnularReason" class="form-label">{{ __('Motivo') }} <span class="text-danger">*</span></label>
+                            <textarea id="ccAnularReason" name="reason" class="form-control" rows="3" maxlength="500" required
+                                placeholder="{{ __('Ej.: error en la contraprestación; se reemitirá corregido.') }}"></textarea>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cerrar') }}</button>
+                            <button type="submit" class="btn btn-danger">{{ __('Anular sobre') }}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        @endunless
     </div>
 </div>
 @endsection
