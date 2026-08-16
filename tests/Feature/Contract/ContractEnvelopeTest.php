@@ -181,6 +181,68 @@ class ContractEnvelopeTest extends QaTestCase
         $this->assertSame('signed_link_2fa', $r->sign_method);
     }
 
+    // ── FASE 5 · ROBUSTEZ ───────────────────────────────────────────────────
+
+    /** Un solo sobre EN CURSO por contrato (un contrato por persona). */
+    public function test_only_one_active_envelope_per_contract(): void
+    {
+        Storage::fake('local');
+        $this->seatInternals();
+        $contract = $this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee());
+
+        $env1 = ContractEnvelopeBuilder::build($contract, null);
+        $this->assertNotNull($env1->id);
+
+        try {
+            ContractEnvelopeBuilder::build($contract->fresh(), null);
+            $this->fail('no debe crear un segundo sobre en curso');
+        } catch (ContractEnvelopeException $e) {
+            $this->assertStringContainsString('en curso', $e->getMessage());
+        }
+
+        // Anulado el primero, se puede reemitir.
+        $env1->update(['status' => ContractEnvelope::STATUS_CANCELLED, 'cancelled_at' => now()]);
+        $env2 = ContractEnvelopeBuilder::build($contract->fresh(), null);
+        $this->assertNotSame($env1->id, $env2->id);
+    }
+
+    /** El avance de firma es transaccional: un doble submit no re-firma ni avanza dos pasos. */
+    public function test_double_submit_does_not_advance_the_route_twice(): void
+    {
+        Storage::fake('local');
+        $this->seatInternals();
+        $env = ContractEnvelopeBuilder::build($this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee()), null);
+        ContractSigning::send($env);
+        $order = $env->orderedRecipients()->get();
+
+        ContractSigning::sign($order[0]->fresh(), 'authenticated', '1.1.1.1');
+        $this->assertSame((int) $order[1]->id, (int) $env->fresh()->current_recipient_id, 'avanzó una vez');
+
+        try {
+            ContractSigning::sign($order[0]->fresh(), 'authenticated', '1.1.1.1');   // ya no es su turno
+            $this->fail('un doble submit no debe re-firmar');
+        } catch (ContractEnvelopeException $e) {
+            $this->assertStringContainsString('turno', $e->getMessage());
+        }
+        $this->assertSame((int) $order[1]->id, (int) $env->fresh()->current_recipient_id, 'sigue en el mismo turno');
+    }
+
+    /** Una vez emitido, la hoja de información queda CONGELADA (no puede editarse el trato sellado). */
+    public function test_infosheet_save_is_locked_after_emission(): void
+    {
+        Storage::fake('local');
+        $this->actingAsRole('super-admin');
+        $payee    = $this->crewPayee();
+        $contract = $this->emitContract(PayeeContract::CONCEPT_CREW, $payee);
+        $contract->update(['fee_amount' => 1000]);
+
+        $res = $this->post(route('infosheet.save', $payee->id), ['_step' => 'fees', 'fee_shoot_amount' => 5000]);
+
+        $res->assertRedirect();
+        $res->assertSessionHas('error');
+        $this->assertEquals(1000.0, (float) $contract->fresh()->fee_amount, 'los datos no cambian tras emitir');
+    }
+
     public function test_changing_position_holder_does_not_redirect_a_sent_envelope(): void
     {
         Storage::fake('local');
@@ -318,8 +380,10 @@ class ContractEnvelopeTest extends QaTestCase
         $this->assertTrue($env->fresh()->isCompleted());
 
         $messages = Mail::getSymfonyTransport()->messages();
-        $this->assertSame($before + 1, $messages->count(), 'se envió UN correo al completar');
+        // Al completar salen los avisos "te toca" de cada turno (Fase 4) + el correo de CIERRE al final.
+        $this->assertGreaterThan($before, $messages->count(), 'se envió al menos el correo de cierre');
 
+        // El ÚLTIMO es el de cierre: va al contratado con el paquete adjunto.
         $sent = $messages->last()->getOriginalMessage();
         $this->assertSame('contratado@qa.test', $sent->getTo()[0]->getAddress());
         // El paquete (carátula + clausulado) viaja ADJUNTO.

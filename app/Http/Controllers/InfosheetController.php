@@ -72,6 +72,13 @@ class InfosheetController extends Controller
         $this->authorizeCapture($payee);
         $contract = $this->resolveContract($payee);
 
+        // FASE 5 — CANDADO post-emisión. Una vez emitido, los datos del trato quedaron CONGELADOS en la
+        // carátula sellada (y en el sobre): editarlos aquí haría que la fila VIVA diverja del sello. Para
+        // cambiarlos hay que anular el sobre y reemitir. Defensa en el servidor (la UI ya oculta el form).
+        if ($contract->isEmitted()) {
+            return back()->with('error', __('Este contrato ya fue emitido; sus datos quedaron congelados. Para cambiarlos, anula el sobre y vuelve a emitir.'));
+        }
+
         $step = (string) $request->input('_step', 'role');
         abort_unless(in_array($step, self::STEPS, true), 422);
 

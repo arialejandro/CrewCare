@@ -12,6 +12,7 @@ use App\Models\PayeeContract;
 use App\Models\User;
 use App\Support\ContractEventLog;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -124,44 +125,54 @@ class ContractSigning
      */
     public static function sign(ContractEnvelopeRecipient $r, string $method, ?string $ip, ?string $imageData = null): ContractEnvelope
     {
-        $envelope = $r->envelope;
+        // FASE 5 — SECCIÓN CRÍTICA bajo LOCK del sobre: serializa firmas concurrentes del mismo sobre
+        // (doble submit, dos personas a la vez) → nadie firma dos veces ni la ruta avanza dos pasos.
+        // Solo el ESTADO + el SELLO van dentro del lock; los efectos PESADOS (render del PDF, correos)
+        // se difieren FUERA de la transacción para no retener la fila ni arriesgar la firma ya sellada.
+        $outcome = DB::transaction(function () use ($r, $method, $ip, $imageData) {
+            $envelope = ContractEnvelope::whereKey($r->envelope_id)->lockForUpdate()->first();
+            if (! $envelope) {
+                throw new ContractEnvelopeException('El sobre ya no existe.');
+            }
+            $r = $r->fresh();   // estado FRESCO dentro del lock (por si otra petición ya avanzó)
 
-        if ($envelope->isStopped()) {
-            throw new ContractEnvelopeException('El sobre ya no admite firmas.');
-        }
-        if ((int) $envelope->current_recipient_id !== (int) $r->id) {
-            throw new ContractEnvelopeException('No es el turno de este firmante en la ruta.');
-        }
-        if ($r->isSigned()) {
-            return $envelope->fresh();
-        }
+            if ($envelope->isStopped()) {
+                throw new ContractEnvelopeException('El sobre ya no admite firmas.');
+            }
+            if ((int) $envelope->current_recipient_id !== (int) $r->id) {
+                throw new ContractEnvelopeException('No es el turno de este firmante en la ruta.');
+            }
+            if ($r->isSigned()) {
+                return ['envelope' => $envelope->fresh(), 'defer' => null];
+            }
 
-        $r->update([
-            'status'          => ContractEnvelopeRecipient::STATUS_SIGNED,
-            'signed_at'       => now(),
-            'viewed_at'       => $r->viewed_at ?: now(),
-            'ip_address'      => $ip,
-            'sign_method'     => $method,
-            'signature_image' => $imageData ?: $r->signature_image,
-        ]);
+            $r->update([
+                'status'          => ContractEnvelopeRecipient::STATUS_SIGNED,
+                'signed_at'       => now(),
+                'viewed_at'       => $r->viewed_at ?: now(),
+                'ip_address'      => $ip,
+                'sign_method'     => $method,
+                'signature_image' => $imageData ?: $r->signature_image,
+            ]);
 
-        // Sella el acto de aceptación: el hash cubre la identidad congelada + signed_at + ip +
-        // método + la autógrafa. Atribuido al usuario congelado del destinatario si lo hay (los
-        // internos firman logueados; el contratado no-crew no tiene user → sello sin persona).
-        $r->signDocument($r->user);
+            // Sella el acto de aceptación: el hash cubre la identidad congelada + signed_at + ip +
+            // método + la autógrafa. Atribuido al usuario congelado del destinatario si lo hay (los
+            // internos firman logueados; el contratado no-crew no tiene user → sello sin persona).
+            $r->signDocument($r->user);
 
-        ContractEventLog::record($envelope, ContractEnvelopeEvent::SIGNED, [
-            'recipient' => $r, 'actor_id' => $r->user_id, 'actor_label' => $r->name, 'ip' => $ip,
-            'payload'   => ['method' => $method, 'cargo' => $r->cargo, 'role' => $r->role],
-        ]);
+            ContractEventLog::record($envelope, ContractEnvelopeEvent::SIGNED, [
+                'recipient' => $r, 'actor_id' => $r->user_id, 'actor_label' => $r->name, 'ip' => $ip,
+                'payload'   => ['method' => $method, 'cargo' => $r->cargo, 'role' => $r->role],
+            ]);
 
-        // Avanza al siguiente en la ruta; si no hay, COMPLETA y avisa.
-        $next = $envelope->orderedRecipients()->where('sort_order', '>', $r->sort_order)->first();
-        if ($next) {
-            $envelope->update(['current_recipient_id' => $next->id]);
-            $next->update(['status' => ContractEnvelopeRecipient::STATUS_SENT, 'sent_at' => now()]);
-            self::notifyTurn($next);   // FASE 4 · avisa al siguiente que le toca
-        } else {
+            // Avanza al siguiente en la ruta; si no hay, COMPLETA.
+            $next = $envelope->orderedRecipients()->where('sort_order', '>', $r->sort_order)->first();
+            if ($next) {
+                $envelope->update(['current_recipient_id' => $next->id]);
+                $next->update(['status' => ContractEnvelopeRecipient::STATUS_SENT, 'sent_at' => now()]);
+                return ['envelope' => $envelope->fresh(), 'defer' => ['notify_id' => (int) $next->id]];
+            }
+
             $envelope->update([
                 'status'               => ContractEnvelope::STATUS_COMPLETED,
                 'completed_at'         => now(),
@@ -169,9 +180,21 @@ class ContractSigning
             ]);
             ContractEventLog::record($envelope, ContractEnvelopeEvent::COMPLETED, ['ip' => $ip]);
 
+            return ['envelope' => $envelope->fresh(), 'defer' => ['completed' => true]];
+        });
+
+        // ── EFECTOS SECUNDARIOS, ya COMMITEADO y FUERA del lock (no bloquean otras firmas; si fallan,
+        //    la firma ya quedó firme). ──
+        $envelope = $outcome['envelope'];
+        $defer    = $outcome['defer'];
+
+        if (is_array($defer) && ! empty($defer['notify_id'])) {
+            self::notifyTurn(ContractEnvelopeRecipient::find($defer['notify_id']));   // FASE 4 · avisa al siguiente
+        }
+
+        if (is_array($defer) && ! empty($defer['completed'])) {
             // FASE 3 — congela el CONTRATO FIRMADO (PDF con autógrafas). En cola bajo flag (sin worker
-            // corre inline). Defensivo: el render NUNCA rompe la firma (el contrato ya quedó cerrado y
-            // su evidencia no depende de este PDF). Va ANTES del aviso para que el correo pueda adjuntarlo.
+            // corre inline). El render NUNCA rompe la firma; va ANTES del aviso para que el correo lo adjunte.
             try {
                 if (\App\Support\Features::enabled('contracts_queue_render')) {
                     \App\Jobs\RenderSignedContract::dispatch($envelope->id);
@@ -189,7 +212,7 @@ class ContractSigning
             }
         }
 
-        return $envelope->fresh();
+        return $envelope;
     }
 
     /**

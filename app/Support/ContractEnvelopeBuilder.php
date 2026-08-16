@@ -106,6 +106,19 @@ class ContractEnvelopeBuilder
         $documents = self::snapshotDocuments($contract, $prod);
 
         return DB::transaction(function () use ($contract, $prod, $documents, $route, $actor) {
+            // FASE 5 — UN SOLO SOBRE EN CURSO por contrato (un contrato por persona). Lock de la fila del
+            // contrato para serializar dos creaciones concurrentes (doble clic / doble submit); dentro del
+            // lock, si ya hay un sobre no terminal, se rechaza → no se duplica la ruta de firma.
+            PayeeContract::whereKey($contract->id)->lockForUpdate()->first();
+            $active = $contract->envelopes()
+                ->whereIn('status', [ContractEnvelope::STATUS_DRAFT, ContractEnvelope::STATUS_SENT])
+                ->first();
+            if ($active) {
+                throw new ContractEnvelopeException(
+                    'Ya hay un sobre en curso para este contrato (#' . $active->id . '). Anúlalo antes de crear otro.'
+                );
+            }
+
             $envelope = ContractEnvelope::create([
                 'payee_contract_id' => $contract->id,
                 'production_id'     => $prod,
