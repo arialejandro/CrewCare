@@ -360,8 +360,9 @@ class ContractEnvelopeController extends Controller
             'authorizers'    => $authorizers,
             'signers'        => $signers,
             'occupants'      => $occupants,
-            'authSequential' => SignaturePositions::authSequential(),
-            'signParallel'   => SignaturePositions::signParallel(),
+            'authSequential'   => SignaturePositions::authSequential(),
+            'signParallel'     => SignaturePositions::signParallel(),
+            'conditionalRules' => SignaturePositions::conditionalSignerRules(),
         ]);
     }
 
@@ -409,6 +410,24 @@ class ContractEnvelopeController extends Controller
         Setting::updateOrCreate(['key' => SignaturePositions::KEY_AUTH_SEQUENTIAL], ['value' => $request->boolean('auth_sequential') ? '1' : '0']);
         // B4 · RUTEO de firma paralelo (cualquier orden) vs secuencial (default).
         Setting::updateOrCreate(['key' => SignaturePositions::KEY_SIGN_PARALLEL], ['value' => $request->boolean('sign_parallel') ? '1' : '0']);
+        // B5 · reglas condicionales de firma (por importe): agrega un firmante extra sobre un monto.
+        $condRules = [];
+        $mins    = (array) $request->input('cond_min', []);
+        $entries = (array) $request->input('cond_entry', []);
+        foreach ($mins as $i => $m) {
+            $min = (float) $m;
+            $e   = $entries[$i] ?? null;
+            if ($min <= 0 || ! $e) {
+                continue;
+            }
+            $entry = ($e === SignaturePositions::DEPT_HOD)
+                ? SignaturePositions::DEPT_HOD
+                : (((int) $e > 0 && Position::whereKey((int) $e)->exists()) ? (int) $e : null);
+            if ($entry !== null) {
+                $condRules[] = ['min' => $min, 'entry' => $entry];
+            }
+        }
+        Setting::updateOrCreate(['key' => SignaturePositions::KEY_CONDITIONAL_SIGNERS], ['value' => json_encode($condRules)]);
         Branding::forget();
 
         return back()->with('status', __('Ruta de firma actualizada.'));

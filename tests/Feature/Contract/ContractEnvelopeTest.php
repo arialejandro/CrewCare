@@ -385,6 +385,48 @@ class ContractEnvelopeTest extends QaTestCase
         }
     }
 
+    // ── B5 · RESOLVEDOR CONDICIONAL (firmante extra por importe) ─────────────
+
+    /** Una regla por importe agrega un firmante EXTRA solo cuando los honorarios lo alcanzan; dedup. */
+    public function test_conditional_signer_added_only_above_threshold(): void
+    {
+        Storage::fake('local');
+        $this->seatInternals();
+
+        // Un puesto extra con UN ocupante, firmante condicional arriba de $50k (dos reglas al mismo
+        // puesto para probar el dedup).
+        $condPos = (int) Position::orderBy('id')->skip(2)->value('id');
+        DB::table('production_user')->where('production_id', $this->prodId)->where('position_id', $condPos)->delete();
+        $extra = $this->makeUser('coordinator');
+        $extra->forceFill(['name' => 'Extra', 'lname' => 'Firmante', 'email' => 'extra@x.mx'])->save();
+        $this->attachPosition($extra, $condPos);
+
+        Setting::updateOrCreate(['key' => SignaturePositions::KEY_CONDITIONAL_SIGNERS], ['value' => json_encode([
+            ['min' => 50000, 'entry' => $condPos],
+            ['min' => 60000, 'entry' => $condPos],   // regla duplicada → no debe duplicar la firma
+        ])]);
+        Branding::forget();
+
+        try {
+            // BAJO umbral → sin firmante extra.
+            $low = $this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee('1990-01-01'));
+            $low->update(['fee_amount' => 10000]);
+            $envLow = ContractEnvelopeBuilder::build($low->fresh(), null);
+            $this->assertSame(0, $envLow->recipients()->where('user_id', $extra->id)->count(), 'bajo umbral: sin extra');
+
+            // SOBRE umbral → agrega el firmante extra UNA sola vez (dedup).
+            $high = $this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee('1991-02-02'));
+            $high->update(['fee_amount' => 90000]);
+            $envHigh = ContractEnvelopeBuilder::build($high->fresh(), null);
+            $this->assertSame(1, $envHigh->recipients()->where('user_id', $extra->id)->count(), 'sobre umbral: un extra, sin duplicar');
+            // Y firma como ROLE_SIGNER (entra a la ruta).
+            $this->assertTrue($envHigh->orderedRecipients()->get()->contains('user_id', $extra->id));
+        } finally {
+            Setting::where('key', SignaturePositions::KEY_CONDITIONAL_SIGNERS)->delete();
+            Branding::forget();
+        }
+    }
+
     // ── FASE 5 · ROBUSTEZ ───────────────────────────────────────────────────
 
     /** Un solo sobre EN CURSO por contrato (un contrato por persona). */

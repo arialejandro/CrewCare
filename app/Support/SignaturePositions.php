@@ -35,6 +35,9 @@ class SignaturePositions
     // B4 · RUTEO de firma: si está ON, los FIRMANTES firman en CUALQUIER orden (paralelo, tipo
     // DocuSign "sin orden de firma"); OFF (default) = secuencial estricto (turno a turno).
     const KEY_SIGN_PARALLEL = 'contract_sign_parallel';
+    // B5 · RESOLVEDOR CONDICIONAL: reglas por IMPORTE que agregan un firmante EXTRA a la ruta
+    // (p.ej. "arriba de $50,000, firma también el Line Producer"). JSON: [{min, entry}].
+    const KEY_CONDITIONAL_SIGNERS = 'contract_conditional_signers';
 
     // Entrada DINÁMICA: "el HOD (jefe) del departamento del contrato" — así el jefe del depto
     // relevante firma sin fijar un puesto por-departamento (que afectaría a todos por igual).
@@ -102,6 +105,44 @@ class SignaturePositions
     public static function signParallel(): bool
     {
         return (bool) (int) Branding::get(self::KEY_SIGN_PARALLEL, 0);
+    }
+
+    /**
+     * B5 · Reglas condicionales de firma (por importe). Cada regla: {min: float, entry: id|'dept_hod'}.
+     * Saneadas (min>0, entry válido). El orden se conserva (JSON de la config).
+     *
+     * @return array<int,array{min:float, entry:int|string}>
+     */
+    public static function conditionalSignerRules(): array
+    {
+        $raw  = Branding::get(self::KEY_CONDITIONAL_SIGNERS, '');
+        $list = is_array($raw) ? $raw : (json_decode((string) $raw, true) ?: []);
+        $out  = [];
+        foreach ((array) $list as $rule) {
+            $min   = (float) ($rule['min'] ?? 0);
+            $entry = $rule['entry'] ?? null;
+            if ($min <= 0 || $entry === null) {
+                continue;
+            }
+            $entry = ($entry === self::DEPT_HOD) ? self::DEPT_HOD : ((int) $entry > 0 ? (int) $entry : null);
+            if ($entry === null) {
+                continue;
+            }
+            $out[] = ['min' => $min, 'entry' => $entry];
+        }
+        return $out;
+    }
+
+    /** B5 · Entradas de firmante EXTRA que aplican a un contrato de este importe de honorarios. */
+    public static function conditionalSignerEntries(float $amount): array
+    {
+        $entries = [];
+        foreach (self::conditionalSignerRules() as $rule) {
+            if ($amount >= $rule['min']) {
+                $entries[] = $rule['entry'];
+            }
+        }
+        return $entries;
     }
 
     /** Decodifica entradas (JSON o CSV): enteros positivos (position_id) + el token 'dept_hod'. */

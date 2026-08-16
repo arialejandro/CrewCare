@@ -97,6 +97,46 @@
                 </section>
             </div>
 
+            {{-- B5 · FIRMANTES CONDICIONALES (por importe): agrega una firma extra si los honorarios
+                 alcanzan un monto. Se resuelve al crear el sobre y se deduplica por puesto. --}}
+            <section class="cc-route__phase mt-3">
+                <div class="cc-route__phead">
+                    <span class="cc-route__pnum">3</span>
+                    <div>
+                        <div class="cc-route__ptitle">{{ __('Firmantes condicionales (por importe)') }}</div>
+                        <div class="cc-route__psub">{{ __('Agrega una firma extra cuando los honorarios del contrato alcanzan un monto. Ej.: arriba de $50,000, firma también el Line Producer.') }}</div>
+                    </div>
+                </div>
+                @php $condRows = array_values($conditionalRules ?? []); @endphp
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-1">
+                        <thead>
+                            <tr>
+                                <th style="width:220px">{{ __('Si honorarios ≥ (MXN)') }}</th>
+                                <th>{{ __('Agrega como firmante') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach(array_pad($condRows, count($condRows) + 2, null) as $rule)
+                                <tr>
+                                    <td><input type="number" min="0" step="1" name="cond_min[]" class="form-control form-control-sm" value="{{ $rule['min'] ?? '' }}" placeholder="0"></td>
+                                    <td>
+                                        <select name="cond_entry[]" class="form-select form-select-sm">
+                                            <option value="">{{ __('— Ninguno —') }}</option>
+                                            <option value="dept_hod" @selected(($rule['entry'] ?? null) === 'dept_hod')>{{ __('HOD del departamento del contrato') }}</option>
+                                            @foreach($eligible as $p)
+                                                <option value="{{ $p->id }}" @selected((string) ($rule['entry'] ?? '') === (string) $p->id)>{{ $p->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <div class="form-text">{{ __('Para quitar una regla, deja su importe en blanco y guarda. Si el puesto ya firma en la ruta, no se duplica.') }}</div>
+            </section>
+
             <div class="d-flex align-items-center gap-2 mt-4">
                 <button class="btn btn-crew">{{ __('Guardar ruta') }}</button>
                 <span class="text-muted small">{{ __('El ocupante se congela al crear cada sobre; aquí solo se previsualiza.') }}</span>

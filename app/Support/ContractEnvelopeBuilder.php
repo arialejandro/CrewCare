@@ -102,6 +102,33 @@ class ContractEnvelopeBuilder
             }
         }
 
+        // ── B5 · RESOLVEDOR CONDICIONAL — reglas por IMPORTE agregan firmante(s) EXTRA al final de la
+        //    ruta (p.ej. "arriba de $X firma también el Line Producer"). Se resuelve AL CONSTRUIR (la
+        //    persona se congela como cualquier firmante) y se DEDUPLICA por ancla: si el puesto ya está
+        //    en la ruta base, no se duplica su firma. Vacante/duplicado → error claro (como el resto). ──
+        $anchors = array_values(array_filter(array_map(fn ($s) => $s['anchor_key'] ?? null, $route)));
+        foreach (SignaturePositions::conditionalSignerEntries((float) $contract->fee_amount) as $entry) {
+            $anchor = $entry === SignaturePositions::DEPT_HOD ? 'dept_hod' : 'puesto:' . (int) $entry;
+            if (in_array($anchor, $anchors, true)) {
+                continue;   // ya firma en la ruta base
+            }
+            $label  = SignaturePositions::entryLabel($entry);
+            $signer = $entry === SignaturePositions::DEPT_HOD
+                ? SignaturePositions::departmentHodUser($prod, $contract->department_id, $label)
+                : SignaturePositions::soleUserForPosition($prod, (int) $entry, $label);
+            $route[] = [
+                'role'       => ContractEnvelopeRecipient::ROLE_SIGNER,
+                'name'       => trim($signer->name . ' ' . $signer->lname),
+                'email'      => $signer->email,
+                'cargo'      => $label,
+                'anchor_key' => $anchor,
+                'empresa'    => $company,
+                'user_id'    => $signer->id,
+                'payee_id'   => null,
+            ];
+            $anchors[] = $anchor;
+        }
+
         // ── Snapshot del paquete (byte-intact): carátula + clausulado + anexos activos ──
         $documents = self::snapshotDocuments($contract, $prod);
 
