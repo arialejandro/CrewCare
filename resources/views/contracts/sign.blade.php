@@ -59,7 +59,7 @@
     @elseif($stage === 'not_turn')
         <div class="card">
             <h1 class="warn">{{ __('Aún no es tu turno') }}</h1>
-            <p class="muted">{{ __('El sobre está en firma con otra persona. Te avisaremos cuando te toque.') }}</p>
+            <p class="muted">{{ __('El sobre está en firma con otra persona. En cuanto sea tu turno recibirás un correo con el enlace para firmar.') }}</p>
         </div>
     @else
         <div class="card">

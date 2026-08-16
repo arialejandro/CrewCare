@@ -35,8 +35,9 @@ return [
     'location_handover'   => false, // handover de responsabilidad Construcción→Rigging→Shooting
 
     // Contratos — cola de firmas a gran escala (50-60 contratos). APAGADAS por defecto:
-    //  - queue_email:   manda el correo de "contrato firmado" en segundo plano (cola) en vez de
-    //                   bloquear el request. Sin worker de cola corre inline igual (seguro por default).
+    //  - queue_email:   manda los correos del contrato —aviso "es tu turno" (Fase 4) y "contrato
+    //                   firmado" (cierre)— en segundo plano (cola) en vez de bloquear el request. Sin
+    //                   worker de cola corre inline igual (seguro por default).
     //  - batch_signing: deja a una figura interna (LP, Contador, Rep. Legal…) firmar varios de una vez.
     //                   Por defecto la firma es UNO A UNO (el firmante ve los datos de cada contrato).
     //  - queue_render:  al completarse un sobre, renderiza el CONTRATO FIRMADO (PDF con autógrafas) en

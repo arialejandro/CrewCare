@@ -24,6 +24,22 @@ class EmailPreviewController extends Controller
                     'resetUrl' => 'https://demo.crewcare.mx/password/reset/EJEMPLO-TOKEN',
                 ],
             ],
+            'contract-turn' => [
+                'view'  => 'correos.contract-turn',
+                'label' => 'Es tu turno de firmar (aviso "te toca")',
+                'data'  => [
+                    'toName'       => 'María González Ríos',
+                    'cargo'        => 'Contratista',
+                    'payeeName'    => 'María González Ríos',
+                    'conceptLabel' => 'Miembro de crew',
+                    'natureLabel'  => 'Persona física',
+                    'key'          => [
+                        'fee' => 45000, 'currency' => 'MXN', 'rfc' => 'XAXX010101000',
+                        'regime' => 'Sueldos y salarios', 'start' => '2026-02-01', 'end' => '2026-08-31',
+                    ],
+                    'signUrl'      => 'https://demo.crewcare.mx/contratos/firma/123?expires=1788000000&signature=EJEMPLO',
+                ],
+            ],
             'contract-signed' => [
                 'view'  => 'correos.contract-signed',
                 'label' => 'Contrato firmado (entrega al contratado)',

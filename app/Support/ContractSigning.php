@@ -50,8 +50,30 @@ class ContractSigning
             'recipient' => $first,
             'payload'   => ['to' => optional($first)->name],
         ]);
+        self::notifyTurn($first);   // FASE 4 · avisa al primero que le toca
 
         return $envelope->fresh();
+    }
+
+    /**
+     * FASE 4 — AVISO "te toca": despacha el correo al destinatario que entró en turno. En cola bajo el
+     * mismo flag que el correo de cierre (`contracts_queue_email`; sin worker corre inline). Defensivo:
+     * el aviso NUNCA rompe la firma. El propio Job revalida que siga siendo su turno.
+     */
+    private static function notifyTurn(?ContractEnvelopeRecipient $r): void
+    {
+        if (! $r) {
+            return;
+        }
+        try {
+            if (\App\Support\Features::enabled('contracts_queue_email')) {
+                \App\Jobs\NotifyRecipientTurn::dispatch($r->id);
+            } else {
+                \App\Jobs\NotifyRecipientTurn::dispatchSync($r->id);
+            }
+        } catch (\Throwable $e) {
+            // el aviso nunca tumba la firma
+        }
     }
 
     /** Marca VISTO (antes de firmar, la persona puede ver los documentos). */
@@ -138,6 +160,7 @@ class ContractSigning
         if ($next) {
             $envelope->update(['current_recipient_id' => $next->id]);
             $next->update(['status' => ContractEnvelopeRecipient::STATUS_SENT, 'sent_at' => now()]);
+            self::notifyTurn($next);   // FASE 4 · avisa al siguiente que le toca
         } else {
             $envelope->update([
                 'status'               => ContractEnvelope::STATUS_COMPLETED,
@@ -229,6 +252,7 @@ class ContractSigning
             'actor_id'    => $actor ? $actor->id : optional(auth()->user())->id,
             'payload'     => ['to' => optional($current)->name, 'cargo' => optional($current)->cargo],
         ]);
+        self::notifyTurn($current);   // FASE 4 · el recordatorio ahora manda de verdad el aviso
 
         return $envelope->fresh();
     }
