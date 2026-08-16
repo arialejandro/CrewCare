@@ -20,9 +20,14 @@ class ContractTemplate extends Model
 {
     protected $table = 'contract_templates';
 
+    /** Modo de autoría: body HTML redactado (default) vs PDF subido con etiquetas colocadas encima. */
+    public const SOURCE_HTML = 'html';
+    public const SOURCE_PDF  = 'pdf';
+
     protected $fillable = [
         'production_id', 'name', 'applies_to', 'body', 'language', 'architecture', 'bilingual',
         'page_size', 'font_family', 'font_size', 'initials_each_page', 'version', 'is_active', 'created_by_id',
+        'source_kind', 'pdf_path', 'pdf_original_name', 'field_map',
     ];
 
     protected $casts = [
@@ -31,6 +36,7 @@ class ContractTemplate extends Model
         'is_active'          => 'boolean',
         'bilingual'          => 'boolean',
         'initials_each_page' => 'boolean',
+        'field_map'          => 'array',
     ];
 
     public function createdBy(): BelongsTo
@@ -64,5 +70,42 @@ class ContractTemplate extends Model
     {
         return static::forProduction($productionId)->active()->orderByDesc('id')->get()
             ->first(fn ($t) => $t->appliesToSubtype($concept));
+    }
+
+    /** ¿Esta plantilla es un PDF subido (con etiquetas colocadas encima) en vez de body HTML? */
+    public function isPdfSource(): bool
+    {
+        return ($this->source_kind ?? self::SOURCE_HTML) === self::SOURCE_PDF;
+    }
+
+    public function isHtmlSource(): bool
+    {
+        return ! $this->isPdfSource();
+    }
+
+    /**
+     * Las etiquetas colocadas sobre el PDF, normalizadas: [{page, x_pct, y_pct, w_pct, type, key}].
+     * Siempre un array (aunque field_map venga null o basura). Coordenadas en % del tamaño de página.
+     */
+    public function placedFields(): array
+    {
+        $map = $this->field_map;
+        if (! is_array($map)) {
+            return [];
+        }
+        return array_values(array_filter($map, fn ($f) => is_array($f)
+            && isset($f['page'], $f['x_pct'], $f['y_pct'], $f['type'], $f['key'])));
+    }
+
+    /** Etiquetas de DATO (se auto-llenan con el trato). */
+    public function dataFields(): array
+    {
+        return array_values(array_filter($this->placedFields(), fn ($f) => ($f['type'] ?? null) === 'data'));
+    }
+
+    /** Etiquetas de FIRMA (ancla de un firmante de la ruta). */
+    public function signFields(): array
+    {
+        return array_values(array_filter($this->placedFields(), fn ($f) => ($f['type'] ?? null) === 'sign'));
     }
 }

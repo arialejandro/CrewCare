@@ -12,9 +12,14 @@
                 <h1 class="crew-title mb-0">{{ __('Plantillas de contrato') }}</h1>
                 <p class="text-muted mb-0 small">{{ __('El contrato como documento generado: campos que se llenan con el trato y firmas estampadas en su lugar.') }}</p>
             </div>
-            <a href="{{ route('contracts.templates.create') }}" class="btn btn-crew ms-auto d-inline-flex align-items-center gap-1">
-                @include('componentes._icon', ['name' => 'plus', 'label' => null]) {{ __('Nueva plantilla') }}
-            </a>
+            <div class="ms-auto d-flex gap-2">
+                <a href="{{ route('contracts.templates.create_pdf') }}" class="btn btn-crew-soft d-inline-flex align-items-center gap-1">
+                    @include('componentes._icon', ['name' => 'file-up', 'label' => null]) {{ __('Subir PDF') }}
+                </a>
+                <a href="{{ route('contracts.templates.create') }}" class="btn btn-crew d-inline-flex align-items-center gap-1">
+                    @include('componentes._icon', ['name' => 'plus', 'label' => null]) {{ __('Nueva plantilla') }}
+                </a>
+            </div>
         </div>
 
         {{-- Descargo legal — CrewCare no redacta ni asume responsabilidad legal (contract-builder-legal-boundary). --}}
@@ -44,7 +49,13 @@
                                                 <span class="badge text-bg-light border">{{ $subtypes[$c] ?? $c }}</span>
                                             @endforeach
                                         </td>
-                                        <td class="small">{{ \App\Support\ContractArchitectures::label($t->architecture) }}</td>
+                                        <td class="small">
+                                            @if($t->isPdfSource())
+                                                <span class="badge text-bg-light border">{{ __('PDF subido') }}</span>
+                                            @else
+                                                {{ \App\Support\ContractArchitectures::label($t->architecture) }}
+                                            @endif
+                                        </td>
                                         <td>v{{ $t->version }}</td>
                                         <td>
                                             @if($t->is_active)<span class="badge text-bg-success">{{ __('Activa') }}</span>

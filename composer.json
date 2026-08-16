@@ -17,6 +17,8 @@
         "maatwebsite/excel": "^3.1",
         "mailersend/laravel-driver": "^3.0",
         "picqer/php-barcode-generator": "^2.2",
+        "setasign/fpdf": "^1.8",
+        "setasign/fpdi": "^2.6",
         "spatie/browsershot": "^5.0",
         "spatie/laravel-permission": "^6.0"
     },

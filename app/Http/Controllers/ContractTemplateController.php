@@ -10,6 +10,7 @@ use App\Support\ContractPageSizes;
 use App\Support\ContractTemplateRenderer;
 use App\Support\CurrentProduction;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * CONTRACT BUILDER · EDITOR de plantillas de contrato.
@@ -60,8 +61,71 @@ class ContractTemplateController extends Controller
         return $this->editView($template);
     }
 
+    // ── PDF FILLABLE · subir PDF + colocar etiquetas (segundo modo de autoría) ──────────────────
+    /** Form de alta: nombre + subtipos + archivo PDF. Al subir, se abre el editor de etiquetas. */
+    public function createPdf()
+    {
+        return view('contracts.templates.create-pdf', ['subtypes' => $this->subtypes()]);
+    }
+
+    /** Guarda el PDF en disco local y crea la plantilla `source_kind=pdf` (sin etiquetas todavía). */
+    public function storePdf(Request $request)
+    {
+        $data = $request->validate([
+            'name'         => 'required|string|max:191',
+            'applies_to'   => 'required|array|min:1',
+            'applies_to.*' => 'in:crew_work,rental,service',
+            'pdf'          => 'required|file|mimetypes:application/pdf|mimes:pdf|max:20480',
+        ]);
+
+        $prod = CurrentProduction::id();
+        $file = $request->file('pdf');
+        // Disco privado (storage/app): el PDF se sirve solo autenticado por pdfFile(), nunca público.
+        $path = $file->store('contract-templates/' . ($prod ?: 'global'), 'local');
+
+        $tpl = ContractTemplate::create([
+            'production_id'     => $prod,
+            'name'              => $data['name'],
+            'applies_to'        => $data['applies_to'],
+            'language'          => 'es',
+            'source_kind'       => ContractTemplate::SOURCE_PDF,
+            'pdf_path'          => $path,
+            'pdf_original_name' => $file->getClientOriginalName(),
+            'field_map'         => [],
+            'is_active'         => false,
+            'created_by_id'     => auth()->id(),
+        ]);
+
+        return redirect()->route('contracts.templates.edit', $tpl)
+            ->with('status', __('PDF cargado. Ahora coloca las etiquetas de firma y datos sobre el documento.'));
+    }
+
+    /** Sirve el PDF original (INLINE, autenticado) para que pdf.js lo dibuje en el editor. */
+    public function pdfFile(ContractTemplate $template)
+    {
+        abort_unless(in_array($template->production_id, [null, CurrentProduction::id()], true), 404);
+        abort_unless($template->isPdfSource() && $template->pdf_path
+            && Storage::disk('local')->exists($template->pdf_path), 404);
+
+        return Storage::disk('local')->response(
+            $template->pdf_path,
+            ($template->pdf_original_name ?: 'contrato.pdf'),
+            ['Content-Type' => 'application/pdf'],
+            'inline'
+        );
+    }
+
     private function editView(ContractTemplate $template)
     {
+        if ($template->isPdfSource()) {
+            return view('contracts.templates.edit-pdf', [
+                'template' => $template,
+                'subtypes' => $this->subtypes(),
+                'fields'   => ContractTemplateRenderer::fieldCatalog(),
+                'anchors'  => ContractTemplateRenderer::anchorCatalog(),
+            ]);
+        }
+
         return view('contracts.templates.edit', [
             'template'      => $template,
             'subtypes'      => $this->subtypes(),
@@ -89,6 +153,12 @@ class ContractTemplateController extends Controller
 
     public function update(Request $request, ContractTemplate $template)
     {
+        if ($template->isPdfSource()) {
+            $template->update($this->validatedPdf($request));
+
+            return back()->with('status', __('Etiquetas guardadas.'));
+        }
+
         $template->update($this->validated($request));
 
         return back()->with('status', __('Plantilla guardada.'));
@@ -151,6 +221,63 @@ class ContractTemplateController extends Controller
         $data['initials_each_page'] = $request->boolean('initials_each_page');
 
         return $data;
+    }
+
+    /** Validación de una plantilla PDF: metadatos + el mapa de etiquetas colocadas (saneado). */
+    private function validatedPdf(Request $request): array
+    {
+        $data = $request->validate([
+            'name'         => 'required|string|max:191',
+            'applies_to'   => 'required|array|min:1',
+            'applies_to.*' => 'in:crew_work,rental,service',
+            'is_active'    => 'nullable|boolean',
+            'field_map'    => 'nullable|string',   // JSON serializado desde el editor
+        ]);
+
+        $decoded = json_decode($data['field_map'] ?? '[]', true);
+
+        return [
+            'name'       => $data['name'],
+            'applies_to' => $data['applies_to'],
+            'is_active'  => $request->boolean('is_active'),
+            'field_map'  => self::sanitizeFieldMap(is_array($decoded) ? $decoded : []),
+        ];
+    }
+
+    /**
+     * Sanea el mapa de etiquetas del editor: NO confía en el cliente. Solo pasan claves que existen en
+     * el catálogo correcto (dato ∈ fieldCatalog, firma ∈ anchorCatalog), coordenadas acotadas 0–100%.
+     */
+    private static function sanitizeFieldMap(array $map): array
+    {
+        $fields  = ContractTemplateRenderer::fieldCatalog();
+        $anchors = ContractTemplateRenderer::anchorCatalog();
+        $clamp   = fn ($v, $min, $max) => max($min, min($max, (float) $v));
+        $out = [];
+
+        foreach ($map as $f) {
+            if (! is_array($f)) {
+                continue;
+            }
+            $type = (($f['type'] ?? null) === 'sign') ? 'sign' : 'data';
+            $key  = (string) ($f['key'] ?? '');
+            if ($type === 'data' && ! array_key_exists($key, $fields)) {
+                continue;
+            }
+            if ($type === 'sign' && ! array_key_exists($key, $anchors)) {
+                continue;
+            }
+            $out[] = [
+                'page'  => max(1, (int) ($f['page'] ?? 1)),
+                'x_pct' => round($clamp($f['x_pct'] ?? 0, 0, 100), 3),
+                'y_pct' => round($clamp($f['y_pct'] ?? 0, 0, 100), 3),
+                'w_pct' => round($clamp($f['w_pct'] ?? ($type === 'sign' ? 24 : 28), 2, 100), 3),
+                'type'  => $type,
+                'key'   => $key,
+            ];
+        }
+
+        return $out;
     }
 
     /**
