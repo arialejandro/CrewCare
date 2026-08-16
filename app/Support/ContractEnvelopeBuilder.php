@@ -122,7 +122,11 @@ class ContractEnvelopeBuilder
                 ]));
             }
 
-            // Sella la INTEGRIDAD del paquete (el `documents` congelado entra al hash).
+            // Sella la INTEGRIDAD del paquete sobre el modelo RE-CONSULTADO (tipos de BD), no el de
+            // memoria: así el sello es REPRODUCIBLE al reverificar desde una consulta fresca (el
+            // verificador público /verificar/cenv/{uuid}). Sellar en memoria dejaría columnas sin
+            // cast (int vs string tras el round-trip) sin casar → "alterado" falso. (FASE 3)
+            $envelope = $envelope->fresh();
             $envelope->signDocumentAsSystem('sobre creado');
 
             // Primer eslabón de la bitácora: el sobre nace registrado.

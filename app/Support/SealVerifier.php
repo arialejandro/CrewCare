@@ -96,6 +96,12 @@ class SealVerifier
         // Vigencia de 3 estados: vigente / RETIRADO (con fecha y, si existe, folio que sustituye,
         // vía sealRetirement()) / ALTERADO (solo si el hash no coincide). Retirar ≠ alterar.
         'ambu'   => ['App\Models\AmbulanceInspection',    'Acta de verificación de ambulancia', 'AMBU', 'CREWCARE-AMBU'],
+        // (2026-08-15 · Fase 3) Sobre de contrato. Etiqueta genérica para el acuse público: dice que
+        // es un sobre de contrato, nunca de quién ni el monto. El folio lo calcula
+        // ContractEnvelope::folio() (CENV-####). Vigencia de 3 estados: vigente / RETIRADO (anulado /
+        // rechazado / vencido, con su fecha vía sealRetirement()) / ALTERADO (solo si el hash del
+        // paquete sellado no coincide). Un camino de escape NUNCA se lee como ALTERADO.
+        'cenv'   => ['App\Models\ContractEnvelope',       'Sobre de contrato',         'CENV',  'CREWCARE-CENV'],
     ];
 
     /**

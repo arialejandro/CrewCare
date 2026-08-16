@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\GeneratesUuidKey;
 use App\Traits\HasDigitalSignatures;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class ContractEnvelope extends Model
 {
     use HasDigitalSignatures;
+    use GeneratesUuidKey;   // FASE 3 · uuid público para el verificador (/verificar/cenv/{uuid})
 
     protected $table = 'contract_envelopes';
 
@@ -41,7 +43,7 @@ class ContractEnvelope extends Model
     ];
 
     protected $fillable = [
-        'payee_contract_id', 'production_id', 'status', 'documents',
+        'uuid', 'payee_contract_id', 'production_id', 'status', 'documents',
         'current_recipient_id', 'sent_at', 'completed_at', 'cancelled_at', 'created_by_id',
         'expires_at', 'declined_at', 'expired_at', 'resolution_reason',
     ];
@@ -103,5 +105,40 @@ class ContractEnvelope extends Model
         return in_array($this->status, [
             self::STATUS_CANCELLED, self::STATUS_DECLINED, self::STATUS_EXPIRED,
         ], true);
+    }
+
+    /** Folio estable para el verificador público y la cadena CFDI. */
+    public function folio(): string
+    {
+        return 'CENV-' . str_pad((string) $this->id, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * FASE 3 · vigencia de 3 estados para el verificador público. Los caminos de escape (anulado /
+     * rechazado / vencido) RETIRAN el sobre sin alterar su sello: es estado, no manipulación. El
+     * verificador lo muestra como "válido, pero {etiqueta}". `superseded_folio` queda null (los
+     * contratos aún no se reemiten en cadena). El MOTIVO (texto libre) nunca sale por aquí — el acuse
+     * es público; el motivo se ve solo en la página interna del sobre.
+     *
+     * @return array{retired_at:?string, retired_label:string, superseded_folio:?string}|null
+     */
+    public function sealRetirement(): ?array
+    {
+        $when = null; $label = null;
+        if ($this->cancelled_at !== null) {
+            $when = $this->cancelled_at; $label = __('Anulado');
+        } elseif ($this->declined_at !== null) {
+            $when = $this->declined_at; $label = __('Rechazado');
+        } elseif ($this->expired_at !== null) {
+            $when = $this->expired_at; $label = __('Vencido');
+        } else {
+            return null; // vigente
+        }
+
+        return [
+            'retired_at'       => $when->format('d/m/Y'),
+            'retired_label'    => $label,
+            'superseded_folio' => null,
+        ];
     }
 }
