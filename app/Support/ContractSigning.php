@@ -11,6 +11,7 @@ use App\Models\ContractEnvelopeRecipient;
 use App\Models\PayeeContract;
 use App\Models\User;
 use App\Support\ContractEventLog;
+use App\Support\SignaturePositions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -27,20 +28,65 @@ use Illuminate\Support\Str;
  */
 class ContractSigning
 {
-    /** Enviar el sobre: draft → sent, el primer destinatario recibe. */
+    /**
+     * B4 · ¿Es el turno ABIERTO de este firmante? Unifica secuencial y paralelo:
+     *  - SECUENCIAL (default): solo el destinatario apuntado por `current_recipient_id`.
+     *  - PARALELO: cualquier FIRMANTE ya notificado (status enviado/visto) que aún no firma.
+     * Copias y firmas ya hechas nunca están "abiertas". Equivale al check clásico en secuencial.
+     */
+    public static function isOpenTurn(ContractEnvelope $envelope, ContractEnvelopeRecipient $r): bool
+    {
+        if (! $r->isSigner() || $r->isSigned() || (int) $r->envelope_id !== (int) $envelope->id) {
+            return false;
+        }
+        if (SignaturePositions::signParallel()) {
+            return in_array($r->status, [
+                ContractEnvelopeRecipient::STATUS_SENT, ContractEnvelopeRecipient::STATUS_VIEWED,
+            ], true);
+        }
+        return (int) $envelope->current_recipient_id === (int) $r->id;
+    }
+
+    /** Enviar el sobre: draft → sent. Secuencial abre al PRIMERO; paralelo abre a TODOS los firmantes. */
     public static function send(ContractEnvelope $envelope): ContractEnvelope
     {
         if (! $envelope->isDraft()) {
             return $envelope;
         }
-        $first = $envelope->orderedRecipients()->first();
-        $days  = (int) config('crewcare.contracts.expire_days', 45);
+        $signers = $envelope->orderedRecipients()->get();
+        $first   = $signers->first();
+        $days    = (int) config('crewcare.contracts.expire_days', 45);
+        // Plazo de vigencia: el barrido (contracts:expire-stale) lo usa para vencer sobres olvidados.
+        $expiresAt = $days > 0 ? now()->addDays($days) : null;
+
+        if (SignaturePositions::signParallel()) {
+            // PARALELO: todos los firmantes reciben a la vez y firman en cualquier orden. El puntero
+            // `current_recipient_id` se conserva en el primero (para la bandeja/aviso), pero el turno
+            // real lo decide isOpenTurn (status), no el puntero.
+            $envelope->update([
+                'status'               => ContractEnvelope::STATUS_SENT,
+                'sent_at'              => now(),
+                'expires_at'           => $expiresAt,
+                'current_recipient_id' => optional($first)->id,
+            ]);
+            foreach ($signers as $s) {
+                $s->update(['status' => ContractEnvelopeRecipient::STATUS_SENT, 'sent_at' => now()]);
+            }
+            ContractEventLog::record($envelope, ContractEnvelopeEvent::SENT, [
+                'payload' => ['mode' => 'parallel', 'to' => $signers->count()],
+            ]);
+            foreach ($signers as $s) {
+                self::notifyTurn($s);   // FASE 4 · avisa a TODOS los firmantes abiertos
+            }
+
+            return $envelope->fresh();
+        }
+
+        // SECUENCIAL (default): solo el primero recibe; los demás esperan su turno.
         $envelope->update([
             'status'               => ContractEnvelope::STATUS_SENT,
             'sent_at'              => now(),
-            // Plazo de vigencia: el barrido (contracts:expire-stale) lo usa para vencer sobres
-            // olvidados. Metadato de ruta (fuera del hash del sello).
-            'expires_at'           => $days > 0 ? now()->addDays($days) : null,
+            'expires_at'           => $expiresAt,
             'current_recipient_id' => optional($first)->id,
         ]);
         if ($first) {
@@ -139,11 +185,9 @@ class ContractSigning
             if ($envelope->isStopped()) {
                 throw new ContractEnvelopeException('El sobre ya no admite firmas.');
             }
-            if ((int) $envelope->current_recipient_id !== (int) $r->id) {
+            if (! self::isOpenTurn($envelope, $r)) {
+                // No es su turno (secuencial), ya firmó (doble submit), o no es un firmante abierto.
                 throw new ContractEnvelopeException('No es el turno de este firmante en la ruta.');
-            }
-            if ($r->isSigned()) {
-                return ['envelope' => $envelope->fresh(), 'defer' => null];
             }
 
             $r->update([
@@ -165,12 +209,24 @@ class ContractSigning
                 'payload'   => ['method' => $method, 'cargo' => $r->cargo, 'role' => $r->role],
             ]);
 
-            // Avanza al siguiente en la ruta; si no hay, COMPLETA.
-            $next = $envelope->orderedRecipients()->where('sort_order', '>', $r->sort_order)->first();
-            if ($next) {
-                $envelope->update(['current_recipient_id' => $next->id]);
-                $next->update(['status' => ContractEnvelopeRecipient::STATUS_SENT, 'sent_at' => now()]);
-                return ['envelope' => $envelope->fresh(), 'defer' => ['notify_id' => (int) $next->id]];
+            // ── AVANCE. PARALELO: completa cuando NO queda ningún firmante sin firmar; si aún quedan,
+            //    el sobre sigue abierto (todos ya fueron avisados al enviar). SECUENCIAL: pasa al
+            //    siguiente en orden, o completa si era el último. ──
+            if (SignaturePositions::signParallel()) {
+                $stillOpen = $envelope->orderedRecipients()
+                    ->whereNotIn('status', [ContractEnvelopeRecipient::STATUS_SIGNED, ContractEnvelopeRecipient::STATUS_DECLINED])
+                    ->orderBy('sort_order')->orderBy('id')->first();
+                if ($stillOpen) {
+                    $envelope->update(['current_recipient_id' => $stillOpen->id]);   // puntero a un abierto
+                    return ['envelope' => $envelope->fresh(), 'defer' => null];
+                }
+            } else {
+                $next = $envelope->orderedRecipients()->where('sort_order', '>', $r->sort_order)->first();
+                if ($next) {
+                    $envelope->update(['current_recipient_id' => $next->id]);
+                    $next->update(['status' => ContractEnvelopeRecipient::STATUS_SENT, 'sent_at' => now()]);
+                    return ['envelope' => $envelope->fresh(), 'defer' => ['notify_id' => (int) $next->id]];
+                }
             }
 
             $envelope->update([
@@ -231,7 +287,7 @@ class ContractSigning
         if ($envelope->isStopped()) {
             throw new ContractEnvelopeException('El sobre ya no admite cambios.');
         }
-        if ((int) $envelope->current_recipient_id !== (int) $r->id) {
+        if (! self::isOpenTurn($envelope, $r)) {
             throw new ContractEnvelopeException('No es el turno de esta persona en la ruta.');
         }
         if ($reason === '') {
@@ -261,15 +317,38 @@ class ContractSigning
      */
     public static function resend(ContractEnvelope $envelope, ?User $actor = null): ContractEnvelope
     {
-        if (! $envelope->isSent() || ! $envelope->current_recipient_id) {
-            throw new ContractEnvelopeException('Solo se puede reenviar un sobre en firma con un turno activo.');
+        if (! $envelope->isSent()) {
+            throw new ContractEnvelopeException('Solo se puede reenviar un sobre en firma.');
         }
 
+        // PARALELO: recuerda a TODOS los firmantes abiertos (enviado/visto) a la vez.
+        if (SignaturePositions::signParallel()) {
+            $open = $envelope->orderedRecipients()
+                ->whereIn('status', [ContractEnvelopeRecipient::STATUS_SENT, ContractEnvelopeRecipient::STATUS_VIEWED])
+                ->get();
+            if ($open->isEmpty()) {
+                throw new ContractEnvelopeException('No hay firmantes pendientes por recordar.');
+            }
+            foreach ($open as $o) {
+                $o->update(['resent_at' => now()]);
+                self::notifyTurn($o);
+            }
+            ContractEventLog::record($envelope, ContractEnvelopeEvent::RESENT, [
+                'actor_id' => $actor ? $actor->id : optional(auth()->user())->id,
+                'payload'  => ['mode' => 'parallel', 'to' => $open->count()],
+            ]);
+
+            return $envelope->fresh();
+        }
+
+        // SECUENCIAL: recordatorio al turno actual.
+        if (! $envelope->current_recipient_id) {
+            throw new ContractEnvelopeException('Solo se puede reenviar un sobre en firma con un turno activo.');
+        }
         $current = $envelope->currentRecipient;
         if ($current) {
             $current->update(['resent_at' => now()]);
         }
-
         ContractEventLog::record($envelope, ContractEnvelopeEvent::RESENT, [
             'recipient'   => $current,
             'actor_id'    => $actor ? $actor->id : optional(auth()->user())->id,

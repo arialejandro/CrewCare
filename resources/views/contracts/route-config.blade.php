@@ -85,6 +85,15 @@
                         </div>
                     </div>
                     <div class="form-text mt-2">{{ __('Si dejas la fase de firma vacía, se usa la ruta clásica (preparador / obliga).') }}</div>
+
+                    {{-- B4 · ruteo paralelo: los firmantes firman en cualquier orden vs secuencial (default). --}}
+                    <div class="form-check mt-2 ms-1">
+                        <input type="hidden" name="sign_parallel" value="0">
+                        <input type="checkbox" class="form-check-input" id="signPar" name="sign_parallel" value="1" @checked($signParallel ?? false)>
+                        <label class="form-check-label small" for="signPar">
+                            {{ __('Firmar en cualquier orden: todos los firmantes reciben a la vez y firman cuando quieran. Si lo dejas apagado, firman en el orden de arriba, uno tras otro.') }}
+                        </label>
+                    </div>
                 </section>
             </div>
 

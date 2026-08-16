@@ -37,7 +37,8 @@ class ContractSignController extends Controller
         if ($envelope->isStopped() || $recipient->isSigned()) {
             return view('contracts.sign', ['recipient' => $recipient, 'envelope' => $envelope, 'stage' => 'done']);
         }
-        if ((int) $envelope->current_recipient_id !== (int) $recipient->id) {
+        if (! ContractSigning::isOpenTurn($envelope, $recipient)) {
+            // Aún no es su turno (secuencial); en paralelo cualquier firmante abierto pasa.
             return view('contracts.sign', ['recipient' => $recipient, 'envelope' => $envelope, 'stage' => 'not_turn']);
         }
 

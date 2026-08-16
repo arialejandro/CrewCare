@@ -101,6 +101,7 @@
             $icoSend  = '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>';
             $curId  = (int) $envelope->current_recipient_id;
             $isSent = $envelope->isSent();
+            $parallelSign = \App\Support\SignaturePositions::signParallel();   // B4 · todos los abiertos son "en turno"
         @endphp
         <div class="card">
             <div class="card-header fw-semibold">{{ __('Ruta de firma') }}</div>
@@ -110,7 +111,8 @@
                         @foreach($envelope->orderedRecipients()->get() as $r)
                             @php
                                 $isContracted = $r->role === \App\Models\ContractEnvelopeRecipient::ROLE_CONTRACTED;
-                                $isNow  = $isSent && $curId === (int) $r->id && $r->status !== 'signed';
+                                $isNow  = $isSent && $r->status !== 'signed'
+                                    && ($parallelSign ? in_array($r->status, ['sent', 'viewed'], true) : $curId === (int) $r->id);
                                 $stepClass = $r->status === 'signed' ? 'cc-step--done' : ($isNow ? 'cc-step--now' : '');
                                 switch ($r->status) {
                                     case 'signed': $chip = ['done', __('Firmado'), $icoCheck]; break;

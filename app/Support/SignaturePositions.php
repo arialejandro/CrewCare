@@ -32,6 +32,9 @@ class SignaturePositions
     // B3 · ESCALERA de autorización: si está ON, los autorizadores aprueban EN ORDEN (nivel a nivel);
     // OFF (default) = paralelo (cualquiera en cualquier orden, comportamiento histórico).
     const KEY_AUTH_SEQUENTIAL = 'infosheet_auth_sequential';
+    // B4 · RUTEO de firma: si está ON, los FIRMANTES firman en CUALQUIER orden (paralelo, tipo
+    // DocuSign "sin orden de firma"); OFF (default) = secuencial estricto (turno a turno).
+    const KEY_SIGN_PARALLEL = 'contract_sign_parallel';
 
     // Entrada DINÁMICA: "el HOD (jefe) del departamento del contrato" — así el jefe del depto
     // relevante firma sin fijar un puesto por-departamento (que afectaría a todos por igual).
@@ -93,6 +96,12 @@ class SignaturePositions
     public static function authSequential(): bool
     {
         return (bool) (int) Branding::get(self::KEY_AUTH_SEQUENTIAL, 0);
+    }
+
+    /** B4 · ¿La firma es PARALELA (cualquier orden)? Default secuencial (turno a turno). */
+    public static function signParallel(): bool
+    {
+        return (bool) (int) Branding::get(self::KEY_SIGN_PARALLEL, 0);
     }
 
     /** Decodifica entradas (JSON o CSV): enteros positivos (position_id) + el token 'dept_hod'. */

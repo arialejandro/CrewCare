@@ -361,6 +361,7 @@ class ContractEnvelopeController extends Controller
             'signers'        => $signers,
             'occupants'      => $occupants,
             'authSequential' => SignaturePositions::authSequential(),
+            'signParallel'   => SignaturePositions::signParallel(),
         ]);
     }
 
@@ -406,6 +407,8 @@ class ContractEnvelopeController extends Controller
         Setting::updateOrCreate(['key' => SignaturePositions::KEY_SIGNERS],     ['value' => json_encode($sanitize($request->input('signer_position_ids')))]);
         // B3 · ESCALERA de autorización (secuencial nivel-a-nivel) vs paralelo (default).
         Setting::updateOrCreate(['key' => SignaturePositions::KEY_AUTH_SEQUENTIAL], ['value' => $request->boolean('auth_sequential') ? '1' : '0']);
+        // B4 · RUTEO de firma paralelo (cualquier orden) vs secuencial (default).
+        Setting::updateOrCreate(['key' => SignaturePositions::KEY_SIGN_PARALLEL], ['value' => $request->boolean('sign_parallel') ? '1' : '0']);
         Branding::forget();
 
         return back()->with('status', __('Ruta de firma actualizada.'));

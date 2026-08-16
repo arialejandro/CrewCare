@@ -321,6 +321,70 @@ class ContractEnvelopeTest extends QaTestCase
         $this->assertSame(1, $c2->fresh()->envelopes()->count());
     }
 
+    // ── B4 · RUTEO PARALELO (firmar en cualquier orden) ──────────────────────
+
+    /** En paralelo todos los firmantes reciben a la vez y firman en cualquier orden; completa al final. */
+    public function test_parallel_routing_signs_in_any_order(): void
+    {
+        Storage::fake('local');
+        $this->seatInternals();
+        Setting::updateOrCreate(['key' => SignaturePositions::KEY_SIGN_PARALLEL], ['value' => '1']);
+        Branding::forget();
+
+        try {
+            $env = ContractEnvelopeBuilder::build($this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee()), null);
+            ContractSigning::send($env);
+
+            // TODOS los firmantes quedan ABIERTOS al enviar (no solo el primero).
+            $order = $env->orderedRecipients()->get();
+            foreach ($order as $r) {
+                $this->assertSame('sent', $r->fresh()->status, 'todos abiertos en paralelo');
+            }
+
+            $img = 'data:image/png;base64,' . str_repeat('A', 120);
+            // Firmar en orden INVERSO (permitido en paralelo).
+            ContractSigning::sign($order[2]->fresh(), 'authenticated', '3.3.3.3', $img);
+            $this->assertFalse($env->fresh()->isCompleted(), 'faltan firmantes');
+            ContractSigning::sign($order[0]->fresh(), 'authenticated', '1.1.1.1', $img);
+            $this->assertFalse($env->fresh()->isCompleted());
+            ContractSigning::sign($order[1]->fresh(), 'authenticated', '2.2.2.2', $img);
+
+            $this->assertTrue($env->fresh()->isCompleted(), 'completa cuando todos firmaron, sin importar el orden');
+            $this->assertNull($env->fresh()->current_recipient_id);
+        } finally {
+            Setting::where('key', SignaturePositions::KEY_SIGN_PARALLEL)->delete();
+            Branding::forget();
+        }
+    }
+
+    /** Guardia: un firmante ya firmado no puede re-firmar en paralelo (doble submit bloqueado). */
+    public function test_parallel_blocks_double_submit(): void
+    {
+        Storage::fake('local');
+        $this->seatInternals();
+        Setting::updateOrCreate(['key' => SignaturePositions::KEY_SIGN_PARALLEL], ['value' => '1']);
+        Branding::forget();
+
+        try {
+            $env = ContractEnvelopeBuilder::build($this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee()), null);
+            ContractSigning::send($env);
+            $order = $env->orderedRecipients()->get();
+
+            $img = 'data:image/png;base64,' . str_repeat('A', 120);
+            ContractSigning::sign($order[0]->fresh(), 'authenticated', '1.1.1.1', $img);
+
+            try {
+                ContractSigning::sign($order[0]->fresh(), 'authenticated', '1.1.1.1', $img);
+                $this->fail('un firmante ya firmado no debe re-firmar');
+            } catch (ContractEnvelopeException $e) {
+                $this->assertStringContainsString('turno', $e->getMessage());
+            }
+        } finally {
+            Setting::where('key', SignaturePositions::KEY_SIGN_PARALLEL)->delete();
+            Branding::forget();
+        }
+    }
+
     // ── FASE 5 · ROBUSTEZ ───────────────────────────────────────────────────
 
     /** Un solo sobre EN CURSO por contrato (un contrato por persona). */

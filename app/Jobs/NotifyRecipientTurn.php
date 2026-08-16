@@ -48,8 +48,8 @@ class NotifyRecipientTurn implements ShouldQueue
                 return;
             }
             $envelope = $r->envelope;
-            // Solo si SIGUE siendo su turno (evita avisar de algo que ya cambió).
-            if (! $envelope || ! $envelope->isSent() || (int) $envelope->current_recipient_id !== (int) $r->id) {
+            // Solo si SIGUE abierto para esta persona (secuencial: su turno; paralelo: firmante abierto).
+            if (! $envelope || ! $envelope->isSent() || ! \App\Support\ContractSigning::isOpenTurn($envelope, $r)) {
                 return;
             }
 
