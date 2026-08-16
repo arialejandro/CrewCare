@@ -357,9 +357,10 @@ class ContractEnvelopeController extends Controller
             'preparerId'  => SignaturePositions::preparerPositionId(),
             'binderId'    => SignaturePositions::binderPositionId(),
             'routeOrder'  => implode(',', SignaturePositions::routeOrder()),
-            'authorizers' => $authorizers,
-            'signers'     => $signers,
-            'occupants'   => $occupants,
+            'authorizers'    => $authorizers,
+            'signers'        => $signers,
+            'occupants'      => $occupants,
+            'authSequential' => SignaturePositions::authSequential(),
         ]);
     }
 
@@ -403,6 +404,8 @@ class ContractEnvelopeController extends Controller
         // clásica (preparador/obliga) se conserva SOLO como fallback en código; ya no se edita aquí.
         Setting::updateOrCreate(['key' => SignaturePositions::KEY_AUTHORIZERS], ['value' => json_encode($sanitize($request->input('authorizer_position_ids')))]);
         Setting::updateOrCreate(['key' => SignaturePositions::KEY_SIGNERS],     ['value' => json_encode($sanitize($request->input('signer_position_ids')))]);
+        // B3 · ESCALERA de autorización (secuencial nivel-a-nivel) vs paralelo (default).
+        Setting::updateOrCreate(['key' => SignaturePositions::KEY_AUTH_SEQUENTIAL], ['value' => $request->boolean('auth_sequential') ? '1' : '0']);
         Branding::forget();
 
         return back()->with('status', __('Ruta de firma actualizada.'));

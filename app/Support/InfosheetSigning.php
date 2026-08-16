@@ -70,6 +70,26 @@ class InfosheetSigning
         return count(self::pendingSlots($contract)) === 0;
     }
 
+    /** B3 · ¿La autorización es una escalera secuencial (nivel a nivel)? */
+    public static function sequential(): bool
+    {
+        return SignaturePositions::authSequential();
+    }
+
+    /**
+     * B3 · Casilleros DISPONIBLES para autorizar AHORA. Paralelo (default) = todos los pendientes;
+     * ESCALERA = solo el SIGUIENTE por autorizar (los de más arriba esperan su turno). Así una cadena
+     * de 3-6 niveles se aprueba en orden. `isComplete` sigue mirando TODOS los pendientes.
+     */
+    public static function availableSlots(PayeeContract $contract): array
+    {
+        $pending = self::pendingSlots($contract);
+        if (self::sequential() && count($pending) > 1) {
+            return [$pending[0]];
+        }
+        return $pending;
+    }
+
     /**
      * Estado de cada casillero para la UI: etiqueta + si está hecho + la autorización (sellada, con
      * autógrafa) si existe. Deja la vista TONTA (no recalcula llaves ni conoce lo privado).
@@ -79,11 +99,26 @@ class InfosheetSigning
     public static function statusFor(PayeeContract $contract): array
     {
         $done = self::done($contract);
-        return array_map(function ($slot) use ($done) {
+        $seq  = self::sequential();
+
+        // En escalera, el ÚNICO casillero abierto es el primer pendiente; los de arriba esperan turno.
+        $openKey = null;
+        foreach (self::slots($contract) as $slot) {
+            if (! $done->has(self::slotKey($slot))) {
+                $openKey = self::slotKey($slot);
+                break;
+            }
+        }
+
+        return array_map(function ($slot) use ($done, $seq, $openKey) {
+            $key    = self::slotKey($slot);
+            $isDone = $done->has($key);
             return [
-                'label' => $slot['label'],
-                'done'  => $done->has(self::slotKey($slot)),
-                'auth'  => $done->get(self::slotKey($slot)),
+                'label'   => $slot['label'],
+                'done'    => $isDone,
+                'auth'    => $done->get($key),
+                // 'blocked' = pendiente pero aún no es su turno en la escalera (solo en modo secuencial).
+                'blocked' => $seq && ! $isDone && $key !== $openKey,
             ];
         }, self::slots($contract));
     }
@@ -109,10 +144,13 @@ class InfosheetSigning
             ->exists();
     }
 
-    /** El primer casillero PENDIENTE que este usuario puede cubrir (o null). */
+    /**
+     * El casillero DISPONIBLE que este usuario puede cubrir (o null). En escalera, solo el nivel en
+     * turno está disponible → un autorizador de nivel superior espera hasta que aprueben los de abajo.
+     */
     public static function slotForUser(User $user, PayeeContract $contract): ?array
     {
-        foreach (self::pendingSlots($contract) as $slot) {
+        foreach (self::availableSlots($contract) as $slot) {
             if (self::canCover($user, $contract, $slot)) {
                 return $slot;
             }

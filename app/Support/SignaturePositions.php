@@ -29,6 +29,9 @@ class SignaturePositions
     //  - KEY_AUTHORIZERS: quién AUTORIZA el Infosheet (paso 2). Por defecto el Line Producer.
     const KEY_SIGNERS     = 'contract_signer_position_ids';
     const KEY_AUTHORIZERS = 'infosheet_authorizer_position_ids';
+    // B3 · ESCALERA de autorización: si está ON, los autorizadores aprueban EN ORDEN (nivel a nivel);
+    // OFF (default) = paralelo (cualquiera en cualquier orden, comportamiento histórico).
+    const KEY_AUTH_SEQUENTIAL = 'infosheet_auth_sequential';
 
     // Entrada DINÁMICA: "el HOD (jefe) del departamento del contrato" — así el jefe del depto
     // relevante firma sin fijar un puesto por-departamento (que afectaría a todos por igual).
@@ -84,6 +87,12 @@ class SignaturePositions
     public static function authorizerEntries(): array
     {
         return self::decodeEntries(Branding::get(self::KEY_AUTHORIZERS, ''));
+    }
+
+    /** B3 · ¿La autorización es una ESCALERA secuencial (nivel a nivel)? Default paralelo. */
+    public static function authSequential(): bool
+    {
+        return (bool) (int) Branding::get(self::KEY_AUTH_SEQUENTIAL, 0);
     }
 
     /** Decodifica entradas (JSON o CSV): enteros positivos (position_id) + el token 'dept_hod'. */

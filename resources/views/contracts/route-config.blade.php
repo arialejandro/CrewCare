@@ -49,6 +49,15 @@
                             <button type="button" class="btn btn-sm btn-crew-soft cc-add-btn" data-phase="authorizers">{{ __('Agregar') }}</button>
                         </div>
                     </div>
+
+                    {{-- B3 · escalera de autorización: aprobar por niveles (en orden) vs paralelo (default). --}}
+                    <div class="form-check mt-2 ms-1">
+                        <input type="hidden" name="auth_sequential" value="0">
+                        <input type="checkbox" class="form-check-input" id="authSeq" name="auth_sequential" value="1" @checked($authSequential ?? false)>
+                        <label class="form-check-label small" for="authSeq">
+                            {{ __('Aprobar por niveles: cada autorizador aprueba solo cuando el anterior ya lo hizo. Si lo dejas apagado, cualquiera aprueba en cualquier orden.') }}
+                        </label>
+                    </div>
                 </section>
 
                 {{-- ── FASE 2 · Firma del contrato ─────────────────────────────────── --}}
