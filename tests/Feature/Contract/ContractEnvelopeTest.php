@@ -17,6 +17,7 @@ use App\Models\Position;
 use App\Models\Setting;
 use App\Models\User;
 use App\Support\Branding;
+use App\Support\ContractBatchEmitter;
 use App\Support\ContractEmitter;
 use App\Support\ContractEnvelopeBuilder;
 use App\Support\ContractSigning;
@@ -257,6 +258,67 @@ class ContractEnvelopeTest extends QaTestCase
         $env->update(['status' => ContractEnvelope::STATUS_CANCELLED, 'cancelled_at' => now()]);
         $this->post(route('contracts.envelope.copy.add', $env->fresh()), ['name' => 'X', 'email' => 'x@qa.test']);
         $this->assertSame(0, $env->copyRecipients()->count(), 'un sobre retirado rechaza copias');
+    }
+
+    // ── B2 · EMISIÓN MASIVA (N sobres de una) ────────────────────────────────
+
+    /** El lote crea un sobre por contrato elegible; los no-emitidos no son elegibles. */
+    public function test_batch_emits_envelopes_for_eligible_contracts(): void
+    {
+        Storage::fake('local');
+        $this->seatInternals();
+        $actor = $this->actingAsRole('super-admin');
+
+        $c1 = $this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee('1990-01-01'));
+        $c2 = $this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee('1991-02-02'));
+        // Un contrato SIN emitir → no elegible.
+        $noEmit = $this->crewPayee('1992-03-03')->contracts()->create([
+            'concept' => PayeeContract::CONCEPT_CREW, 'is_active' => 1, 'production_id' => $this->prodId, 'crew_activity' => 'x',
+        ]);
+
+        $eligible = ContractBatchEmitter::eligible($this->prodId, null, $actor);
+        $this->assertTrue($eligible->contains('id', $c1->id));
+        $this->assertTrue($eligible->contains('id', $c2->id));
+        $this->assertFalse($eligible->contains('id', $noEmit->id), 'sin emitir no es elegible');
+
+        $summary = ContractBatchEmitter::run($eligible, $actor, false);
+        $this->assertCount(2, $summary['created']);
+        $this->assertSame(1, $c1->fresh()->envelopes()->count());
+        $this->assertSame(1, $c2->fresh()->envelopes()->count());
+        $this->assertTrue($c1->fresh()->envelopes()->first()->isDraft(), 'sin send → borrador');
+
+        // Con un sobre en curso, deja de ser elegible (no se duplica).
+        $this->assertFalse(ContractBatchEmitter::eligible($this->prodId, null, $actor)->contains('id', $c1->id));
+    }
+
+    /** Con send=true, el lote además envía a firma (sent + primer turno). */
+    public function test_batch_can_create_and_send(): void
+    {
+        Storage::fake('local');
+        $this->seatInternals();
+        $actor = $this->actingAsRole('super-admin');
+        $c1 = $this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee('1990-01-01'));
+
+        ContractBatchEmitter::run(ContractBatchEmitter::eligible($this->prodId, null, $actor), $actor, true);
+        $env = $c1->fresh()->envelopes()->first();
+        $this->assertTrue($env->isSent());
+        $this->assertNotNull($env->current_recipient_id);
+    }
+
+    /** El controlador crea el lote de la selección (re-resuelta en el servidor). */
+    public function test_batch_controller_creates_from_selection(): void
+    {
+        Storage::fake('local');
+        $this->seatInternals();
+        $this->actingAsRole('super-admin');
+        $c1 = $this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee('1990-01-01'));
+        $c2 = $this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee('1991-02-02'));
+
+        $this->post(route('contracts.batch.store'), ['contract_ids' => [$c1->id, $c2->id], 'send' => 0])
+            ->assertRedirect();
+
+        $this->assertSame(1, $c1->fresh()->envelopes()->count());
+        $this->assertSame(1, $c2->fresh()->envelopes()->count());
     }
 
     // ── FASE 5 · ROBUSTEZ ───────────────────────────────────────────────────

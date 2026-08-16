@@ -352,6 +352,12 @@
                             @include('componentes._icon', ['name' => 'users', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('Seguimiento de firmas') }}</span>
                         </a>
+                        @can('payees.view')
+                        <a href="{{ route('contracts.batch.form') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'layers', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Emisión masiva') }}</span>
+                        </a>
+                        @endcan
                         @endcan
                         @can('contracts.author')
                         <a href="{{ route('contracts.templates.index') }}" class="cc-item">
@@ -755,6 +761,12 @@
                                 @include('componentes._icon', ['name' => 'users', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('Seguimiento de firmas') }}</span>
                             </a>
+                            @can('payees.view')
+                            <a href="{{ route('contracts.batch.form') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'layers', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Emisión masiva') }}</span>
+                            </a>
+                            @endcan
                             @endcan
                             @can('contracts.author')
                             <a href="{{ route('contracts.templates.index') }}" class="cc-item">
