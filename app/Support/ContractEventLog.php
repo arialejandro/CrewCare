@@ -34,6 +34,7 @@ class ContractEventLog
             ContractEnvelopeEvent::RESENT     => __('Reenviado'),
             ContractEnvelopeEvent::EXPIRED    => __('Vencido'),
             ContractEnvelopeEvent::CORRECTED  => __('Corregido'),
+            ContractEnvelopeEvent::SEALED     => __('Documento firmado sellado'),
             ContractEnvelopeEvent::DOWNLOADED => __('Descargado'),
         ];
     }

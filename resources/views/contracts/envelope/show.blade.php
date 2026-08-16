@@ -63,6 +63,14 @@
             <div class="card-header fw-semibold">{{ __('Documentos del paquete') }}</div>
             <div class="card-body">
                 <ul class="list-group list-group-flush">
+                    {{-- FASE 3 — el CONTRATO FIRMADO congelado (PDF con las autógrafas). Solo si ya se
+                         renderizó (si no existe, no se muestra); es el documento de ENTREGA. --}}
+                    @if($envelope->hasSignedDocument())
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold">{{ __('Contrato firmado') }} <span class="badge text-bg-success">{{ __('con firmas') }}</span></span>
+                            <a href="{{ route('contracts.envelope.signed', $envelope) }}" target="_blank" rel="noopener" class="btn btn-sm btn-crew">{{ __('Descargar') }}</a>
+                        </li>
+                    @endif
                     @foreach(($envelope->documents ?? []) as $i => $doc)
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             <span>{{ $doc['name'] ?? 'Documento' }} <span class="badge text-bg-light border">{{ $doc['kind'] ?? '' }}</span></span>

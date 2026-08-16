@@ -145,6 +145,20 @@ class ContractSigning
                 'current_recipient_id' => null,
             ]);
             ContractEventLog::record($envelope, ContractEnvelopeEvent::COMPLETED, ['ip' => $ip]);
+
+            // FASE 3 — congela el CONTRATO FIRMADO (PDF con autógrafas). En cola bajo flag (sin worker
+            // corre inline). Defensivo: el render NUNCA rompe la firma (el contrato ya quedó cerrado y
+            // su evidencia no depende de este PDF). Va ANTES del aviso para que el correo pueda adjuntarlo.
+            try {
+                if (\App\Support\Features::enabled('contracts_queue_render')) {
+                    \App\Jobs\RenderSignedContract::dispatch($envelope->id);
+                } else {
+                    \App\Jobs\RenderSignedContract::dispatchSync($envelope->id);
+                }
+            } catch (\Throwable $e) {
+                // el render nunca tumba el cierre
+            }
+
             try {
                 event(new ContractEnvelopeCompleted($envelope->fresh()));
             } catch (\Throwable $e) {

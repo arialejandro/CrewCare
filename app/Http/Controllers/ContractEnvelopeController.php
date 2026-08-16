@@ -136,6 +136,19 @@ class ContractEnvelopeController extends Controller
         return back()->with('status', __('Recordatorio de firma registrado.'));
     }
 
+    /** FASE 3 — sirve el CONTRATO FIRMADO congelado (PDF con autógrafas) del disco privado. */
+    public function signedDocument(Request $request, ContractEnvelope $envelope)
+    {
+        abort_unless($envelope->contract && $envelope->contract->payee, 404);
+        $this->authorize('view', $envelope->contract->payee);
+
+        $meta = $envelope->signed_document ?? [];
+        abort_unless(! empty($meta['path']) && Storage::disk('local')->exists($meta['path']), 404);
+
+        $nice = 'Contrato-firmado-' . $envelope->folio() . '.pdf';
+        return Storage::disk('local')->response($meta['path'], $nice, ['Content-Type' => 'application/pdf'], 'inline');
+    }
+
     /** Servir un documento del paquete (byte-intact) a un viewer autenticado con alcance. */
     public function document(Request $request, ContractEnvelope $envelope, int $index)
     {

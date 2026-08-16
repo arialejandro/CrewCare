@@ -40,22 +40,26 @@ class ContractEnvelope extends Model
     protected $signatureExcludes = [
         'status', 'current_recipient_id', 'sent_at', 'completed_at', 'cancelled_at',
         'expires_at', 'declined_at', 'expired_at', 'resolution_reason',
+        // FASE 3 · el documento firmado es un artefacto DERIVADO (autógrafas + paquete, ambos ya
+        // sellados); su integridad va en la bitácora, no en el sello del sobre.
+        'signed_document',
     ];
 
     protected $fillable = [
-        'uuid', 'payee_contract_id', 'production_id', 'status', 'documents',
+        'uuid', 'payee_contract_id', 'production_id', 'status', 'documents', 'signed_document',
         'current_recipient_id', 'sent_at', 'completed_at', 'cancelled_at', 'created_by_id',
         'expires_at', 'declined_at', 'expired_at', 'resolution_reason',
     ];
 
     protected $casts = [
-        'documents'    => 'array',
-        'sent_at'      => 'datetime',
-        'completed_at' => 'datetime',
-        'cancelled_at' => 'datetime',
-        'expires_at'   => 'datetime',
-        'declined_at'  => 'datetime',
-        'expired_at'   => 'datetime',
+        'documents'       => 'array',
+        'signed_document' => 'array',
+        'sent_at'         => 'datetime',
+        'completed_at'    => 'datetime',
+        'cancelled_at'    => 'datetime',
+        'expires_at'      => 'datetime',
+        'declined_at'     => 'datetime',
+        'expired_at'      => 'datetime',
     ];
 
     public function contract(): BelongsTo
@@ -90,6 +94,12 @@ class ContractEnvelope extends Model
     public function isCancelled(): bool { return $this->status === self::STATUS_CANCELLED; }
     public function isDeclined(): bool  { return $this->status === self::STATUS_DECLINED; }
     public function isExpired(): bool   { return $this->status === self::STATUS_EXPIRED; }
+
+    /** ¿Ya se congeló el documento firmado (render con autógrafas) en disco? */
+    public function hasSignedDocument(): bool
+    {
+        return ! empty($this->signed_document['path'] ?? null);
+    }
 
     /** Estados TERMINALES: el sobre ya no admite acciones de firma/ruta. */
     public function isStopped(): bool

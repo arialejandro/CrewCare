@@ -34,6 +34,7 @@ class FeatureFlagController extends Controller
             'location_handover'   => 'Handover de locaciones — futuro',
             'contracts_queue_email'   => 'Contratos · correos de firma en segundo plano (cola)',
             'contracts_batch_signing' => 'Contratos · firma en lote (varios a la vez)',
+            'contracts_queue_render'  => 'Contratos · render del contrato firmado en segundo plano (cola)',
         ];
     }
 

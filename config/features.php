@@ -39,6 +39,10 @@ return [
     //                   bloquear el request. Sin worker de cola corre inline igual (seguro por default).
     //  - batch_signing: deja a una figura interna (LP, Contador, Rep. Legal…) firmar varios de una vez.
     //                   Por defecto la firma es UNO A UNO (el firmante ve los datos de cada contrato).
+    //  - queue_render:  al completarse un sobre, renderiza el CONTRATO FIRMADO (PDF con autógrafas) en
+    //                   segundo plano (cola) en vez de bloquear la última firma. Sin worker corre inline
+    //                   igual (seguro por default). El render usa Chrome headless (Browsershot).
     'contracts_queue_email'   => false,
     'contracts_batch_signing' => false,
+    'contracts_queue_render'  => false,
 ];

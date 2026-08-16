@@ -31,6 +31,7 @@ class ContractEnvelopeEvent extends Model
     const RESENT    = 'resent';     // Fase 2
     const EXPIRED   = 'expired';    // Fase 2
     const CORRECTED = 'corrected';  // Fase 2
+    const SEALED    = 'sealed';     // Fase 3 · documento firmado renderizado y congelado (con su hash)
     const DOWNLOADED = 'downloaded';
 
     protected $fillable = [
