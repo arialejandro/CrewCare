@@ -123,7 +123,8 @@
       <br /> 
 		¡Bienvenido a la plataforma <strong>CrewCare!</strong> <br>
 		Nos alegra contar contigo en este nuevo proyecto. <br>
-        Te pedimos por favor no olvides llenar tu <strong>REPORTE DE SALUD,</strong> antes de integrarte para ello, ingresa a la aplicación en el siguiente enlace: <a href="https://ddemo.crewcare.mx"><strong>https://demo.crewcare.mx</strong></a> 
+        @php $ccApp = rtrim($appUrl ?? config('app.url'), '/'); @endphp
+        Te pedimos por favor no olvides llenar tu <strong>REPORTE DE SALUD,</strong> antes de integrarte para ello, ingresa a la aplicación en el siguiente enlace: <a href="{{ $ccApp }}"><strong>{{ $ccApp }}</strong></a>
 		<br><br>
 		Con el siguiente usuario: <br>
 		Usuario: <strong>{{$email}}</strong> <br><br>

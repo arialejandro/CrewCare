@@ -61,7 +61,8 @@ class PendingSignatureController extends Controller
                 continue;
             }
             $env = $r->envelope;
-            if (! $env || ! $env->isSent() || (int) $env->current_recipient_id !== (int) $r->id) {
+            // Turno unificado (B4): secuencial = puntero; paralelo = firmante abierto.
+            if (! $env || ! $env->isSent() || ! ContractSigning::isOpenTurn($env, $r)) {
                 $skipped++;
                 continue;
             }

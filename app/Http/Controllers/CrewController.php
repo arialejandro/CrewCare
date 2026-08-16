@@ -220,6 +220,8 @@ class CrewController extends Controller
                 'email'     => $user->email,
                 'resetUrl'  => $resetUrl,
                 'intakeUrl' => $intakeUrl, // invitación al intake (la plantilla puede incluirla)
+                // Base de ESTA instalación (subdominio real de la petición); el correo no hardcodea dominio.
+                'appUrl'    => rtrim(url('/'), '/'),
             ];
             $for = $user->email;
             Mail::send('correos.welcomeuser', $data, function ($msj) use ($subject, $for) {

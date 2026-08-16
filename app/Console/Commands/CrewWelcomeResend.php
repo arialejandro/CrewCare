@@ -45,6 +45,8 @@ class CrewWelcomeResend extends Command
             'resetUrl'  => $resetUrl,
             // El reenvío también lleva la invitación al intake (mismo enlace firmado que el alta).
             'intakeUrl' => \App\Http\Controllers\IntakeController::invitationUrl($producto),
+            // Sin petición (consola): la base sale de la config de ESTA instalación (APP_URL).
+            'appUrl'    => rtrim(config('app.url'), '/'),
         ];
         $for = $producto->email;
         Mail::send('correos.welcomeuser', $data, function ($msj) use ($subject, $for) {
