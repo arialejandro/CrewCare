@@ -427,6 +427,13 @@ Route::middleware(['auth','permission:quotations.accept'])->group(function () {
     Route::post('/cotizaciones/{quotation}/aceptar', [App\Http\Controllers\QuotationController::class, 'accept'])->name('quotations.accept')->whereNumber('quotation');
 });
 
+// SOLICITUD de cotización por ENLACE FIRMADO (SE SOLICITA). El proveedor/crew la llena SIN login:
+// la firma del enlace es su llave (mismo patrón que el intake). Sin permiso → va por 'signed'.
+Route::middleware(['signed','throttle:30,1'])->group(function () {
+    Route::get('/cotizacion/{quotation}', [App\Http\Controllers\QuotationController::class, 'publicShow'])->name('quotations.request.show')->whereNumber('quotation');
+    Route::post('/cotizacion/{quotation}', [App\Http\Controllers\QuotationController::class, 'publicSubmit'])->name('quotations.request.submit')->whereNumber('quotation');
+});
+
 // ---- VERIFICACIÓN DE AMBULANCIAS (2026-08-08 · deltas #51/#52) ----
 // Recurso de traslado del DÍA (3 estados; solo el 1 lleva badge) + proveedor/padrón/documentos
 // (validación MANUAL con quién-validó, como la cédula) + ACTA sellada en sitio (verificador PÚBLICO

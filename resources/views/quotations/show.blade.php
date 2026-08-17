@@ -63,6 +63,19 @@
             </div></div>
         @endif
 
+        {{-- Pedir la cotización al proveedor por enlace firmado (SE SOLICITA) --}}
+        @if(! empty($requestUrl))
+        <div class="card mb-3"><div class="card-body">
+            <h2 class="h6 mb-2">{{ __('Pedir la cotización al proveedor') }}</h2>
+            <p class="small text-muted mb-2">{{ __('Enlace para que la llene sin cuenta (vence en 14 días). El PDF o las partidas llegan directo.') }}</p>
+            <div class="input-group input-group-sm mb-2">
+                <input type="text" class="form-control" id="reqLink" value="{{ $requestUrl }}" readonly>
+                <button class="btn btn-crew-soft" type="button" onclick="navigator.clipboard.writeText(document.getElementById('reqLink').value)">{{ __('Copiar') }}</button>
+            </div>
+            <a class="btn btn-sm btn-crew-soft" target="_blank" href="https://wa.me/?text={{ rawurlencode('Hola, ¿nos compartes tu cotización? '.$requestUrl) }}">{{ __('Enviar por WhatsApp') }}</a>
+        </div></div>
+        @endif
+
         {{-- Contenido de la versión en curso --}}
         <div class="card mb-3"><div class="card-body">
             @if($v && $v->isPdf())

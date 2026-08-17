@@ -89,7 +89,11 @@ class QuotationController extends Controller
         abort_unless($quotation->isVisibleTo(auth()->user()), 403);
         $quotation->load(['currentVersion.items', 'versions.items', 'department', 'payee', 'acceptedBy', 'createdBy']);
 
-        return view('quotations.show', ['quotation' => $quotation]);
+        // Enlace FIRMADO para pedirle al proveedor que la llene sin login (SE SOLICITA).
+        $requestUrl = $quotation->isAccepted() ? null
+            : \Illuminate\Support\Facades\URL::temporarySignedRoute('quotations.request.show', now()->addDays(14), ['quotation' => $quotation->id]);
+
+        return view('quotations.show', ['quotation' => $quotation, 'requestUrl' => $requestUrl]);
     }
 
     public function edit(Quotation $quotation)
@@ -279,6 +283,58 @@ class QuotationController extends Controller
             'Content-Type'        => 'application/pdf',
             'Content-Disposition' => 'inline; filename="aceptacion-cotizacion.pdf"',
         ]);
+    }
+
+    // ── SE SOLICITA (enlace firmado, sin login) ───────────────────────────────
+    /** Página pública (firmada) donde el proveedor/crew llena su cotización. La firma es su llave. */
+    public function publicShow(Request $request, Quotation $quotation)
+    {
+        abort_if($quotation->isAccepted(), 410, 'La cotización ya fue aceptada.');
+        $quotation->load('currentVersion.items');
+
+        return view('quotations.request', [
+            'quotation' => $quotation,
+            'version'   => $quotation->currentVersion,
+            'postUrl'   => \Illuminate\Support\Facades\URL::temporarySignedRoute('quotations.request.submit', now()->addDays(14), ['quotation' => $quotation->id]),
+        ]);
+    }
+
+    /** Recibe la cotización llena (firmado, sin login). Rellena el shell vacío o versiona. */
+    public function publicSubmit(Request $request, Quotation $quotation)
+    {
+        abort_if($quotation->isAccepted(), 410, 'La cotización ya fue aceptada.');
+        $data = $this->validated($request, false);
+
+        DB::transaction(function () use ($request, $data, $quotation) {
+            $quotation->emitter_name = $data['emitter_name'];
+            if (! empty($data['emitter_email'])) {
+                $quotation->emitter_email = $data['emitter_email'];
+            }
+
+            $prev      = $quotation->currentVersion;
+            $reuseShell = $prev && $prev->isEmpty();
+            $version = $reuseShell ? $prev : new QuotationVersion([
+                'quotation_id'  => $quotation->id,
+                'version_no'    => $prev ? ((int) $quotation->versions()->max('version_no') + 1) : 1,
+                'supersedes_id' => ($prev && ! $reuseShell) ? $prev->id : null,
+            ]);
+            $this->applyVersionData($version, $request, $data);
+            if ($version->source_kind === QuotationVersion::SOURCE_PDF && ! $request->hasFile('pdf') && $prev && $prev->isPdf() && ! $reuseShell) {
+                $version->pdf_path          = $prev->pdf_path;
+                $version->pdf_original_name = $prev->pdf_original_name;
+                $version->pdf_sha256        = $prev->pdf_sha256;
+            }
+            $version->save();
+            $this->syncItems($version, $request, $data);
+            $version->recomputeTotals();
+            $version->save();
+
+            $quotation->current_version_id = $version->id;
+            $quotation->status = Quotation::STATUS_RECEIVED;
+            $quotation->save();
+        });
+
+        return view('quotations.request-thanks', ['name' => $quotation->emitter_name]);
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────

@@ -89,6 +89,12 @@ class QuotationVersion extends Model
         return $this->source_kind === self::SOURCE_ITEMS;
     }
 
+    /** Shell vacío (sin PDF ni partidas) — se puede rellenar en su lugar en vez de versionar. */
+    public function isEmpty(): bool
+    {
+        return ! $this->pdf_path && $this->items()->count() === 0;
+    }
+
     /**
      * Recalcula subtotal/IVA/total desde las partidas. Respeta `iva_included`:
      *   - incluido → la suma de líneas YA trae IVA: total = suma; subtotal e IVA se despejan.
