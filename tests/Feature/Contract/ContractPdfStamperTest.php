@@ -10,6 +10,7 @@ use App\Models\PayeeContract;
 use App\Support\ContractPdfStamper;
 use App\Support\ContractSignedRenderer;
 use App\Support\CurrentProduction;
+use App\Support\PdfNormalizer;
 use Illuminate\Support\Facades\Storage;
 use setasign\Fpdi\Fpdi;
 use Tests\QaTestCase;
@@ -144,5 +145,18 @@ class ContractPdfStamperTest extends QaTestCase
         Storage::disk('local')->assertExists($meta['path']);
         $this->assertStringStartsWith('%PDF', Storage::disk('local')->get($meta['path']));
         $this->assertDatabaseHas('contract_envelope_events', ['envelope_id' => $env->id, 'event' => 'sealed']);
+    }
+
+    public function test_normalizer_detects_readable_vs_unreadable_pdf(): void
+    {
+        Storage::fake('local');
+        $this->makeSourcePdf('contract-templates/ok.pdf', 1);
+        Storage::disk('local')->put('contract-templates/bad.pdf', 'esto no es un pdf');
+
+        $this->assertTrue(PdfNormalizer::canParse(Storage::disk('local')->path('contract-templates/ok.pdf')));
+        $this->assertFalse(PdfNormalizer::canParse(Storage::disk('local')->path('contract-templates/bad.pdf')));
+
+        // Un PDF ya legible: ensureReadable devuelve true sin invocar Ghostscript.
+        $this->assertTrue(PdfNormalizer::ensureReadable('contract-templates/ok.pdf'));
     }
 }

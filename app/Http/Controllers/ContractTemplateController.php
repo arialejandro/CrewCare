@@ -9,6 +9,7 @@ use App\Support\ContractFonts;
 use App\Support\ContractPageSizes;
 use App\Support\ContractTemplateRenderer;
 use App\Support\CurrentProduction;
+use App\Support\PdfNormalizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -83,6 +84,16 @@ class ContractTemplateController extends Controller
         // Disco privado (storage/app): el PDF se sirve solo autenticado por pdfFile(), nunca público.
         $path = $file->store('contract-templates/' . ($prod ?: 'global'), 'local');
 
+        // Debe ser legible por FPDI para poder estamparlo. Ghostscript (si existe) normaliza comprimidos/
+        // protegidos-sin-clave; si aun así no se puede, se rechaza aquí (no se crea plantilla huérfana).
+        if (! PdfNormalizer::ensureReadable($path)) {
+            Storage::disk('local')->delete($path);
+
+            return back()->withInput()->withErrors([
+                'pdf' => __('No se pudo leer el PDF (¿está protegido con contraseña o candado?). Re-guárdalo sin protección y vuelve a subirlo.'),
+            ]);
+        }
+
         $tpl = ContractTemplate::create([
             'production_id'     => $prod,
             'name'              => $data['name'],
@@ -113,6 +124,36 @@ class ContractTemplateController extends Controller
             ['Content-Type' => 'application/pdf'],
             'inline'
         );
+    }
+
+    /**
+     * PREVIEW del PDF estampado con datos + firmas de EJEMPLO, en las etiquetas ACTUALES del editor
+     * (llegan en el POST, sin necesidad de guardar). Sirve para "ver cómo quedaría" antes de emitir.
+     */
+    public function pdfPreview(Request $request, ContractTemplate $template)
+    {
+        abort_unless($template->isPdfSource(), 404);
+
+        $decoded = json_decode((string) $request->input('field_map', 'null'), true);
+        $map = is_array($decoded) ? self::sanitizeFieldMap($decoded) : ($template->field_map ?? []);
+
+        // Plantilla EFÍMERA (no se guarda): mismo PDF, con las etiquetas del editor.
+        $preview = new ContractTemplate([
+            'source_kind' => ContractTemplate::SOURCE_PDF,
+            'pdf_path'    => $template->pdf_path,
+            'field_map'   => $map,
+        ]);
+
+        try {
+            $bytes = \App\Support\ContractPdfStamper::stampSample($preview, self::sampleValues(), self::sampleSignatures($map));
+        } catch (\Throwable $e) {
+            abort(422, $e->getMessage());
+        }
+
+        return response($bytes, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="preview.pdf"',
+        ]);
     }
 
     private function editView(ContractTemplate $template)
@@ -338,6 +379,50 @@ class ContractTemplateController extends Controller
         $map['__labels'] = $labels;
 
         return $map;
+    }
+
+    /** Firmas de EJEMPLO (PNG) para las anclas colocadas en el PDF preview: clave → ['image','signer']. */
+    private static function sampleSignatures(array $map): array
+    {
+        $names = ['Juan Pérez López', 'Ana García', 'Luis Martínez', 'Sofía Hernández'];
+        $out = [];
+        $i = 0;
+        foreach ($map as $f) {
+            if (($f['type'] ?? null) !== 'sign') {
+                continue;
+            }
+            $key = (string) ($f['key'] ?? '');
+            if ($key === '' || isset($out[$key])) {
+                continue;
+            }
+            $name = $names[$i++ % count($names)];
+            $out[$key] = ['image' => self::sampleSignaturePng($name), 'signer' => $name];
+        }
+
+        return $out;
+    }
+
+    /** Un PNG (data URI) con un trazo tipo firma + el nombre — solo para el preview del editor. */
+    private static function sampleSignaturePng(string $name): string
+    {
+        $w = 280;
+        $h = 70;
+        $im = imagecreatetruecolor($w, $h);
+        imagesavealpha($im, true);
+        imagefill($im, 0, 0, imagecolorallocatealpha($im, 255, 255, 255, 127));
+        $ink = imagecolorallocate($im, 20, 30, 60);
+        imagesetthickness($im, 2);
+        imageline($im, 12, $h - 22, (int) ($w * 0.55), 16, $ink);
+        imageline($im, (int) ($w * 0.55), 16, $w - 16, $h - 26, $ink);
+        // El texto built-in es ASCII: se translitera para no ensuciar el trazo con acentos rotos.
+        $ascii = (string) @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $name);
+        imagestring($im, 3, 12, $h - 18, $ascii ?: $name, $ink);
+        ob_start();
+        imagepng($im);
+        $bin = (string) ob_get_clean();
+        imagedestroy($im);
+
+        return 'data:image/png;base64,' . base64_encode($bin);
     }
 
 }

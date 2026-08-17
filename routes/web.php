@@ -941,6 +941,7 @@ Route::middleware(['auth', 'permission:contracts.author'])->group(function () {
     Route::get('/contratos/plantillas/nueva-pdf',          [\App\Http\Controllers\ContractTemplateController::class, 'createPdf'])->name('contracts.templates.create_pdf');
     Route::post('/contratos/plantillas-pdf',               [\App\Http\Controllers\ContractTemplateController::class, 'storePdf'])->name('contracts.templates.store_pdf');
     Route::get('/contratos/plantillas/{template}/archivo', [\App\Http\Controllers\ContractTemplateController::class, 'pdfFile'])->name('contracts.templates.pdf_file')->whereNumber('template');
+    Route::post('/contratos/plantillas/{template}/preview', [\App\Http\Controllers\ContractTemplateController::class, 'pdfPreview'])->name('contracts.templates.pdf_preview')->whereNumber('template');
     Route::get('/contratos/plantillas/{template}',         [\App\Http\Controllers\ContractTemplateController::class, 'edit'])->name('contracts.templates.edit')->whereNumber('template');
     Route::put('/contratos/plantillas/{template}',         [\App\Http\Controllers\ContractTemplateController::class, 'update'])->name('contracts.templates.update')->whereNumber('template');
     Route::post('/contratos/plantillas/{template}/toggle', [\App\Http\Controllers\ContractTemplateController::class, 'toggle'])->name('contracts.templates.toggle')->whereNumber('template');

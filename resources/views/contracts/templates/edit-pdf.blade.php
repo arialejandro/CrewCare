@@ -124,7 +124,8 @@
                             <hr class="my-3">
                             <div class="small text-muted mb-2" id="ccpeCount">—</div>
                             <button type="submit" class="btn btn-crew w-100">{{ __('Guardar etiquetas') }}</button>
-                            <div class="form-text mt-1">{{ __('Arrastra una etiqueta para moverla; usa la × para quitarla.') }}</div>
+                            <button type="button" id="ccpePreview" class="btn btn-crew-soft w-100 mt-2">{{ __('Ver cómo quedaría') }}</button>
+                            <div class="form-text mt-1">{{ __('Arrastra una etiqueta para moverla; usa la × para quitarla. La vista previa usa datos y firmas de ejemplo.') }}</div>
                         </div>
                     </div>
                 </div>
@@ -142,9 +143,11 @@
 <script src="{{ asset('js/vendor/pdfjs/pdf.min.js') }}"></script>
 <script>
 (function () {
-    var PDF_URL   = @json(route('contracts.templates.pdf_file', $template));
-    var WORKER    = @json(asset('js/vendor/pdfjs/pdf.worker.min.js'));
-    var EXISTING  = @json($template->placedFields());
+    var PDF_URL     = @json(route('contracts.templates.pdf_file', $template));
+    var WORKER      = @json(asset('js/vendor/pdfjs/pdf.worker.min.js'));
+    var PREVIEW_URL = @json(route('contracts.templates.pdf_preview', $template));
+    var CSRF        = @json(csrf_token());
+    var EXISTING    = @json($template->placedFields());
     var T = {
         armed:   @json(__('Colocando')),
         clickDoc: @json(__('— haz clic en el documento (Esc para cancelar).')),
@@ -354,6 +357,21 @@
 
     // Al enviar, asegura el JSON más reciente.
     document.getElementById('ccpeForm').addEventListener('submit', syncMap);
+
+    // "Ver cómo quedaría": estampa el PDF con las etiquetas ACTUALES + datos/firmas de ejemplo, en una
+    // pestaña nueva (POST directo del field_map, sin necesidad de guardar antes).
+    document.getElementById('ccpePreview').addEventListener('click', function () {
+        syncMap();
+        var f = document.createElement('form');
+        f.method = 'POST'; f.action = PREVIEW_URL; f.target = '_blank';
+        var t = document.createElement('input'); t.type = 'hidden'; t.name = '_token'; t.value = CSRF;
+        var m = document.createElement('input'); m.type = 'hidden'; m.name = 'field_map';
+        m.value = document.getElementById('ccpeFieldMap').value;
+        f.appendChild(t); f.appendChild(m);
+        document.body.appendChild(f);
+        f.submit();
+        document.body.removeChild(f);
+    });
 })();
 </script>
 @endpush

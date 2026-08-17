@@ -7,6 +7,7 @@ use App\Models\PayeeContract;
 use App\Support\CurrentProduction;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use setasign\Fpdi\Fpdi;
 use Tests\QaTestCase;
 
 /**
@@ -18,9 +19,25 @@ use Tests\QaTestCase;
  */
 class ContractPdfTemplateTest extends QaTestCase
 {
+    /** PDF REAL (no bytes basura): storePdf ahora exige que FPDI pueda leerlo. */
     private function samplePdf(): UploadedFile
     {
-        return UploadedFile::fake()->create('contrato-legal.pdf', 120, 'application/pdf');
+        $pdf = new Fpdi('P', 'pt');
+        $pdf->AddPage();
+        $pdf->SetFont('Helvetica', '', 12);
+        $pdf->Cell(0, 20, 'Contrato de prueba', 0, 1);
+
+        return UploadedFile::fake()->createWithContent('contrato-legal.pdf', (string) $pdf->Output('S'));
+    }
+
+    /** Genera un PDF real en el disco (fake) y devuelve su ruta relativa. */
+    private function seedSourcePdf(string $path): void
+    {
+        $pdf = new Fpdi('P', 'pt');
+        $pdf->AddPage();
+        $pdf->SetFont('Helvetica', 'B', 16);
+        $pdf->Cell(0, 20, 'CONTRATO ORIGINAL', 0, 1);
+        Storage::disk('local')->put($path, (string) $pdf->Output('S'));
     }
 
     public function test_store_pdf_creates_pdf_template_and_stores_file(): void
@@ -131,5 +148,36 @@ class ContractPdfTemplateTest extends QaTestCase
             'body' => '<p>x</p>', 'is_active' => false,
         ]);
         $this->get(route('contracts.templates.pdf_file', $html))->assertNotFound();
+    }
+
+    public function test_pdf_preview_stamps_sample_data_from_posted_field_map(): void
+    {
+        Storage::fake('local');
+        $this->actingAsRole('super-admin');
+        $this->seedSourcePdf('contract-templates/prev.pdf');
+
+        $tpl = ContractTemplate::create([
+            'production_id' => CurrentProduction::id(), 'name' => 'PDF prev', 'applies_to' => ['crew_work'],
+            'source_kind' => ContractTemplate::SOURCE_PDF, 'pdf_path' => 'contract-templates/prev.pdf',
+            'field_map' => [], 'is_active' => false,
+        ]);
+
+        // El editor manda las etiquetas ACTUALES (sin guardar) → sale un PDF estampado.
+        $res = $this->post(route('contracts.templates.pdf_preview', $tpl), [
+            'field_map' => json_encode([
+                ['page' => 1, 'x_pct' => 15, 'y_pct' => 50, 'w_pct' => 40, 'type' => 'data', 'key' => 'payee_nombre'],
+                ['page' => 1, 'x_pct' => 15, 'y_pct' => 70, 'w_pct' => 24, 'type' => 'sign', 'key' => 'contratado'],
+            ]),
+        ]);
+
+        $res->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF', $res->getContent());
+
+        // HTML → sin preview de PDF.
+        $htmlTpl = ContractTemplate::create([
+            'production_id' => CurrentProduction::id(), 'name' => 'HTML', 'applies_to' => ['crew_work'],
+            'body' => '<p>x</p>', 'is_active' => false,
+        ]);
+        $this->post(route('contracts.templates.pdf_preview', $htmlTpl), ['field_map' => '[]'])->assertNotFound();
     }
 }
