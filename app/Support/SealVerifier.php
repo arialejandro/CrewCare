@@ -102,12 +102,6 @@ class SealVerifier
         // rechazado / vencido, con su fecha vía sealRetirement()) / ALTERADO (solo si el hash del
         // paquete sellado no coincide). Un camino de escape NUNCA se lee como ALTERADO.
         'cenv'   => ['App\Models\ContractEnvelope',       'Sobre de contrato',         'CENV',  'CREWCARE-CENV'],
-        // (2026-08-17) Cotización ACEPTADA. La etiqueta es genérica para el acuse público: dice
-        // que es una cotización aceptada, nunca de quién ni el monto. El folio cae al patrón
-        // COTZ-#### (id). Solo la ACEPTADA se sella (con la autógrafa del Line Producer); dos
-        // estados: vigente / alterado. El sello cubre el hash del documento aceptado (PDF byte-intact
-        // o partidas congeladas) + quién/cuándo + la autógrafa.
-        'cotz'   => ['App\Models\Quotation',              'Cotización aceptada',       'COTZ',  'CREWCARE-COTZ'],
     ];
 
     /**

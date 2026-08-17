@@ -77,9 +77,6 @@ class RolesAndPermissionsSeeder extends Seeder
             // settings.manage. Solo Line Producer / representante legal: el contenido LEGAL es de la
             // PRODUCTORA (CrewCare solo ensambla, numera y estampa firmas; no redacta). 2026-08-14
             'contracts.author',
-            // Cotización (el paso previo al contrato) — 2026-08-17. manage = capturar/versionar/ver;
-            // accept = ACEPTAR (la aceptación la hace el Line Producer y sella la hoja).
-            'quotations.manage', 'quotations.accept',
             // Self profile
             'profile.update-own',
             // RBAC self-management — editar la matriz rol→permiso EN VIVO desde la UI.
@@ -152,7 +149,6 @@ class RolesAndPermissionsSeeder extends Seeder
             'documents.view', 'documents.create', 'documents.assign', 'documents.sign',
             'documents.manage-templates',
             'contracts.author', // redactar/ensamblar plantillas de contrato (2026-08-14)
-            'quotations.manage', 'quotations.accept', // cotización: captura/versiona + ACEPTA (2026-08-17)
             'badge.design', // diseñar plantilla de gafete (2026-07-06)
             'sds.view', 'sds.create', 'sds.manage', // SDS/consumibles SFX: autoridad verificadora (2026-07-16)
             'profile.update-own',
@@ -171,7 +167,6 @@ class RolesAndPermissionsSeeder extends Seeder
             'reports.view',
             'medical.view', // ve consultas médicas / expediente (grant de menú médico, 2026-07-06) — dato sensible
             'documents.view', 'documents.create', 'documents.assign', 'documents.sign',
-            'quotations.manage', // captura/versiona cotizaciones (oficina de producción); NO acepta (2026-08-17)
             'badge.design', // diseñar plantilla de gafete (2026-07-06)
             'profile.update-own',
         ]);
