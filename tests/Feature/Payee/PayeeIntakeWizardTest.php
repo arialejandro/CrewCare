@@ -54,6 +54,22 @@ class PayeeIntakeWizardTest extends QaTestCase
         $this->assertSame(0, PayeeBeneficiary::count());
     }
 
+    /** El paso EQUIPO no avanza en blanco: exige declarar equipo o marcar la aceptación. */
+    public function test_equipment_step_requires_declaration_or_acceptance(): void
+    {
+        $user = $this->makeUser('crew');
+
+        // En blanco (sin equipo y sin aceptar) → bloquea.
+        $this->post($this->signedStore($user), ['_step' => 'equipment'])->assertSessionHas('error');
+
+        // Marca "Acepto que lo no declarado no queda cubierto" → avanza.
+        $this->post($this->signedStore($user), ['_step' => 'equipment', 'accept_equipment' => 1])->assertRedirect();
+
+        // O declara equipo → avanza.
+        $this->post($this->signedStore($user), ['_step' => 'equipment',
+            'declared_equipment' => [0 => ['description' => 'Starlink', 'declared_value' => 9000]]])->assertRedirect();
+    }
+
     /** Un enlace EXPIRADO no deja entrar. */
     public function test_expired_link_is_denied(): void
     {

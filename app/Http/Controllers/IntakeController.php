@@ -166,6 +166,16 @@ class IntakeController extends Controller
             }
         }
 
+        // Pre-check EQUIPO (solo en el PASO del asistente, no en el full-submit de compat): no se
+        // avanza en blanco. O se DECLARA equipo (al menos una fila con descripción) o se MARCA
+        // "Acepto que lo no declarado no queda cubierto" — decisión explícita.
+        if ($step === 'equipment') {
+            $hasRow = collect($request->input('declared_equipment', []))->contains(fn ($e) => trim($e['description'] ?? '') !== '');
+            if (! $hasRow && ! $request->boolean('accept_equipment')) {
+                return back()->withInput()->with('error', 'En Equipo: agrega al menos un equipo, o marca “Acepto que lo no declarado no queda cubierto” para continuar.');
+            }
+        }
+
         DB::transaction(function () use ($request, $payee, $actor, $sections) {
             foreach ($sections as $s) {
                 $this->saveSection($request, $payee, $actor, $s);

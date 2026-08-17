@@ -75,6 +75,7 @@
     padding:12px 18px calc(12px + env(safe-area-inset-bottom));display:flex;gap:10px;max-width:560px;margin:0 auto}
   .btn{flex:1;height:54px;border:0;border-radius:13px;font-size:1rem;font-weight:800;cursor:pointer}
   .btn.next{background:var(--brand);color:var(--brand-on)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
   .btn.back{flex:0 0 34%;background:#1f2937;color:#cbd5e1}
 </style>
 </head>
@@ -265,7 +266,8 @@
             @endforeach
           </div>
           <button type="button" class="btn-ghost" data-add="declared_equipment">+ Agregar equipo</button>
-          <div class="toggle"><input type="checkbox" id="acc" name="accept_equipment" value="1"><label for="acc">Acepto que lo no declarado no queda cubierto.</label></div>
+          <div class="toggle"><input type="checkbox" id="acc" name="accept_equipment" value="1" @checked(old('accept_equipment'))><label for="acc">Acepto que lo no declarado no queda cubierto.</label></div>
+          <div class="hint" id="eqHint">Para continuar: agrega tu equipo o marca la casilla de arriba.</div>
           @break
 
         @case('logistics')
@@ -388,6 +390,27 @@ document.addEventListener('DOMContentLoaded', function () { window.__intakeTA.en
   }
   form.addEventListener('input', function (e) { if (e.target.classList.contains('pct')) recompute(); });
   recompute();
+
+  // GATE del paso EQUIPO: el botón se bloquea hasta que haya equipo (una fila con descripción)
+  // o se marque "Acepto que lo no declarado no queda cubierto". El servidor lo revalida.
+  var accChk = form.querySelector('input[name="accept_equipment"]');
+  if (accChk) {
+    var nextBtn = form.querySelector('button.next');
+    var eqHint  = document.getElementById('eqHint');
+    function eqGate() {
+      var hasRow = false;
+      form.querySelectorAll('[data-repeat="declared_equipment"] [name$="[description]"]').forEach(function (i) {
+        if (i.value.trim() !== '') { hasRow = true; }
+      });
+      var ok = hasRow || accChk.checked;
+      if (nextBtn) { nextBtn.disabled = ! ok; }
+      if (eqHint)  { eqHint.style.display = ok ? 'none' : 'block'; }
+    }
+    form.addEventListener('input', eqGate);
+    accChk.addEventListener('change', eqGate);
+    eqGate();
+  }
+
   // cc-drafts como RED contra lo tecleado antes de guardar (el avance real vive en el servidor).
   if (window.CCDrafts && CCDrafts.available) { try { CCDrafts.attach(form, { formType: 'intake-{{ $step }}' }); } catch (e) {} }
 })();
