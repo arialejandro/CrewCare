@@ -2,17 +2,24 @@
 -- CATÁLOGO DE EVENTOS + MEDIDAS DE CONTROL — base de producción (2026-08-17).
 --
 -- Reproduce EXACTAMENTE los 227 eventos verificados en local (207 originales +
--- 20 que agregó el owner) con su medida de control ES/EN y su categoría. Generado
--- desde la base local ya verificada; idempotente vía ON DUPLICATE KEY UPDATE por `code`.
+-- 20 que agregó el owner) con su medida de control ES/EN y su categoría, y los deja
+-- TODOS verificados. Generado desde la base local ya verificada; idempotente vía
+-- ON DUPLICATE KEY UPDATE por `code`.
+--
+-- ⚠⚠ CHARSET: la 1ª línea `SET NAMES utf8mb4` es OBLIGATORIA — sin ella, aplicar este
+--   archivo (UTF-8) por una conexión latin1 (MySQL 5.7 default de laragon) DOBLE-CODIFICA
+--   los acentos (ó→Ã³). NO la quites. Da igual el flag --default-character-set del cliente.
 --
 -- REQUISITO PREVIO: las columnas control_measure_es/_en deben existir → aplicar antes
 --   database/owner-apply/2026-08-01-hazard-control-measure.sql
 --
--- Al reaplicar: INSERTA los que falten; en los existentes SOLO actualiza las medidas y
--- RELLENA la categoría si estaba NULL (COALESCE) — nunca pisa una categoría ya puesta
--- ni toca name/description/ppe existentes. Aplicar MANUAL (NUNCA artisan migrate):
---   mysql --default-character-set=utf8mb4 -u root crewcare < database/owner-apply/2026-08-17-hazard-events-catalog-227.sql
+-- Al reaplicar: INSERTA los que falten; en los existentes SOLO actualiza medidas y
+-- RELLENA la categoría si estaba NULL (COALESCE) — nunca pisa name/description/ppe. Aplicar
+-- MANUAL (NUNCA artisan migrate):
+--   mysql -u root crewcare < database/owner-apply/2026-08-17-hazard-events-catalog-227.sql
 -- ============================================================================
+
+SET NAMES utf8mb4;
 
 INSERT INTO `hazard_events`
   (`code`,`context`,`category`,`name_es`,`name_en`,`description_es`,`description_en`,`control_measure_es`,`control_measure_en`,`default_likelihood`,`default_consequence`,`sort_order`,`is_active`)
@@ -252,6 +259,5 @@ ON DUPLICATE KEY UPDATE
 -- Verificar TODO el catálogo (decisión del owner 2026-08-17): la base curada nace
 -- VERIFICADA — verificar uno por uno sería demasiado lento. Idempotente: solo toca los
 -- pendientes, NUNCA re-sella los ya verificados. verified_by_id = NULL (verificado de
--- ORIGEN, sin autor). No afecta ningún documento sellado (hazard_events es catálogo, no
--- documento firmable; los reportes referencian el evento, no su verified_at).
+-- ORIGEN, sin autor). No afecta ningún documento sellado (hazard_events es catálogo).
 UPDATE `hazard_events` SET `verified_at` = NOW() WHERE `verified_at` IS NULL;
