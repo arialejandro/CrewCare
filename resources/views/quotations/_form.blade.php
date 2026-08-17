@@ -144,6 +144,11 @@
                 <input name="payment_terms" class="form-control" placeholder="Anticipo del 50% · Pago total al corte" value="{{ $val('payment_terms', optional($v)->payment_terms) }}"></div>
             <div class="col-md-6"><label class="form-label">{{ __('Datos bancarios del emisor') }}</label>
                 <input name="bank_details" class="form-control" value="{{ $val('bank_details', optional($v)->bank_details) }}"></div>
+            @if(! empty($isNewVersion))
+            <div class="col-12"><label class="form-label">{{ __('¿Qué cambió en esta versión?') }}</label>
+                <input name="change_note" class="form-control" placeholder="{{ __('Ej. Se ajustó el precio de la cámara tras negociar') }}" value="{{ $val('change_note') }}">
+                <div class="form-text">{{ __('La versión anterior se conserva intacta; queda en el historial.') }}</div></div>
+            @endif
         </div>
     </div></div>
 

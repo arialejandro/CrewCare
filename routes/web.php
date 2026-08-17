@@ -414,6 +414,8 @@ Route::middleware(['auth','permission:quotations.manage'])->group(function () {
     Route::get('/cotizaciones/{quotation}', [App\Http\Controllers\QuotationController::class, 'show'])->name('quotations.show')->whereNumber('quotation');
     Route::get('/cotizaciones/{quotation}/editar', [App\Http\Controllers\QuotationController::class, 'edit'])->name('quotations.edit')->whereNumber('quotation');
     Route::put('/cotizaciones/{quotation}', [App\Http\Controllers\QuotationController::class, 'update'])->name('quotations.update')->whereNumber('quotation');
+    Route::get('/cotizaciones/{quotation}/nueva-version', [App\Http\Controllers\QuotationController::class, 'newVersion'])->name('quotations.new_version')->whereNumber('quotation');
+    Route::post('/cotizaciones/{quotation}/versiones', [App\Http\Controllers\QuotationController::class, 'storeVersion'])->name('quotations.store_version')->whereNumber('quotation');
     Route::get('/cotizaciones/{quotation}/version/{version}/pdf', [App\Http\Controllers\QuotationController::class, 'versionPdf'])->name('quotations.version_pdf')->whereNumber('quotation')->whereNumber('version');
 });
 

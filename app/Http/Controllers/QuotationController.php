@@ -132,6 +132,64 @@ class QuotationController extends Controller
         return redirect()->route('quotations.show', $quotation)->with('status', 'Cotización actualizada.');
     }
 
+    // ── Versionado (negociar es versionar) ─────────────────────────────────────
+    /** Formulario de NUEVA versión, prellenado desde la versión en curso (para ajustar el monto). */
+    public function newVersion(Quotation $quotation)
+    {
+        abort_unless($quotation->isVisibleTo(auth()->user()), 403);
+        abort_unless(! $quotation->isAccepted(), 403, 'Una cotización aceptada no se renegocia.');
+        $quotation->load('currentVersion.items');
+
+        return view('quotations.new-version', [
+            'quotation'   => $quotation,
+            'version'     => $quotation->currentVersion,
+            'departments' => Department::orderBy('name')->get(),
+        ]);
+    }
+
+    /**
+     * Crea una VERSIÓN nueva que referencia la anterior (`supersedes_id`); la anterior NO se
+     * altera ni se borra. La cotización pasa a "en negociación". Si es PDF y no se sube uno
+     * nuevo, se arrastra el de la versión previa (byte-intact, archivo inmutable compartido).
+     */
+    public function storeVersion(Request $request, Quotation $quotation)
+    {
+        abort_unless($quotation->isVisibleTo(auth()->user()), 403);
+        abort_unless(! $quotation->isAccepted(), 403, 'Una cotización aceptada no se renegocia.');
+        $data = $this->validated($request, false);
+
+        DB::transaction(function () use ($request, $data, $quotation) {
+            $prev   = $quotation->currentVersion;
+            $nextNo = (int) $quotation->versions()->max('version_no') + 1;
+
+            $version = new QuotationVersion([
+                'quotation_id'  => $quotation->id,
+                'version_no'    => $nextNo,
+                'supersedes_id' => $prev?->id,
+                'created_by_id' => $request->user()->id,
+            ]);
+            $this->applyVersionData($version, $request, $data);
+            // PDF sin archivo nuevo → arrastra el de la versión previa (no se re-sube ni se toca).
+            if ($version->source_kind === QuotationVersion::SOURCE_PDF && ! $request->hasFile('pdf') && $prev && $prev->isPdf()) {
+                $version->pdf_path          = $prev->pdf_path;
+                $version->pdf_original_name = $prev->pdf_original_name;
+                $version->pdf_sha256        = $prev->pdf_sha256;
+            }
+            $version->save();
+            $this->syncItems($version, $request, $data);
+            $version->recomputeTotals();
+            $version->save();
+
+            $quotation->current_version_id = $version->id;
+            if ($quotation->status === Quotation::STATUS_RECEIVED) {
+                $quotation->status = Quotation::STATUS_NEGOTIATING;
+            }
+            $quotation->save();
+        });
+
+        return redirect()->route('quotations.show', $quotation)->with('status', 'Nueva versión registrada. La anterior quedó en el historial.');
+    }
+
     /** Sirve el PDF de una versión TAL CUAL se subió (byte-intact); nunca se modifica. */
     public function versionPdf(Quotation $quotation, QuotationVersion $version)
     {

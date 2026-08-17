@@ -29,6 +29,7 @@
             </div>
             <div class="ms-auto d-flex gap-2">
                 @if(! $quotation->isAccepted())
+                    <a href="{{ route('quotations.new_version', $quotation) }}" class="btn btn-crew">{{ __('Nueva versión') }}</a>
                     <a href="{{ route('quotations.edit', $quotation) }}" class="btn btn-crew-soft">{{ __('Editar') }}</a>
                 @endif
                 <a href="{{ route('quotations.index') }}" class="btn btn-crew-soft">{{ __('← Cotizaciones') }}</a>
@@ -93,6 +94,35 @@
                 @if($quotation->department)<dt class="col-sm-3">{{ __('Departamento') }}</dt><dd class="col-sm-9">{{ $quotation->department->name }}</dd>@endif
                 @if($quotation->location_name)<dt class="col-sm-3">{{ __('Locación') }}</dt><dd class="col-sm-9">{{ $quotation->location_name }}</dd>@endif
             </dl>
+        </div></div>
+        @endif
+
+        {{-- Historial de versiones (negociar es versionar) --}}
+        @if($quotation->versions->count() > 1)
+        <div class="card mb-3"><div class="card-body">
+            <h2 class="h6 mb-3">{{ __('Historial de versiones') }}</h2>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>{{ __('Versión') }}</th><th class="text-end">{{ __('Total') }}</th><th class="text-end">{{ __('Cambio') }}</th><th>{{ __('Qué cambió') }}</th><th>{{ __('Fecha') }}</th></tr></thead>
+                    <tbody>
+                        @foreach($quotation->versions->sortByDesc('version_no') as $ver)
+                            @php
+                                $prevTotal = $ver->supersedes_id ? optional($quotation->versions->firstWhere('id', $ver->supersedes_id))->total : null;
+                                $delta = $prevTotal !== null ? ((float) $ver->total - (float) $prevTotal) : null;
+                            @endphp
+                            <tr class="{{ $ver->id === $quotation->current_version_id ? 'table-active' : '' }}">
+                                <td>v{{ $ver->version_no }}@if($ver->id === $quotation->current_version_id) <span class="badge text-bg-success">{{ __('actual') }}</span>@endif</td>
+                                <td class="text-end">{{ $money($ver->total) }}</td>
+                                <td class="text-end {{ $delta > 0 ? 'text-danger' : ($delta < 0 ? 'text-success' : 'text-muted') }}">
+                                    {{ $delta === null ? '—' : ($delta > 0 ? '+' : '').number_format($delta, 2) }}
+                                </td>
+                                <td class="small">{{ $ver->change_note ?: '—' }}</td>
+                                <td class="small text-muted">{{ optional($ver->created_at)->format('d/m/Y H:i') }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div></div>
         @endif
     </div>
