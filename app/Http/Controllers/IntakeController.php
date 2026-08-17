@@ -125,16 +125,23 @@ class IntakeController extends Controller
             $step = collect(self::STEPS)->first(fn ($s) => ! $completed[$s]) ?: self::STEPS[0];
         }
 
+        // El Certificado de seguro (COI) no se pide en el intake de la persona (no es doc de
+        // captura del titular); si algún día se requiere, se administra en el paquete/facturación.
+        $requiredDocs = PayeePackage::identityRequirements($prodId, $payee->legal_nature ?: 'fisica', $payee->nationality ?: 'mexicana')
+            ->reject(fn ($d) => $d->code === 'COI')
+            ->values();
+
         return view('payee.intake', [
-            'payee'        => $payee,
-            'isSelf'       => $isSelf,
-            'step'         => $step,
-            'steps'        => self::STEPS,
-            'completed'    => $completed,
-            'requiredDocs' => PayeePackage::identityRequirements($prodId, $payee->legal_nature ?: 'fisica', $payee->nationality ?: 'mexicana'),
-            'threshold'    => ProductionDocumentSetting::equipmentThresholdFor($prodId),
-            'postUrl'      => $this->postUrl($isSelf, $payee),
-            'navUrl'       => fn ($s) => $this->navUrl($isSelf, $payee, $s),
+            'payee'          => $payee,
+            'isSelf'         => $isSelf,
+            'step'           => $step,
+            'steps'          => self::STEPS,
+            'completed'      => $completed,
+            'requiredDocs'   => $requiredDocs,
+            'regimenOptions' => \App\Support\SatCatalogs::regimenesFor($payee->legal_nature ?: 'fisica'),
+            'threshold'      => ProductionDocumentSetting::equipmentThresholdFor($prodId),
+            'postUrl'        => $this->postUrl($isSelf, $payee),
+            'navUrl'         => fn ($s) => $this->navUrl($isSelf, $payee, $s),
         ]);
     }
 
@@ -144,11 +151,18 @@ class IntakeController extends Controller
         $step = $request->input('_step');                       // null = todo de una (compat/tests)
         $sections = ($step && in_array($step, self::STEPS, true)) ? [$step] : self::STEPS;
 
-        // Pre-check beneficiarios 100% ANTES de escribir nada (si toca la sección emergency).
+        // Pre-check beneficiarios ANTES de escribir nada (si toca la sección emergency). Los
+        // beneficiarios son OPCIONALES (sin ninguno se avanza), pero si nombras al menos uno:
+        // cada uno necesita % > 0 y el conjunto debe sumar EXACTAMENTE 100. (El nombre + parentesco
+        // + % de cada fila llegan juntos gracias a los índices explícitos del formulario.)
         if (in_array('emergency', $sections, true)) {
             $bens = collect($request->input('beneficiaries', []))->filter(fn ($b) => trim($b['full_name'] ?? '') !== '');
-            if ($bens->isNotEmpty() && round($bens->sum(fn ($b) => (float) ($b['percentage'] ?? 0)), 2) !== 100.00) {
-                return back()->withInput()->with('error', 'Los beneficiarios deben sumar exactamente 100%.');
+            if ($bens->isNotEmpty()) {
+                $sum        = round($bens->sum(fn ($b) => (float) ($b['percentage'] ?? 0)), 2);
+                $anyInvalid = $bens->contains(fn ($b) => (float) ($b['percentage'] ?? 0) <= 0);
+                if ($anyInvalid || $sum !== 100.00) {
+                    return back()->withInput()->with('error', 'Cada beneficiario necesita un porcentaje y juntos deben sumar exactamente 100%.');
+                }
             }
         }
 
@@ -210,8 +224,12 @@ class IntakeController extends Controller
                 $payee->save();
                 $payee->fiscalRegimes()->delete();
                 foreach ((array) $request->input('regimes', []) as $r) {
-                    if (trim($r['name'] ?? '') !== '') {
-                        $payee->fiscalRegimes()->create(['code' => $r['code'] ?? null, 'name' => $r['name']]);
+                    $code = trim((string) ($r['code'] ?? ''));
+                    // El NOMBRE lo deriva el catálogo SAT desde la clave (el dropdown manda solo la
+                    // clave); fallback al nombre posteado si la clave no está en el catálogo (compat).
+                    $name = \App\Support\SatCatalogs::regimenName($code) ?? trim((string) ($r['name'] ?? ''));
+                    if ($code !== '' || $name !== '') {
+                        $payee->fiscalRegimes()->create(['code' => $code ?: null, 'name' => $name !== '' ? $name : $code]);
                     }
                 }
                 break;
@@ -251,9 +269,10 @@ class IntakeController extends Controller
             case 'emergency':
                 $request->validate([
                     'emergency_contact_name' => 'nullable|string|max:160', 'emergency_contact_phone' => 'nullable|string|max:40',
+                    'emergency_contact_relationship' => 'nullable|string|max:60',
                     'beneficiaries' => 'nullable|array',
                 ]);
-                $payee->fill($request->only(['emergency_contact_name', 'emergency_contact_phone']));
+                $payee->fill($request->only(['emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relationship']));
                 $payee->save();
                 $bens = collect($request->input('beneficiaries', []))->filter(fn ($b) => trim($b['full_name'] ?? '') !== '')->values();
                 $payee->beneficiaries()->delete();

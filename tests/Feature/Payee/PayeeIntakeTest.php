@@ -76,6 +76,63 @@ class PayeeIntakeTest extends QaTestCase
         $this->assertSame(2, PayeeBeneficiary::count(), '100% sí se guarda');
     }
 
+    /**
+     * El beneficiario guarda su parentesco y % SIN corromperse, y el contacto de emergencia
+     * guarda su propio parentesco (columna nueva). Blinda el bug de "name[][campo]" que partía
+     * cada fila en varias y perdía parentesco/porcentaje.
+     */
+    public function test_emergency_saves_relationships_and_beneficiary_details(): void
+    {
+        $user = $this->makeUser('crew');
+
+        $this->post($this->signedStore($user), [
+            '_step' => 'emergency',
+            'emergency_contact_name' => 'María López',
+            'emergency_contact_phone' => '5512345678',
+            'emergency_contact_relationship' => 'Madre',
+            'beneficiaries' => [
+                0 => ['full_name' => 'Hijo Uno', 'relationship' => 'Hijo(a)', 'percentage' => 60],
+                1 => ['full_name' => 'Hija Dos', 'relationship' => 'Hijo(a)', 'percentage' => 40],
+            ],
+        ])->assertRedirect(); // avanza (emergency no es el último paso)
+
+        $payee = Payee::where('user_id', $user->id)->firstOrFail();
+        $this->assertSame('Madre', $payee->emergency_contact_relationship);
+
+        $bens = PayeeBeneficiary::orderBy('sort_order')->get();
+        $this->assertCount(2, $bens);
+        $this->assertSame('Hijo(a)', $bens[0]->relationship, 'el parentesco no se pierde');
+        $this->assertSame('60.00', (string) $bens[0]->percentage, 'el % no se corrompe a 0');
+        $this->assertSame('40.00', (string) $bens[1]->percentage);
+    }
+
+    /** Un beneficiario con NOMBRE pero % vacío NO deja avanzar (antes se colaba). */
+    public function test_named_beneficiary_with_blank_percentage_blocks(): void
+    {
+        $user = $this->makeUser('crew');
+
+        $this->post($this->signedStore($user), ['beneficiaries' => [
+            0 => ['full_name' => 'Solo Nombre', 'relationship' => 'Hijo(a)', 'percentage' => ''],
+        ]])->assertSessionHas('error');
+        $this->assertSame(0, PayeeBeneficiary::count());
+    }
+
+    /** El régimen deriva su NOMBRE desde la clave SAT (el dropdown solo manda la clave). */
+    public function test_regime_name_is_derived_from_sat_code(): void
+    {
+        $user = $this->makeUser('crew');
+
+        $this->post($this->signedStore($user), [
+            '_step' => 'fiscal',
+            'regimes' => [0 => ['code' => '626']], // solo la clave
+        ])->assertRedirect();
+
+        $reg = Payee::where('user_id', $user->id)->firstOrFail()->fiscalRegimes()->first();
+        $this->assertNotNull($reg);
+        $this->assertSame('626', $reg->code);
+        $this->assertStringContainsString('Simplificado de Confianza', $reg->name);
+    }
+
     /** Equipo declarado sobre el umbral queda FIRMADO (capa simple); bajo el umbral se ignora. */
     public function test_declared_equipment_over_threshold_is_signed(): void
     {

@@ -1,4 +1,8 @@
 {{-- PASO 3 · pantalla pública tras enviar el intake (link firmado, sin sesión). Autocontenida. --}}
+@php
+    $brand   = \App\Support\Branding::all()['primary_color'] ?? '#ff9900';
+    $brandOn = \App\Support\Branding::textOn($brand);
+@endphp
 <!doctype html>
 <html lang="es">
 <head>
@@ -6,6 +10,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Intake recibido — CrewCare</title>
     <style>
+        :root{--brand:{{ $brand }};--brand-on:{{ $brandOn }}}
         body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b0f16;color:#e5e7eb;
             font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
         .card{max-width:460px;margin:24px;padding:32px 28px;background:#111827;border:1px solid rgba(255,255,255,.08);
@@ -15,6 +20,8 @@
         h1{font-size:1.25rem;margin:0 0 8px}
         p{color:#9aa5b5;line-height:1.5;margin:0 0 6px}
         .name{color:#fff;font-weight:700}
+        .btn{display:inline-block;margin-top:18px;height:48px;line-height:48px;padding:0 22px;border-radius:12px;
+            background:var(--brand);color:var(--brand-on);font-weight:800;text-decoration:none}
     </style>
 </head>
 <body>
@@ -24,7 +31,10 @@
         </div>
         <h1>Gracias{{ !empty($name) ? ', ' : '' }}<span class="name">{{ $name ?? '' }}</span></h1>
         <p>Tu información quedó <strong>RECIBIDA</strong>.</p>
-        <p>La producción la revisará. Puedes cerrar esta ventana.</p>
+        <p>La producción la revisará.@guest Puedes cerrar esta ventana.@endguest</p>
+        @auth
+            <a class="btn" href="{{ route('perfil') }}">Volver a mi perfil</a>
+        @endauth
     </div>
 </body>
 </html>

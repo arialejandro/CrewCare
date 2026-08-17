@@ -39,7 +39,7 @@ class Payee extends Model
         'phone', 'email', 'legal_representative',
         'addr_street', 'addr_ext_no', 'addr_int_no', 'addr_colonia', 'addr_municipio',
         'addr_cp', 'addr_city', 'addr_state',
-        'emergency_contact_name', 'emergency_contact_phone',
+        'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relationship',
         'shirt_size', 'is_vegetarian', 'is_donor', 'intake_submitted_at',
     ];
 

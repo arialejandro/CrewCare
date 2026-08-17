@@ -2,6 +2,10 @@
      coteja la FECHA DE NACIMIENTO (el dato que el alta ya exige). NO es muro: si no coincide
      avisa sin bloquear y dirige a producción. Autocontenida y móvil-first, misma piel que el
      asistente. --}}
+@php
+    $brand   = \App\Support\Branding::all()['primary_color'] ?? '#ff9900';
+    $brandOn = \App\Support\Branding::textOn($brand);
+@endphp
 <!doctype html>
 <html lang="es">
 <head>
@@ -10,23 +14,24 @@
 <title>Registro — CrewCare</title>
 <style>
   *{box-sizing:border-box}
+  :root{--brand:{{ $brand }};--brand-on:{{ $brandOn }}}
   body{margin:0;background:#0b0f16;color:#e5e7eb;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
     -webkit-text-size-adjust:100%}
   .wrap{max-width:480px;margin:0 auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;
     justify-content:center;padding:24px 20px calc(24px + env(safe-area-inset-bottom))}
-  .brand{font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:#f5b301;font-weight:800}
+  .brand{font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--brand);font-weight:800}
   h1{font-size:1.35rem;font-weight:800;color:#fff;margin:14px 0 6px;line-height:1.25}
   .who{font-size:.9rem;color:#9aa5b5;margin-bottom:18px}
   .who b{color:#fff}
   label{display:block;font-size:.78rem;color:#c7ccd6;margin:6px 0 6px;font-weight:600}
   input{width:100%;height:54px;padding:0 14px;font-size:16px;color:#fff;background:#111827;
     border:1px solid #2b3648;border-radius:12px;outline:none}
-  input:focus{border-color:#f5b301}
+  input:focus{border-color:var(--brand)}
   .hint{font-size:.78rem;color:#9aa5b5;margin-top:10px;line-height:1.45}
   .banner{margin:2px 0 14px;padding:12px 14px;border-radius:12px;font-size:.86rem;line-height:1.4;
     background:rgba(245,179,1,.12);border:1px solid rgba(245,179,1,.4);color:#fcd34d}
   .btn{width:100%;height:54px;margin-top:18px;border:0;border-radius:13px;font-size:1rem;font-weight:800;
-    cursor:pointer;background:#f5b301;color:#111}
+    cursor:pointer;background:var(--brand);color:var(--brand-on)}
   .btn[disabled]{opacity:.5;cursor:not-allowed}
 </style>
 </head>
