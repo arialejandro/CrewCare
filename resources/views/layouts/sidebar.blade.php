@@ -326,7 +326,7 @@
             @endcanany
 
             {{-- ===== PRODUCCIÓN · contratos ===== --}}
-            @canany(['settings.manage', 'contracts.author'])
+            @canany(['settings.manage', 'contracts.author', 'quotations.manage'])
                 <div class="cc-sec" data-open="false">
                     <button type="button" class="cc-sec-head" aria-expanded="false">
                         @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-sec-head__ico', 'label' => null])
@@ -736,7 +736,7 @@
                 @endcanany
 
                 {{-- ===== PRODUCCIÓN · contratos ===== --}}
-                @canany(['settings.manage', 'contracts.author'])
+                @canany(['settings.manage', 'contracts.author', 'quotations.manage'])
                     <div class="cc-sec" data-open="false">
                         <button type="button" class="cc-sec-head" aria-expanded="false">
                             @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-sec-head__ico', 'label' => null])

@@ -139,4 +139,15 @@ class Quotation extends Model
     {
         return static::query()->whereKey($this->getKey())->visibleTo($viewer)->exists();
     }
+
+    // ── Consulta (PULL, no push): el Infosheet toma los importes y el sobre la lista como anexo ──
+    /** Cotizaciones ACEPTADAS de un payee (para el Infosheet y la biblioteca de anexos del sobre). */
+    public static function acceptedForPayee($payeeId)
+    {
+        return static::where('payee_id', $payeeId)
+            ->where('status', self::STATUS_ACCEPTED)
+            ->with('acceptedVersion')
+            ->orderByDesc('accepted_at')
+            ->get();
+    }
 }

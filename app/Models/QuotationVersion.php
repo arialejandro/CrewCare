@@ -55,6 +55,30 @@ class QuotationVersion extends Model
         return $this->hasMany(QuotationItem::class, 'quotation_version_id')->orderBy('sort_order');
     }
 
+    /**
+     * Hash del CONTENIDO aceptado (lo que carga la hoja de aceptación y verifica el sello):
+     *   - PDF  → el sha256 del archivo tal cual se recibió (byte-intact).
+     *   - items → sha256 determinista de las partidas congeladas + importes + número.
+     */
+    public function contentHash(): string
+    {
+        if ($this->isPdf()) {
+            return (string) $this->pdf_sha256;
+        }
+        $payload = [
+            'number'   => $this->quotation_number,
+            'subtotal' => (string) $this->subtotal,
+            'iva'      => (string) $this->iva_amount,
+            'total'    => (string) $this->total,
+            'items'    => $this->items()->orderBy('sort_order')->get()->map(fn ($i) => [
+                $i->description, (string) $i->quantity,
+                $i->days !== null ? (string) $i->days : null,
+                (string) $i->unit_price, (string) $i->line_total,
+            ])->all(),
+        ];
+        return hash('sha256', json_encode($payload, JSON_UNESCAPED_UNICODE));
+    }
+
     public function isPdf(): bool
     {
         return $this->source_kind === self::SOURCE_PDF;

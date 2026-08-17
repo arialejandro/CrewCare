@@ -203,6 +203,84 @@ class QuotationController extends Controller
         ]);
     }
 
+    // ── Aceptación (Line Producer) ─────────────────────────────────────────────
+    /** Pantalla de aceptación: resumen + pad de firma. Vencida advierte, no bloquea. */
+    public function showAccept(Quotation $quotation)
+    {
+        abort_unless($quotation->isVisibleTo(auth()->user()), 403);
+        abort_if($quotation->isAccepted(), 409, 'La cotización ya fue aceptada.');
+        $quotation->load('currentVersion.items');
+
+        return view('quotations.accept', [
+            'quotation' => $quotation,
+            'version'   => $quotation->currentVersion,
+        ]);
+    }
+
+    /**
+     * Acepta la cotización: sella (HasDigitalSignatures) con la autógrafa y genera la HOJA DE
+     * ACEPTACIÓN (dompdf). NO toca el PDF subido (byte-intact). El enganche con payee / Infosheet /
+     * anexo del sobre (PASO F) vive en {@see \App\Support\QuotationAcceptance}.
+     */
+    public function accept(Request $request, Quotation $quotation)
+    {
+        abort_unless($quotation->isVisibleTo($request->user()), 403);
+        abort_if($quotation->isAccepted(), 409, 'La cotización ya fue aceptada.');
+        $version = $quotation->currentVersion;
+        abort_if(! $version, 422, 'La cotización no tiene contenido que aceptar.');
+
+        $data = $request->validate([
+            'signature_image' => 'required|string|min:100',
+            'save_signature'  => 'nullable|boolean',
+        ]);
+
+        DB::transaction(function () use ($request, $data, $quotation, $version) {
+            // PASO F PRIMERO: fija payee_id (en memoria) + provisiona externo-lite + satisface el
+            // requisito COTIZACION. Se hace ANTES de sellar para que `payee_id` entre al hash.
+            \App\Support\QuotationAcceptance::wire($quotation, $request->user());
+
+            $quotation->accepted_by_user_id         = $request->user()->id;
+            $quotation->accepted_at                 = now();
+            $quotation->accepted_version_id         = $version->id;
+            $quotation->accepted_doc_hash           = $version->contentHash();
+            $quotation->acceptance_signature_image  = $data['signature_image'];
+            $quotation->status                      = Quotation::STATUS_ACCEPTED;
+            $quotation->save();
+
+            // ⚠ refresh ANTES de sellar: alinea microsegundos/decimales con la BD para que el
+            // hash recomputado desde fresh() case (landmine conocido del sellado).
+            $quotation->refresh();
+            $quotation->signDocument($request->user());
+
+            if ($request->boolean('save_signature')) {
+                $u = $request->user();
+                $u->adopted_signature = $data['signature_image'];
+                $u->save();
+            }
+
+            // Hoja de aceptación (render de datos YA sellados). El path se excluye del hash.
+            $pdf  = \App\Support\QuotationAcceptanceSheet::pdf($quotation->fresh());
+            $path = 'quotations/'.$quotation->id.'/aceptacion_'.$quotation->id.'.pdf';
+            \Illuminate\Support\Facades\Storage::disk('local')->put($path, $pdf);
+            $quotation->acceptance_sheet_path = $path;
+            $quotation->save();
+        });
+
+        return redirect()->route('quotations.show', $quotation)->with('status', 'Cotización aceptada y sellada.');
+    }
+
+    /** Sirve la hoja de aceptación (dompdf) ya generada; visible para quien ve la cotización. */
+    public function acceptanceSheet(Quotation $quotation)
+    {
+        abort_unless($quotation->isVisibleTo(auth()->user()), 403);
+        abort_unless($quotation->acceptance_sheet_path && \Illuminate\Support\Facades\Storage::disk('local')->exists($quotation->acceptance_sheet_path), 404);
+
+        return response(\Illuminate\Support\Facades\Storage::disk('local')->get($quotation->acceptance_sheet_path), 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="aceptacion-cotizacion.pdf"',
+        ]);
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────────
 
     /** Validación compartida. $isCreate exige el PDF cuando la fuente es 'pdf'. */

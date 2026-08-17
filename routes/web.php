@@ -417,6 +417,14 @@ Route::middleware(['auth','permission:quotations.manage'])->group(function () {
     Route::get('/cotizaciones/{quotation}/nueva-version', [App\Http\Controllers\QuotationController::class, 'newVersion'])->name('quotations.new_version')->whereNumber('quotation');
     Route::post('/cotizaciones/{quotation}/versiones', [App\Http\Controllers\QuotationController::class, 'storeVersion'])->name('quotations.store_version')->whereNumber('quotation');
     Route::get('/cotizaciones/{quotation}/version/{version}/pdf', [App\Http\Controllers\QuotationController::class, 'versionPdf'])->name('quotations.version_pdf')->whereNumber('quotation')->whereNumber('version');
+    Route::get('/cotizaciones/{quotation}/hoja-aceptacion', [App\Http\Controllers\QuotationController::class, 'acceptanceSheet'])->name('quotations.acceptance_sheet')->whereNumber('quotation');
+});
+
+// ACEPTACIÓN de la cotización — la hace el LINE PRODUCER (permiso quotations.accept, aparte de
+// manage). Sella la hoja de aceptación con su autógrafa; el PDF cotizado NO se toca.
+Route::middleware(['auth','permission:quotations.accept'])->group(function () {
+    Route::get('/cotizaciones/{quotation}/aceptar', [App\Http\Controllers\QuotationController::class, 'showAccept'])->name('quotations.accept.show')->whereNumber('quotation');
+    Route::post('/cotizaciones/{quotation}/aceptar', [App\Http\Controllers\QuotationController::class, 'accept'])->name('quotations.accept')->whereNumber('quotation');
 });
 
 // ---- VERIFICACIÓN DE AMBULANCIAS (2026-08-08 · deltas #51/#52) ----

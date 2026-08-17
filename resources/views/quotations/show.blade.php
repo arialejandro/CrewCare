@@ -29,7 +29,8 @@
             </div>
             <div class="ms-auto d-flex gap-2">
                 @if(! $quotation->isAccepted())
-                    <a href="{{ route('quotations.new_version', $quotation) }}" class="btn btn-crew">{{ __('Nueva versión') }}</a>
+                    @can('quotations.accept')<a href="{{ route('quotations.accept.show', $quotation) }}" class="btn btn-crew">{{ __('Aceptar') }}</a>@endcan
+                    <a href="{{ route('quotations.new_version', $quotation) }}" class="btn btn-crew-soft">{{ __('Nueva versión') }}</a>
                     <a href="{{ route('quotations.edit', $quotation) }}" class="btn btn-crew-soft">{{ __('Editar') }}</a>
                 @endif
                 <a href="{{ route('quotations.index') }}" class="btn btn-crew-soft">{{ __('← Cotizaciones') }}</a>
@@ -40,6 +41,26 @@
 
         @if($quotation->isExpired() && ! $quotation->isAccepted())
             <div class="alert alert-warning small">{{ __('La vigencia de esta cotización ya venció. Se puede renegociar o aceptar igual.') }}</div>
+        @endif
+
+        @if($quotation->isAccepted())
+            @php $sealOk = $quotation->verifyLatestSignature(); @endphp
+            <div class="card mb-3 border-success"><div class="card-body">
+                <h2 class="h6 mb-2">@include('componentes._icon', ['name' => 'check-circle', 'label' => null]) {{ __('Cotización aceptada') }}
+                    @if($sealOk === true)<span class="badge text-bg-success">{{ __('Sello íntegro') }}</span>
+                    @elseif($sealOk === false)<span class="badge text-bg-danger">{{ __('Alterada') }}</span>@endif
+                </h2>
+                <p class="small mb-2">{{ __('Aceptada por') }}
+                    <strong>{{ trim(optional($quotation->acceptedBy)->name.' '.optional($quotation->acceptedBy)->lname) }}</strong>
+                    {{ __('el') }} {{ optional($quotation->accepted_at)->format('d/m/Y H:i') }}.
+                    @if($quotation->payee)· {{ __('Ligada a') }} <strong>{{ $quotation->payee->name }}</strong>@endif
+                </p>
+                <div class="d-flex gap-2 flex-wrap">
+                    @if($quotation->acceptance_sheet_path)
+                        <a href="{{ route('quotations.acceptance_sheet', $quotation) }}" target="_blank" class="btn btn-sm btn-crew-soft">{{ __('Hoja de aceptación (PDF)') }}</a>
+                    @endif
+                </div>
+            </div></div>
         @endif
 
         {{-- Contenido de la versión en curso --}}
