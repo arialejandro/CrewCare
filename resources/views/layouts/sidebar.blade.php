@@ -354,6 +354,12 @@
                         </a>
                         @endcan
                         @endcan
+                        @can('quotations.manage')
+                        <a href="{{ route('quotations.index') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Cotizaciones') }}</span>
+                        </a>
+                        @endcan
                         @can('contracts.author')
                         <a href="{{ route('contracts.templates.index') }}" class="cc-item">
                             @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
@@ -757,6 +763,12 @@
                                 <span>{{ __('Emisión masiva') }}</span>
                             </a>
                             @endcan
+                            @endcan
+                            @can('quotations.manage')
+                            <a href="{{ route('quotations.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Cotizaciones') }}</span>
+                            </a>
                             @endcan
                             @can('contracts.author')
                             <a href="{{ route('contracts.templates.index') }}" class="cc-item">

@@ -402,6 +402,21 @@ Route::middleware(['auth','permission:permits.issue'])->group(function () {
     Route::post('/permisos/{issued:uuid}/suspender', [App\Http\Controllers\PermitController::class, 'suspend'])->name('permits.suspend')->where('issued', '[0-9a-fA-F-]{36}');
 });
 
+// ---- COTIZACIÓN (2026-08-17) — el paso PREVIO al contrato (decide si se contrata) ----
+// Captura ADENTRO: PDF subido byte-intact o partidas capturadas. La cotización nace ANTES del
+// payee (no crea usuario al cotizar). Gate quotations.manage (captura/versiona); la ACEPTACIÓN
+// (Line Producer, sellada) tiene su permiso quotations.accept y va en su fase. Prefijos fijos
+// (/nueva) antes de /{quotation} para desambiguar.
+Route::middleware(['auth','permission:quotations.manage'])->group(function () {
+    Route::get('/cotizaciones', [App\Http\Controllers\QuotationController::class, 'index'])->name('quotations.index');
+    Route::get('/cotizaciones/nueva', [App\Http\Controllers\QuotationController::class, 'create'])->name('quotations.create');
+    Route::post('/cotizaciones', [App\Http\Controllers\QuotationController::class, 'store'])->name('quotations.store');
+    Route::get('/cotizaciones/{quotation}', [App\Http\Controllers\QuotationController::class, 'show'])->name('quotations.show')->whereNumber('quotation');
+    Route::get('/cotizaciones/{quotation}/editar', [App\Http\Controllers\QuotationController::class, 'edit'])->name('quotations.edit')->whereNumber('quotation');
+    Route::put('/cotizaciones/{quotation}', [App\Http\Controllers\QuotationController::class, 'update'])->name('quotations.update')->whereNumber('quotation');
+    Route::get('/cotizaciones/{quotation}/version/{version}/pdf', [App\Http\Controllers\QuotationController::class, 'versionPdf'])->name('quotations.version_pdf')->whereNumber('quotation')->whereNumber('version');
+});
+
 // ---- VERIFICACIÓN DE AMBULANCIAS (2026-08-08 · deltas #51/#52) ----
 // Recurso de traslado del DÍA (3 estados; solo el 1 lleva badge) + proveedor/padrón/documentos
 // (validación MANUAL con quién-validó, como la cédula) + ACTA sellada en sitio (verificador PÚBLICO
