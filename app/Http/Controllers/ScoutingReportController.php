@@ -86,6 +86,12 @@ class ScoutingReportController extends Controller
             'crowd_action'      => 'Multitudes en escena / figuración de acción',
             'minors_physical'   => 'Menores en actividad física',
             'base_camp'         => 'Base camp / logística',
+            // --- 4 categorías del catálogo del owner (CSV medidas_control, 2026-08-17) ---
+            // Espejo de HazardEvent::categories() para no divergir de la taxonomía compartida.
+            'health'            => 'Salud ocupacional / ergonomía',
+            'security'          => 'Seguridad y protección (delitos / terceros)',
+            'tools_machinery'   => 'Herramientas y maquinaria de taller',
+            'safety_program'    => 'Programa de seguridad (gestión)',
         ];
     }
 
