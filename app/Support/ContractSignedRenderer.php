@@ -33,8 +33,8 @@ class ContractSignedRenderer
         }
 
         $template = ContractTemplate::activeFor($envelope->production_id, $contract->concept);
-        if (! $template) {
-            return null;   // sin plantilla → nada que congelar; se entrega el paquete byte-intact
+        if (! $template || $template->isPdfSource()) {
+            return null;   // sin plantilla (o PDF subido, que no tiene HTML) → se congela por otra vía
         }
 
         $envelope->loadMissing('recipients');
@@ -57,13 +57,33 @@ class ContractSignedRenderer
      */
     public static function store(ContractEnvelope $envelope): ?array
     {
-        $html = self::renderHtml($envelope);
-        if ($html === null) {
+        $contract = $envelope->contract;
+        if (! $contract) {
             return null;
         }
+        $template = ContractTemplate::activeFor($envelope->production_id, $contract->concept);
+        if (! $template) {
+            return null;   // sin plantilla → nada que congelar; se entrega el paquete byte-intact
+        }
 
-        $bytes = ContractPdf::render($html);
-        if ($bytes === '') {
+        $envelope->loadMissing('recipients');
+
+        // PDF FILLABLE: la plantilla es un PDF subido → se estampa ENCIMA (FPDI), conservando el texto.
+        // Plantilla HTML → se renderiza por Chrome headless (costura ContractPdf). Mismo carril después:
+        // guardar byte-intact + hash en la bitácora.
+        if ($template->isPdfSource()) {
+            $bytes  = ContractPdfStamper::stampForEnvelope($envelope, $template);
+            $engine = 'fpdi-overlay';
+        } else {
+            $html = self::renderHtml($envelope);
+            if ($html === null) {
+                return null;
+            }
+            $bytes  = ContractPdf::render($html);
+            $engine = 'browsershot';
+        }
+
+        if ($bytes === '' || $bytes === null) {
             return null;
         }
 
@@ -75,7 +95,7 @@ class ContractSignedRenderer
             'hash'        => hash('sha256', $bytes),
             'bytes'       => strlen($bytes),
             'rendered_at' => now()->toDateTimeString(),
-            'engine'      => 'browsershot',
+            'engine'      => $engine,
         ];
         $envelope->update(['signed_document' => $meta]);
 

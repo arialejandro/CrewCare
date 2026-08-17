@@ -85,6 +85,22 @@ class ContractEnvelopeController extends Controller
         abort_unless($template, 404);
 
         $envelope->load('recipients');
+
+        // PDF FILLABLE: la plantilla es un PDF subido → preview estampado (datos + firmas al momento;
+        // las pendientes quedan en blanco), en vez de la composición HTML.
+        if ($template->isPdfSource()) {
+            try {
+                $bytes = \App\Support\ContractPdfStamper::stampForEnvelope($envelope, $template);
+            } catch (\Throwable $e) {
+                abort(422, $e->getMessage());
+            }
+
+            return response($bytes, 200, [
+                'Content-Type'        => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="contrato.pdf"',
+            ]);
+        }
+
         $inner = ContractTemplateRenderer::render(
             $template,
             ContractTemplateRenderer::valuesFor($contract),
