@@ -248,3 +248,10 @@ ON DUPLICATE KEY UPDATE
   `control_measure_es` = VALUES(`control_measure_es`),
   `control_measure_en` = VALUES(`control_measure_en`),
   `category`           = COALESCE(`hazard_events`.`category`, VALUES(`category`));
+
+-- Verificar TODO el catálogo (decisión del owner 2026-08-17): la base curada nace
+-- VERIFICADA — verificar uno por uno sería demasiado lento. Idempotente: solo toca los
+-- pendientes, NUNCA re-sella los ya verificados. verified_by_id = NULL (verificado de
+-- ORIGEN, sin autor). No afecta ningún documento sellado (hazard_events es catálogo, no
+-- documento firmable; los reportes referencian el evento, no su verified_at).
+UPDATE `hazard_events` SET `verified_at` = NOW() WHERE `verified_at` IS NULL;

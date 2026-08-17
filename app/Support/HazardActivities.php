@@ -8,8 +8,8 @@ use App\Models\HazardEvent;
  * FUENTE ÚNICA de la agrupación por ACTIVIDAD (delta #49, Paso 1 de captura fluida).
  *
  * El safety piensa por ACTIVIDAD ("hoy hay SFX y stunts"), no por categoría de peligro.
- * Aquí se agrupan las ~38 categorías del catálogo en 12 ACTIVIDADES (aprobado por el
- * owner 2026-08-01, con "todo lo de cámara en rigging"). NO renombra ni inventa
+ * Aquí se agrupan las 42 categorías del catálogo en 16 ACTIVIDADES (12 aprobadas por el
+ * owner 2026-08-01 con "todo lo de cámara en rigging" + 4 del CSV 2026-08-17). NO renombra ni inventa
  * categorías: solo las ordena. El catálogo completo sigue alcanzable.
  *
  * Esta clase es la fuente ÚNICA para evitar que dos implementaciones divergan (como ya
@@ -35,6 +35,12 @@ class HazardActivities
         'crowds'           => ['es' => 'Multitudes y figuración', 'en' => 'Crowds & background',  'categories' => ['crowd', 'crowd_action', 'minors_physical', 'uncontrolled_env']],
         'construction_art' => ['es' => 'Construcción y arte',     'en' => 'Construction & art',   'categories' => ['structural', 'confined']],
         'base_camp'        => ['es' => 'Base camp y logística',   'en' => 'Base camp & logistics', 'categories' => ['base_camp']],
+        // 4 actividades del catálogo del owner (CSV medidas_control, 2026-08-17): 1:1 con las
+        // 4 categorías nuevas, para que NINGÚN evento de esas caiga en "Otros" en el picker fluido.
+        'tools_machinery'  => ['es' => 'Herramientas y maquinaria', 'en' => 'Tools & machinery',  'categories' => ['tools_machinery']],
+        'occupational_health' => ['es' => 'Salud y ergonomía',   'en' => 'Health & ergonomics',  'categories' => ['health']],
+        'security_protection' => ['es' => 'Seguridad y protección', 'en' => 'Security & protection', 'categories' => ['security']],
+        'safety_program'   => ['es' => 'Programa de seguridad',  'en' => 'Safety program',       'categories' => ['safety_program']],
         'location_general' => ['es' => 'General de locación',     'en' => 'Location general',     'categories' => ['access', 'fire', 'weather', 'hazmat', 'special']],
     ];
 
@@ -52,7 +58,7 @@ class HazardActivities
     }
 
     /**
-     * Las 38 categorías (con su etiqueta localizada) agrupadas bajo sus 12 actividades,
+     * Las 42 categorías (con su etiqueta localizada) agrupadas bajo sus 16 actividades,
      * en el orden de MAP. Fuente única para plegar rejillas por actividad (DSR "Temas
      * Tratados"). Las categorías sin actividad mapeada caen en 'otros'.
      *

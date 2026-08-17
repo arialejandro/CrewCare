@@ -60,6 +60,7 @@ class HazardEventImportTest extends QaTestCase
         $this->assertSame('location', $loc->context);
         $this->assertSame('traffic', $loc->category);
         $this->assertSame('Cerrar carril y vigías', $loc->control_measure_es);
+        $this->assertNotNull($loc->verified_at, 'un evento creado por el CSV curado nace verificado');
 
         // 2) prefijo desconocido → transversal; categoría nueva (health) aceptada
         $qax = HazardEvent::where('code', 'QAX-777')->first();

@@ -518,6 +518,9 @@ class HazardEventController extends Controller
                 $attrs = ['code' => $code, 'context' => $context, 'category' => $cat, 'name_es' => $name];
                 if ($es !== '') { $attrs['control_measure_es'] = $es; }        // vacío → NULL (columna)
                 if ($en !== '') { $attrs['control_measure_en'] = $en; }
+                // Nace VERIFICADO: el CSV es el catálogo CURADO del owner y la ruta ya exige
+                // hazardevents.manage (autoridad). verified_by_id queda NULL = verificado de ORIGEN.
+                if (HazardEvent::supportsVerification()) { $attrs['verified_at'] = now(); }
                 HazardEvent::create($attrs);
                 $created++;
                 continue;
