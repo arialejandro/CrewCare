@@ -74,6 +74,13 @@
                             <a href="{{ route('contracts.envelope.signed', $envelope) }}" target="_blank" rel="noopener" class="btn btn-sm btn-crew">{{ __('Descargar') }}</a>
                         </li>
                     @endif
+                    {{-- Anexos firmados (plantillas-anexo estampadas con datos + firmas). --}}
+                    @foreach(($envelope->signed_annexes ?? []) as $i => $anx)
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold">{{ $anx['name'] ?? __('Anexo') }} <span class="badge text-bg-info">{{ __('anexo firmado') }}</span></span>
+                            <a href="{{ route('contracts.envelope.signed_annex', [$envelope, $i]) }}" target="_blank" rel="noopener" class="btn btn-sm btn-crew-soft">{{ __('Descargar') }}</a>
+                        </li>
+                    @endforeach
                     @foreach(($envelope->documents ?? []) as $i => $doc)
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             <span>{{ $doc['name'] ?? 'Documento' }} <span class="badge text-bg-light border">{{ $doc['kind'] ?? '' }}</span></span>

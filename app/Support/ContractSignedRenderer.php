@@ -50,10 +50,11 @@ class ContractSignedRenderer
     }
 
     /**
-     * Renderiza + CONGELA el contrato firmado: guarda el PDF, escribe `signed_document` y registra el
-     * evento 'sealed' con el hash. Devuelve la metadata { path, hash, bytes, rendered_at, engine } o
-     * null si no había plantilla / el motor no devolvió bytes. Nunca lanza por sí mismo el fallo del
-     * motor: eso lo envuelve el Job que la llama.
+     * Renderiza + CONGELA el CONJUNTO firmado: el CONTRATO principal (plantilla-contrato → `signed_document`)
+     * y cada ANEXO (plantilla-anexo → lista `signed_annexes`), cada uno estampado con los MISMOS datos +
+     * firmas del sobre. Registra el evento 'sealed' con el hash del principal + el conteo. Devuelve la
+     * metadata del principal (o, si solo hubo anexos, un resumen), o null si no había plantillas.
+     * Nunca lanza por sí mismo el fallo del motor: eso lo envuelve el Job que la llama.
      */
     public static function store(ContractEnvelope $envelope): ?array
     {
@@ -61,49 +62,82 @@ class ContractSignedRenderer
         if (! $contract) {
             return null;
         }
-        $template = ContractTemplate::activeFor($envelope->production_id, $contract->concept);
-        if (! $template) {
-            return null;   // sin plantilla → nada que congelar; se entrega el paquete byte-intact
-        }
 
         $envelope->loadMissing('recipients');
+        $values = ContractTemplateRenderer::valuesFor($contract);
+        $sigMap = ContractTemplateRenderer::sigMapForEnvelope($envelope);
 
-        // PDF FILLABLE: la plantilla es un PDF subido → se estampa ENCIMA (FPDI), conservando el texto.
-        // Plantilla HTML → se renderiza por Chrome headless (costura ContractPdf). Mismo carril después:
-        // guardar byte-intact + hash en la bitácora.
-        if ($template->isPdfSource()) {
-            $bytes  = ContractPdfStamper::stampForEnvelope($envelope, $template);
-            $engine = 'fpdi-overlay';
-        } else {
-            $html = self::renderHtml($envelope);
-            if ($html === null) {
-                return null;
+        // ── Documento PRINCIPAL (plantilla-contrato activa) ──
+        $mainMeta = null;
+        if ($main = ContractTemplate::activeFor($envelope->production_id, $contract->concept)) {
+            $bytes = self::bytesFor($main, $envelope, $values, $sigMap);
+            if ($bytes !== '') {
+                $path = 'contracts/signed/env-' . $envelope->id . '.pdf';
+                Storage::disk('local')->put($path, $bytes);
+                $mainMeta = self::meta($path, $bytes, $main);
             }
-            $bytes  = ContractPdf::render($html);
-            $engine = 'browsershot';
         }
 
-        if ($bytes === '' || $bytes === null) {
-            return null;
+        // ── ANEXOS (cada plantilla-anexo activa, estampada igual) ──
+        $annexMetas = [];
+        foreach (ContractTemplate::activeAnnexes($envelope->production_id, $contract->concept) as $i => $annex) {
+            $bytes = self::bytesFor($annex, $envelope, $values, $sigMap);
+            if ($bytes === '') {
+                continue;
+            }
+            $path = 'contracts/signed/env-' . $envelope->id . '-anexo-' . ($i + 1) . '.pdf';
+            Storage::disk('local')->put($path, $bytes);
+            $annexMetas[] = self::meta($path, $bytes, $annex);
         }
 
-        $path = 'contracts/signed/env-' . $envelope->id . '.pdf';
-        Storage::disk('local')->put($path, $bytes);
+        if (! $mainMeta && empty($annexMetas)) {
+            return null;   // sin plantillas → nada que congelar; se entrega el paquete byte-intact
+        }
 
-        $meta = [
+        if ($mainMeta) {
+            $envelope->signed_document = $mainMeta;
+        }
+        $envelope->signed_annexes = $annexMetas;
+        $envelope->save();
+
+        // Ancla la integridad del conjunto en la cadena inmutable (el sello del paquete no lo cubre).
+        ContractEventLog::record($envelope, ContractEnvelopeEvent::SEALED, [
+            'payload' => [
+                'hash'      => $mainMeta['hash'] ?? null,
+                'annexes'   => count($annexMetas),
+                'documents' => ($mainMeta ? 1 : 0) + count($annexMetas),
+            ],
+        ]);
+
+        return $mainMeta ?: ['annexes' => count($annexMetas)];
+    }
+
+    /** Bytes del PDF firmado de UNA plantilla: estampado (PDF) o render por Chrome (HTML). */
+    private static function bytesFor(ContractTemplate $template, ContractEnvelope $envelope, array $values, array $sigMap): string
+    {
+        if ($template->isPdfSource()) {
+            return ContractPdfStamper::stamp($template, $values, $sigMap);
+        }
+
+        $html = ContractTemplateRenderer::page(
+            ContractTemplateRenderer::render($template, $values, $sigMap),
+            $template->architecture, $template->page_size, null, $template->font_family, $template->font_size
+        );
+
+        return (string) ContractPdf::render($html);
+    }
+
+    /** Metadata de un documento firmado congelado. */
+    private static function meta(string $path, string $bytes, ContractTemplate $template): array
+    {
+        return [
             'path'        => $path,
             'hash'        => hash('sha256', $bytes),
             'bytes'       => strlen($bytes),
             'rendered_at' => now()->toDateTimeString(),
-            'engine'      => $engine,
+            'engine'      => $template->isPdfSource() ? 'fpdi-overlay' : 'browsershot',
+            'name'        => $template->name,
+            'template_id' => $template->id,
         ];
-        $envelope->update(['signed_document' => $meta]);
-
-        // Ancla la integridad del firmado en la cadena inmutable (el sello del paquete no lo cubre).
-        ContractEventLog::record($envelope, ContractEnvelopeEvent::SEALED, [
-            'payload' => ['hash' => $meta['hash'], 'bytes' => $meta['bytes'], 'path' => $path],
-        ]);
-
-        return $meta;
     }
 }

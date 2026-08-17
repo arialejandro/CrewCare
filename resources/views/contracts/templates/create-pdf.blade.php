@@ -51,6 +51,26 @@
                     </div>
 
                     <div class="mb-3">
+                        <label class="form-label fw-semibold">{{ __('Tipo de documento') }}</label>
+                        <div class="d-flex flex-wrap gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="category" id="cat_contrato" value="contrato"
+                                       @checked(old('category', 'contrato') === 'contrato')>
+                                <label class="form-check-label" for="cat_contrato">{{ __('Contrato principal') }}</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="category" id="cat_anexo" value="anexo"
+                                       @checked(old('category') === 'anexo')>
+                                <label class="form-check-label" for="cat_anexo">{{ __('Anexo (documento adicional)') }}</label>
+                            </div>
+                        </div>
+                        <div class="mt-2" style="max-width:180px">
+                            <label class="form-label small mb-1">{{ __('Orden (anexos)') }}</label>
+                            <input type="number" name="sort_order" min="0" max="9999" class="form-control form-control-sm" value="{{ old('sort_order', 0) }}">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
                         <label class="form-label fw-semibold">{{ __('Archivo PDF') }}</label>
                         <input type="file" name="pdf" class="form-control" accept="application/pdf,.pdf" required>
                         <div class="form-text">{{ __('PDF de hasta 20 MB. Se conserva el texto original: las etiquetas se estampan encima.') }}</div>

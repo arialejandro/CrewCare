@@ -43,10 +43,11 @@ class ContractEnvelope extends Model
         // FASE 3 · el documento firmado es un artefacto DERIVADO (autógrafas + paquete, ambos ya
         // sellados); su integridad va en la bitácora, no en el sello del sobre.
         'signed_document',
+        'signed_annexes',
     ];
 
     protected $fillable = [
-        'uuid', 'payee_contract_id', 'production_id', 'status', 'documents', 'signed_document',
+        'uuid', 'payee_contract_id', 'production_id', 'status', 'documents', 'signed_document', 'signed_annexes',
         'current_recipient_id', 'sent_at', 'completed_at', 'cancelled_at', 'created_by_id',
         'expires_at', 'declined_at', 'expired_at', 'resolution_reason',
     ];
@@ -54,6 +55,7 @@ class ContractEnvelope extends Model
     protected $casts = [
         'documents'       => 'array',
         'signed_document' => 'array',
+        'signed_annexes'  => 'array',
         'sent_at'         => 'datetime',
         'completed_at'    => 'datetime',
         'cancelled_at'    => 'datetime',

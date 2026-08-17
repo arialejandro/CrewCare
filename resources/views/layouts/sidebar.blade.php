@@ -336,14 +336,9 @@
                     </button>
                     <div class="cc-sec-body"><div class="cc-sec-body__inner">
                         @can('settings.manage')
-                        <a href="{{ route('contracts.clauses.index') }}" class="cc-item">
-                            @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
-                            <span>{{ __('Clausulados') }}</span>
-                        </a>
-                        <a href="{{ route('contracts.annexes.index') }}" class="cc-item">
-                            @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
-                            <span>{{ __('Anexos') }}</span>
-                        </a>
+                        {{-- Clausulados y Anexos-estáticos RETIRADOS: superados por Plantillas (categoría
+                             Contrato/Anexo, con auto-llenado y tags). Rutas/controladores/datos siguen
+                             vivos para contratos ya emitidos; solo se ocultó el menú. --}}
                         <a href="{{ route('contracts.route.config') }}" class="cc-item">
                             @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('Roles de firma') }}</span>
@@ -745,14 +740,9 @@
                         </button>
                         <div class="cc-sec-body"><div class="cc-sec-body__inner">
                             @can('settings.manage')
-                            <a href="{{ route('contracts.clauses.index') }}" class="cc-item">
-                                @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ __('Clausulados') }}</span>
-                            </a>
-                            <a href="{{ route('contracts.annexes.index') }}" class="cc-item">
-                                @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ __('Anexos') }}</span>
-                            </a>
+                            {{-- Clausulados y Anexos-estáticos RETIRADOS: superados por Plantillas (categoría
+                                 Contrato/Anexo, con auto-llenado y tags). Rutas/controladores/datos siguen
+                                 vivos para contratos ya emitidos; solo se ocultó el menú. --}}
                             <a href="{{ route('contracts.route.config') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('Roles de firma') }}</span>

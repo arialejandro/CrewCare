@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\ContractEmitException;
 use App\Models\ContractClause;
+use App\Models\ContractTemplate;
 use App\Models\PayeeContract;
 use App\Support\ContractEmitter;
 use Illuminate\Http\Request;
@@ -24,11 +25,17 @@ class ContractController extends Controller
         $this->authorize('capture', $contract->payee);
 
         $data = $request->validate([
-            'clause_id' => 'required|integer|exists:contract_clauses,id',
+            'clause_id' => 'nullable|integer|exists:contract_clauses,id',
             'language'  => 'nullable|in:' . implode(',', array_keys(ContractClause::languages())),
         ]);
 
-        $clause = ContractClause::findOrFail($data['clause_id']);
+        // El cuerpo legal vive en la PLANTILLA-contrato activa (editor HTML o PDF). El clausulado es
+        // opcional (fallback). Se exige uno de los dos para no emitir un contrato sin contenido legal.
+        $clause   = ($data['clause_id'] ?? null) ? ContractClause::findOrFail($data['clause_id']) : null;
+        $template = ContractTemplate::activeFor($contract->production_id, $contract->concept);
+        if (! $template && ! $clause) {
+            return back()->with('error', __('Falta una plantilla de contrato activa (o un clausulado) para emitir.'));
+        }
 
         try {
             ContractEmitter::emit($contract, $clause, $data['language'] ?? null, $request->user());

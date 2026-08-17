@@ -262,6 +262,19 @@ class ContractEnvelopeController extends Controller
         return Storage::disk('local')->response($meta['path'], $nice, ['Content-Type' => 'application/pdf'], 'inline');
     }
 
+    /** FASE 3 — sirve un ANEXO firmado del sobre (plantilla-anexo estampada) del disco privado. */
+    public function signedAnnex(Request $request, ContractEnvelope $envelope, int $index)
+    {
+        abort_unless($envelope->contract && $envelope->contract->payee, 404);
+        $this->authorize('view', $envelope->contract->payee);
+
+        $anx = ($envelope->signed_annexes ?? [])[$index] ?? null;
+        abort_unless($anx && ! empty($anx['path']) && Storage::disk('local')->exists($anx['path']), 404);
+
+        $nice = 'Anexo-' . ($index + 1) . '-' . $envelope->folio() . '.pdf';
+        return Storage::disk('local')->response($anx['path'], $nice, ['Content-Type' => 'application/pdf'], 'inline');
+    }
+
     /** Servir un documento del paquete (byte-intact) a un viewer autenticado con alcance. */
     public function document(Request $request, ContractEnvelope $envelope, int $index)
     {

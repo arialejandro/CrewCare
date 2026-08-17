@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Exceptions\ContractEmitException;
 use App\Exceptions\ContractEnvelopeException;
 use App\Models\ContractClause;
+use App\Models\ContractTemplate;
 use App\Models\PayeeContract;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -206,10 +207,13 @@ class InfosheetSigning
             return ['fired' => false, 'message' => __('El contrato ya fue generado.')];
         }
 
-        $clause = self::defaultClause($contract);
-        if (! $clause) {
+        // El requisito para emitir es una PLANTILLA-contrato activa (editor HTML o PDF). El clausulado
+        // subido se acepta como fallback para producciones que aún no migraron a plantillas.
+        $template = ContractTemplate::activeFor($contract->production_id, $contract->concept);
+        $clause   = $template ? null : self::defaultClause($contract);
+        if (! $template && ! $clause) {
             return ['fired' => false, 'error' => true,
-                'message' => __('Autorizado, pero falta un clausulado activo para este tipo de contrato (Producción → Clausulados).')];
+                'message' => __('Autorizado, pero falta una plantilla de contrato activa para este tipo de contrato (Producción → Plantillas).')];
         }
 
         try {

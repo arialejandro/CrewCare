@@ -51,6 +51,7 @@ class ContractTemplateController extends Controller
 
         return $this->editView(new ContractTemplate([
             'name' => '', 'applies_to' => [PayeeContract::CONCEPT_CREW], 'language' => 'es',
+            'category' => self::normalizeCategory($request->query('category')),
             'architecture' => $arch, 'bilingual' => false, 'page_size' => ContractPageSizes::DEFAULT,
             'font_family' => ContractFonts::DEFAULT, 'font_size' => ContractFonts::SIZE_DEFAULT,
             'body' => ContractArchitectures::starter($arch), 'is_active' => false,
@@ -98,6 +99,8 @@ class ContractTemplateController extends Controller
             'production_id'     => $prod,
             'name'              => $data['name'],
             'applies_to'        => $data['applies_to'],
+            'category'          => self::normalizeCategory($request->input('category')),
+            'sort_order'        => (int) $request->input('sort_order', 0),
             'language'          => 'es',
             'source_kind'       => ContractTemplate::SOURCE_PDF,
             'pdf_path'          => $path,
@@ -242,6 +245,8 @@ class ContractTemplateController extends Controller
             'name'         => 'required|string|max:191',
             'applies_to'   => 'required|array|min:1',
             'applies_to.*' => 'in:crew_work,rental,service',
+            'category'     => 'nullable|in:contrato,anexo',
+            'sort_order'   => 'nullable|integer|min:0|max:9999',
             'language'     => 'nullable|string|max:5',
             'architecture' => 'nullable|string|max:32',
             'bilingual'    => 'nullable|boolean',
@@ -252,6 +257,8 @@ class ContractTemplateController extends Controller
             'body'         => 'nullable|string',
             'is_active'    => 'nullable|boolean',
         ]);
+        $data['category']           = self::normalizeCategory($data['category'] ?? null);
+        $data['sort_order']         = (int) ($data['sort_order'] ?? 0);
         $data['is_active']          = $request->boolean('is_active');
         $data['language']           = ($data['language'] ?? null) ?: 'es';
         $data['architecture']       = ContractArchitectures::normalize($data['architecture'] ?? null);
@@ -271,6 +278,8 @@ class ContractTemplateController extends Controller
             'name'         => 'required|string|max:191',
             'applies_to'   => 'required|array|min:1',
             'applies_to.*' => 'in:crew_work,rental,service',
+            'category'     => 'nullable|in:contrato,anexo',
+            'sort_order'   => 'nullable|integer|min:0|max:9999',
             'is_active'    => 'nullable|boolean',
             'field_map'    => 'nullable|string',   // JSON serializado desde el editor
         ]);
@@ -280,9 +289,19 @@ class ContractTemplateController extends Controller
         return [
             'name'       => $data['name'],
             'applies_to' => $data['applies_to'],
+            'category'   => self::normalizeCategory($data['category'] ?? null),
+            'sort_order' => (int) ($data['sort_order'] ?? 0),
             'is_active'  => $request->boolean('is_active'),
             'field_map'  => self::sanitizeFieldMap(is_array($decoded) ? $decoded : []),
         ];
+    }
+
+    /** Categoría válida del documento; default 'contrato'. */
+    private static function normalizeCategory(?string $category): string
+    {
+        return in_array($category, [ContractTemplate::CATEGORY_CONTRACT, ContractTemplate::CATEGORY_ANNEX], true)
+            ? $category
+            : ContractTemplate::CATEGORY_CONTRACT;
     }
 
     /**

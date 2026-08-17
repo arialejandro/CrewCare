@@ -176,6 +176,17 @@
                             </div>
                         </div>
                         <div class="cc-field">
+                            @php $cat = old('category', $template->category ?? 'contrato'); @endphp
+                            <label class="form-label fw-semibold d-block">{{ __('Tipo de documento') }}</label>
+                            <select name="category" class="form-select form-select-sm">
+                                <option value="contrato" @selected($cat === 'contrato')>{{ __('Contrato principal') }}</option>
+                                <option value="anexo" @selected($cat === 'anexo')>{{ __('Anexo (documento adicional)') }}</option>
+                            </select>
+                            <div class="cc-hint">{{ __('Orden de anexos:') }}
+                                <input type="number" name="sort_order" min="0" max="9999" style="width:70px" class="form-control form-control-sm d-inline-block ms-1" value="{{ old('sort_order', $template->sort_order ?? 0) }}">
+                            </div>
+                        </div>
+                        <div class="cc-field">
                             <label class="form-label fw-semibold d-block">{{ __('Formato del contrato') }}</label>
                             <select name="architecture" id="tplArch" class="form-select form-select-sm mb-2">
                                 @foreach($architectures as $key => $a)

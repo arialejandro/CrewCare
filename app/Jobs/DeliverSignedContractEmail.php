@@ -136,11 +136,22 @@ class DeliverSignedContractEmail implements ShouldQueue
     {
         $out = [];
 
+        // El CONTRATO firmado (plantilla-contrato estampada con las autógrafas).
         $signedPath = $envelope->signed_document['path'] ?? null;
         if ($signedPath && Storage::disk('local')->exists($signedPath)) {
             $out[] = ['name' => 'Contrato-firmado-'.$envelope->folio().'.pdf', 'bytes' => Storage::disk('local')->get($signedPath)];
-        } else {
-            // Respaldo: el paquete byte-intact (carátula + clausulado + anexos), sin las autógrafas.
+        }
+
+        // Cada ANEXO firmado (plantilla-anexo estampada) va como su propio adjunto, en orden.
+        foreach (($envelope->signed_annexes ?? []) as $i => $anx) {
+            $path = $anx['path'] ?? null;
+            if ($path && Storage::disk('local')->exists($path)) {
+                $out[] = ['name' => 'Anexo-'.($i + 1).'-'.$envelope->folio().'.pdf', 'bytes' => Storage::disk('local')->get($path)];
+            }
+        }
+
+        // Respaldo: si NADA firmado se congeló, se entrega el paquete byte-intact (sin autógrafas).
+        if (empty($out)) {
             foreach (($envelope->documents ?? []) as $doc) {
                 $path = $doc['path'] ?? null;
                 if ($path && Storage::disk('local')->exists($path)) {

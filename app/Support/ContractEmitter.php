@@ -20,22 +20,27 @@ use Illuminate\Support\Facades\Storage;
  */
 class ContractEmitter
 {
-    public static function emit(PayeeContract $contract, ContractClause $clause, ?string $language = null, ?User $actor = null): PayeeContract
+    public static function emit(PayeeContract $contract, ?ContractClause $clause = null, ?string $language = null, ?User $actor = null): PayeeContract
     {
         // (Paso C) También se emiten y firman contratos NO-crew (renta/servicio: ambulancia,
         // proveedores, casas de renta, seguridad fílmica). La carátula oculta los renglones de
         // crew vacíos, así que no hace falta gatear por concepto.
+        //
+        // CLAUSULADO OPCIONAL: el cuerpo legal ahora vive en la PLANTILLA-contrato (editor HTML o PDF),
+        // que se renderiza/estampa al firmar. El clausulado subido se conserva como fallback para
+        // producciones que aún lo usan; si se pasa, se congela byte-intact igual que antes.
         if ($contract->isEmitted()) {
             throw new ContractEmitException('Este contrato ya fue emitido; un emitido no se re-emite ni se edita.');
         }
-        if (! $clause->appliesToSubtype($contract->concept)) {
+        if ($clause && ! $clause->appliesToSubtype($contract->concept)) {
             throw new ContractEmitException('El clausulado seleccionado no aplica a este subtipo de contrato.');
         }
 
-        // El idioma se HEREDA del clausulado pero se puede cambiar antes de emitir.
-        $language = $language ?: ($contract->language ?: $clause->language);
+        // El idioma se HEREDA del clausulado (si hay) o del contrato; default español.
+        $fallbackLang = $clause ? $clause->language : ContractClause::LANG_ES;
+        $language = $language ?: ($contract->language ?: $fallbackLang);
         if (! array_key_exists($language, ContractClause::languages())) {
-            $language = $clause->language;
+            $language = $fallbackLang;
         }
 
         // CONTRATANTE completo o no se emite (se avisa claro).
@@ -68,7 +73,9 @@ class ContractEmitter
             }
         }
 
-        $contract->clause_id     = $clause->id;
+        if ($clause) {
+            $contract->clause_id = $clause->id;   // fallback byte-intact; sin clausulado queda null
+        }
         $contract->language      = $language;
         $contract->emitted_at    = now();
         $contract->emitted_by_id = optional($actor)->id;

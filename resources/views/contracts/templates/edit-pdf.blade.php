@@ -96,6 +96,27 @@
                             </div>
                         </div>
                     </div>
+
+                    @php $cat = old('category', $template->category ?? 'contrato'); @endphp
+                    <div class="row g-3 align-items-end mt-1">
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold small">{{ __('Tipo de documento') }}</label>
+                            <div class="d-flex flex-wrap gap-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="category" id="cat_contrato" value="contrato" @checked($cat === 'contrato')>
+                                    <label class="form-check-label small" for="cat_contrato">{{ __('Contrato principal') }}</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="category" id="cat_anexo" value="anexo" @checked($cat === 'anexo')>
+                                    <label class="form-check-label small" for="cat_anexo">{{ __('Anexo (documento adicional)') }}</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">{{ __('Orden (anexos)') }}</label>
+                            <input type="number" name="sort_order" min="0" max="9999" class="form-control form-control-sm" value="{{ old('sort_order', $template->sort_order ?? 0) }}">
+                        </div>
+                    </div>
                 </div>
             </div>
 

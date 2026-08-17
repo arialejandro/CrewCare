@@ -968,6 +968,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/contratos/sobre/{envelope}/plantilla', [\App\Http\Controllers\ContractEnvelopeController::class, 'templateDocument'])->name('contracts.envelope.template')->whereNumber('envelope');
     // FASE 3 — el CONTRATO FIRMADO congelado (PDF con autógrafas), servido byte-intact del disco.
     Route::get('/contratos/sobre/{envelope}/firmado',   [\App\Http\Controllers\ContractEnvelopeController::class, 'signedDocument'])->name('contracts.envelope.signed')->whereNumber('envelope');
+    // Cada ANEXO firmado del sobre (plantilla-anexo estampada), servido del disco privado.
+    Route::get('/contratos/sobre/{envelope}/anexo-firmado/{index}', [\App\Http\Controllers\ContractEnvelopeController::class, 'signedAnnex'])->name('contracts.envelope.signed_annex')->whereNumber('envelope')->whereNumber('index');
     // FASE 3c — el CERTIFICADO DE CIERRE (constancia del proceso de firma). HTML, o ?pdf=1 para PDF.
     Route::get('/contratos/sobre/{envelope}/certificado', [\App\Http\Controllers\ContractEnvelopeController::class, 'certificate'])->name('contracts.envelope.certificate')->whereNumber('envelope');
 

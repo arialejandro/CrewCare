@@ -50,6 +50,7 @@
                                             @endforeach
                                         </td>
                                         <td class="small">
+                                            @if($t->isAnnex())<span class="badge text-bg-info me-1">{{ __('Anexo') }}</span>@endif
                                             @if($t->isPdfSource())
                                                 <span class="badge text-bg-light border">{{ __('PDF subido') }}</span>
                                             @else

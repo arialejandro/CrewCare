@@ -24,8 +24,12 @@ class ContractTemplate extends Model
     public const SOURCE_HTML = 'html';
     public const SOURCE_PDF  = 'pdf';
 
+    /** Categoría del documento: el CONTRATO principal (default) o un ANEXO (documento adicional). */
+    public const CATEGORY_CONTRACT = 'contrato';
+    public const CATEGORY_ANNEX    = 'anexo';
+
     protected $fillable = [
-        'production_id', 'name', 'applies_to', 'body', 'language', 'architecture', 'bilingual',
+        'production_id', 'name', 'applies_to', 'category', 'sort_order', 'body', 'language', 'architecture', 'bilingual',
         'page_size', 'font_family', 'font_size', 'initials_each_page', 'version', 'is_active', 'created_by_id',
         'source_kind', 'pdf_path', 'pdf_original_name', 'field_map',
     ];
@@ -33,6 +37,7 @@ class ContractTemplate extends Model
     protected $casts = [
         'applies_to'         => 'array',
         'version'            => 'integer',
+        'sort_order'         => 'integer',
         'is_active'          => 'boolean',
         'bilingual'          => 'boolean',
         'initials_each_page' => 'boolean',
@@ -63,13 +68,31 @@ class ContractTemplate extends Model
     }
 
     /**
-     * La plantilla ACTIVA de la producción que aplica a este subtipo (o null). La más reciente gana.
-     * `applies_to` es JSON → se filtra en PHP (no como scope SQL). Usada por el sobre (Fase 1c/1d).
+     * La plantilla-CONTRATO ACTIVA de la producción que aplica a este subtipo (o null). La más reciente
+     * gana. Filtra por CATEGORÍA (default 'contrato') para que un anexo NUNCA se elija como el contrato
+     * principal. `applies_to` es JSON → se filtra en PHP. Usada por el sobre (Fase 1c/1d) y la emisión.
      */
-    public static function activeFor($productionId, ?string $concept): ?self
+    public static function activeFor($productionId, ?string $concept, string $category = self::CATEGORY_CONTRACT): ?self
     {
-        return static::forProduction($productionId)->active()->orderByDesc('id')->get()
+        return static::forProduction($productionId)->active()
+            ->where('category', $category)
+            ->orderByDesc('id')->get()
             ->first(fn ($t) => $t->appliesToSubtype($concept));
+    }
+
+    /** Las plantillas-ANEXO activas que aplican al subtipo, en orden (sort_order). */
+    public static function activeAnnexes($productionId, ?string $concept)
+    {
+        return static::forProduction($productionId)->active()
+            ->where('category', self::CATEGORY_ANNEX)
+            ->orderBy('sort_order')->orderBy('id')->get()
+            ->filter(fn ($t) => $t->appliesToSubtype($concept))
+            ->values();
+    }
+
+    public function isAnnex(): bool
+    {
+        return ($this->category ?? self::CATEGORY_CONTRACT) === self::CATEGORY_ANNEX;
     }
 
     /** ¿Esta plantilla es un PDF subido (con etiquetas colocadas encima) en vez de body HTML? */

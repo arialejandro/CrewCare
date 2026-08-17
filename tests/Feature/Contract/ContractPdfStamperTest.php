@@ -147,6 +147,59 @@ class ContractPdfStamperTest extends QaTestCase
         $this->assertDatabaseHas('contract_envelope_events', ['envelope_id' => $env->id, 'event' => 'sealed']);
     }
 
+    /** F4 multi-doc — al congelar, el sobre guarda el contrato principal + cada anexo estampado. */
+    public function test_store_freezes_main_contract_and_annexes(): void
+    {
+        Storage::fake('local');
+
+        // Contrato principal: plantilla HTML activa (usa el motor fake de QaTestCase → 'TESTPDF:').
+        ContractTemplate::create([
+            'production_id' => CurrentProduction::id(), 'name' => 'Contrato', 'applies_to' => ['crew_work'],
+            'category' => ContractTemplate::CATEGORY_CONTRACT, 'source_kind' => ContractTemplate::SOURCE_HTML,
+            'body' => '<h1>Contrato</h1><p>[[firma:contratado]]</p>', 'is_active' => true,
+        ]);
+        // Anexo: plantilla PDF activa con un ancla de firma.
+        $this->makeSourcePdf('contract-templates/annex.pdf', 1);
+        ContractTemplate::create([
+            'production_id' => CurrentProduction::id(), 'name' => 'Anexo A', 'applies_to' => ['crew_work'],
+            'category' => ContractTemplate::CATEGORY_ANNEX, 'sort_order' => 1,
+            'source_kind' => ContractTemplate::SOURCE_PDF, 'pdf_path' => 'contract-templates/annex.pdf',
+            'field_map' => [['page' => 1, 'x_pct' => 10, 'y_pct' => 60, 'w_pct' => 24, 'type' => 'sign', 'key' => 'contratado']],
+            'is_active' => true,
+        ]);
+
+        $payee    = Payee::create(['legal_nature' => 'fisica', 'name' => 'Juan Pérez López']);
+        $contract = $payee->contracts()->create([
+            'concept' => PayeeContract::CONCEPT_CREW, 'is_active' => 1, 'production_id' => CurrentProduction::id(),
+        ]);
+        $env = ContractEnvelope::create([
+            'payee_contract_id' => $contract->id, 'production_id' => $contract->production_id,
+            'status' => ContractEnvelope::STATUS_COMPLETED, 'completed_at' => now(),
+        ]);
+        $env->recipients()->create([
+            'role' => ContractEnvelopeRecipient::ROLE_CONTRACTED, 'sort_order' => 0, 'name' => 'Juan Pérez López',
+            'anchor_key' => 'contratado', 'payee_id' => $payee->id,
+            'status' => ContractEnvelopeRecipient::STATUS_SIGNED, 'signed_at' => now(),
+            'signature_image' => $this->pngDataUri(),
+        ]);
+
+        $meta = ContractSignedRenderer::store($env->fresh());
+
+        $this->assertNotNull($meta);
+        $env->refresh();
+
+        // Contrato principal (HTML → motor fake).
+        $this->assertTrue($env->hasSignedDocument());
+        $this->assertStringStartsWith('TESTPDF:', Storage::disk('local')->get($env->signed_document['path']));
+
+        // Un anexo, estampado por FPDI (PDF real).
+        $this->assertCount(1, $env->signed_annexes);
+        $this->assertSame('Anexo A', $env->signed_annexes[0]['name']);
+        $this->assertSame('fpdi-overlay', $env->signed_annexes[0]['engine']);
+        Storage::disk('local')->assertExists($env->signed_annexes[0]['path']);
+        $this->assertStringStartsWith('%PDF', Storage::disk('local')->get($env->signed_annexes[0]['path']));
+    }
+
     public function test_normalizer_detects_readable_vs_unreadable_pdf(): void
     {
         Storage::fake('local');
