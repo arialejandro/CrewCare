@@ -69,7 +69,8 @@ class DatabaseSeeder extends Seeder
             EffectStandardBridgeSeeder::class,         // puente effect<->standard (necesita Spfx + Safety+Enriched)
 
             // ── Herramienta / permisos de trabajo (ORDEN ESTRICTO) ──
-            ToolPermitCatalogSeeder::class,            // tools + permits (necesita safety_standards)
+            ResolveParkedStandardsSeeder::class,       // +25 normas OSHA/Cal-OSHA/STPS para resolver parqueadas (ANTES de Tool/Permit)
+            ToolPermitCatalogSeeder::class,            // tools + permits (necesita safety_standards) — resuelve las parqueadas al correr
             ToolInspectionRegimeSeeder::class,         // inspection_regime (necesita tools poblado)
 
             // ── Catalogos independientes ──

@@ -41,6 +41,13 @@ class StandardCodeResolver
     private const ADJUDICATED = [
         '29 CFR 1910.178(q)(7)'                    => '29 CFR 1910.178',
         'CA Labor Code §§9150-9161 (SB 132, 2023)' => 'Cal/OSHA CA Labor Code §§9150-9161 (SB 132)',
+        // (2026-08-17) Resolución de parqueadas — dos normalizaciones de CADENA CRUDA:
+        //   · '1910.243(a)(1)' viene SIN el prefijo "29 CFR" y a un grano por debajo del que
+        //     existe en el catálogo → colapsa a la sección '29 CFR 1910.243' (misma lógica que
+        //     1910.178(q)(7)→1910.178; el catálogo no tiene fila propia del sub-inciso (a)(1)).
+        //   · 'NOM-010-STPS' viene SIN año; la vigente es la 2014 → mapea a 'NOM-010-STPS-2014'.
+        '1910.243(a)(1)' => '29 CFR 1910.243',
+        'NOM-010-STPS'   => 'NOM-010-STPS-2014',
     ];
 
     /** @var array<string,int>  regulation_code exacto => id */
