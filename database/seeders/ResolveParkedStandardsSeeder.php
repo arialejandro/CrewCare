@@ -80,8 +80,30 @@ class ResolveParkedStandardsSeeder extends Seeder
             // GRUPO 5 · STPS
             ['Agentes químicos contaminantes del ambiente laboral — Reconocimiento, evaluación y control', 'STPS', 'NOM-010-STPS-2014',  'https://dof.gob.mx/nota_detalle.php?codigo=5342372&fecha=28/04/2014', 'Airborne chemical contaminants in the workplace — Recognition, evaluation and control'],
             ['Recipientes sujetos a presión, recipientes criogénicos y generadores de vapor o calderas — Funcionamiento — Condiciones de seguridad', 'STPS', 'NOM-020-STPS-2011',  'https://dof.gob.mx/nota_detalle.php?codigo=5229908&fecha=27/12/2011', 'Pressure vessels, cryogenic vessels and steam generators or boilers — Operation — Safety conditions'],
-            // ⚠ URL del DOF NO encontrada (1999, previa al `codigo` del DOF) → VACÍA a propósito.
-            ['Manejo, transporte y almacenamiento de sustancias químicas peligrosas', 'STPS', 'NOM-005-STPS-1998',  null, 'Handling, transport and storage of hazardous chemical substances'],
+            // NOM-005-STPS-1998 CONFIRMADA VIGENTE (2026-08-17: no derogada ni sustituida; STPS/economía).
+            // URL = PDF oficial STPS (asinom), verificado con WebFetch (antes quedó vacía por falta de DOF).
+            ['Manejo, transporte y almacenamiento de sustancias químicas peligrosas', 'STPS', 'NOM-005-STPS-1998',  'https://asinom.stps.gob.mx/upload/noms/Nom-005.pdf', 'Handling, transport and storage of hazardous chemical substances'],
+
+            // ── SEGUNDA TANDA (2026-08-17): las que quedaron parqueadas, ahora como FILAS PROPIAS ──
+
+            // GRUPO 1 · CSATF — cada addendum/hoja como FILA PROPIA (NUNCA colapsar al boletín base).
+            // Código = 'Bulletin #NNA' (los raws '#NNA ...' resuelven vía StandardCodeResolver::ADJUDICATED).
+            ['Adenda de regulaciones FAA para drones/UAS (addendum del boletín #36)', 'CSATF', 'Bulletin #36A',  'https://www.csatf.org/36a_safety_bltn_faa_regulations/', 'FAA regulations addendum for drones/UAS (addendum to Bulletin #36)'],
+            // ⚠ #4A y #8A: los addenda EXISTEN (CSATF) pero NO pude confirmar el PDF exacto (slugs candidatos 404) → URL VACÍA a propósito. NO se apunta al boletín base.
+            ['Adenda de actividades especializadas (addendum del boletín #4)', 'CSATF', 'Bulletin #4A',  null, 'Specialized activities addendum (addendum to Bulletin #4)'],
+            ['Adenda de process trailers / vehículos remolcados (addendum del boletín #8)', 'CSATF', 'Bulletin #8A',  null, 'Process trailers / towed vehicles addendum (addendum to Bulletin #8)'],
+            ['Guía de Procedimiento #1 — Menores en actividad física', 'CSATF', 'Guía de Procedimiento #1',  'https://www.csatf.org/wp-content/uploads/2018/05/Guideline001.MINORS.pdf', 'Procedural Guideline #1 — Minors performing physical activities'],
+            ['Hoja de concientización CSATF — seguridad de baterías de litio', 'CSATF', 'Hoja informativa CSATF litio',  'https://www.csatf.org/ifs_lithium-ion_battery_safety-sp/', 'CSATF awareness sheet — Lithium-ion battery safety'],
+
+            // GRUPO 3 · EE.UU. y California — DOS MARCOS NUEVOS (badge por autoridad emisora).
+            ['Sistemas de aeronaves pequeñas no tripuladas (drones) — FAA', 'FAA', '14 CFR Part 107',  'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-F/part-107', 'Small Unmanned Aircraft Systems (drones) — FAA'],
+            ['Código de Incendios de California, Cap. 56 — Explosivos y pirotecnia', 'CAL', 'California Fire Code Cap. 56',  'https://codes.iccsafe.org/content/CAFC2022P1/chapter-56-explosives-and-fireworks', 'California Fire Code, Chapter 56 — Explosives and Fireworks'],
+            ['Código Laboral de California — trabajo de menores en producción', 'CAL', 'CA Labor Code',  'https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?lawCode=LAB&division=2.&part=4.&chapter=2.', 'California Labor Code — employment of minors in production'],
+
+            // GRUPO 4 · México — DOS MARCOS NUEVOS (SEDENA) + uno EXISTENTE (STPS para la LFT).
+            ['Ley Federal de Armas de Fuego y Explosivos (armas y pólvora) — SEDENA', 'SEDENA', 'Ley Federal de Armas de Fuego y Explosivos',  'https://www.diputados.gob.mx/LeyesBiblio/pdf/LFAFE.pdf', 'Federal Firearms and Explosives Act — SEDENA'],
+            ['Ley Federal del Trabajo — trabajo de menores', 'STPS', 'Ley Federal del Trabajo',  'https://www.diputados.gob.mx/LeyesBiblio/pdf/LFT.pdf', 'Federal Labor Act — employment of minors'],
+            // ⚠ AFAC (RPAS): el instrumento es la Circular Obligatoria CO AV-23/10, pero la revisión vigente (R4 vs R5) NO se pudo confirmar con certeza en fuente oficial → queda PARQUEADA y reportada (NO se inventa la cita).
         ];
 
         $hasUrl = Schema::hasColumn('safety_standards', 'reference_url');

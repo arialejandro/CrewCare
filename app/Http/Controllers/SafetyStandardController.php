@@ -242,7 +242,7 @@ class SafetyStandardController extends Controller
 
     /**
      * Validación compartida de store/update. Reglas de SEGURIDAD:
-     *   - regulation_badge: enum cerrado (SELECT) → in:{CSATF,OSHA,STPS,DOT,SCT,GENERAL}.
+     *   - regulation_badge: enum cerrado (SELECT) → in:{CSATF,OSHA,STPS,DOT,SCT,GENERAL,FAA,CAL,SEDENA}.
      *   - regulation_code: required, charset seguro (alfanumérico + . / - espacio) y UNIQUE
      *     (la tabla tiene uq_safety_standards_reg_code; sin el Rule::unique el insert
      *     reventaría con un 500 por clave duplicada). En update se ignora la propia fila.
@@ -259,7 +259,7 @@ class SafetyStandardController extends Controller
         $data = $request->validate([
             'category_name'    => 'required|string|max:150',
             'category_name_en' => 'nullable|string|max:255',
-            'regulation_badge' => 'required|in:CSATF,OSHA,STPS,DOT,SCT,GENERAL',
+            'regulation_badge' => 'required|in:CSATF,OSHA,STPS,DOT,SCT,GENERAL,FAA,CAL,SEDENA',
             'regulation_code'  => [
                 'required', 'string', 'max:100',
                 // Charset seguro: letras/dígitos ASCII + punto, barra, guion y espacio.

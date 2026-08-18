@@ -48,6 +48,13 @@ class StandardCodeResolver
         //   · 'NOM-010-STPS' viene SIN año; la vigente es la 2014 → mapea a 'NOM-010-STPS-2014'.
         '1910.243(a)(1)' => '29 CFR 1910.243',
         'NOM-010-STPS'   => 'NOM-010-STPS-2014',
+        // (2026-08-17 · 2ª tanda) Addenda CSATF: el raw '#NNA <tema>' NO cae en el matcher csatf
+        // (la lookahead corta el sufijo 'A') → se mapea por cadena cruda a su FILA PROPIA 'Bulletin #NNA'
+        // (NUNCA al boletín base #NN, que sería subir de grano). Y FAA: 'FAA Part 107' → '14 CFR Part 107'.
+        '#36A FAA Regulations'      => 'Bulletin #36A',
+        '#4A Specialized Activities' => 'Bulletin #4A',
+        '#8A Process Trailers'      => 'Bulletin #8A',
+        'FAA Part 107'              => '14 CFR Part 107',
     ];
 
     /** @var array<string,int>  regulation_code exacto => id */
