@@ -81,25 +81,7 @@ class PaymentPeriodController extends Controller
         $productionId = CurrentProduction::id();
         abort_unless($productionId, 409, 'No hay una producción activa.');
 
-        $data = $request->validate([
-            'frequency' => 'required|in:' . implode(',', array_keys(PayeeContract::frequencies())),
-            'label'     => 'nullable|string|max:160',
-            'opens_on'  => 'required|date',
-            'closes_on' => 'required|date|after_or_equal:opens_on',
-            'worked_on' => 'nullable|date',
-            'payee_id'  => 'nullable|integer|exists:payees,id',
-        ]);
-
-        // DAY PLAYER: no tiene semana, tiene el DÍA que trabajó (capturado a mano) y ES de un payee.
-        if ($data['frequency'] === PayeeContract::FREQ_DAY_PLAYER) {
-            $request->validate([
-                'worked_on' => 'required|date',
-                'payee_id'  => 'required|integer|exists:payees,id',
-            ]);
-        } else {
-            $data['worked_on'] = null;
-            $data['payee_id']  = null;
-        }
+        $data = $this->periodData($request);
 
         PaymentPeriod::create(array_merge($data, [
             'production_id' => $productionId,
@@ -108,6 +90,76 @@ class PaymentPeriodController extends Controller
         ]));
 
         return redirect()->route('periods.index')->with('status', __('Periodo abierto.'));
+    }
+
+    /** EDITAR un periodo (corregir fecha/etiqueta/frecuencia/día). Solo periods.manage. */
+    public function edit(Request $request, PaymentPeriod $period)
+    {
+        $productionId    = CurrentProduction::id();
+        $frequencies     = PayeeContract::frequencies();
+        $dayPlayerPayees = Payee::query()->active()->visibleTo($request->user())
+            ->orderBy('name')->get(['id', 'name']);
+
+        return view('periods.edit', compact('period', 'frequencies', 'dayPlayerPayees', 'productionId'));
+    }
+
+    /** ACTUALIZAR un periodo abierto por error (o con la fecha mal). No toca su estado. */
+    public function update(Request $request, PaymentPeriod $period)
+    {
+        $period->update($this->periodData($request));
+
+        return redirect()->route('periods.index')->with('status', __('Periodo actualizado.'));
+    }
+
+    /**
+     * BORRAR un periodo abierto por error. GUARDA: si ya tiene documentos colgados
+     * (external_authorizations.payment_period_id), NO se borra —se orfanaría la recepción—; en su
+     * lugar el emisor lo CIERRA. Solo se borra el periodo vacío (sin recepción alguna).
+     */
+    public function destroy(Request $request, PaymentPeriod $period)
+    {
+        $hasDocs = \App\Models\ExternalAuthorization::where('payment_period_id', $period->id)->exists();
+        if ($hasDocs) {
+            return back()->with('error', __('Este periodo ya tiene documentos recibidos; ciérralo en vez de borrarlo.'));
+        }
+
+        $period->delete();
+
+        return redirect()->route('periods.index')->with('status', __('Periodo eliminado.'));
+    }
+
+    /**
+     * Validación COMPARTIDA por store() y update(), con la derivación del DAY PLAYER: no tiene
+     * semana, su VENTANA ES el día trabajado → se piden worked_on + persona y opens_on/closes_on
+     * se DERIVAN de worked_on (ya no se inventa una semana). Los demás sí piden la ventana.
+     */
+    protected function periodData(Request $request): array
+    {
+        $dayPlayer = PayeeContract::FREQ_DAY_PLAYER;
+
+        $data = $request->validate([
+            'frequency' => 'required|in:' . implode(',', array_keys(PayeeContract::frequencies())),
+            'label'     => 'nullable|string|max:160',
+            'opens_on'  => 'nullable|date|required_unless:frequency,' . $dayPlayer,
+            'closes_on' => 'nullable|date|after_or_equal:opens_on|required_unless:frequency,' . $dayPlayer,
+            'worked_on' => 'nullable|date',
+            'payee_id'  => 'nullable|integer|exists:payees,id',
+        ]);
+
+        if ($data['frequency'] === $dayPlayer) {
+            $request->validate([
+                'worked_on' => 'required|date',
+                'payee_id'  => 'required|integer|exists:payees,id',
+            ]);
+            // La ventana del day-player ES el día trabajado (no una semana inventada).
+            $data['opens_on']  = $data['worked_on'];
+            $data['closes_on'] = $data['worked_on'];
+        } else {
+            $data['worked_on'] = null;
+            $data['payee_id']  = null;
+        }
+
+        return $data;
     }
 
     /** CERRAR la recepción de un periodo. No rechaza documentos: solo deja de esperarlos. */

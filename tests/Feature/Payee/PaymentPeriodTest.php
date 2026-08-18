@@ -314,8 +314,13 @@ class PaymentPeriodTest extends QaTestCase
 
         $extRow = collect($rows)->first(fn ($r) => $r['payee']->id === $ext->id);
         $this->assertNotNull($extRow);
-        $this->assertFalse($extRow['self_serve'], 'externo sin autoservicio');
-        $this->assertNull($extRow['wa']);
+        $this->assertFalse($extRow['self_serve'], 'externo sin autoservicio (link firmado)');
+        // AHORA el externo SÍ recibe un nudge por WhatsApp (texto plano, sin enlace firmado).
+        $this->assertNotNull($extRow['wa'], 'el externo recibe nudge por WhatsApp');
+        $this->assertFalse($extRow['has_phone'], 'sin tel propio → selector de contacto de WhatsApp');
+        $extMsg = urldecode($extRow['wa']);
+        $this->assertStringContainsString('envíalo a la oficina de producción', $extMsg);
+        $this->assertStringNotContainsString('Puedes subir tus documentos', $extMsg, 'el externo NO recibe enlace de autoservicio');
 
         // NUNCA se arma para quien ya entregó: toda fila tiene algo faltante.
         foreach ($rows as $r) {
@@ -336,5 +341,74 @@ class PaymentPeriodTest extends QaTestCase
         $this->get(route('periods.reminders', $period))->assertForbidden();
         $this->actingAs($this->makeUser('line-producer'));
         $this->get(route('periods.reminders', $period))->assertOk()->assertSee('Recordatorios');
+    }
+
+    // ── CRUD del periodo (Ola 5): editar / borrar / day-player real ───────────
+    public function test_manager_can_update_a_period(): void
+    {
+        $lp = $this->makeUser('line-producer');
+        $period = $this->period(PayeeContract::FREQ_WEEKLY, '2026-08-10', '2026-08-16', ['label' => 'Semana 5']);
+
+        $this->actingAs($lp)->put(route('periods.update', $period), [
+            'frequency' => PayeeContract::FREQ_WEEKLY,
+            'label'     => 'Semana 5 (corr.)',
+            'opens_on'  => '2026-08-11',
+            'closes_on' => '2026-08-17',
+        ])->assertRedirect(route('periods.index'));
+
+        $fresh = $period->fresh();
+        $this->assertSame('Semana 5 (corr.)', $fresh->label);
+        $this->assertSame('2026-08-11', $fresh->opens_on->toDateString());
+        $this->assertSame('2026-08-17', $fresh->closes_on->toDateString());
+    }
+
+    public function test_day_player_window_is_the_worked_day(): void
+    {
+        $lp = $this->makeUser('line-producer');
+        $payee = Payee::create(['legal_nature' => 'fisica', 'name' => 'Day Player SA']);
+
+        // Un day-player NO pide semana: solo el día trabajado + la persona.
+        $this->actingAs($lp)->post(route('periods.store'), [
+            'frequency' => PayeeContract::FREQ_DAY_PLAYER,
+            'worked_on' => '2026-08-14',
+            'payee_id'  => $payee->id,
+        ])->assertRedirect(route('periods.index'));
+
+        $dp = PaymentPeriod::where('frequency', PayeeContract::FREQ_DAY_PLAYER)->latest('id')->first();
+        $this->assertNotNull($dp);
+        $this->assertSame('2026-08-14', $dp->worked_on->toDateString());
+        // La ventana ES el día trabajado (derivada, no una semana inventada).
+        $this->assertSame('2026-08-14', $dp->opens_on->toDateString());
+        $this->assertSame('2026-08-14', $dp->closes_on->toDateString());
+        $this->assertSame($payee->id, (int) $dp->payee_id);
+    }
+
+    public function test_manager_can_delete_an_empty_period(): void
+    {
+        $lp = $this->makeUser('line-producer');
+        $period = $this->period(PayeeContract::FREQ_WEEKLY, '2026-08-10', '2026-08-16');
+
+        $this->actingAs($lp)->delete(route('periods.destroy', $period))
+            ->assertRedirect(route('periods.index'));
+
+        $this->assertNull(PaymentPeriod::find($period->id), 'un periodo vacío sí se borra');
+    }
+
+    public function test_delete_is_refused_when_the_period_has_documents(): void
+    {
+        $lp = $this->makeUser('line-producer');
+        $period = $this->period(PayeeContract::FREQ_WEEKLY, '2026-08-10', '2026-08-16');
+
+        // Un documento colgado del periodo → NO se puede borrar (se orfanaría la recepción).
+        $payee = Payee::create(['legal_nature' => 'fisica', 'name' => 'Con doc SA']);
+        $payee->documents()->create([
+            'level' => 'persona', 'document_type' => 'CSF', 'is_active' => 1,
+            'payment_period_id' => $period->id,
+        ]);
+
+        $this->actingAs($lp)->delete(route('periods.destroy', $period))
+            ->assertSessionHas('error');
+
+        $this->assertNotNull(PaymentPeriod::find($period->id), 'un periodo con documentos NO se borra');
     }
 }

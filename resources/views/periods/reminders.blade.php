@@ -41,20 +41,18 @@
                                     {{ __('Le falta') }}: {{ !empty($r['missing']) ? implode(', ', $r['missing']) : '—' }}
                                 </div>
                             </div>
-                            <div>
-                                @if($r['self_serve'])
-                                    @feature('magic_links')
-                                        <a href="{{ $r['wa'] }}" target="_blank" rel="noopener"
-                                           class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.004c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm5.8 14.13c-.24.68-1.4 1.3-1.94 1.35-.5.05-.98.24-3.3-.69-2.79-1.1-4.56-3.95-4.7-4.13-.14-.18-1.12-1.49-1.12-2.84 0-1.35.71-2.02.96-2.29.25-.27.55-.34.73-.34.18 0 .37.002.53.01.17.008.4-.064.62.48.24.55.81 1.9.88 2.04.07.14.12.3.02.48-.09.18-.14.29-.27.45-.14.16-.29.36-.41.48-.14.14-.28.29-.12.57.16.27.71 1.17 1.53 1.9 1.05.94 1.94 1.23 2.22 1.37.27.14.43.12.59-.07.16-.18.68-.79.86-1.06.18-.27.36-.23.61-.14.24.09 1.55.73 1.82.86.27.14.45.2.52.32.07.11.07.64-.17 1.32Z"/></svg>
-                                            {{ __('WhatsApp') }}
-                                        </a>
-                                    @else
-                                        <span class="text-muted small">{{ __('Magic Links desactivados') }}</span>
-                                    @endfeature
-                                @else
-                                    <span class="badge text-bg-light border text-muted">{{ __('Sin autoservicio (lo captura producción)') }}</span>
-                                @endif
+                            <div class="text-end">
+                                <a href="{{ $r['wa'] }}" target="_blank" rel="noopener"
+                                   class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.004c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm5.8 14.13c-.24.68-1.4 1.3-1.94 1.35-.5.05-.98.24-3.3-.69-2.79-1.1-4.56-3.95-4.7-4.13-.14-.18-1.12-1.49-1.12-2.84 0-1.35.71-2.02.96-2.29.25-.27.55-.34.73-.34.18 0 .37.002.53.01.17.008.4-.064.62.48.24.55.81 1.9.88 2.04.07.14.12.3.02.48-.09.18-.14.29-.27.45-.14.16-.29.36-.41.48-.14.14-.28.29-.12.57.16.27.71 1.17 1.53 1.9 1.05.94 1.94 1.23 2.22 1.37.27.14.43.12.59-.07.16-.18.68-.79.86-1.06.18-.27.36-.23.61-.14.24.09 1.55.73 1.82.86.27.14.45.2.52.32.07.11.07.64-.17 1.32Z"/></svg>
+                                    {{ __('WhatsApp') }}
+                                </a>
+                                @unless($r['has_phone'])
+                                    <div class="small text-muted mt-1">{{ __('Sin teléfono registrado; elige el contacto') }}</div>
+                                @endunless
+                                @unless($r['self_serve'])
+                                    <div class="small text-muted">{{ __('Sin autoservicio: pídele enviarlo a producción') }}</div>
+                                @endunless
                             </div>
                         </li>
                     @endforeach

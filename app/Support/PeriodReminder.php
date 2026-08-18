@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Http\Controllers\IntakeController;
 use App\Models\PaymentPeriod;
 use App\Models\User;
+use App\Support\Features;
 
 /**
  * RECORDATORIO MANUAL a quienes faltan (§a del bloque de periodos). Contabilidad ya está
@@ -17,10 +18,12 @@ use App\Models\User;
  * que el destinatario sepa que es real) y **nunca se arma para quien ya entregó**. Canal = Magic
  * Links por WhatsApp (el mismo `wa.me` + URL firmada que usa Safety, {@see \App\Traits\HasMagicMitigation}).
  *
- * ⚠ Solo hay autoservicio (teléfono propio `users.phone` + link firmado `IntakeController::invitationUrl`)
- * para payees LIGADOS a un usuario. El payee EXTERNO (user_id NULL) no tiene teléfono propio
- * (`emergency_contact_phone` es de un tercero, NO se usa) ni link de autoservicio → se marca
- * "sin autoservicio (lo captura producción)". No se le arma botón.
+ * ⚠ Dos niveles: el NUDGE por WhatsApp (texto que dice qué falta) se arma para CUALQUIER payee con
+ * teléfono —propio del intake (`payees.phone`) o del user ligado, vía `Payee::contactPhone()`—; el
+ * AUTOSERVICIO (link firmado `IntakeController::invitationUrl`) solo se añade al mensaje cuando el
+ * payee está ligado a un usuario Y Magic Links está encendido. El payee EXTERNO recibe el nudge SIN
+ * enlace (que pide enviarlo a producción): NUNCA un enlace firmado a un desconocido (sería phishing).
+ * El `emergency_contact_phone` es de un tercero → NUNCA se usa como destino.
  */
 class PeriodReminder
 {
@@ -52,26 +55,31 @@ class PeriodReminder
                 ->map(fn ($id) => optional($columns->get($id))->name)
                 ->filter()->values()->all();
 
-            $user      = $payee->user;                 // liga OPCIONAL (crew) — puede ser null
-            $selfServe = $user !== null;
-            $phone     = $selfServe ? preg_replace('/\D/', '', (string) $user->phone) : '';
+            $user = $payee->user;   // liga OPCIONAL (crew) — null en el payee EXTERNO
 
-            $wa = null;
-            if ($selfServe) {
-                $link = IntakeController::invitationUrl($user);
-                $msg  = self::message($payee->name, $prod, $period->displayLabel(), $missing, $link);
-                // Con teléfono → chat directo; sin teléfono → selector de contacto (mismo patrón que Safety).
-                $wa = $phone !== ''
-                    ? 'https://wa.me/' . $phone . '?text=' . rawurlencode($msg)
-                    : 'https://wa.me/?text=' . rawurlencode($msg);
-            }
+            // Teléfono PROPIO del payee (capturado en el intake) o el del user ligado. NUNCA el de
+            // emergencia (es de un tercero). Un externo con su tel capturado SÍ recibe nudge.
+            $phone = preg_replace('/\D/', '', (string) $payee->contactPhone());
+
+            // Autoservicio (link firmado que sube documentos) = solo con user ligado + Magic Links ON.
+            // El NUDGE por WhatsApp funciona SIEMPRE (es texto, no un enlace firmado).
+            $selfServe = $user !== null && Features::enabled('magic_links');
+
+            $msg = $selfServe
+                ? self::message($payee->name, $prod, $period->displayLabel(), $missing, IntakeController::invitationUrl($user))
+                : self::messagePlain($payee->name, $prod, $period->displayLabel(), $missing);
+
+            // Con teléfono → chat directo; sin teléfono → selector de contacto de WhatsApp.
+            $wa = $phone !== ''
+                ? 'https://wa.me/' . $phone . '?text=' . rawurlencode($msg)
+                : 'https://wa.me/?text=' . rawurlencode($msg);
 
             $out[] = [
                 'payee'      => $payee,
                 'missing'    => $missing,
                 'self_serve' => $selfServe,
                 'has_phone'  => $phone !== '',
-                'wa'         => $wa,
+                'wa'         => $wa,   // SIEMPRE hay nudge (con número directo o con selector de contacto)
             ];
         }
 
@@ -84,5 +92,13 @@ class PeriodReminder
         $lista = implode(', ', $missing);
         return "Hola {$name}. Te escribe {$prod}. Para tu pago del periodo \"{$periodLabel}\" "
             . "aún falta recibir: {$lista}. Puedes subir tus documentos aquí: {$link}";
+    }
+
+    /** Mensaje SIN enlace (payee externo o Magic Links apagado): pide enviarlo a producción. */
+    private static function messagePlain(string $name, string $prod, string $periodLabel, array $missing): string
+    {
+        $lista = implode(', ', $missing);
+        return "Hola {$name}. Te escribe {$prod}. Para tu pago del periodo \"{$periodLabel}\" "
+            . "aún falta recibir: {$lista}. Por favor envíalo a la oficina de producción lo antes posible.";
     }
 }

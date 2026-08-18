@@ -905,6 +905,10 @@ Route::middleware(['auth','permission:periods.manage'])->group(function () {
     Route::post('/periodos',                    [\App\Http\Controllers\PaymentPeriodController::class, 'store'])->name('periods.store');
     Route::post('/periodos/{period}/cerrar',    [\App\Http\Controllers\PaymentPeriodController::class, 'close'])->name('periods.close')->whereNumber('period');
     Route::post('/periodos/{period}/reabrir',   [\App\Http\Controllers\PaymentPeriodController::class, 'reopen'])->name('periods.reopen')->whereNumber('period');
+    // Editar / borrar un periodo (corregir o quitar uno abierto por error). Borrar solo si está vacío.
+    Route::get('/periodos/{period}/editar',     [\App\Http\Controllers\PaymentPeriodController::class, 'edit'])->name('periods.edit')->whereNumber('period');
+    Route::put('/periodos/{period}',            [\App\Http\Controllers\PaymentPeriodController::class, 'update'])->name('periods.update')->whereNumber('period');
+    Route::delete('/periodos/{period}',         [\App\Http\Controllers\PaymentPeriodController::class, 'destroy'])->name('periods.destroy')->whereNumber('period');
     Route::post('/payees/contratos/{contract}/frecuencia', [\App\Http\Controllers\PaymentPeriodController::class, 'setFrequency'])->name('periods.contract.frequency')->whereNumber('contract');
 });
 

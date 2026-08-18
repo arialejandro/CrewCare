@@ -1,5 +1,7 @@
 @extends('layouts.app')
 @section('content')
+@push('styles')@include('componentes._crew-list-styles')@endpush
+@include('componentes._confirm-submit')
 {{-- VENTANA DE RECEPCIÓN POR PERIODO DE PAGO — la app se abre cada semana por esto. Centraliza
      la recepción (facturas/32-D/CSF) que hoy llega por correo. La ventana ABRE y CIERRA pero NO
      RECHAZA. El estado del tablero se DERIVA con PayeePackage (nunca "vigente"/"cumple"). --}}
@@ -30,46 +32,9 @@
         <div class="card mb-4">
             <div class="card-header fw-semibold">{{ __('Abrir un periodo') }}</div>
             <div class="card-body">
-                <form method="POST" action="{{ route('periods.store') }}" class="row g-3">
+                <form method="POST" action="{{ route('periods.store') }}" class="row g-3 js-period-form">
                     @csrf
-                    <div class="col-sm-6 col-md-3">
-                        <label class="form-label small text-muted">{{ __('Frecuencia') }}</label>
-                        <select name="frequency" class="form-select" required>
-                            @foreach($frequencies as $val => $label)
-                                <option value="{{ $val }}" @selected(old('frequency') === $val)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-sm-6 col-md-3">
-                        <label class="form-label small text-muted">{{ __('Etiqueta') }} <span class="text-muted">({{ __('opcional') }})</span></label>
-                        <input type="text" name="label" value="{{ old('label') }}" class="form-control" placeholder="{{ __('Semana 5, Quincena ago-2…') }}">
-                    </div>
-                    <div class="col-sm-6 col-md-3">
-                        <label class="form-label small text-muted">{{ __('Abre recepción') }}</label>
-                        <input type="date" name="opens_on" value="{{ old('opens_on') }}" class="form-control" required>
-                    </div>
-                    <div class="col-sm-6 col-md-3">
-                        <label class="form-label small text-muted">{{ __('Cierra recepción') }}</label>
-                        <input type="date" name="closes_on" value="{{ old('closes_on') }}" class="form-control" required>
-                    </div>
-
-                    <div class="col-12"><hr class="my-1"></div>
-                    <div class="col-12">
-                        <p class="small text-muted mb-2">{{ __('Solo para DAY PLAYER (otro tipo de periodo: no tiene semana, tiene el día que trabajó y es de una persona). Por ahora el día se captura a mano.') }}</p>
-                    </div>
-                    <div class="col-sm-6 col-md-3">
-                        <label class="form-label small text-muted">{{ __('Día trabajado') }}</label>
-                        <input type="date" name="worked_on" value="{{ old('worked_on') }}" class="form-control">
-                    </div>
-                    <div class="col-sm-6 col-md-5">
-                        <label class="form-label small text-muted">{{ __('Persona (day player)') }}</label>
-                        <select name="payee_id" class="form-select js-typeahead">
-                            <option value="">{{ __('—') }}</option>
-                            @foreach($dayPlayerPayees as $p)
-                                <option value="{{ $p->id }}" @selected((string) old('payee_id') === (string) $p->id)>{{ $p->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
+                    @include('periods._fields', ['period' => null])
                     <div class="col-md-4 d-flex align-items-end">
                         <button type="submit" class="btn btn-crew w-100">{{ __('Abrir periodo') }}</button>
                     </div>
@@ -128,6 +93,12 @@
                                                             @csrf<button class="btn btn-sm btn-outline-secondary">{{ __('Reabrir') }}</button>
                                                         </form>
                                                     @endif
+                                                    <a href="{{ route('periods.edit', $period) }}" class="btn btn-sm btn-outline-secondary">{{ __('Editar') }}</a>
+                                                    <form method="POST" action="{{ route('periods.destroy', $period) }}" class="d-inline"
+                                                          data-confirm="{{ __('¿Borrar este periodo? Solo se puede si no tiene documentos recibidos.') }}">
+                                                        @csrf @method('DELETE')
+                                                        <button class="btn btn-sm btn-outline-danger">{{ __('Borrar') }}</button>
+                                                    </form>
                                                 @endcan
                                             </td>
                                         </tr>
