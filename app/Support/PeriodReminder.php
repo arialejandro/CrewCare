@@ -6,6 +6,7 @@ use App\Http\Controllers\IntakeController;
 use App\Models\PaymentPeriod;
 use App\Models\User;
 use App\Support\Features;
+use App\Support\Phone;
 
 /**
  * RECORDATORIO MANUAL a quienes faltan (§a del bloque de periodos). Contabilidad ya está
@@ -59,7 +60,8 @@ class PeriodReminder
 
             // Teléfono PROPIO del payee (capturado en el intake) o el del user ligado. NUNCA el de
             // emergencia (es de un tercero). Un externo con su tel capturado SÍ recibe nudge.
-            $phone = preg_replace('/\D/', '', (string) $payee->contactPhone());
+            // Normalizado para wa.me (código de país; un local de 10 dígitos → +52), {@see Phone}.
+            $phone = Phone::whatsapp($payee->contactPhone());
 
             // Autoservicio (link firmado que sube documentos) = solo con user ligado + Magic Links ON.
             // El NUDGE por WhatsApp funciona SIEMPRE (es texto, no un enlace firmado).
