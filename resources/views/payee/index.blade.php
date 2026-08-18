@@ -1,5 +1,8 @@
 @extends('layouts.app')
 @section('content')
+@push('styles')
+    @include('componentes._crew-list-styles')
+@endpush
 {{-- PASO 4 · VISIBILIDAD — listado de "quien cobra" ACOTADO por Payee::scopeVisibleTo
      ("quien contrata es quien ve"). Solo lectura. El buscador es server-side (?q=). --}}
 <div class="crew-page">

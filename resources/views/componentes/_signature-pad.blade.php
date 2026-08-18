@@ -97,13 +97,18 @@ window.CCSigPad = (function () {
 
         var reuseBtn = root.querySelector('.cc-sigpad__reuse');
         var adopted = root.getAttribute('data-adopted') || '';
-        if (reuseBtn && adopted) {
-            reuseBtn.addEventListener('click', function () {
-                var img = new Image();
-                img.onload = function () { clear(); ctx.drawImage(img, 0, 0, canvas.width, canvas.height); dirty = true; data.value = adopted; };
-                img.src = adopted;
-            });
+        function applyAdopted() {
+            var img = new Image();
+            img.onload = function () { clear(); ctx.drawImage(img, 0, 0, canvas.width, canvas.height); dirty = true; data.value = adopted; };
+            img.src = adopted;
         }
+        if (reuseBtn && adopted) {
+            reuseBtn.addEventListener('click', applyAdopted);
+        }
+        // Auto-aplicar la firma guardada al entrar (tipo DocuSign): si el usuario tiene firma
+        // adoptada se pinta sola y queda lista para enviar. "Limpiar" la borra para firmar
+        // distinto; el botón "Usar mi firma guardada" sigue disponible para re-aplicarla.
+        if (adopted) { applyAdopted(); }
 
         var saveCb = root.querySelector('.cc-sigpad__save');
         if (saveCb) { saveCb.addEventListener('change', function () { saveFlag.value = this.checked ? '1' : '0'; }); }

@@ -202,6 +202,7 @@
                     @include('componentes._geo-capture', [
                         'mode'         => 'address',
                         'required'     => false,
+                        'auto'         => ! ($isEdit ?? false), {{-- auto-captura solo en ALTA, nunca en edición --}}
                         'latValue'     => old('latitude', $report->latitude ?? ''),
                         'lngValue'     => old('longitude', $report->longitude ?? ''),
                         'addressValue' => old('location_address', $report->location_address ?? ''),

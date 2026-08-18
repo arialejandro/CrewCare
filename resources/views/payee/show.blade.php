@@ -1,5 +1,8 @@
 @extends('layouts.app')
 @section('content')
+@push('styles')
+    @include('componentes._crew-list-styles')
+@endpush
 @php
     $conceptLabels = [
         \App\Models\PayeeContract::CONCEPT_CREW    => __('Trabajo de crew'),
@@ -101,7 +104,7 @@
                                 </div>
                             @else
                                 <div class="d-inline-flex align-items-center gap-2 text-muted">
-                                    @include('componentes._icon', ['name' => 'clock', 'class' => 'cc-ico-14', 'label' => null])
+                                    @include('componentes._icon', ['name' => 'clock', 'class' => 'cc-ico', 'label' => null])
                                     <span>{{ $st['label'] }} — {{ __('pendiente de autorizar') }}</span>
                                 </div>
                             @endif

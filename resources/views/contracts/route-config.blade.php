@@ -107,6 +107,15 @@
                         <div class="cc-route__psub">{{ __('Agrega una firma extra cuando los honorarios del contrato alcanzan un monto. Ej.: arriba de $50,000, firma también el Line Producer.') }}</div>
                     </div>
                 </div>
+                {{-- B5-toggle · el resolvedor condicional está APAGADO por default; las reglas de
+                     abajo no actúan hasta encenderlo aquí. --}}
+                <div class="form-check mt-1 mb-2 ms-1">
+                    <input type="hidden" name="conditional_enabled" value="0">
+                    <input type="checkbox" class="form-check-input" id="condEnabled" name="conditional_enabled" value="1" @checked($conditionalEnabled ?? false)>
+                    <label class="form-check-label small" for="condEnabled">
+                        {{ __('Activar firmantes condicionales por importe. Apagado (recomendado): aunque haya reglas abajo, no se agrega ninguna firma extra al crear el sobre.') }}
+                    </label>
+                </div>
                 @php $condRows = array_values($conditionalRules ?? []); @endphp
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-1">

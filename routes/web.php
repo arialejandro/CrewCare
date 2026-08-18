@@ -960,9 +960,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/contratos/sobre/{envelope}/cancelar', [\App\Http\Controllers\ContractEnvelopeController::class, 'cancel'])->name('contracts.envelope.cancel')->whereNumber('envelope');
     Route::post('/contratos/sobre/{envelope}/copia',              [\App\Http\Controllers\ContractEnvelopeController::class, 'addCopy'])->name('contracts.envelope.copy.add')->whereNumber('envelope');
     Route::delete('/contratos/sobre/{envelope}/copia/{recipient}', [\App\Http\Controllers\ContractEnvelopeController::class, 'removeCopy'])->name('contracts.envelope.copy.remove')->whereNumber('envelope')->whereNumber('recipient');
-    // B2 · EMISIÓN MASIVA — crear N sobres de una (gate `payees.view`; el scope fino por payee lo pone el servicio).
-    Route::get('/contratos/emision-masiva',  [\App\Http\Controllers\ContractEnvelopeController::class, 'batchForm'])->name('contracts.batch.form')->middleware('permission:payees.view');
-    Route::post('/contratos/emision-masiva', [\App\Http\Controllers\ContractEnvelopeController::class, 'batchStore'])->name('contracts.batch.store')->middleware('permission:payees.view');
     Route::get('/contratos/sobre/{envelope}/doc/{index}', [\App\Http\Controllers\ContractEnvelopeController::class, 'document'])->name('contracts.envelope.document')->whereNumber('envelope')->whereNumber('index');
     // FASE 1c — el contrato ARMADO con la plantilla activa + las firmas reales del sobre (estampadas).
     Route::get('/contratos/sobre/{envelope}/plantilla', [\App\Http\Controllers\ContractEnvelopeController::class, 'templateDocument'])->name('contracts.envelope.template')->whereNumber('envelope');

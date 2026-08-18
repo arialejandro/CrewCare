@@ -12,7 +12,6 @@ use App\Models\PayeeContract;
 use App\Models\Position;
 use App\Models\Setting;
 use App\Support\Branding;
-use App\Support\ContractBatchEmitter;
 use App\Support\ContractEnvelopeBuilder;
 use App\Support\ContractEventLog;
 use App\Support\ContractSigning;
@@ -293,58 +292,6 @@ class ContractEnvelopeController extends Controller
         return Storage::disk('local')->response($doc['path'], $nice, ['Content-Type' => 'application/pdf'], 'inline');
     }
 
-    // ── B2 · EMISIÓN MASIVA (crear N sobres de una) — gate payees.view en la ruta ─────────────
-
-    /** Página: filtro por departamento + lista de contratos ELEGIBLES (visibles al actor) para emitir. */
-    public function batchForm(Request $request)
-    {
-        $prodId = CurrentProduction::id();
-        $deptId = (($d = (int) $request->input('department_id')) > 0) ? $d : null;
-
-        return view('contracts.batch-emit', [
-            'eligible'    => ContractBatchEmitter::eligible($prodId, $deptId, $request->user()),
-            'departments' => Department::where('active', 1)->orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
-            'deptId'      => $deptId,
-        ]);
-    }
-
-    /** Crea (y opcionalmente envía) el sobre de cada contrato elegido. Re-resuelve elegibilidad en el servidor. */
-    public function batchStore(Request $request)
-    {
-        $prodId = CurrentProduction::id();
-        $actor  = $request->user();
-
-        $data = $request->validate([
-            'contract_ids'   => 'required|array|min:1',
-            'contract_ids.*' => 'integer',
-            'department_id'  => 'nullable|integer',
-            'send'           => 'nullable|boolean',
-        ]);
-
-        $deptId   = (($d = (int) ($data['department_id'] ?? 0)) > 0) ? $d : null;
-        // No confiar en el POST: solo lo que HOY es elegible y capturable por el actor.
-        $eligible = ContractBatchEmitter::eligible($prodId, $deptId, $actor)->keyBy('id');
-        $chosen   = collect($data['contract_ids'])->map(fn ($id) => $eligible->get((int) $id))->filter()->values();
-
-        if ($chosen->isEmpty()) {
-            return back()->with('error', __('No hay contratos elegibles en la selección.'));
-        }
-
-        $summary = ContractBatchEmitter::run($chosen, $actor, $request->boolean('send'));
-
-        $c = count($summary['created']);
-        $s = count($summary['skipped']);
-        $msg = __(':n sobres creados', ['n' => $c]);
-        if ($request->boolean('send') && $c) {
-            $msg .= ' · ' . __('enviados a firma');
-        }
-        if ($s) {
-            $msg .= ' · ' . __(':n omitidos', ['n' => $s]);
-        }
-
-        return back()->with('status', $msg)->with('batch_summary', $summary);
-    }
-
     // ── CONFIG de la ruta (puestos + orden) — settings.manage ─────────────────
     public function editConfig(Request $request)
     {
@@ -392,6 +339,7 @@ class ContractEnvelopeController extends Controller
             'authSequential'   => SignaturePositions::authSequential(),
             'signParallel'     => SignaturePositions::signParallel(),
             'conditionalRules' => SignaturePositions::conditionalSignerRules(),
+            'conditionalEnabled' => SignaturePositions::conditionalSignersEnabled(),
         ]);
     }
 
@@ -457,6 +405,9 @@ class ContractEnvelopeController extends Controller
             }
         }
         Setting::updateOrCreate(['key' => SignaturePositions::KEY_CONDITIONAL_SIGNERS], ['value' => json_encode($condRules)]);
+        // B5-toggle · interruptor del resolvedor condicional (default OFF). Aunque haya reglas
+        // guardadas arriba, no se agrega firmante extra a menos que esté encendido.
+        Setting::updateOrCreate(['key' => SignaturePositions::KEY_CONDITIONAL_ENABLED], ['value' => $request->boolean('conditional_enabled') ? '1' : '0']);
         Branding::forget();
 
         return back()->with('status', __('Ruta de firma actualizada.'));

@@ -38,6 +38,10 @@ class SignaturePositions
     // B5 · RESOLVEDOR CONDICIONAL: reglas por IMPORTE que agregan un firmante EXTRA a la ruta
     // (p.ej. "arriba de $50,000, firma también el Line Producer"). JSON: [{min, entry}].
     const KEY_CONDITIONAL_SIGNERS = 'contract_conditional_signers';
+    // B5-toggle · INTERRUPTOR del resolvedor condicional. OFF por default: aunque existan reglas
+    // configuradas NO se agrega ningún firmante extra hasta encenderlo. Deja al owner guardar
+    // reglas sin que actúen (la spec dice que probablemente nunca se usen).
+    const KEY_CONDITIONAL_ENABLED = 'contract_conditional_signers_enabled';
 
     // Entrada DINÁMICA: "el HOD (jefe) del departamento del contrato" — así el jefe del depto
     // relevante firma sin fijar un puesto por-departamento (que afectaría a todos por igual).
@@ -107,6 +111,12 @@ class SignaturePositions
         return (bool) (int) Branding::get(self::KEY_SIGN_PARALLEL, 0);
     }
 
+    /** B5 · ¿El resolvedor condicional por importe está ENCENDIDO? Default OFF (reglas inertes). */
+    public static function conditionalSignersEnabled(): bool
+    {
+        return (bool) (int) Branding::get(self::KEY_CONDITIONAL_ENABLED, 0);
+    }
+
     /**
      * B5 · Reglas condicionales de firma (por importe). Cada regla: {min: float, entry: id|'dept_hod'}.
      * Saneadas (min>0, entry válido). El orden se conserva (JSON de la config).
@@ -136,6 +146,10 @@ class SignaturePositions
     /** B5 · Entradas de firmante EXTRA que aplican a un contrato de este importe de honorarios. */
     public static function conditionalSignerEntries(float $amount): array
     {
+        // Interruptor apagado (default): las reglas quedan inertes, no se agrega firmante extra.
+        if (! self::conditionalSignersEnabled()) {
+            return [];
+        }
         $entries = [];
         foreach (self::conditionalSignerRules() as $rule) {
             if ($amount >= $rule['min']) {

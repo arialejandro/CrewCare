@@ -413,13 +413,12 @@ class SpfxCatalogSeeder extends Seeder
         foreach ($efectos as $e) {
             $split = $this->splitFamily($e['familia']);
             $prev = isset($existing[$e['id']]) ? $existing[$e['id']] : null;
-            $verification = $this->resolveVerification($prev, !empty($e['verificado']));
-
-            if (!empty($e['verificado'])) {
-                $this->stats['effects_verified']++;
-            } else {
-                $this->stats['effects_pending']++;
-            }
+            // Los efectos son catálogo de FÁBRICA autoritativo → nacen VERIFICADOS DE ORIGEN
+            // (verified_by_id NULL), nunca pendientes. No hay ruta de verificación por humano para
+            // efectos, así que el badge ámbar aquí sería UI muerta. (Los INSUMOS sí conservan su
+            // flujo pendiente en importConsumables()/resolveVerification().)
+            $verification = $this->resolveVerification($prev, true);
+            $this->stats['effects_verified']++;
 
             if ($prev === null) {
                 $this->stats['effects_created']++;

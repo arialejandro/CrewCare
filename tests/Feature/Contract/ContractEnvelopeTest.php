@@ -17,7 +17,6 @@ use App\Models\Position;
 use App\Models\Setting;
 use App\Models\User;
 use App\Support\Branding;
-use App\Support\ContractBatchEmitter;
 use App\Support\ContractEmitter;
 use App\Support\ContractEnvelopeBuilder;
 use App\Support\ContractSigning;
@@ -260,67 +259,6 @@ class ContractEnvelopeTest extends QaTestCase
         $this->assertSame(0, $env->copyRecipients()->count(), 'un sobre retirado rechaza copias');
     }
 
-    // ── B2 · EMISIÓN MASIVA (N sobres de una) ────────────────────────────────
-
-    /** El lote crea un sobre por contrato elegible; los no-emitidos no son elegibles. */
-    public function test_batch_emits_envelopes_for_eligible_contracts(): void
-    {
-        Storage::fake('local');
-        $this->seatInternals();
-        $actor = $this->actingAsRole('super-admin');
-
-        $c1 = $this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee('1990-01-01'));
-        $c2 = $this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee('1991-02-02'));
-        // Un contrato SIN emitir → no elegible.
-        $noEmit = $this->crewPayee('1992-03-03')->contracts()->create([
-            'concept' => PayeeContract::CONCEPT_CREW, 'is_active' => 1, 'production_id' => $this->prodId, 'crew_activity' => 'x',
-        ]);
-
-        $eligible = ContractBatchEmitter::eligible($this->prodId, null, $actor);
-        $this->assertTrue($eligible->contains('id', $c1->id));
-        $this->assertTrue($eligible->contains('id', $c2->id));
-        $this->assertFalse($eligible->contains('id', $noEmit->id), 'sin emitir no es elegible');
-
-        $summary = ContractBatchEmitter::run($eligible, $actor, false);
-        $this->assertCount(2, $summary['created']);
-        $this->assertSame(1, $c1->fresh()->envelopes()->count());
-        $this->assertSame(1, $c2->fresh()->envelopes()->count());
-        $this->assertTrue($c1->fresh()->envelopes()->first()->isDraft(), 'sin send → borrador');
-
-        // Con un sobre en curso, deja de ser elegible (no se duplica).
-        $this->assertFalse(ContractBatchEmitter::eligible($this->prodId, null, $actor)->contains('id', $c1->id));
-    }
-
-    /** Con send=true, el lote además envía a firma (sent + primer turno). */
-    public function test_batch_can_create_and_send(): void
-    {
-        Storage::fake('local');
-        $this->seatInternals();
-        $actor = $this->actingAsRole('super-admin');
-        $c1 = $this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee('1990-01-01'));
-
-        ContractBatchEmitter::run(ContractBatchEmitter::eligible($this->prodId, null, $actor), $actor, true);
-        $env = $c1->fresh()->envelopes()->first();
-        $this->assertTrue($env->isSent());
-        $this->assertNotNull($env->current_recipient_id);
-    }
-
-    /** El controlador crea el lote de la selección (re-resuelta en el servidor). */
-    public function test_batch_controller_creates_from_selection(): void
-    {
-        Storage::fake('local');
-        $this->seatInternals();
-        $this->actingAsRole('super-admin');
-        $c1 = $this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee('1990-01-01'));
-        $c2 = $this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee('1991-02-02'));
-
-        $this->post(route('contracts.batch.store'), ['contract_ids' => [$c1->id, $c2->id], 'send' => 0])
-            ->assertRedirect();
-
-        $this->assertSame(1, $c1->fresh()->envelopes()->count());
-        $this->assertSame(1, $c2->fresh()->envelopes()->count());
-    }
-
     // ── B4 · RUTEO PARALELO (firmar en cualquier orden) ──────────────────────
 
     /** En paralelo todos los firmantes reciben a la vez y firman en cualquier orden; completa al final. */
@@ -405,6 +343,8 @@ class ContractEnvelopeTest extends QaTestCase
             ['min' => 50000, 'entry' => $condPos],
             ['min' => 60000, 'entry' => $condPos],   // regla duplicada → no debe duplicar la firma
         ])]);
+        // El resolvedor condicional está APAGADO por default; este test valida el modo ACTIVO.
+        Setting::updateOrCreate(['key' => SignaturePositions::KEY_CONDITIONAL_ENABLED], ['value' => '1']);
         Branding::forget();
 
         try {
@@ -421,6 +361,35 @@ class ContractEnvelopeTest extends QaTestCase
             $this->assertSame(1, $envHigh->recipients()->where('user_id', $extra->id)->count(), 'sobre umbral: un extra, sin duplicar');
             // Y firma como ROLE_SIGNER (entra a la ruta).
             $this->assertTrue($envHigh->orderedRecipients()->get()->contains('user_id', $extra->id));
+        } finally {
+            Setting::whereIn('key', [SignaturePositions::KEY_CONDITIONAL_SIGNERS, SignaturePositions::KEY_CONDITIONAL_ENABLED])->delete();
+            Branding::forget();
+        }
+    }
+
+    /** Con el interruptor APAGADO (default) las reglas por importe quedan inertes: sin firmante extra. */
+    public function test_conditional_signer_ignored_when_toggle_off(): void
+    {
+        Storage::fake('local');
+        $this->seatInternals();
+
+        $condPos = (int) Position::orderBy('id')->skip(2)->value('id');
+        DB::table('production_user')->where('production_id', $this->prodId)->where('position_id', $condPos)->delete();
+        $extra = $this->makeUser('coordinator');
+        $extra->forceFill(['name' => 'Extra', 'lname' => 'Off', 'email' => 'extra-off@x.mx'])->save();
+        $this->attachPosition($extra, $condPos);
+
+        // Regla que SÍ alcanzaría el umbral, pero el toggle NO se enciende → debe ignorarse.
+        Setting::updateOrCreate(['key' => SignaturePositions::KEY_CONDITIONAL_SIGNERS], ['value' => json_encode([
+            ['min' => 50000, 'entry' => $condPos],
+        ])]);
+        Branding::forget();
+
+        try {
+            $high = $this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee('1992-03-03'));
+            $high->update(['fee_amount' => 90000]);
+            $envHigh = ContractEnvelopeBuilder::build($high->fresh(), null);
+            $this->assertSame(0, $envHigh->recipients()->where('user_id', $extra->id)->count(), 'toggle off: regla inerte');
         } finally {
             Setting::where('key', SignaturePositions::KEY_CONDITIONAL_SIGNERS)->delete();
             Branding::forget();
