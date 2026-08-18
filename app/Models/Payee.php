@@ -205,6 +205,36 @@ class Payee extends Model
     }
 
     /**
+     * Filtra payees por DEPARTAMENTO, con los MISMOS dos ejes que scopeVisibleTo (en OR), pero
+     * acotado a un solo departamento: (A) el CONTRATANTE está en ese depto, o (B) el payee está
+     * LIGADO a un crew de ese depto. Se usa para el filtro del listado y la descarga masiva. NO
+     * reemplaza a visibleTo: se ENCADENA después (visibleTo pone el alcance; esto sub-filtra).
+     */
+    public function scopeInDepartment($query, $deptId)
+    {
+        $deptId = (int) $deptId;
+
+        return $query->where(function ($w) use ($deptId) {
+            $w->whereExists(function ($s) use ($deptId) {
+                $s->selectRaw('1')->from('payee_contracts')
+                  ->join('production_user', 'production_user.user_id', '=', 'payee_contracts.contracted_by_user_id')
+                  ->whereColumn('payee_contracts.payee_id', 'payees.id')
+                  ->where('production_user.department_id', $deptId);
+            })->orWhereExists(function ($s) use ($deptId) {
+                $s->selectRaw('1')->from('production_user')
+                  ->whereColumn('production_user.user_id', 'payees.user_id')
+                  ->where('production_user.department_id', $deptId);
+            });
+        });
+    }
+
+    /** Id de departamento derivado (público): crew ligado (B) → contratante (A) → null. */
+    public function departmentId(): ?int
+    {
+        return $this->resolveDepartmentId();
+    }
+
+    /**
      * PASO 4 · VISIBILIDAD — FUENTE ÚNICA de "quién ve qué payee". La usan el listado
      * (PayeeController) y, derivado, el {@see \App\Policies\PayeePolicy} (por objeto) y la
      * guarda del intake por quien contrata. Dos ejes, en OR:

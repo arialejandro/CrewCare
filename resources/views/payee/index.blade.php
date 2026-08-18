@@ -19,13 +19,34 @@
                 </div>
             </div>
 
-            <form method="GET" action="{{ route('payees.index') }}" class="d-flex gap-2" role="search">
-                <input type="search" name="q" value="{{ $q }}" class="form-control"
-                       placeholder="{{ __('Buscar por nombre o RFC…') }}" aria-label="{{ __('Buscar') }}">
-                <button class="btn btn-crew-soft" type="submit">
-                    @include('componentes._icon', ['name' => 'search', 'label' => null])
-                </button>
-            </form>
+            <div class="d-flex flex-column align-items-lg-end gap-2">
+                <form method="GET" action="{{ route('payees.index') }}" class="d-flex flex-wrap gap-2" role="search">
+                    <input type="search" name="q" value="{{ $q }}" class="form-control" style="min-width:220px"
+                           placeholder="{{ __('Buscar por nombre o RFC…') }}" aria-label="{{ __('Buscar') }}">
+                    @if($departments->isNotEmpty())
+                        <select name="dept" class="form-select" style="max-width:240px" onchange="this.form.submit()"
+                                aria-label="{{ __('Departamento') }}">
+                            <option value="">{{ __('Todos los departamentos') }}</option>
+                            @foreach($departments as $d)
+                                <option value="{{ $d->id }}" @selected($deptId === (int) $d->id)>{{ $d->name }}</option>
+                            @endforeach
+                        </select>
+                    @endif
+                    <button class="btn btn-crew-soft" type="submit">
+                        @include('componentes._icon', ['name' => 'search', 'label' => null])
+                    </button>
+                </form>
+
+                @if($payees->total() > 0)
+                    {{-- Descarga MASIVA: obedece los MISMOS filtros del listado (depto/global/búsqueda). --}}
+                    <a href="{{ route('payees.documents.bulk', array_filter(['q' => $q, 'dept' => $deptId ?: null])) }}"
+                       class="btn btn-sm btn-crew-soft d-inline-flex align-items-center gap-1">
+                        @include('componentes._icon', ['name' => 'download', 'label' => null])
+                        {{ $deptId > 0 ? __('Descargar documentos del departamento') : __('Descargar documentos (todos)') }}
+                        <span class="text-muted">({{ $payees->total() }})</span>
+                    </a>
+                @endif
+            </div>
         </div>
 
         @if($payees->isEmpty())

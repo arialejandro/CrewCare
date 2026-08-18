@@ -188,6 +188,91 @@ class PayeeVisibilityTest extends QaTestCase
             ->assertSessionHas('error');
     }
 
+    /** Un doc con archivo en disco, colgado del payee. Helper para el bulk. */
+    private function docFor(Payee $payee, string $type, string $body): \App\Models\ExternalAuthorization
+    {
+        $doc = $payee->documents()->create([
+            'level' => 'persona', 'document_type' => $type,
+            'photo_path' => 'payee/docs/' . $payee->id . '/' . $type . '_' . uniqid() . '.pdf', 'is_active' => 1,
+        ]);
+        Storage::disk('local')->put($doc->photo_path, $body);
+        return $doc;
+    }
+
+    /** La descarga MASIVA (global) empaqueta a TODOS los visibles y registra cada doc. */
+    public function test_bulk_download_global_bundles_all_visible_and_logs(): void
+    {
+        Storage::fake('local');
+        $lp = $this->makeUser('line-producer'); // bypass → ve todo
+        $hodA = $this->makeUser('hod'); $this->attachDept($hodA, $this->deptA);
+        $hodB = $this->makeUser('hod'); $this->attachDept($hodB, $this->deptB);
+
+        $pA = $this->payeeContractedBy($hodA, 'Arte SA');
+        $pB = $this->payeeContractedBy($hodB, 'Transpo SA');
+        $dA = $this->docFor($pA, 'CSF', '%PDF-1.4 arte');
+        $dB = $this->docFor($pB, 'INE', '%PDF-1.4 transpo');
+
+        $this->actingAs($lp);
+        $res = $this->get(route('payees.documents.bulk'));
+        $res->assertOk();
+        $this->assertStringContainsString('zip', strtolower((string) $res->headers->get('content-type')));
+
+        // Ambos docs (de ambos departamentos) quedan en la bitácora.
+        $this->assertDatabaseHas('payee_document_downloads', ['payee_id' => $pA->id, 'document_id' => $dA->id, 'user_id' => $lp->id]);
+        $this->assertDatabaseHas('payee_document_downloads', ['payee_id' => $pB->id, 'document_id' => $dB->id, 'user_id' => $lp->id]);
+    }
+
+    /** El filtro por departamento acota el bulk a ese depto (no incluye al otro). */
+    public function test_bulk_download_by_department_filters(): void
+    {
+        Storage::fake('local');
+        $lp = $this->makeUser('line-producer');
+        $hodA = $this->makeUser('hod'); $this->attachDept($hodA, $this->deptA);
+        $hodB = $this->makeUser('hod'); $this->attachDept($hodB, $this->deptB);
+
+        $pA = $this->payeeContractedBy($hodA, 'Arte SA');
+        $pB = $this->payeeContractedBy($hodB, 'Transpo SA');
+        $dA = $this->docFor($pA, 'CSF', '%PDF-1.4 arte');
+        $dB = $this->docFor($pB, 'INE', '%PDF-1.4 transpo');
+
+        $this->actingAs($lp);
+        $this->get(route('payees.documents.bulk', ['dept' => $this->deptA]))->assertOk();
+
+        // Solo el de arte quedó registrado; el de transpo NO (quedó fuera del filtro).
+        $this->assertDatabaseHas('payee_document_downloads', ['document_id' => $dA->id]);
+        $this->assertDatabaseMissing('payee_document_downloads', ['document_id' => $dB->id]);
+    }
+
+    /** El bulk respeta el ALCANCE: un HOD solo empaqueta lo de su departamento. */
+    public function test_bulk_download_is_scoped_to_viewer(): void
+    {
+        Storage::fake('local');
+        $hodA = $this->makeUser('hod'); $this->attachDept($hodA, $this->deptA);
+        $hodB = $this->makeUser('hod'); $this->attachDept($hodB, $this->deptB);
+
+        $pA = $this->payeeContractedBy($hodA, 'Arte SA');
+        $pB = $this->payeeContractedBy($hodB, 'Transpo SA');
+        $dA = $this->docFor($pA, 'CSF', '%PDF-1.4 arte');
+        $dB = $this->docFor($pB, 'INE', '%PDF-1.4 transpo');
+
+        // El HOD de arte pide "global": SOLO recibe lo suyo, nunca el doc de transpo.
+        $this->actingAs($hodA);
+        $this->get(route('payees.documents.bulk'))->assertOk();
+        $this->assertDatabaseHas('payee_document_downloads', ['document_id' => $dA->id, 'user_id' => $hodA->id]);
+        $this->assertDatabaseMissing('payee_document_downloads', ['document_id' => $dB->id]);
+    }
+
+    /** Sin documentos en el filtro, el bulk no truena: regresa con aviso. */
+    public function test_bulk_download_without_docs_redirects(): void
+    {
+        Storage::fake('local');
+        $hodA = $this->makeUser('hod'); $this->attachDept($hodA, $this->deptA);
+        $this->payeeContractedBy($hodA, 'Arte SA'); // sin documentos
+
+        $this->actingAs($hodA);
+        $this->get(route('payees.documents.bulk'))->assertRedirect()->assertSessionHas('error');
+    }
+
     // ── 4.3 · ambulancias exclusivo producción/safety, nunca transpo ──────────
     public function test_transpo_hod_cannot_reach_ambulances_by_direct_url(): void
     {
