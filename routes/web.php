@@ -728,6 +728,8 @@ Route::middleware(['auth'])->group(function () {
         // son IDEMPOTENTES (ver el controlador): repetirlas no duplica ni truena.
         Route::post('/sfx-effects/{id}/consumables', [\App\Http\Controllers\SfxEffectTypeController::class, 'attach'])->name('sfx-effects.consumables.attach')->whereNumber('id');
         Route::delete('/sfx-effects/{id}/consumables/{consumable}', [\App\Http\Controllers\SfxEffectTypeController::class, 'detach'])->name('sfx-effects.consumables.detach')->whereNumber('id')->whereNumber('consumable');
+        // Imagen principal del TIPO de efecto (referencia visual de la card). Misma autoridad.
+        Route::post('/sfx-effects/{id}/imagen', [\App\Http\Controllers\SfxEffectTypeController::class, 'storeImage'])->name('sfx-effects.image.store')->whereNumber('id');
     });
 
     // Papelera de consumibles RETIRADOS (Paso 1b, soft delete). Conservar el registro es

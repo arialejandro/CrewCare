@@ -78,7 +78,10 @@
     @supports not (aspect-ratio:1/1){.fx-card__hero{height:150px}}
     .fx-card__mono{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:color-mix(in srgb,var(--brand-primary) 60%,var(--text-muted));opacity:.85}
     .fx-card__mono .cc-ico{width:44px;height:44px}
-    .fx-card__code{position:absolute;top:.55rem;left:.65rem;font-size:.68rem;font-weight:700;letter-spacing:.06em;font-variant-numeric:tabular-nums;color:color-mix(in srgb,var(--brand-primary) 72%,var(--text));opacity:.92}
+    .fx-card__code{position:absolute;top:.55rem;left:.65rem;font-size:.68rem;font-weight:700;letter-spacing:.06em;font-variant-numeric:tabular-nums;color:color-mix(in srgb,var(--brand-primary) 72%,var(--text));opacity:.92;z-index:1}
+    /* Hero CON foto: la imagen llena el hero; el código se lee sobre un scrim oscuro. */
+    .fx-card__img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+    .fx-card__hero--img .fx-card__code{color:#fff;background:rgba(0,0,0,.45);padding:.12rem .42rem;border-radius:6px;opacity:1}
 
     .fx-card__body{padding:.8rem .85rem .35rem;display:flex;flex-direction:column;gap:.35rem;flex:1}
     .fx-card__name{font-size:1.02rem;font-weight:700;color:var(--text);line-height:1.2;text-decoration:none}
@@ -242,11 +245,15 @@
                         ])));
                     @endphp
                     <article class="fx-card card border-0 rounded-3" data-family="{{ $effect->family }}" data-search="{{ $haystack }}">
-                        <div class="fx-card__hero">
+                        <div class="fx-card__hero{{ $effect->imageUrl() ? ' fx-card__hero--img' : '' }}">
                             @if($effect->code)
                                 <span class="fx-card__code">{{ $effect->code }}</span>
                             @endif
-                            <span class="fx-card__mono">@include('componentes._icon', ['name' => 'zap', 'label' => null])</span>
+                            @if($effect->imageUrl())
+                                <img class="fx-card__img" src="{{ $effect->imageUrl() }}" alt="{{ $effect->name }}" loading="lazy">
+                            @else
+                                <span class="fx-card__mono">@include('componentes._icon', ['name' => 'zap', 'label' => null])</span>
+                            @endif
                         </div>
 
                         <div class="fx-card__body">
