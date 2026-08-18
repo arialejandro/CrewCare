@@ -472,6 +472,8 @@ Route::middleware(['auth','permission:pae.issue'])->group(function () {
     Route::get('/pae', [App\Http\Controllers\PaeController::class, 'index'])->name('pae.index');
     Route::get('/pae/emitir', [App\Http\Controllers\PaeController::class, 'create'])->name('pae.create');
     Route::post('/pae', [App\Http\Controllers\PaeController::class, 'store'])->name('pae.store');
+    // Previsualización editable (patrón Wrap): construye el documento SIN sellar; el sellado sigue en store.
+    Route::post('/pae/borrador', [App\Http\Controllers\PaeController::class, 'preview'])->name('pae.preview');
     // Editar = emitir una REVISIÓN nueva que supersede a la anterior. /editar antes de /{uuid}.
     Route::get('/pae/{pae:uuid}/editar', [App\Http\Controllers\PaeController::class, 'edit'])->name('pae.edit')->where('pae', '[0-9a-fA-F-]{36}');
     Route::get('/pae/{pae:uuid}', [App\Http\Controllers\PaeController::class, 'show'])->name('pae.show')->where('pae', '[0-9a-fA-F-]{36}');

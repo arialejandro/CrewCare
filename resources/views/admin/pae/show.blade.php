@@ -22,6 +22,8 @@
 
     $en        = app()->getLocale() === 'en';
     $p         = $plan;
+    $borrador  = $borrador ?? false;   // preview editable (patrón Wrap): documento SIN sellar
+    $formEcho  = $formEcho ?? [];      // campos crudos que la barra del borrador reenvía a store()
 
     $brand     = isset($branding) && is_array($branding) ? $branding : [];
     $brandName = ($brand['brand_name'] ?? Branding::get('brand_name', 'CrewCare')) ?: 'CrewCare';
@@ -93,7 +95,7 @@
     $docVersion = $p->versionLabel();
 
     // Editar (= emitir una revisión nueva): sólo la versión VIGENTE y sólo quien puede emitir.
-    $canEdit = $p->is_active && $p->supportsVersioning() && optional(auth()->user())->can('pae.issue');
+    $canEdit = $p->exists && $p->is_active && $p->supportsVersioning() && optional(auth()->user())->can('pae.issue');
     $editUrl = $canEdit ? route('pae.edit', $p->uuid) : null;
 
     // Nivel de riesgo → etiqueta + color + rango de orden (E>H>M>L). DERIVADO, no sellado.
@@ -305,6 +307,26 @@
     .pae-seal.bad{ border-left:4px solid var(--danger); }
     .pae-seal .bad-tag{ color:var(--danger); font-weight:700; }
 
+    /* ===== Borrador (preview editable) + Mapa de riesgos ===== */
+    .pae-draft-banner{ margin:0 0 14px; padding:10px 13px; border-radius:10px; border:1px solid var(--brand);
+        background:color-mix(in srgb,var(--brand) 10%,var(--panel)); color:var(--text); font-size:12.5px; font-weight:700; }
+    .pae-confirm{ margin:16px 0 4px; padding:14px 16px; border:1px dashed var(--brand); border-radius:12px;
+        background:color-mix(in srgb,var(--brand) 7%,var(--panel)); }
+    .pae-confirm-note{ font-size:12px; color:var(--muted); margin-bottom:10px; }
+    .pae-confirm-actions{ display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; margin:0; }
+    .pae-confirm-actions button{ font-size:13px; font-weight:800; border-radius:10px; padding:10px 18px; cursor:pointer; border:1px solid var(--stroke); }
+    .pae-confirm-actions .cta{ background:var(--brand); color:#fff; border-color:var(--brand); }
+    .pae-confirm-actions .ghost{ background:transparent; color:var(--text); }
+    .pae-rmap{ border:1px solid var(--stroke); border-radius:12px; padding:12px 14px; background:var(--panel); margin:0 0 12px; break-inside:avoid; }
+    .pae-rmap-head{ display:flex; align-items:center; gap:10px 14px; flex-wrap:wrap; margin-bottom:8px; }
+    .pae-rmap-head .loc{ font-weight:800; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+    .pae-rmap-head .folio{ font-family:var(--mono); font-weight:700; font-size:12px; color:var(--text); }
+    .pae-rmap-head .verify{ font-size:11px; font-weight:700; color:var(--brand); }
+    .pae-rmap-views{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+    .pae-rmap-fig{ margin:0; border:1px solid var(--stroke); border-radius:10px; overflow:hidden; background:#fff; }
+    .pae-rmap-fig img{ display:block; width:100%; max-height:80mm; object-fit:contain; background:#fff; }
+    .pae-rmap-fig figcaption{ font-size:9px; color:var(--muted); padding:4px 8px; background:var(--panel); }
+
     @media print{
         .pae-act{ break-inside:avoid; }
         .pae-cmd-big, .pae-cmd-sm, .pae-say-tpl, .pae-fase, .pae-risk, .pae-proc{ break-inside:avoid; }
@@ -315,7 +337,7 @@
         .pae-strip .cell{ border-right:0; border-bottom:1px solid var(--stroke); }
         .pae-strip .cell:last-child{ border-bottom:0; }
         .pae-trans-grid{ grid-template-columns:1fr; }
-        .pae-cmd-big, .pae-cmd-sm, .pae-fases, .pae-risks, .pae-proc-grid{ grid-template-columns:1fr; }
+        .pae-cmd-big, .pae-cmd-sm, .pae-fases, .pae-risks, .pae-proc-grid, .pae-rmap-views{ grid-template-columns:1fr; }
     }
 </style>
 </head>
@@ -363,6 +385,12 @@
 
     <div class="body">
       <h1 class="restricted" style="position:absolute;left:-9999px">{{ $brandName }} — {{ $heroModule }} — {{ $locLabel }}</h1>
+
+      @if($borrador)
+      <div class="no-print pae-draft-banner">
+        {{ $en ? 'Draft — review the full document below; you emit and seal it at the bottom when it is correct.' : 'Borrador — revisa el documento completo abajo; al final lo emites y sellas si está correcto.' }}
+      </div>
+      @endif
 
       @if(! $p->is_active)
       <div class="no-print" style="margin:0 0 14px;padding:9px 12px;border-radius:9px;border:1px solid var(--stroke);background:color-mix(in srgb,var(--danger) 8%,var(--panel));color:var(--danger);font-size:12px;font-weight:700">
@@ -613,7 +641,73 @@
         </div>
       </section>
 
-      {{-- ============ SELLO SHA ============ --}}
+      {{-- ============ MAPA DE RIESGOS (antes de las firmas; congelado en el payload) ============ --}}
+      @php
+          $riskMaps = [];
+          foreach ($locations as $lx) {
+              $rm = $lx['riskmap'] ?? null;
+              if (is_array($rm) && (trim((string) ($rm['folio'] ?? '')) !== '' || ! empty($rm['views']))) {
+                  $riskMaps[] = ['loc' => trim((string) ($lx['name'] ?? '')), 'ref' => $rm];
+              }
+          }
+      @endphp
+      @if(count($riskMaps))
+      <section class="sec">
+        <div class="sec-h"><span class="bar"></span><h2>{{ $en ? 'Risk map' : 'Mapa de riesgos' }}</h2><span class="line"></span></div>
+        @foreach($riskMaps as $rmEntry)
+          @php
+            $rm      = $rmEntry['ref'];
+            $rmFolio = trim((string) ($rm['folio'] ?? ''));
+            $rmUrl   = trim((string) ($rm['verify_url'] ?? ''));
+            $rmViews = (array) ($rm['views'] ?? []);
+          @endphp
+          <div class="pae-rmap">
+            <div class="pae-rmap-head">
+              @if(count($locations) > 1 && $rmEntry['loc'] !== '')<span class="loc">{{ $rmEntry['loc'] }}</span>@endif
+              @if($rmFolio !== '')<span class="folio">{{ $rmFolio }}</span>@endif
+              @if($rmUrl !== '')<a class="verify" href="{{ $rmUrl }}" target="_blank" rel="noopener">{{ $en ? 'Verify map (QR)' : 'Verificar mapa (QR)' }}</a>@endif
+            </div>
+            @if(count($rmViews))
+            <div class="pae-rmap-views">
+              @foreach($rmViews as $vw)
+                @php $vlbl = trim((string) ($vw['label'] ?? '')); $vimg = trim((string) ($vw['image'] ?? '')); @endphp
+                @if($vimg !== '')
+                <figure class="pae-rmap-fig">
+                  <img src="{{ $vimg }}" alt="{{ $vlbl !== '' ? $vlbl : ($en ? 'Risk map view' : 'Vista del mapa de riesgos') }}">
+                  @if($vlbl !== '')<figcaption>{{ $vlbl }}</figcaption>@endif
+                </figure>
+                @endif
+              @endforeach
+            </div>
+            @endif
+          </div>
+        @endforeach
+      </section>
+      @endif
+
+      {{-- ============ SELLO SHA (o barra de confirmación en modo borrador) ============ --}}
+      @if($borrador)
+      <div class="no-print pae-confirm">
+        <div class="pae-confirm-note">{{ $en ? 'This is exactly how the plan will be sealed. Fix anything above, or emit and seal it now.' : 'Así quedará sellado el plan. Corrige lo que haga falta arriba, o emítelo y séllalo ahora.' }}</div>
+        <form method="POST" action="{{ route('pae.store') }}" class="pae-confirm-actions">
+          @csrf
+          @foreach(($formEcho['scoutings'] ?? []) as $sid)<input type="hidden" name="scoutings[]" value="{{ $sid }}">@endforeach
+          @foreach(($formEcho['contacts'] ?? []) as $ck => $cv)
+            <input type="hidden" name="contacts[{{ $ck }}][name]" value="{{ $cv['name'] ?? '' }}">
+            <input type="hidden" name="contacts[{{ $ck }}][phone]" value="{{ $cv['phone'] ?? '' }}">
+            <input type="hidden" name="contacts[{{ $ck }}][radio]" value="{{ $cv['radio'] ?? '' }}">
+          @endforeach
+          <input type="hidden" name="shoot_day" value="{{ $formEcho['shoot_day'] ?? '' }}">
+          <input type="hidden" name="plan_date" value="{{ $formEcho['plan_date'] ?? '' }}">
+          <input type="hidden" name="unit_name" value="{{ $formEcho['unit_name'] ?? '' }}">
+          <input type="hidden" name="move_time" value="{{ $formEcho['move_time'] ?? '' }}">
+          @if(($formEcho['embed_map_views'] ?? '') === '1')<input type="hidden" name="embed_map_views" value="1">@endif
+          @if(($formEcho['supersedes_uuid'] ?? '') !== '')<input type="hidden" name="supersedes_uuid" value="{{ $formEcho['supersedes_uuid'] }}">@endif
+          <button type="button" class="ghost" onclick="history.back()">{{ $en ? 'Back to edit' : 'Volver a corregir' }}</button>
+          <button type="submit" class="cta">{{ $en ? 'Emit and seal' : 'Emitir y sellar' }}</button>
+        </form>
+      </div>
+      @else
       <div class="pae-seal {{ $verdict === false ? 'bad' : '' }}">
         @if($qr)<div class="qr">{!! $qr !!}</div>@endif
         <div class="sbody">
@@ -626,6 +720,7 @@
         </div>
         @if($identicon)<div class="idc">{!! $identicon !!}</div>@endif
       </div>
+      @endif
 
     </div>{{-- .body --}}
 

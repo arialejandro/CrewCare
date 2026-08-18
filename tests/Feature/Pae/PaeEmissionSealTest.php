@@ -177,4 +177,63 @@ class PaeEmissionSealTest extends PaeVerticalTestCase
         $fresh = EmergencyActionPlan::where('uuid', $plan->uuid)->first();
         $this->assertFalse($fresh->verifyLatestSignature(), 'Alterar shoot_day en BD debe romper el sello.');
     }
+
+    // ==================================================================================
+    //  5. PREVIEW (patrón Wrap) — renderiza el documento REAL sin congelar ni sellar.
+    // ==================================================================================
+
+    public function test_preview_renderiza_borrador_sin_persistir_ni_sellar(): void
+    {
+        $sc = $this->makeScouting();
+        $this->actingAsRole('safety-officer');
+
+        $resp = $this->post(route('pae.preview'), $this->storePayload([$sc->id], ['shoot_day' => 9]));
+
+        $resp->assertOk();
+        $resp->assertSee('Hospital QA Central');     // el documento REAL se pinta en el borrador
+        $resp->assertSee('Emitir y sellar');         // barra de confirmación (solo en borrador)
+        // El preview NO congela ni sella: cero filas en la tabla.
+        $this->assertDatabaseCount('emergency_action_plans', 0);
+    }
+
+    public function test_preview_valida_igual_que_store(): void
+    {
+        $a = $this->makeScouting();
+        $b = $this->makeScouting();
+        $c = $this->makeScouting();
+        $this->actingAsRole('safety-officer');
+
+        // 3 locaciones → max:2, misma validación que store; nada se persiste.
+        $this->post(route('pae.preview'), $this->storePayload([$a->id, $b->id, $c->id]))
+            ->assertSessionHasErrors('scoutings');
+        $this->assertDatabaseCount('emergency_action_plans', 0);
+    }
+
+    // ==================================================================================
+    //  6. MAPA DE RIESGOS — se PINTA cuando el payload trae la referencia (bug latente).
+    // ==================================================================================
+
+    public function test_show_pinta_el_mapa_de_riesgos_cuando_existe(): void
+    {
+        // Plan EN MEMORIA con una locación que trae la referencia del mapa sellado (folio + verify).
+        $plan = new EmergencyActionPlan([
+            'payload' => [
+                'header'       => ['date' => now()->toDateString()],
+                'org'          => ['crew' => []],
+                'company_move' => ['is_move' => false],
+                'locations'    => [[
+                    'name'     => 'Loc con mapa',
+                    'risks'    => [],
+                    'hospital' => [],
+                    'riskmap'  => ['folio' => 'RMAP-0042', 'verify_url' => 'https://qa.test/verificar/rmap/abc', 'views' => []],
+                ]],
+            ],
+            'is_active' => 1,
+        ]);
+
+        $html = view('admin.pae.show', ['plan' => $plan])->render();
+
+        $this->assertStringContainsString('RMAP-0042', $html);
+        $this->assertStringContainsString('Mapa de riesgos', $html);
+    }
 }

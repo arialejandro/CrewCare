@@ -53,7 +53,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('pae.store') }}">
+    <form method="POST" action="{{ route('pae.preview') }}">
         @csrf
         @if($editing)<input type="hidden" name="supersedes_uuid" value="{{ $source->uuid }}">@endif
 
@@ -161,7 +161,7 @@
             <a class="cc-btn-ghost" href="{{ $cancelUrl }}">{{ $en ? 'Cancel' : 'Cancelar' }}</a>
             <button type="submit" class="btn btn-primary cc-cta" {{ $scoutings->isEmpty() ? 'disabled' : '' }}>
                 @include('componentes._icon', ['name' => 'file-check', 'class' => 'cc-ico-16'])
-                {{ $editing ? ($en ? 'Issue new version' : 'Emitir nueva versión') : ($en ? 'Emit and seal' : 'Emitir y sellar') }}
+                {{ $en ? 'Preview' : 'Previsualizar' }}
             </button>
         </div>
     </form>

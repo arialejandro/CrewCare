@@ -147,79 +147,7 @@ class PaeController extends Controller
     {
         abort_unless(EmergencyActionPlan::supported(), 404);
 
-        // Los dos selectores de locación pueden venir vacíos ("") → se limpian a enteros
-        // positivos y se quitan duplicados ANTES de validar (loc1 requerida, loc2 opcional).
-        $request->merge([
-            'scoutings' => array_values(array_unique(array_filter(
-                array_map('intval', (array) $request->input('scoutings', [])),
-                fn ($v) => $v > 0
-            ))),
-        ]);
-
-        $data = $request->validate([
-            'scoutings'        => 'required|array|min:1|max:2',
-            'scoutings.*'      => 'integer|exists:scouting_reports,id',
-            'shoot_day'        => 'nullable|integer|min:1|max:999',
-            'plan_date'        => 'nullable|date',
-            'unit_name'        => 'nullable|string|max:255',
-            'move_time'        => 'nullable|string|max:50',
-            'embed_map_views'  => 'nullable|boolean',
-            'supersedes_uuid'  => 'nullable|string',   // presente = EDICIÓN → nueva revisión
-            'contacts'         => 'nullable|array',
-            'contacts.*.name'  => 'nullable|string|max:255',
-            'contacts.*.phone' => 'nullable|string|max:50',
-            'contacts.*.radio' => 'nullable|string|max:50',
-        ]);
-
-        // Locaciones EN EL ORDEN capturado (el orden del arreglo enviado manda; company move).
-        $ids = array_values(array_unique(array_map('intval', $data['scoutings'])));
-        $byId = ScoutingReport::whereIn('id', $ids)->get()->keyBy('id');
-        $ordered = [];
-        foreach ($ids as $id) {
-            if ($byId->has($id)) {
-                $ordered[] = $byId->get($id);
-            }
-        }
-        if (empty($ordered)) {
-            return back()->withInput()->withErrors(['scoutings' => 'Elige al menos una locación válida.']);
-        }
-
-        // Contactos ORDENADOS por slot, tal como el emisor los confirmó (pre-llenados o a mano).
-        $raw = (array) $request->input('contacts', []);
-        $contacts = [];
-        foreach (PaeOrgChart::SLOTS as $slot) {
-            $c = (array) ($raw[$slot['key']] ?? []);
-            $contacts[] = [
-                'key'   => $slot['key'],
-                'label' => $slot['label'],
-                'name'  => trim((string) ($c['name'] ?? '')),
-                'phone' => trim((string) ($c['phone'] ?? '')),
-                'radio' => trim((string) ($c['radio'] ?? '')),
-            ];
-        }
-
-        // Día de rodaje: lo tecleado manda; si no, se deriva de la fecha (misma regla que el DSR).
-        $planDate = trim((string) ($data['plan_date'] ?? '')) ?: now()->toDateString();
-        $shootDay = self::resolveShootDay($data['shoot_day'] ?? null, $planDate);
-
-        $opts = [
-            'shoot_day'       => $shootDay,
-            'plan_date'       => $planDate,
-            'unit_name'       => trim((string) ($data['unit_name'] ?? '')),
-            'move_time'       => trim((string) ($data['move_time'] ?? '')),
-            'embed_map_views' => ! empty($data['embed_map_views']),
-            'contacts'        => $contacts,
-        ];
-
-        $payload = EmergencyActionPlanBuilder::build($ordered, $opts);
-
-        // Etiqueta de listado (snapshot): día + locaciones.
-        $names = array_map(fn ($s) => trim((string) $s->location_name), $ordered);
-        $names = array_values(array_filter($names, fn ($n) => $n !== ''));
-        $label = ($shootDay ? ('Día ' . $shootDay) : 'PAE');
-        if ($names) {
-            $label .= ' · ' . implode(' → ', $names);
-        }
+        $built = $this->buildPayload($request);
 
         // VERSIONADO: si se está EDITANDO (supersedes_uuid), la nueva es una REVISIÓN que
         // reemplaza a la anterior; hereda su folio (root) y sube la revisión.
@@ -227,7 +155,7 @@ class PaeController extends Controller
         $revision = 1;
         $rootId   = null;
         if (EmergencyActionPlan::supportsVersioning()) {
-            $su = trim((string) ($data['supersedes_uuid'] ?? ''));
+            $su = trim((string) $request->input('supersedes_uuid', ''));
             if ($su !== '') {
                 $source = EmergencyActionPlan::where('uuid', $su)->first();
                 if ($source) {
@@ -238,12 +166,12 @@ class PaeController extends Controller
         }
 
         $attrs = [
-            'production_id'  => $ordered[0]->production_id ?: CurrentProduction::id(),
-            'shoot_day'      => $shootDay,
-            'plan_date'      => $planDate,
-            'unit_name'      => $opts['unit_name'] !== '' ? $opts['unit_name'] : null,
-            'plan_label'     => $label,
-            'payload'        => $payload,
+            'production_id'  => $built['productionId'],
+            'shoot_day'      => $built['shootDay'],
+            'plan_date'      => $built['planDate'],
+            'unit_name'      => $built['unitName'] !== '' ? $built['unitName'] : null,
+            'plan_label'     => $built['label'],
+            'payload'        => $built['payload'],
             'issued_by_id'   => auth()->id(),
             'issued_by_name' => optional(auth()->user())->name,
             'issued_at'      => now(),
@@ -273,6 +201,149 @@ class PaeController extends Controller
             : ('PAE emitido y sellado (' . $plan->folio() . ').');
 
         return redirect()->route('pae.show', $plan->uuid)->with('success', $msg);
+    }
+
+    /**
+     * PREVISUALIZACIÓN editable (patrón Wrap): construye el MISMO payload que store() sobre un
+     * EmergencyActionPlan NO GUARDADO (sin sellar) y renderiza la misma vista en modo borrador,
+     * con una barra "Emitir y sellar" que reenvía los campos a store(). store() sigue siendo la
+     * ÚNICA autoridad que congela+sella (reconstruye el payload desde la petición), así que un
+     * borrador manipulado no inyecta contenido. El borrador NO congela ni sella nada.
+     */
+    public function preview(Request $request)
+    {
+        abort_unless(EmergencyActionPlan::supported(), 404);
+
+        $built = $this->buildPayload($request);
+
+        // Fila EN MEMORIA (no save/no exists → verifyLatestSignature() null → se pinta sin sellar).
+        $plan = new EmergencyActionPlan([
+            'production_id'  => $built['productionId'],
+            'shoot_day'      => $built['shootDay'],
+            'plan_date'      => $built['planDate'],
+            'unit_name'      => $built['unitName'] !== '' ? $built['unitName'] : null,
+            'plan_label'     => $built['label'],
+            'payload'        => $built['payload'],
+            'issued_by_name' => optional(auth()->user())->name,
+            'is_active'      => 1,
+        ]);
+
+        return view('admin.pae.show', [
+            'plan'     => $plan,
+            'borrador' => true,
+            // Campos que la barra del borrador reenvía a store() para EMITIR+SELLAR. Se usan los
+            // valores YA RESUELTOS (día/fecha) para que el sellado sea IDÉNTICO al preview.
+            'formEcho' => [
+                'scoutings'       => $built['scoutingIds'],
+                'contacts'        => (array) $request->input('contacts', []),
+                'shoot_day'       => (string) $built['shootDay'],
+                'plan_date'       => (string) $built['planDate'],
+                'unit_name'       => (string) $built['unitName'],
+                'move_time'       => (string) $built['moveTime'],
+                'embed_map_views' => $built['embed'] ? '1' : '',
+                'supersedes_uuid' => (string) $request->input('supersedes_uuid', ''),
+            ],
+        ]);
+    }
+
+    /**
+     * Núcleo COMPARTIDO por store() y preview(): valida la petición y CONGELA el payload del PAE
+     * (mismo builder de solo lectura). La validación lanza ValidationException (redirige sola).
+     * NO guarda ni sella nada. Que ambos caminos usen ESTO garantiza que el documento sellado sea
+     * idéntico al previsualizado.
+     *
+     * @return array{payload:array,label:string,shootDay:int,planDate:string,unitName:string,moveTime:string,embed:bool,productionId:int,scoutingIds:array}
+     */
+    protected function buildPayload(Request $request): array
+    {
+        // Los dos selectores de locación pueden venir vacíos ("") → se limpian a enteros
+        // positivos y se quitan duplicados ANTES de validar (loc1 requerida, loc2 opcional).
+        $request->merge([
+            'scoutings' => array_values(array_unique(array_filter(
+                array_map('intval', (array) $request->input('scoutings', [])),
+                fn ($v) => $v > 0
+            ))),
+        ]);
+
+        $data = $request->validate([
+            'scoutings'        => 'required|array|min:1|max:2',
+            'scoutings.*'      => 'integer|exists:scouting_reports,id',
+            'shoot_day'        => 'nullable|integer|min:1|max:999',
+            'plan_date'        => 'nullable|date',
+            'unit_name'        => 'nullable|string|max:255',
+            'move_time'        => 'nullable|string|max:50',
+            'embed_map_views'  => 'nullable|boolean',
+            'supersedes_uuid'  => 'nullable|string',   // presente = EDICIÓN → nueva revisión
+            'contacts'         => 'nullable|array',
+            'contacts.*.name'  => 'nullable|string|max:255',
+            'contacts.*.phone' => 'nullable|string|max:50',
+            'contacts.*.radio' => 'nullable|string|max:50',
+        ]);
+
+        // Locaciones EN EL ORDEN capturado (el orden del arreglo enviado manda; company move).
+        $ids  = array_values(array_unique(array_map('intval', $data['scoutings'])));
+        $byId = ScoutingReport::whereIn('id', $ids)->get()->keyBy('id');
+        $ordered = [];
+        foreach ($ids as $id) {
+            if ($byId->has($id)) {
+                $ordered[] = $byId->get($id);
+            }
+        }
+        if (empty($ordered)) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['scoutings' => 'Elige al menos una locación válida.']);
+        }
+
+        // Contactos ORDENADOS por slot, tal como el emisor los confirmó (pre-llenados o a mano).
+        $raw = (array) $request->input('contacts', []);
+        $contacts = [];
+        foreach (PaeOrgChart::SLOTS as $slot) {
+            $c = (array) ($raw[$slot['key']] ?? []);
+            $contacts[] = [
+                'key'   => $slot['key'],
+                'label' => $slot['label'],
+                'name'  => trim((string) ($c['name'] ?? '')),
+                'phone' => trim((string) ($c['phone'] ?? '')),
+                'radio' => trim((string) ($c['radio'] ?? '')),
+            ];
+        }
+
+        // Día de rodaje: lo tecleado manda; si no, se deriva de la fecha (misma regla que el DSR).
+        $planDate = trim((string) ($data['plan_date'] ?? '')) ?: now()->toDateString();
+        $shootDay = self::resolveShootDay($data['shoot_day'] ?? null, $planDate);
+        $unitName = trim((string) ($data['unit_name'] ?? ''));
+        $moveTime = trim((string) ($data['move_time'] ?? ''));
+        $embed    = ! empty($data['embed_map_views']);
+
+        $opts = [
+            'shoot_day'       => $shootDay,
+            'plan_date'       => $planDate,
+            'unit_name'       => $unitName,
+            'move_time'       => $moveTime,
+            'embed_map_views' => $embed,
+            'contacts'        => $contacts,
+        ];
+
+        $payload = EmergencyActionPlanBuilder::build($ordered, $opts);
+
+        // Etiqueta de listado (snapshot): día + locaciones.
+        $names = array_map(fn ($s) => trim((string) $s->location_name), $ordered);
+        $names = array_values(array_filter($names, fn ($n) => $n !== ''));
+        $label = ($shootDay ? ('Día ' . $shootDay) : 'PAE');
+        if ($names) {
+            $label .= ' · ' . implode(' → ', $names);
+        }
+
+        return [
+            'payload'      => $payload,
+            'label'        => $label,
+            'shootDay'     => $shootDay,
+            'planDate'     => $planDate,
+            'unitName'     => $unitName,
+            'moveTime'     => $moveTime,
+            'embed'        => $embed,
+            'productionId' => $ordered[0]->production_id ?: CurrentProduction::id(),
+            'scoutingIds'  => $ids,
+        ];
     }
 
     /** El PAE sellado (ligado por uuid, no por id secuencial). Se lee del payload congelado. */
