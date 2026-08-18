@@ -55,6 +55,9 @@ class StandardCodeResolver
         '#4A Specialized Activities' => 'Bulletin #4A',
         '#8A Process Trailers'      => 'Bulletin #8A',
         'FAA Part 107'              => '14 CFR Part 107',
+        // RPAS/drones: la NORMA es la NOM (marco SCT), no la circular AFAC (AFAC es la autoridad
+        // que emite el PERMISO de vuelo → external_authorizations, no safety_standards).
+        'Regulación AFAC de RPAS'   => 'NOM-107-SCT3-2019',
     ];
 
     /** @var array<string,int>  regulation_code exacto => id */

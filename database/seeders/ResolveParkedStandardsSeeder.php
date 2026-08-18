@@ -103,7 +103,10 @@ class ResolveParkedStandardsSeeder extends Seeder
             // GRUPO 4 · México — DOS MARCOS NUEVOS (SEDENA) + uno EXISTENTE (STPS para la LFT).
             ['Ley Federal de Armas de Fuego y Explosivos (armas y pólvora) — SEDENA', 'SEDENA', 'Ley Federal de Armas de Fuego y Explosivos',  'https://www.diputados.gob.mx/LeyesBiblio/pdf/LFAFE.pdf', 'Federal Firearms and Explosives Act — SEDENA'],
             ['Ley Federal del Trabajo — trabajo de menores', 'STPS', 'Ley Federal del Trabajo',  'https://www.diputados.gob.mx/LeyesBiblio/pdf/LFT.pdf', 'Federal Labor Act — employment of minors'],
-            // ⚠ AFAC (RPAS): el instrumento es la Circular Obligatoria CO AV-23/10, pero la revisión vigente (R4 vs R5) NO se pudo confirmar con certeza en fuente oficial → queda PARQUEADA y reportada (NO se inventa la cita).
+            // RPAS/drones: la cita CORRECTA es la NOM (marco SCT ya existente), NO la circular AFAC.
+            // AFAC es la AUTORIDAD que emite el PERMISO de vuelo → vive en external_authorizations del
+            // permiso de drone (folio/vigencia), no como norma. DOF 14/11/2019 verificado con WebFetch.
+            ['Requerimientos para operar un sistema de aeronave pilotada a distancia (RPAS) en el espacio aéreo mexicano', 'SCT', 'NOM-107-SCT3-2019',  'https://dof.gob.mx/nota_detalle.php?codigo=5578813&fecha=14/11/2019', 'Requirements to operate a remotely piloted aircraft system (RPAS) in Mexican airspace'],
         ];
 
         $hasUrl = Schema::hasColumn('safety_standards', 'reference_url');
