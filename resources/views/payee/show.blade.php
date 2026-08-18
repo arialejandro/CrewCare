@@ -238,7 +238,14 @@
             $billingDocs = $payee->documents->where('level', '!=', 'empresa')->values();
         @endphp
         <div class="card mb-4">
-            <div class="card-header fw-semibold">{{ __('Documentos') }} <span class="text-muted">({{ $payee->documents->count() }})</span></div>
+            <div class="card-header fw-semibold d-flex align-items-center justify-content-between gap-2">
+                <span>{{ __('Documentos') }} <span class="text-muted">({{ $payee->documents->count() }})</span></span>
+                @if($payee->documents->isNotEmpty())
+                    <a href="{{ route('payees.documents.zip', $payee) }}" class="btn btn-sm btn-crew-soft d-inline-flex align-items-center gap-1">
+                        @include('componentes._icon', ['name' => 'download', 'label' => null]) {{ __('Descargar documentos') }}
+                    </a>
+                @endif
+            </div>
             <div class="card-body">
                 @if($payee->documents->isEmpty())
                     <p class="text-muted mb-0">{{ __('Sin documentos.') }}</p>

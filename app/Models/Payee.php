@@ -162,6 +162,43 @@ class Payee extends Model
         return $this->email ?: optional($this->user)->email;
     }
 
+    /**
+     * Segmento de carpeta por DEPARTAMENTO para organizar en disco los documentos del payee
+     * (`payee/docs/{deptSlug}/{payeeId}/…`). Deriva el departamento igual que scopeVisibleTo:
+     * (B) el crew ligado y, si no, (A) quien lo contrató. Sin departamento determinable →
+     * '_global'. Slug seguro para ruta (sin acentos ni espacios).
+     */
+    public function departmentSlug(): string
+    {
+        $deptId = $this->resolveDepartmentId();
+        if (! $deptId) {
+            return '_global';
+        }
+        $name = optional(Department::find($deptId))->name;
+        return $name ? \Illuminate\Support\Str::slug($name) : ('dept-' . $deptId);
+    }
+
+    /** Id de departamento del payee: crew ligado (B) → contratante (A) → null. Producción actual si aplica. */
+    protected function resolveDepartmentId(): ?int
+    {
+        $prodId = \App\Support\CurrentProduction::id();
+
+        if ($this->user_id) {
+            $q = \Illuminate\Support\Facades\DB::table('production_user')->where('user_id', $this->user_id);
+            if ($prodId) { $q->where('production_id', $prodId); }
+            if ($d = $q->value('department_id')) { return (int) $d; }
+        }
+
+        $contractorId = $this->contracts()->whereNotNull('contracted_by_user_id')->value('contracted_by_user_id');
+        if ($contractorId) {
+            $q = \Illuminate\Support\Facades\DB::table('production_user')->where('user_id', $contractorId);
+            if ($prodId) { $q->where('production_id', $prodId); }
+            if ($d = $q->value('department_id')) { return (int) $d; }
+        }
+
+        return null;
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', 1);

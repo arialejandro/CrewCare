@@ -143,6 +143,51 @@ class PayeeVisibilityTest extends QaTestCase
         ]);
     }
 
+    /** La descarga ZIP por-persona empaqueta sus documentos, respeta el alcance y los registra. */
+    public function test_person_zip_download_bundles_docs_and_logs(): void
+    {
+        Storage::fake('local');
+        $hodA = $this->makeUser('hod'); $this->attachDept($hodA, $this->deptA);
+        $hodB = $this->makeUser('hod'); $this->attachDept($hodB, $this->deptB);
+        $payeeA = $this->payeeContractedBy($hodA, 'Arte SA');
+
+        $d1 = $payeeA->documents()->create([
+            'level' => 'persona', 'document_type' => 'CSF',
+            'photo_path' => 'payee/docs/arte/' . $payeeA->id . '/doc_1.pdf', 'is_active' => 1,
+        ]);
+        $d2 = $payeeA->documents()->create([
+            'level' => 'persona', 'document_type' => 'INE',
+            'photo_path' => 'payee/docs/arte/' . $payeeA->id . '/doc_2.pdf', 'is_active' => 1,
+        ]);
+        Storage::disk('local')->put($d1->photo_path, '%PDF-1.4 uno');
+        Storage::disk('local')->put($d2->photo_path, '%PDF-1.4 dos');
+
+        // En alcance → 200, zip, y AMBOS docs quedan en la bitácora.
+        $this->actingAs($hodA);
+        $res = $this->get(route('payees.documents.zip', $payeeA));
+        $res->assertOk();
+        $this->assertStringContainsString('zip', strtolower((string) $res->headers->get('content-type')));
+        $this->assertDatabaseHas('payee_document_downloads', ['payee_id' => $payeeA->id, 'document_id' => $d1->id, 'user_id' => $hodA->id]);
+        $this->assertDatabaseHas('payee_document_downloads', ['payee_id' => $payeeA->id, 'document_id' => $d2->id, 'user_id' => $hodA->id]);
+
+        // Fuera de alcance → 403 (nunca el paquete).
+        $this->actingAs($hodB);
+        $this->get(route('payees.documents.zip', $payeeA))->assertForbidden();
+    }
+
+    /** Sin documentos con archivo, la descarga ZIP no truena: regresa con aviso. */
+    public function test_person_zip_download_without_docs_redirects(): void
+    {
+        Storage::fake('local');
+        $hodA = $this->makeUser('hod'); $this->attachDept($hodA, $this->deptA);
+        $payeeA = $this->payeeContractedBy($hodA, 'Arte SA');
+
+        $this->actingAs($hodA);
+        $this->get(route('payees.documents.zip', $payeeA))
+            ->assertRedirect()
+            ->assertSessionHas('error');
+    }
+
     // ── 4.3 · ambulancias exclusivo producción/safety, nunca transpo ──────────
     public function test_transpo_hod_cannot_reach_ambulances_by_direct_url(): void
     {

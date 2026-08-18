@@ -5,7 +5,12 @@
     $labels = ['identity'=>'Identidad','fiscal'=>'Fiscales','documents'=>'Documentos','emergency'=>'Emergencia','equipment'=>'Equipo','logistics'=>'Logística'];
     $idx    = array_search($step, $steps, true);
     $isLast = $idx === count($steps) - 1;
-    $who    = trim(($payee->name ?: optional($payee->user)->name) . ' ' . optional($payee->user)->lname) ?: 'esta persona';
+    $u      = $payee->user;   // crew ligado (o usuario externo): fuente para NO re-teclear lo ya capturado
+    $who    = trim(($payee->name ?: optional($u)->name) . ' ' . optional($u)->lname) ?: 'esta persona';
+    $uName  = $u ? trim($u->name . ' ' . $u->lname) : null;
+    // Prellena desde el usuario ligado SOLO lo que existe en User (nombre/teléfono/correo). La
+    // persona lo puede editar; es punto de partida, no dato fijo. Dirección y contacto de
+    // emergencia NO viven en User → se capturan aquí sin fuente que heredar.
     $val    = fn($f, $d = null) => old($f, $payee->$f ?? $d);
     // Docs ya recibidos, por tipo, para marcar "RECIBIDO" vs "Falta".
     $recibidos = $payee->documents->pluck('document_type_id')->filter()->flip();
@@ -106,7 +111,7 @@
 
         @case('identity')
           <label>Nombre completo</label>
-          <input name="name" value="{{ $val('name') }}" autocomplete="name">
+          <input name="name" value="{{ $val('name', $uName) }}" autocomplete="name">
           <label>Nacionalidad</label>
           <select name="nationality">
             <option value="mexicana" @selected($val('nationality')==='mexicana')>Mexicana</option>
@@ -126,8 +131,8 @@
             @endif
           </select>
           <div class="row2">
-            <div><label>Teléfono</label><input name="phone" value="{{ $val('phone') }}" inputmode="tel" autocomplete="tel"></div>
-            <div><label>Correo electrónico</label><input name="email" type="email" value="{{ $val('email') }}" autocomplete="email"></div>
+            <div><label>Teléfono</label><input name="phone" value="{{ $val('phone', optional($u)->phone) }}" inputmode="tel" autocomplete="tel"></div>
+            <div><label>Correo electrónico</label><input name="email" type="email" value="{{ $val('email', optional($u)->email) }}" autocomplete="email"></div>
           </div>
           @if($payee->isMoral())
             <label>Representante legal</label>

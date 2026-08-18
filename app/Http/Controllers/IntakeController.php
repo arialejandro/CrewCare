@@ -251,7 +251,10 @@ class IntakeController extends Controller
                         continue;
                     }
                     $dt   = DocumentType::find($docTypeId);
-                    $path = $file->storeAs('payee/docs/' . $payee->id, uniqid('doc_') . '.pdf', 'local'); // disco PRIVADO
+                    // Carpeta por DEPARTAMENTO → por PERSONA (dentro del bucket global payee/docs):
+                    // payee/docs/{deptSlug}/{payeeId}/. Se sirve por photo_path guardado, así que los
+                    // docs viejos (layout plano) siguen resolviendo; solo las subidas nuevas se organizan.
+                    $path = $file->storeAs('payee/docs/' . $payee->departmentSlug() . '/' . $payee->id, uniqid('doc_') . '.pdf', 'local'); // disco PRIVADO
                     $doc = $payee->documents()->create([
                         'level' => 'persona', 'document_type' => $dt ? $dt->name : 'documento', 'document_type_id' => $dt?->id,
                         'issued_at' => $request->input("issued.$docTypeId"), 'result_status' => $request->input("result.$docTypeId"),

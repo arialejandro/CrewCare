@@ -884,6 +884,7 @@ Route::middleware(['auth','permission:payees.view'])->group(function () {
     Route::get('/payees',                          [\App\Http\Controllers\PayeeController::class, 'index'])->name('payees.index');
     Route::get('/payees/{payee}',                  [\App\Http\Controllers\PayeeController::class, 'show'])->name('payees.show')->whereNumber('payee');
     Route::get('/payees/{payee}/documento/{doc}',  [\App\Http\Controllers\PayeeController::class, 'document'])->name('payees.document')->whereNumber('payee')->whereNumber('doc');
+    Route::get('/payees/{payee}/documentos.zip',   [\App\Http\Controllers\PayeeController::class, 'downloadDocuments'])->name('payees.documents.zip')->whereNumber('payee');
 });
 
 // ---- Quien cobra · VENTANA DE RECEPCIÓN POR PERIODO DE PAGO ----
