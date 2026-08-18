@@ -35,6 +35,16 @@
     .cc-decline-input { width: 100%; padding: .5rem .6rem; border: 1px solid #7f1d3a; border-radius: 8px; background: #0b1220; color: #e5e7eb; font-size: .9rem; font-family: inherit; }
     .cc-decline-submit { width: 100%; margin-top: .7rem; padding: .6rem; border: 1px solid #7f1d3a; border-radius: 10px; background: transparent; color: #fecdd3; font-weight: 700; font-size: .95rem; cursor: pointer; }
     .cc-decline-submit:hover { background: #3b1220; }
+    /* Visor de documento inline (pdf.js): leer el contrato SIN salir de la página. */
+    .ccdoc { border: 1px solid #1f2b44; border-radius: 12px; overflow: hidden; margin-bottom: .8rem; }
+    .ccdoc__h { display: flex; justify-content: space-between; align-items: center; gap: .6rem; padding: .55rem .8rem; background: #0e1526; border-bottom: 1px solid #1f2b44; }
+    .ccdoc__name { font-weight: 600; font-size: .9rem; }
+    .ccdoc__open { color: #7dd3fc; text-decoration: none; font-size: .8rem; font-weight: 600; white-space: nowrap; }
+    .ccdoc__pages { max-height: 62vh; overflow: auto; padding: .8rem; background: #525659; -webkit-overflow-scrolling: touch; }
+    .ccdoc__loading { color: #e5e7eb; text-align: center; padding: 1.4rem 0; font-size: .85rem; }
+    .ccpage { margin: 0 auto .7rem; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.4); }
+    .ccpage:last-child { margin-bottom: 0; }
+    .cc-jump { display: inline-flex; align-items: center; gap: .4rem; background: none; border: 0; color: #7dd3fc; font-size: .88rem; font-weight: 600; cursor: pointer; padding: .3rem 0 0; text-decoration: underline; }
 </style>
 @stack('styles')
 </head>
@@ -68,16 +78,26 @@
         </div>
 
         <div class="card">
-            <div class="muted" style="margin-bottom:.4rem">{{ __('Revisa los documentos del paquete:') }}</div>
-            @foreach($docs as $i => $doc)
-                <div class="doc">
-                    <span>{{ $doc['name'] ?? 'Documento' }}</span>
-                    <a href="{{ $docUrl($i) }}" target="_blank" rel="noopener">{{ __('Ver') }}</a>
-                </div>
-            @endforeach
+            <div class="muted" style="margin-bottom:.6rem">{{ __('Revisa tu contrato antes de firmar:') }}</div>
+            @forelse($docs as $i => $doc)
+                <section class="ccdoc">
+                    <div class="ccdoc__h">
+                        <span class="ccdoc__name">{{ $doc['name'] ?? __('Documento') }}</span>
+                        <a class="ccdoc__open" href="{{ $docUrl($i) }}" target="_blank" rel="noopener">{{ __('Abrir en pestaña') }}</a>
+                    </div>
+                    <div class="ccdoc__pages" data-pdf-src="{{ $docUrl($i) }}">
+                        <div class="ccdoc__loading">{{ __('Cargando documento…') }}</div>
+                    </div>
+                </section>
+            @empty
+                <div class="muted">{{ __('No hay documentos para mostrar.') }}</div>
+            @endforelse
+            <button type="button" class="cc-jump" onclick="var b=document.getElementById('ccSignBox'); if(b){ b.scrollIntoView({behavior:'smooth'}); }">
+                {{ __('Ir a firmar ↓') }}
+            </button>
         </div>
 
-        <div class="card">
+        <div class="card" id="ccSignBox">
             @if(session('error'))<div class="err">{{ session('error') }}</div>@endif
             @if($errors->any())<div class="err">{{ $errors->first() }}</div>@endif
             <form method="POST" action="{{ $signUrl }}">
@@ -120,6 +140,56 @@
             var t = document.getElementById('ccDeclineReason');
             if (open) { t.removeAttribute('required'); } else { t.setAttribute('required', 'required'); t.focus(); }
         }
+    </script>
+    {{-- VISOR INLINE del paquete (pdf.js autoalojado, offline). Cada documento del sobre se sirve como
+         PDF byte-intact; aquí solo se DIBUJA para leerlo sin salir. Si pdf.js no carga o un PDF no se
+         puede dibujar, quedan los enlaces "Abrir en pestaña" (nunca se atrapa al firmante sin poder leer). --}}
+    <script src="{{ asset('js/vendor/pdfjs/pdf.min.js') }}"></script>
+    <script>
+    (function () {
+        if (!window.pdfjsLib) { return; }   // sin pdf.js → los enlaces "Abrir en pestaña" son el respaldo
+        pdfjsLib.GlobalWorkerOptions.workerSrc = @json(asset('js/vendor/pdfjs/pdf.worker.min.js'));
+        var FAIL = @json(__('No se pudo mostrar aquí. Usa "Abrir en pestaña".'));
+
+        function drawPage(pdf, n, host, done) {
+            pdf.getPage(n).then(function (page) {
+                var maxW = Math.min(host.clientWidth - 24, 900);
+                var base = page.getViewport({ scale: 1 });
+                var vp = page.getViewport({ scale: maxW / base.width });
+                var dpr = window.devicePixelRatio || 1;
+                var wrap = document.createElement('div');
+                wrap.className = 'ccpage';
+                wrap.style.width = vp.width + 'px';
+                wrap.style.height = vp.height + 'px';
+                var c = document.createElement('canvas');
+                c.width = Math.floor(vp.width * dpr);
+                c.height = Math.floor(vp.height * dpr);
+                c.style.width = vp.width + 'px';
+                c.style.height = vp.height + 'px';
+                wrap.appendChild(c);
+                host.appendChild(wrap);
+                page.render({
+                    canvasContext: c.getContext('2d'),
+                    viewport: vp,
+                    transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null
+                }).promise.then(done);
+            });
+        }
+
+        document.querySelectorAll('.ccdoc__pages[data-pdf-src]').forEach(function (host) {
+            var url = host.getAttribute('data-pdf-src');
+            pdfjsLib.getDocument(url).promise.then(function (pdf) {
+                host.innerHTML = '';
+                var n = 1;
+                (function next() {
+                    if (n > pdf.numPages) { return; }
+                    drawPage(pdf, n, host, function () { n++; next(); });
+                })();
+            }).catch(function () {
+                host.innerHTML = '<div class="ccdoc__loading">' + FAIL + '</div>';
+            });
+        });
+    })();
     </script>
 @endif
 @stack('scripts')

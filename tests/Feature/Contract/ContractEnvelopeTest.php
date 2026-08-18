@@ -547,8 +547,12 @@ class ContractEnvelopeTest extends QaTestCase
         $verifyUrl = URL::temporarySignedRoute('contracts.sign.verify', now()->addHours(3), ['recipient' => $rec->id]);
         $this->post($verifyUrl, ['factor_value' => '1991-07-09'])->assertRedirect();
 
-        // Ahora ve la página de firma.
-        $this->get(ContractSignController::signUrl($rec))->assertOk()->assertSee('Firma tu contrato');
+        // Ahora ve la página de firma. Ola 6: el contrato se LEE inline (visor pdf.js) con salto a
+        // firmar; no es solo un canvas. El POST de firma NO cambia (el sello sigue intacto).
+        $this->get(ContractSignController::signUrl($rec))->assertOk()
+            ->assertSee('Firma tu contrato')
+            ->assertSee('js/vendor/pdfjs/pdf.min.js', false)
+            ->assertSee('Ir a firmar');
 
         // Firmar el paquete (con consentimiento + FIRMA AUTÓGRAFA obligatoria, DocuSign).
         $signUrl = URL::temporarySignedRoute('contracts.sign.do', now()->addHours(3), ['recipient' => $rec->id]);
