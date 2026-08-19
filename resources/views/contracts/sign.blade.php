@@ -45,6 +45,20 @@
     .ccpage { margin: 0 auto .7rem; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.4); }
     .ccpage:last-child { margin-bottom: 0; }
     .cc-jump { display: inline-flex; align-items: center; gap: .4rem; background: none; border: 0; color: #7dd3fc; font-size: .88rem; font-weight: 600; cursor: pointer; padding: .3rem 0 0; text-decoration: underline; }
+    /* DocuSign-like: contrato armado + lugares de firma del destinatario. */
+    .ccbar { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .55rem .8rem; margin-bottom: .6rem; border: 1px solid #1f2b44; border-radius: 10px; background: #0e1526; font-size: .86rem; transition: background .2s, border-color .2s; }
+    .ccbar[data-done="1"] { border-color: #166534; background: #0e2417; }
+    .ccbar[data-warn="1"] { border-color: #7f1d3a; background: #3b1220; }
+    .ccbar b { color: #fff; }
+    .ccbar__btn { background: #1d4ed8; border: 0; color: #fff; font-weight: 700; font-size: .82rem; border-radius: 8px; padding: .42rem .7rem; cursor: pointer; white-space: nowrap; }
+    .ccmk-ov { position: absolute; inset: 0; }
+    .ccmk { position: absolute; box-sizing: border-box; min-height: 30px; border: 2px dashed #f59e0b; background: rgba(245,158,11,.16); color: #7c2d12; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 2px; overflow: hidden; }
+    .ccmk:hover { background: rgba(245,158,11,.30); }
+    .ccmk.pulse { animation: ccpulse 1.4s ease-out; }
+    .ccmk.applied { border: 1.5px solid #16a34a; background: rgba(22,163,74,.10); cursor: default; }
+    .ccmk.applied img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    @keyframes ccpulse { 0% { box-shadow: 0 0 0 0 rgba(245,158,11,.6); } 100% { box-shadow: 0 0 0 14px rgba(245,158,11,0); } }
+    .cc-submit:disabled { opacity: .5; cursor: not-allowed; }
 </style>
 @stack('styles')
 </head>
@@ -77,25 +91,43 @@
             <p class="muted">{{ $recipient->name }} · {{ $recipient->roleLabel() }}</p>
         </div>
 
-        <div class="card">
-            <div class="muted" style="margin-bottom:.6rem">{{ __('Revisa tu contrato antes de firmar:') }}</div>
-            @forelse($docs as $i => $doc)
-                <section class="ccdoc">
-                    <div class="ccdoc__h">
-                        <span class="ccdoc__name">{{ $doc['name'] ?? __('Documento') }}</span>
-                        <a class="ccdoc__open" href="{{ $docUrl($i) }}" target="_blank" rel="noopener">{{ __('Abrir en pestaña') }}</a>
-                    </div>
-                    <div class="ccdoc__pages" data-pdf-src="{{ $docUrl($i) }}">
-                        <div class="ccdoc__loading">{{ __('Cargando documento…') }}</div>
-                    </div>
-                </section>
-            @empty
-                <div class="muted">{{ __('No hay documentos para mostrar.') }}</div>
-            @endforelse
-            <button type="button" class="cc-jump" onclick="var b=document.getElementById('ccSignBox'); if(b){ b.scrollIntoView({behavior:'smooth'}); }">
-                {{ __('Ir a firmar ↓') }}
-            </button>
-        </div>
+        @if($fillable ?? false)
+            {{-- DocuSign-like (modo PDF-fillable): el contrato ARMADO (datos + firmas previas estampados)
+                 con TUS lugares de firma marcados. Dibuja tu firma abajo y tócala en cada marca. --}}
+            <div class="card">
+                <div class="muted" style="margin-bottom:.6rem">{{ __('Revisa tu contrato y firma en los lugares marcados:') }}</div>
+                <div class="ccbar" id="ccBar" data-done="0">
+                    <span>{{ __('Lugares por firmar') }}: <b id="ccCount">0 / 0</b></span>
+                    <button type="button" id="ccNext" class="ccbar__btn">{{ __('Ir al siguiente') }}</button>
+                </div>
+                <div id="ccContract" class="ccdoc__pages" data-contract-src="{{ $contractUrl }}" data-fields='@json($signFields ?? [])'>
+                    <div class="ccdoc__loading">{{ __('Cargando contrato…') }}</div>
+                </div>
+                <div style="margin-top:.5rem">
+                    <a class="ccdoc__open" href="{{ $contractUrl }}" target="_blank" rel="noopener">{{ __('Abrir el contrato en pestaña') }}</a>
+                </div>
+            </div>
+        @else
+            <div class="card">
+                <div class="muted" style="margin-bottom:.6rem">{{ __('Revisa tu contrato antes de firmar:') }}</div>
+                @forelse($docs as $i => $doc)
+                    <section class="ccdoc">
+                        <div class="ccdoc__h">
+                            <span class="ccdoc__name">{{ $doc['name'] ?? __('Documento') }}</span>
+                            <a class="ccdoc__open" href="{{ $docUrl($i) }}" target="_blank" rel="noopener">{{ __('Abrir en pestaña') }}</a>
+                        </div>
+                        <div class="ccdoc__pages" data-pdf-src="{{ $docUrl($i) }}">
+                            <div class="ccdoc__loading">{{ __('Cargando documento…') }}</div>
+                        </div>
+                    </section>
+                @empty
+                    <div class="muted">{{ __('No hay documentos para mostrar.') }}</div>
+                @endforelse
+                <button type="button" class="cc-jump" onclick="var b=document.getElementById('ccSignBox'); if(b){ b.scrollIntoView({behavior:'smooth'}); }">
+                    {{ __('Ir a firmar ↓') }}
+                </button>
+            </div>
+        @endif
 
         <div class="card" id="ccSignBox">
             @if(session('error'))<div class="err">{{ session('error') }}</div>@endif
@@ -114,7 +146,7 @@
                     'adopted' => optional($recipient->user)->adopted_signature,
                 ])
 
-                <button type="submit" class="cc-submit">{{ __('Firmar el paquete') }}</button>
+                <button type="submit" class="cc-submit">{{ ($fillable ?? false) ? __('Finalizar y firmar') : __('Firmar el paquete') }}</button>
             </form>
         </div>
 
@@ -188,6 +220,134 @@
             }).catch(function () {
                 host.innerHTML = '<div class="ccdoc__loading">' + FAIL + '</div>';
             });
+        });
+    })();
+    </script>
+    {{-- CEREMONIA DocuSign-like (solo modo PDF-fillable): renderiza el contrato ARMADO y superpone
+         los lugares de firma de ESTE destinatario. Firmar = tocar cada marca (aplica la autógrafa
+         dibujada como preview); al cubrir todas se habilita "Finalizar y firmar". El POST no cambia:
+         el servidor estampa la MISMA imagen en todas mis coordenadas → el sello no se toca. Todo es
+         fail-open: si pdf.js falla o no hay marcas, el botón queda habilitado (nunca atrapa). --}}
+    <script>
+    (function () {
+        var host = document.getElementById('ccContract');
+        if (!host || !window.pdfjsLib) { return; }   // no fillable / sin pdf.js → respaldo "Abrir en pestaña"
+        pdfjsLib.GlobalWorkerOptions.workerSrc = @json(asset('js/vendor/pdfjs/pdf.worker.min.js'));
+
+        var SRC = host.getAttribute('data-contract-src');
+        var FIELDS = [];
+        try { FIELDS = JSON.parse(host.getAttribute('data-fields') || '[]'); } catch (e) { FIELDS = []; }
+        var T = {
+            sign: @json(__('Firmar aquí')),
+            fail: @json(__('No se pudo mostrar el contrato aquí. Usa "Abrir el contrato en pestaña".')),
+        };
+
+        var overlays = {};   // page -> overlay element
+        var markers  = [];   // {el, applied}
+        var applied  = 0;
+        var bar       = document.getElementById('ccBar');
+        var countEl   = document.getElementById('ccCount');
+        var nextBtn   = document.getElementById('ccNext');
+        var submitBtn = document.querySelector('.cc-submit');
+        if (submitBtn) { submitBtn.disabled = true; }   // la ceremonia gobierna; si el JS no corre, sigue habilitado
+
+        function sigData() { var el = document.querySelector('.cc-sigpad__data'); return el ? (el.value || '') : ''; }
+
+        function update() {
+            if (countEl) { countEl.textContent = applied + ' / ' + markers.length; }
+            var done = markers.length > 0 && applied >= markers.length;
+            if (submitBtn) { submitBtn.disabled = !done; }
+            if (bar) { bar.setAttribute('data-done', done ? '1' : '0'); }
+        }
+
+        function warn() {
+            if (bar) { bar.setAttribute('data-warn', '1'); setTimeout(function () { bar.removeAttribute('data-warn'); }, 2200); }
+            var pad = document.querySelector('.cc-sigpad');
+            if (pad) { pad.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+        }
+
+        function applyMarker(m) {
+            var sig = sigData();
+            if (!sig) { warn(); return; }   // sin firma dibujada → pide dibujarla primero
+            if (!m.applied) { applied++; }
+            m.applied = true;
+            m.el.classList.add('applied');
+            m.el.innerHTML = '';
+            var img = document.createElement('img'); img.src = sig; img.alt = '';
+            m.el.appendChild(img);
+            update();
+        }
+
+        function gotoNext() {
+            var m = null;
+            for (var i = 0; i < markers.length; i++) { if (!markers[i].applied) { m = markers[i]; break; } }
+            if (!m && markers.length) { m = markers[0]; }
+            if (m) {
+                m.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                m.el.classList.add('pulse');
+                setTimeout(function () { m.el.classList.remove('pulse'); }, 1400);
+            }
+        }
+        if (nextBtn) { nextBtn.addEventListener('click', gotoNext); }
+
+        function placeMarkers() {
+            FIELDS.forEach(function (f) {
+                var ov = overlays[parseInt(f.page, 10)];
+                if (!ov) { return; }
+                var mk = document.createElement('button');
+                mk.type = 'button';
+                mk.className = 'ccmk';
+                mk.style.left = f.x_pct + '%';
+                mk.style.top = f.y_pct + '%';
+                mk.style.width = f.w_pct + '%';
+                mk.textContent = T.sign;
+                var m = { el: mk, applied: false };
+                mk.addEventListener('click', function () { applyMarker(m); });
+                ov.appendChild(mk);
+                markers.push(m);
+            });
+            if (!markers.length && submitBtn) { submitBtn.disabled = false; }   // sin marcas → no atrapar
+            update();
+        }
+
+        function drawPage(pdf, n, done) {
+            pdf.getPage(n).then(function (page) {
+                var maxW = Math.min(host.clientWidth - 24, 900);
+                var base = page.getViewport({ scale: 1 });
+                var vp = page.getViewport({ scale: maxW / base.width });
+                var dpr = window.devicePixelRatio || 1;
+                var wrap = document.createElement('div');
+                wrap.className = 'ccpage';
+                wrap.style.position = 'relative';
+                wrap.style.width = vp.width + 'px';
+                wrap.style.height = vp.height + 'px';
+                var c = document.createElement('canvas');
+                c.width = Math.floor(vp.width * dpr); c.height = Math.floor(vp.height * dpr);
+                c.style.width = vp.width + 'px'; c.style.height = vp.height + 'px';
+                wrap.appendChild(c);
+                var ov = document.createElement('div');
+                ov.className = 'ccmk-ov';
+                wrap.appendChild(ov);
+                overlays[n] = ov;
+                host.appendChild(wrap);
+                page.render({
+                    canvasContext: c.getContext('2d'),
+                    viewport: vp,
+                    transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null
+                }).promise.then(done);
+            });
+        }
+
+        pdfjsLib.getDocument(SRC).promise.then(function (pdf) {
+            host.innerHTML = '';
+            var n = 1;
+            (function next() {
+                if (n > pdf.numPages) { placeMarkers(); return; }
+                drawPage(pdf, n, function () { n++; next(); });
+            })();
+        }).catch(function () {
+            host.innerHTML = '<div class="ccdoc__loading">' + T.fail + '</div>';
+            if (submitBtn) { submitBtn.disabled = false; }   // no se pudo renderizar → no atrapar (respaldo: enlace)
         });
     })();
     </script>

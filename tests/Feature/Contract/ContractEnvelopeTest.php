@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use setasign\Fpdi\Fpdi;
 use Tests\QaTestCase;
 
 /**
@@ -510,6 +511,56 @@ class ContractEnvelopeTest extends QaTestCase
         // El contratado crew ES un usuario → el consentimiento se llavea por USER (vale para sobres posteriores).
         $this->assertSame(1, ContractConsent::where('consenter_type', 'user')->where('consenter_id', $rec->user_id)->count());
         $this->assertTrue(ContractConsent::has('user', (int) $rec->user_id));
+    }
+
+    /**
+     * DocuSign-like (6B) · modo PDF-fillable: la página de firma muestra el CONTRATO ARMADO con los
+     * lugares de firma de ESTE destinatario (filtrados por su ancla), y el contrato se sirve como PDF.
+     * El campo de OTRA ancla (dept_hod) NO aparece en mis marcas.
+     */
+    public function test_fillable_sign_page_shows_contract_with_my_field_markers(): void
+    {
+        Storage::fake('local');
+        $this->seatInternals();
+        Setting::updateOrCreate(['key' => SignaturePositions::KEY_ORDER], ['value' => 'contracted,preparer,binder']);
+        Branding::forget();
+
+        // Plantilla PDF-fillable ACTIVA: MI ancla (contratado) en pág 1, OTRA (dept_hod) en pág 5.
+        $pdf = new Fpdi('P', 'pt');
+        $pdf->AddPage();
+        $pdf->AddPage();
+        Storage::disk('local')->put('contract-templates/deal.pdf', (string) $pdf->Output('S'));
+        ContractTemplate::create([
+            'production_id' => $this->prodId, 'name' => 'Contrato PDF', 'applies_to' => [PayeeContract::CONCEPT_CREW],
+            'category' => ContractTemplate::CATEGORY_CONTRACT, 'source_kind' => ContractTemplate::SOURCE_PDF,
+            'pdf_path' => 'contract-templates/deal.pdf', 'pdf_original_name' => 'deal.pdf',
+            'field_map' => [
+                ['page' => 1, 'x_pct' => 20, 'y_pct' => 60, 'w_pct' => 24, 'type' => 'sign', 'key' => 'contratado'],
+                ['page' => 5, 'x_pct' => 20, 'y_pct' => 60, 'w_pct' => 24, 'type' => 'sign', 'key' => 'dept_hod'],
+            ],
+            'is_active' => true,
+        ]);
+
+        $env = ContractEnvelopeBuilder::build($this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee('1991-07-09')), null);
+        ContractSigning::send($env);
+        $rec = $env->recipients()->where('role', 'contracted')->first();
+
+        // Pasar el 2º factor (fecha de nacimiento).
+        $verifyUrl = URL::temporarySignedRoute('contracts.sign.verify', now()->addHours(3), ['recipient' => $rec->id]);
+        $this->post($verifyUrl, ['factor_value' => '1991-07-09'])->assertRedirect();
+
+        // La ceremonia: contrato armado + MI campo (pág 1), NO el ajeno (pág 5), y botón "Finalizar".
+        $this->get(ContractSignController::signUrl($rec))->assertOk()
+            ->assertSee('data-contract-src', false)
+            ->assertSee('Finalizar y firmar')
+            ->assertSee('"page":1', false)
+            ->assertDontSee('"page":5', false);
+
+        // El contrato armado se sirve como PDF (estampado; firmas pendientes en blanco).
+        $contractUrl = URL::temporarySignedRoute('contracts.sign.contract', now()->addHours(3), ['recipient' => $rec->id]);
+        $res = $this->get($contractUrl);
+        $res->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF', $res->getContent());
     }
 
     public function test_completed_envelope_refuses_more_signatures(): void

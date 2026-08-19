@@ -6,9 +6,12 @@ use App\Exceptions\ContractEnvelopeException;
 use App\Models\ContractConsent;
 use App\Models\ContractEnvelope;
 use App\Models\ContractEnvelopeRecipient;
+use App\Models\ContractTemplate;
+use App\Support\ContractPdfStamper;
 use App\Support\ContractSigning;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 
 /**
@@ -58,6 +61,8 @@ class ContractSignController extends Controller
         [$type, $id] = $this->consenterKey($recipient);
         $needsConsent = $id !== null && ! ContractConsent::has($type, $id);
 
+        $fill = $this->fillableSignData($envelope, $recipient);
+
         return view('contracts.sign', [
             'recipient'    => $recipient,
             'envelope'     => $envelope,
@@ -66,6 +71,10 @@ class ContractSignController extends Controller
             'signUrl'      => URL::temporarySignedRoute('contracts.sign.do', now()->addHours(3), ['recipient' => $recipient->id]),
             'declineUrl'   => URL::temporarySignedRoute('contracts.sign.decline', now()->addHours(3), ['recipient' => $recipient->id]),
             'docUrl'       => fn ($i) => URL::temporarySignedRoute('contracts.sign.document', now()->addHours(3), ['recipient' => $recipient->id, 'index' => $i]),
+            // DocuSign-like (solo modo PDF-fillable): el contrato ARMADO + los lugares de firma del destinatario.
+            'fillable'     => $fill['fillable'],
+            'signFields'   => $fill['signFields'],
+            'contractUrl'  => $fill['contractUrl'],
         ]);
     }
 
@@ -171,7 +180,86 @@ class ContractSignController extends Controller
         return ContractEnvelopeController::serveDocument($envelope, $index);
     }
 
+    /**
+     * DocuSign-like — sirve el CONTRATO ARMADO (la plantilla PDF-fillable estampada con datos +
+     * firmas previas; las pendientes en blanco) al firmante, para renderizarlo inline y superponer
+     * SUS lugares de firma. Misma guarda del factor que ver documentos. Si el estampado falla, cae al
+     * PDF ORIGINAL (mismas coordenadas de página → los marcadores igual alinean). Byte-intact aparte:
+     * esto es SOLO para leer/firmar en pantalla; el paquete sellado no se toca.
+     */
+    public function contractDocument(Request $request, ContractEnvelopeRecipient $recipient)
+    {
+        $envelope = $recipient->envelope;
+        abort_unless($envelope, 404);
+        if ($this->needsFactor($request, $recipient) && ! $this->factorPassed($recipient)) {
+            abort(403);
+        }
+
+        $contract = $envelope->contract;
+        abort_unless($contract, 404);
+        $template = ContractTemplate::activeFor($envelope->production_id, $contract->concept);
+        abort_unless($template && $template->isPdfSource(), 404);
+
+        try {
+            $bytes = ContractPdfStamper::stampForEnvelope($envelope, $template);
+        } catch (\Throwable $e) {
+            $path = $template->pdf_path;
+            abort_unless($path && Storage::disk('local')->exists($path), 404);
+            $bytes = Storage::disk('local')->get($path);
+        }
+
+        return response($bytes, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="contrato.pdf"',
+        ]);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
+    /**
+     * Datos de la ceremonia DocuSign-like para ESTE destinatario. Solo aplica al modo PDF-fillable
+     * (el contrato es un PDF con `field_map`); en el modo generado no hay coordenadas → se cae a la
+     * lectura inline (6A). Devuelve MIS lugares de firma (campos 'sign' cuya ancla == mi `anchor_key`)
+     * en % de página + la URL firmada del contrato armado. Sin lugares → no hay ceremonia.
+     *
+     * @return array{fillable: bool, signFields: array, contractUrl: ?string}
+     */
+    private function fillableSignData(ContractEnvelope $envelope, ContractEnvelopeRecipient $recipient): array
+    {
+        $none = ['fillable' => false, 'signFields' => [], 'contractUrl' => null];
+
+        $contract = $envelope->contract;
+        if (! $contract) {
+            return $none;
+        }
+        $template = ContractTemplate::activeFor($envelope->production_id, $contract->concept);
+        if (! $template || ! $template->isPdfSource()) {
+            return $none;
+        }
+
+        // MIS lugares: campos de FIRMA cuya ancla es la de este destinatario (misma clave que estampa
+        // el motor). El resto (datos, firmas de otros) ya vienen dibujados en el PDF armado.
+        $mine = array_values(array_filter(
+            $template->signFields(),
+            fn ($f) => (string) ($f['key'] ?? '') === (string) $recipient->anchor_key
+        ));
+        if (empty($mine)) {
+            return $none;
+        }
+
+        $signFields = array_map(fn ($f) => [
+            'page'  => (int) $f['page'],
+            'x_pct' => (float) $f['x_pct'],
+            'y_pct' => (float) $f['y_pct'],
+            'w_pct' => (float) ($f['w_pct'] ?? 24),
+        ], $mine);
+
+        return [
+            'fillable'    => true,
+            'signFields'  => $signFields,
+            'contractUrl' => URL::temporarySignedRoute('contracts.sign.contract', now()->addHours(3), ['recipient' => $recipient->id]),
+        ];
+    }
+
     /** Necesita factor salvo que el auth user sea ESTE destinatario (interno con sesión). */
     private function needsFactor(Request $request, ContractEnvelopeRecipient $recipient): bool
     {
