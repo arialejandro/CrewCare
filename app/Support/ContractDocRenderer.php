@@ -41,12 +41,24 @@ class ContractDocRenderer
         return ContractPdfStamper::stampBytes($base, $fields, $values, $sigMap);
     }
 
-    /** La HOJA BASE de una plantilla HTML: body armado ({{tokens}} + anclas inline compat) → Chrome. */
+    /**
+     * La HOJA BASE de una plantilla HTML: body con {{tokens}} llenos → Chrome. Si la plantilla tiene
+     * firmas por COORDENADAS (field_map con `sign`), las anclas inline `[[firma:]]` residuales se
+     * LIMPIAN (las firmas se estampan por coordenadas encima → evita doble firma). Sin coordenadas, se
+     * estampan inline como siempre (compat con plantillas viejas).
+     */
     public static function htmlBase(ContractTemplate $template, array $values, array $sigMap): string
     {
-        $html = ContractTemplateRenderer::page(
-            ContractTemplateRenderer::render($template, $values, $sigMap),
-            $template->architecture, $template->page_size, null, $template->font_family, $template->font_size
+        $body = (string) $template->body;
+
+        if (! empty($template->signFields())) {
+            $body   = preg_replace('/\[\[firma:[a-z0-9_:\-]+(?:\|-?\d+,-?\d+)?\]\]/i', '', $body);
+            $sigMap = [];   // las firmas van por coordenadas, no inline
+        }
+
+        $inner = ContractTemplateRenderer::stampAnchors(ContractTemplateRenderer::fill($body, $values), $sigMap);
+        $html  = ContractTemplateRenderer::page(
+            $inner, $template->architecture, $template->page_size, null, $template->font_family, $template->font_size
         );
 
         return ContractPdf::render($html);

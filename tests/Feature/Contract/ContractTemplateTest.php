@@ -65,6 +65,32 @@ class ContractTemplateTest extends QaTestCase
         $this->assertEqualsCanonicalizing(['crew_work', 'service'], $fresh->applies_to);
     }
 
+    public function test_html_template_persists_sanitized_field_map(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        $fieldMap = json_encode([
+            ['page' => 1, 'x_pct' => 66, 'y_pct' => 6,  'w_pct' => 24, 'type' => 'sign', 'key' => 'rubrica'],
+            ['page' => 1, 'x_pct' => 15, 'y_pct' => 62, 'w_pct' => 30, 'type' => 'sign', 'key' => 'contratado'],
+            ['page' => 1, 'x_pct' => 62, 'y_pct' => 64, 'w_pct' => 28, 'type' => 'data', 'key' => 'fecha_hoy'],
+            ['page' => 1, 'x_pct' => 5,  'y_pct' => 5,  'w_pct' => 20, 'type' => 'sign', 'key' => 'inventado'],   // inválida → se descarta
+        ]);
+
+        $this->post(route('contracts.templates.store'), [
+            'name' => 'Contrato con campos', 'applies_to' => ['crew_work'],
+            'body' => '<p>{{payee_nombre}}</p>', 'field_map' => $fieldMap, 'is_active' => 1,
+        ])->assertRedirect();
+
+        $tpl = ContractTemplate::firstWhere('name', 'Contrato con campos');
+        $this->assertNotNull($tpl);
+        $this->assertCount(3, $tpl->field_map, 'guarda las 3 válidas, descarta la clave inventada');
+        $keys = collect($tpl->field_map)->pluck('key')->all();
+        $this->assertContains('rubrica', $keys);
+        $this->assertContains('contratado', $keys);
+        $this->assertContains('fecha_hoy', $keys);
+        $this->assertNotContains('inventado', $keys);
+    }
+
     public function test_preview_fills_fields_and_stamps_signatures(): void
     {
         $this->actingAs($this->makeUser('super-admin'));

@@ -256,6 +256,7 @@ class ContractTemplateController extends Controller
             'initials_each_page' => 'nullable|boolean',
             'body'         => 'nullable|string',
             'is_active'    => 'nullable|boolean',
+            'field_map'    => 'nullable|string',   // JSON de firmas/rúbricas/fechas por coordenadas (editor DocuSign)
         ]);
         $data['category']           = self::normalizeCategory($data['category'] ?? null);
         $data['sort_order']         = (int) ($data['sort_order'] ?? 0);
@@ -267,6 +268,9 @@ class ContractTemplateController extends Controller
         $data['font_family']        = ContractFonts::normalize($data['font_family'] ?? null);
         $data['font_size']          = ContractFonts::normalizeSize($data['font_size'] ?? null);
         $data['initials_each_page'] = $request->boolean('initials_each_page');
+        // Capa de campos por coordenadas (firma/rúbrica/fecha) — saneada, mismo formato que el modo PDF.
+        $decoded = json_decode($data['field_map'] ?? '[]', true);
+        $data['field_map']          = self::sanitizeFieldMap(is_array($decoded) ? $decoded : []);
 
         return $data;
     }
