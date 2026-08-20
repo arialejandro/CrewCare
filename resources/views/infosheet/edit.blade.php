@@ -175,7 +175,18 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-3">
+                            <div class="cc-field">
+                                <label class="cc-label" for="payment_frequency">{{ __('Frecuencia de pago') }}</label>
+                                <select name="payment_frequency" id="payment_frequency" class="form-select cc-select">
+                                    <option value="">{{ __('—') }}</option>
+                                    @foreach(\App\Models\PayeeContract::frequencies() as $fv => $fl)
+                                        <option value="{{ $fv }}" @selected($val('payment_frequency') === $fv)>{{ $fl }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
                             <div class="cc-field">
                                 <label class="cc-label" for="budget_account">{{ __('Partida del presupuesto') }}</label>
                                 <input type="text" name="budget_account" id="budget_account" class="form-control cc-control" maxlength="80" value="{{ $val('budget_account') }}">

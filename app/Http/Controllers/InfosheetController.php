@@ -229,6 +229,7 @@ class InfosheetController extends Controller
                 $request->validate([
                     'fee_currency'          => 'nullable|string|max:3',
                     'payment_document_type' => 'nullable|in:factura,recibo',
+                    'payment_frequency'     => 'nullable|in:weekly,biweekly,day_player',
                     'budget_account'        => 'nullable|string|max:80',
                     'tax_iva'               => 'nullable|numeric',
                     'tax_isr_retention'     => 'nullable|numeric',
@@ -239,7 +240,7 @@ class InfosheetController extends Controller
                     'fee_wrap_weeks'        => 'nullable|numeric', 'fee_wrap_rate'      => 'nullable|numeric', 'fee_wrap_amount'      => 'nullable|numeric',
                 ]);
                 $contract->fill($request->only([
-                    'fee_currency', 'payment_document_type', 'budget_account',
+                    'fee_currency', 'payment_document_type', 'payment_frequency', 'budget_account',
                     'tax_iva', 'tax_isr_retention', 'tax_iva_retention',
                     'fee_soft_prep_weeks', 'fee_soft_prep_rate', 'fee_soft_prep_amount',
                     'fee_prep_weeks', 'fee_prep_rate', 'fee_prep_amount',
