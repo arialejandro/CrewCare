@@ -251,7 +251,7 @@ class ContractTemplateRenderer
                 }
                 return $stamp;
             }
-            return is_array($data) ? self::signatureStamp($data) : self::pendingStamp($sigMap['__labels'][$key] ?? $key);
+            return is_array($data) ? self::signatureStamp($data) : self::pendingStamp($sigMap['__labels'][$key] ?? $key, $key);
         }, $body);
     }
 
@@ -292,10 +292,15 @@ class ContractTemplateRenderer
             . '</span>';
     }
 
-    /** Placeholder de firma PENDIENTE (aún no firma ese puesto). */
-    private static function pendingStamp(string $label): string
+    /**
+     * Placeholder de firma PENDIENTE (aún no firma ese puesto). El `data-anchor` (clave del ancla) es
+     * inerte en el PDF/impresión, pero deja que la CEREMONIA de firma (el iframe del contrato HTML)
+     * identifique qué recuadro le toca a cada destinatario y lo vuelva clicable.
+     */
+    private static function pendingStamp(string $label, string $key = ''): string
     {
-        return '<span class="cc-sig-pending" style="display:inline-block;border:1px dashed #c3c9d4;border-radius:8px;'
+        $attr = $key !== '' ? ' data-anchor="' . e($key) . '"' : '';
+        return '<span class="cc-sig-pending"' . $attr . ' style="display:inline-block;border:1px dashed #c3c9d4;border-radius:8px;'
             . 'padding:10px 12px;min-width:150px;min-height:44px;text-align:center;color:#8a93a2;font-style:italic;font-size:11px;'
             . 'vertical-align:bottom;background:transparent;">Pendiente de firma<br><span style="font-style:normal;font-size:9.5px;">' . e($label) . '</span></span>';
     }
@@ -331,7 +336,7 @@ class ContractTemplateRenderer
     /** Placeholder compacto de rúbrica PENDIENTE (aún no firma el contratado). */
     private static function rubricaPending(): string
     {
-        return '<span class="cc-rubrica-pending" style="display:inline-block;border:1px dashed #c3c9d4;border-radius:6px;'
+        return '<span class="cc-rubrica-pending" data-anchor="rubrica" style="display:inline-block;border:1px dashed #c3c9d4;border-radius:6px;'
             . 'padding:4px 9px;font-size:7.5pt;color:#8a93a2;font-style:italic;vertical-align:bottom;background:transparent;">'
             . 'Rúbrica pendiente</span>';
     }

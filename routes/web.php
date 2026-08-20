@@ -997,8 +997,8 @@ Route::middleware(['signed','throttle:30,1'])->group(function () {
     Route::post('/contratos/firma/{recipient}/firmar',      [\App\Http\Controllers\ContractSignController::class, 'sign'])->name('contracts.sign.do')->whereNumber('recipient');
     Route::post('/contratos/firma/{recipient}/rechazar',    [\App\Http\Controllers\ContractSignController::class, 'decline'])->name('contracts.sign.decline')->whereNumber('recipient');
     Route::get('/contratos/firma/{recipient}/doc/{index}',  [\App\Http\Controllers\ContractSignController::class, 'document'])->name('contracts.sign.document')->whereNumber('recipient')->whereNumber('index');
-    // DocuSign-like: el CONTRATO ARMADO (plantilla PDF-fillable estampada) para renderizar + firmar en pantalla.
-    Route::get('/contratos/firma/{recipient}/contrato',     [\App\Http\Controllers\ContractSignController::class, 'contractDocument'])->name('contracts.sign.contract')->whereNumber('recipient');
+    // CEREMONIA DocuSign-like: UNA plantilla (contrato o anexo) PDF ARMADA (estampada) para renderizar + firmar en pantalla.
+    Route::get('/contratos/firma/{recipient}/plantilla/{template}', [\App\Http\Controllers\ContractSignController::class, 'template'])->name('contracts.sign.template')->whereNumber('recipient')->whereNumber('template');
 });
 
 // ACCESO EXTERNO (no-crew): enlace de UN SOLO USO (hash) que lleva al contratado externo a su firma.

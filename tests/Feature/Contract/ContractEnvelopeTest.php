@@ -514,11 +514,12 @@ class ContractEnvelopeTest extends QaTestCase
     }
 
     /**
-     * DocuSign-like (6B) · modo PDF-fillable: la página de firma muestra el CONTRATO ARMADO con los
-     * lugares de firma de ESTE destinatario (filtrados por su ancla), y el contrato se sirve como PDF.
-     * El campo de OTRA ancla (dept_hod) NO aparece en mis marcas.
+     * CEREMONIA DocuSign-like: cuando el CONTRATO principal es una plantilla PDF, la página de firma lo
+     * muestra como documento del paquete y superpone SOLO mis etiquetas (filtradas por mi ancla). El
+     * campo de OTRA ancla (dept_hod) NO aparece en mis marcas; el PDF armado se sirve por la ruta de la
+     * ceremonia (por plantilla).
      */
-    public function test_fillable_sign_page_shows_contract_with_my_field_markers(): void
+    public function test_ceremony_shows_pdf_template_with_only_my_field_markers(): void
     {
         Storage::fake('local');
         $this->seatInternals();
@@ -530,7 +531,7 @@ class ContractEnvelopeTest extends QaTestCase
         $pdf->AddPage();
         $pdf->AddPage();
         Storage::disk('local')->put('contract-templates/deal.pdf', (string) $pdf->Output('S'));
-        ContractTemplate::create([
+        $tpl = ContractTemplate::create([
             'production_id' => $this->prodId, 'name' => 'Contrato PDF', 'applies_to' => [PayeeContract::CONCEPT_CREW],
             'category' => ContractTemplate::CATEGORY_CONTRACT, 'source_kind' => ContractTemplate::SOURCE_PDF,
             'pdf_path' => 'contract-templates/deal.pdf', 'pdf_original_name' => 'deal.pdf',
@@ -549,18 +550,68 @@ class ContractEnvelopeTest extends QaTestCase
         $verifyUrl = URL::temporarySignedRoute('contracts.sign.verify', now()->addHours(3), ['recipient' => $rec->id]);
         $this->post($verifyUrl, ['factor_value' => '1991-07-09'])->assertRedirect();
 
-        // La ceremonia: contrato armado + MI campo (pág 1), NO el ajeno (pág 5), y botón "Finalizar".
+        // La ceremonia: adopción + contrato como PDF con MI etiqueta (pág 1), NO la ajena (pág 5).
         $this->get(ContractSignController::signUrl($rec))->assertOk()
-            ->assertSee('data-contract-src', false)
+            ->assertSee('Adopta tu firma')
             ->assertSee('Finalizar y firmar')
+            ->assertSee('data-pdf-src', false)
             ->assertSee('"page":1', false)
             ->assertDontSee('"page":5', false);
 
-        // El contrato armado se sirve como PDF (estampado; firmas pendientes en blanco).
-        $contractUrl = URL::temporarySignedRoute('contracts.sign.contract', now()->addHours(3), ['recipient' => $rec->id]);
-        $res = $this->get($contractUrl);
+        // El PDF armado de la plantilla se sirve por la ruta de la ceremonia (estampado; firmas pendientes en blanco).
+        $tplUrl = URL::temporarySignedRoute('contracts.sign.template', now()->addHours(3), ['recipient' => $rec->id, 'template' => $tpl->id]);
+        $res = $this->get($tplUrl);
         $res->assertOk()->assertHeader('content-type', 'application/pdf');
         $this->assertStringStartsWith('%PDF', $res->getContent());
+    }
+
+    /**
+     * CEREMONIA · el paquete del firmante trae el CONTRATO principal (plantilla HTML embebida, con mi
+     * ancla clicable) Y cada ANEXO (plantilla-anexo PDF, con mi etiqueta por coordenadas). Ese es
+     * justo el hueco: los anexos y el cuerpo real del contrato ahora sí llegan a la firma.
+     */
+    public function test_ceremony_package_has_main_contract_and_annex_for_signer(): void
+    {
+        Storage::fake('local');
+        $this->seatInternals();
+        Setting::updateOrCreate(['key' => SignaturePositions::KEY_ORDER], ['value' => 'contracted,preparer,binder']);
+        Branding::forget();
+
+        // CONTRATO principal HTML con el ancla del contratado.
+        ContractTemplate::create([
+            'production_id' => $this->prodId, 'name' => 'Contrato', 'applies_to' => [PayeeContract::CONCEPT_CREW],
+            'category' => ContractTemplate::CATEGORY_CONTRACT, 'source_kind' => ContractTemplate::SOURCE_HTML,
+            'body' => '<h1>Contrato</h1><p>{{payee_nombre}}</p><div class="cc-signs"><div class="cc-sign"><div class="cc-sign-anchor">[[firma:contratado]]</div></div></div>',
+            'architecture' => 'caratula_numbered', 'page_size' => 'carta', 'is_active' => true,
+        ]);
+
+        // Un ANEXO PDF con la etiqueta de firma del contratado.
+        $pdf = new Fpdi('P', 'pt');
+        $pdf->AddPage();
+        Storage::disk('local')->put('contract-templates/anexo.pdf', (string) $pdf->Output('S'));
+        ContractTemplate::create([
+            'production_id' => $this->prodId, 'name' => 'NDA', 'applies_to' => [PayeeContract::CONCEPT_CREW],
+            'category' => ContractTemplate::CATEGORY_ANNEX, 'source_kind' => ContractTemplate::SOURCE_PDF,
+            'pdf_path' => 'contract-templates/anexo.pdf', 'pdf_original_name' => 'anexo.pdf',
+            'field_map' => [['page' => 1, 'x_pct' => 20, 'y_pct' => 70, 'w_pct' => 24, 'type' => 'sign', 'key' => 'contratado']],
+            'sort_order' => 1, 'is_active' => true,
+        ]);
+
+        $env = ContractEnvelopeBuilder::build($this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee('1991-07-09')), null);
+        $rec = $env->recipients()->where('role', 'contracted')->first();
+
+        $docs = \App\Support\ContractCeremony::documents($env, $rec);
+
+        // El primer documento es el CONTRATO principal, HTML embebido, con mi ancla clicable.
+        $this->assertSame('html', $docs[0]['mode']);
+        $this->assertContains('contratado', $docs[0]['anchors']);
+        $this->assertStringContainsString('data-anchor="contratado"', $docs[0]['html']);
+
+        // Existe un ANEXO PDF con MI etiqueta por coordenadas (página 1).
+        $anexo = collect($docs)->firstWhere('name', 'NDA');
+        $this->assertNotNull($anexo, 'el anexo entra al paquete de firma');
+        $this->assertSame('pdf', $anexo['mode']);
+        $this->assertSame(1, $anexo['tags'][0]['page']);
     }
 
     public function test_completed_envelope_refuses_more_signatures(): void
@@ -598,12 +649,12 @@ class ContractEnvelopeTest extends QaTestCase
         $verifyUrl = URL::temporarySignedRoute('contracts.sign.verify', now()->addHours(3), ['recipient' => $rec->id]);
         $this->post($verifyUrl, ['factor_value' => '1991-07-09'])->assertRedirect();
 
-        // Ahora ve la página de firma. Ola 6: el contrato se LEE inline (visor pdf.js) con salto a
-        // firmar; no es solo un canvas. El POST de firma NO cambia (el sello sigue intacto).
+        // Ahora ve la página de firma. Ceremonia DocuSign: adopta su autógrafa y firma el paquete
+        // (visor pdf.js). El POST de firma NO cambia (el sello sigue intacto).
         $this->get(ContractSignController::signUrl($rec))->assertOk()
             ->assertSee('Firma tu contrato')
             ->assertSee('js/vendor/pdfjs/pdf.min.js', false)
-            ->assertSee('Ir a firmar');
+            ->assertSee('Adopta tu firma');
 
         // Firmar el paquete (con consentimiento + FIRMA AUTÓGRAFA obligatoria, DocuSign).
         $signUrl = URL::temporarySignedRoute('contracts.sign.do', now()->addHours(3), ['recipient' => $rec->id]);
