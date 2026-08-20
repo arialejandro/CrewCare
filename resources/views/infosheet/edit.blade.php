@@ -12,11 +12,6 @@
     $val     = fn ($f, $d = null) => old($f, $contract->$f ?? $d);
     $dateVal = fn ($f) => old($f, optional($contract->$f)->format('Y-m-d'));
     $phaseKeys = ['soft_prep', 'prep', 'shoot', 'wrap'];
-    // Nombre en créditos: por defecto el nombre de la persona (payee o su usuario ligado), editable.
-    // No se teclea a mano; si aún no se ha guardado, arranca con el nombre — nunca vacío.
-    $personName    = trim((string) $payee->name) !== '' ? $payee->name
-                     : trim((string) optional($payee->user)->name . ' ' . optional($payee->user)->lname);
-    $creditDefault = trim((string) $contract->credit_name) !== '' ? $contract->credit_name : $personName;
 @endphp
 
 <div class="container-fluid py-4" style="max-width: 900px;">
@@ -112,12 +107,6 @@
                                 <textarea name="crew_activity" id="crew_activity" rows="2" class="form-control cc-control" maxlength="255">{{ $val('crew_activity') }}</textarea>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="cc-field">
-                                <label class="cc-label" for="credit_name">{{ __('Nombre en créditos') }}</label>
-                                <input type="text" name="credit_name" id="credit_name" class="form-control cc-control" maxlength="191" value="{{ old('credit_name', $creditDefault) }}">
-                            </div>
-                        </div>
                         <div class="col-md-4">
                             <div class="cc-field">
                                 <label class="cc-label" for="effective_date">{{ __('Inicia') }}</label>
@@ -128,12 +117,6 @@
                             <div class="cc-field">
                                 <label class="cc-label" for="estimated_end_date">{{ __('Termina (estimado)') }}</label>
                                 <input type="date" name="estimated_end_date" id="estimated_end_date" class="form-control cc-control" value="{{ $dateVal('estimated_end_date') }}">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="cc-field">
-                                <label class="cc-label" for="definitive_end_date">{{ __('Termina (definitivo)') }}</label>
-                                <input type="date" name="definitive_end_date" id="definitive_end_date" class="form-control cc-control" value="{{ $dateVal('definitive_end_date') }}">
                             </div>
                         </div>
                     </div>

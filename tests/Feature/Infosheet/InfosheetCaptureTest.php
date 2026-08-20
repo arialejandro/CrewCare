@@ -52,14 +52,14 @@ class InfosheetCaptureTest extends QaTestCase
             '_step'          => 'role',
             'department_id'  => $dept,
             'crew_activity'  => 'Coordinación de pruebas',
-            'credit_name'    => 'Ari Rómulo',
             'effective_date' => '2026-09-01',
         ])->assertRedirect();
 
         $c = $this->crewContract($payee);
         $this->assertNotNull($c);
         $this->assertSame('Coordinación de pruebas', $c->crew_activity);
-        $this->assertSame('Ari Rómulo', $c->credit_name);
+        // El nombre en créditos ya NO se teclea aquí: se deriva del nombre de la persona.
+        $this->assertSame($payee->name, $c->credit_name);
         $this->assertSame('2026-09-01', optional($c->effective_date)->format('Y-m-d'));
 
         // Capturar de nuevo NO crea un segundo contrato (firstOrCreate impone la unicidad).

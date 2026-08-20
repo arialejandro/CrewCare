@@ -201,14 +201,12 @@ class InfosheetController extends Controller
                     'department_id'       => 'nullable|integer|exists:departments,id',
                     'position_id'         => 'nullable|integer|exists:positions,id',
                     'crew_activity'       => 'nullable|string|max:255',
-                    'credit_name'         => 'nullable|string|max:191',
                     'effective_date'      => 'nullable|date',
                     'estimated_end_date'  => 'nullable|date',
-                    'definitive_end_date' => 'nullable|date',
                 ]);
                 $contract->fill($request->only([
-                    'department_id', 'crew_activity', 'credit_name',
-                    'effective_date', 'estimated_end_date', 'definitive_end_date',
+                    'department_id', 'crew_activity',
+                    'effective_date', 'estimated_end_date',
                 ]));
                 // El PUESTO (position) no es columna del contrato: se guarda su nombre legible en
                 // `title` (título del contrato crew_work). La ACTIVIDAD/entregable va en crew_activity.
@@ -217,6 +215,12 @@ class InfosheetController extends Controller
                     if ($pos) {
                         $contract->title = $pos->name;
                     }
+                }
+                // El NOMBRE EN CRÉDITOS no se captura aquí (no tiene sentido en el trato): se deriva del
+                // nombre de la persona para que el contrato/créditos igual lo tengan. Editable a futuro
+                // por otro camino si se ocupa un nombre artístico.
+                if (trim((string) $contract->credit_name) === '') {
+                    $contract->credit_name = optional($contract->payee)->name ?: null;
                 }
                 $contract->save();
                 break;
