@@ -57,6 +57,9 @@
     /* FIRMAR AQUÍ: el pad va DENTRO del bloque "Autoriza" (no un campo aparte). Bloque a todo el ancho. */
     .cc-hoja__sign--active { grid-column:1 / -1; text-align:left; }
     .cc-hoja__signhint { display:block; font-size:.66rem; font-weight:700; color:#26324a; text-transform:uppercase; letter-spacing:.04em; margin-bottom:.25rem; }
+    /* El pad NO debe ocupar todo el ancho (se veía gigante): caja de firma acotada. */
+    .cc-hoja__signpad { max-width:400px; }
+    .cc-hoja__signpad .cc-sigpad__canvas { height:120px; }
     .cc-hoja__signpad .cc-sigpad__wrap { border:1px dashed #26324a; background:#fff; }
     .cc-hoja__signpad .cc-sigpad__savelbl { display:none; }
     .cc-hoja__signpad .cc-sigpad__tools { gap:.3rem; margin-top:.35rem; }
