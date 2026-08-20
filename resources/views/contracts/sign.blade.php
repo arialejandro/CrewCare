@@ -69,11 +69,12 @@
     .dochead{display:flex;align-items:center;gap:10px;margin:0 4px 10px;color:var(--muted);font-size:13px;font-weight:700}
     .dochead .kind{background:#eef2f7;color:#586173;border-radius:6px;font-size:11px;padding:2px 8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
     .dochead .open{margin-left:auto;color:var(--nav);text-decoration:none;font-size:12.5px;font-weight:600}
-    /* documento embebido (HTML armado) */
-    .frameShell{background:#525659;border-radius:10px;padding:16px;max-height:74vh;overflow:auto}
+    /* documento embebido (HTML armado) — a alto completo; el SCROLL es de la página (así "Siguiente"
+       lleva a la etiqueta exacta, no solo al documento). */
+    .frameShell{background:#525659;border-radius:10px;padding:16px}
     .ccframe{width:100%;border:0;background:#fff;display:block;border-radius:4px;box-shadow:var(--shadow-page)}
-    /* documento PDF (pdf.js) */
-    .pdfShell{background:#525659;border-radius:10px;padding:14px;max-height:74vh;overflow:auto}
+    /* documento PDF (pdf.js) — también a alto completo. */
+    .pdfShell{background:#525659;border-radius:10px;padding:14px}
     .pdfShell .loading{color:#e5e7eb;text-align:center;padding:1.6rem 0;font-size:.86rem}
     .ccpage{position:relative;margin:0 auto 14px;background:#fff;box-shadow:var(--shadow-page)}
     .ccpage:last-child{margin-bottom:0}
@@ -372,7 +373,10 @@
                         Array.prototype.forEach.call(idoc.querySelectorAll('[data-anchor="'+key+'"]'), function(box){
                             box.classList.add('cc-tag'); box.textContent=T.sign;
                             var small=(key==='rubrica');
-                            var tag={docIdx:docIdx, el:box, small:small, focus:function(){ try{box.scrollIntoView({behavior:'smooth',block:'center'})}catch(e){} box.classList.add('pulse'); setTimeout(function(){box.classList.remove('pulse')},1200);} };
+                            var tag={docIdx:docIdx, el:box, small:small, focus:function(){
+                                try{ var fr=iframe.getBoundingClientRect(), br=box.getBoundingClientRect();
+                                     window.scrollTo({top:Math.max(0, window.scrollY+fr.top+br.top-130), behavior:'smooth'}); }catch(e){}
+                                box.classList.add('pulse'); setTimeout(function(){box.classList.remove('pulse')},1200); } };
                             box.addEventListener('click', function(){ apply(tag); });
                             register(tag);
                         });

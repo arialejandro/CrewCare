@@ -12,14 +12,22 @@ use App\Models\PayeeContract;
  */
 class InfosheetSheet
 {
-    /** Bytes del PDF de la Hoja de Información de este contrato. */
-    public static function renderPdf(PayeeContract $contract): string
+    /**
+     * HTML autónomo de la Hoja (para embeberla en la ceremonia de firma / pasarla a PDF). $opts admite:
+     *   · 'contractedAnchor' => true  → pinta el recuadro clicable "Firma aquí" del contratado (ceremonia).
+     *   · 'contractedSig'    => [...] → estampa su autógrafa + hash en el documento final.
+     */
+    public static function renderHtml(PayeeContract $contract, array $opts = []): string
     {
         // Relaciones que consume el documento (evita nulls sorpresa / N+1).
         $contract->loadMissing(['payee.fiscalRegimes', 'payee.beneficiaries', 'payee.documents.documentType', 'department']);
 
-        $html = view('infosheet.sheet-pdf', ['contract' => $contract])->render();
+        return view('infosheet.sheet-pdf', array_merge(['contract' => $contract], $opts))->render();
+    }
 
-        return ContractPdf::render($html);
+    /** Bytes del PDF de la Hoja de Información de este contrato. */
+    public static function renderPdf(PayeeContract $contract, array $opts = []): string
+    {
+        return ContractPdf::render(self::renderHtml($contract, $opts));
     }
 }

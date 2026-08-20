@@ -26,6 +26,11 @@
     // firma ahora (o null en solo-lectura). El pad se dibuja en ESE bloque, no en un campo aparte.
     $signSlotLabel = $signSlotLabel ?? null;
     $adopted       = $adopted ?? null;
+    // El CONTRATADO firma la Hoja dentro del contrato (ceremonia). $contractedAnchor = pinta el
+    // recuadro clicable pendiente (etiqueta de firma); $contractedSig = su autógrafa YA firmada
+    // (imagen + hash) para el documento final.
+    $contractedSig    = $contractedSig ?? null;
+    $contractedAnchor = $contractedAnchor ?? false;
 @endphp
 @once
 <style>
@@ -52,6 +57,9 @@
     .cc-hoja__sign b { display:block; font-size:.8rem; margin-top:.2rem; }
     .cc-hoja__sign span { color:#8a93a2; font-size:.68rem; }
     .cc-hoja__ok { color:#1e6b34; font-size:.66rem; font-weight:700; }
+    .cc-hoja__seal { display:block; font-size:.52rem; color:#3b7a4a; font-weight:700; word-break:break-all; line-height:1.2; margin-top:.15rem; }
+    .cc-hoja__seal code { color:#5b6472; font-family:Consolas,"Courier New",monospace; font-weight:600; }
+    .cc-hoja__pending { display:inline-block; border:1.5px dashed #e3a600; background:#fff7e0; color:#6a4a00; border-radius:6px; padding:.55rem .9rem; font-weight:700; font-size:.72rem; text-transform:uppercase; letter-spacing:.03em; }
     .cc-hoja__note { margin-top:.8rem; font-size:.68rem; color:#8a93a2; font-style:italic; }
     /* FIRMAR AQUÍ: el pad va DENTRO del bloque "Autoriza" (no un campo aparte). Bloque a todo el ancho. */
     .cc-hoja__sign--active { grid-column:1 / -1; text-align:left; }
@@ -164,7 +172,16 @@
     <div class="cc-hoja__band">{{ __('Firmas') }}</div>
     <div class="cc-hoja__signs">
         <div class="cc-hoja__sign">
-            <div class="cc-hoja__sign-line"></div>
+            @if(!empty($contractedSig) && !empty($contractedSig['image']))
+                <img src="{{ $contractedSig['image'] }}" alt="" class="cc-hoja__sign-img">
+                @if(!empty($contractedSig['hash']))
+                    <span class="cc-hoja__seal">{{ !empty($contractedSig['verified']) ? '✓ ' : '' }}{{ __('Sello') }} <code>{{ $contractedSig['hash'] }}</code></span>
+                @endif
+            @elseif($contractedAnchor)
+                <span class="cc-hoja__pending" data-anchor="contratado">{{ __('Firma aquí') }}</span>
+            @else
+                <div class="cc-hoja__sign-line"></div>
+            @endif
             <b>{{ $p->name }}</b>
             <span>{{ __('Contratado') }}@if($c->title) · {{ $c->title }}@endif</span>
         </div>

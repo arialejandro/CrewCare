@@ -612,6 +612,13 @@ class ContractEnvelopeTest extends QaTestCase
         $this->assertNotNull($anexo, 'el anexo entra al paquete de firma');
         $this->assertSame('pdf', $anexo['mode']);
         $this->assertSame(1, $anexo['tags'][0]['page']);
+
+        // La HOJA DE INFORMACIÓN entra como documento FIRMABLE (html) con MI etiqueta de contratado.
+        $hoja = collect($docs)->firstWhere('key', 'hoja');
+        $this->assertNotNull($hoja, 'la Hoja entra al paquete de firma');
+        $this->assertSame('html', $hoja['mode']);
+        $this->assertContains('contratado', $hoja['anchors']);
+        $this->assertStringContainsString('data-anchor="contratado"', $hoja['html']);
     }
 
     public function test_completed_envelope_refuses_more_signatures(): void

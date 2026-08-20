@@ -11,6 +11,10 @@
 </style>
 </head>
 <body>
-@include('componentes._infosheet-document', ['contract' => $contract])
+@include('componentes._infosheet-document', [
+    'contract'         => $contract,
+    'contractedSig'    => $contractedSig ?? null,
+    'contractedAnchor' => $contractedAnchor ?? false,
+])
 </body>
 </html>

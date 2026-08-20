@@ -73,8 +73,17 @@ class ContractCeremony
             $docs[] = self::templateDoc($anx, $envelope, $recipient, $mine, $anx->name ?: __('Anexo'));
         }
 
-        // ── HOJA DE INFORMACIÓN (lectura; la firma va por el flujo de autorización) ──
-        if (($i = self::docIndex($envelope, 'infosheet')) !== null) {
+        // ── HOJA DE INFORMACIÓN — el CONTRATADO también la firma (etiqueta en su casillero); para el
+        //    resto (o si ya firmó) va de LECTURA byte-intact del paquete. ──
+        if (in_array('contratado', $mine, true) && ! $recipient->isSigned()) {
+            $docs[] = [
+                'key'     => 'hoja',
+                'name'    => __('Hoja de información'),
+                'mode'    => 'html',
+                'html'    => InfosheetSheet::renderHtml($contract, ['contractedAnchor' => true]),
+                'anchors' => ['contratado'],
+            ];
+        } elseif (($i = self::docIndex($envelope, 'infosheet')) !== null) {
             $docs[] = ['key' => 'hoja', 'name' => __('Hoja de información'), 'mode' => 'pdf', 'url' => self::sealedUrl($recipient, $i), 'tags' => []];
         }
 

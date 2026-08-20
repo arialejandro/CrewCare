@@ -90,6 +90,33 @@ class ContractSignedRenderer
             $annexMetas[] = self::meta($path, $bytes, $annex);
         }
 
+        // ── HOJA firmada: si el paquete llevaba Hoja y el contratado ya firmó, se re-renderiza con su
+        //    autógrafa + sello y se anexa al conjunto firmado (así la Hoja final SÍ muestra su firma). ──
+        $hasHoja = collect($envelope->documents ?? [])->contains(fn ($d) => ($d['kind'] ?? null) === 'infosheet');
+        $contracted = $envelope->recipients->firstWhere('anchor_key', 'contratado');
+        if ($hasHoja && $contracted && $contracted->isSigned() && $contracted->signature_image) {
+            $csig = $contracted->signatures()->latest('id')->first();
+            try {
+                $bytes = InfosheetSheet::renderPdf($contract, ['contractedSig' => [
+                    'image'    => $contracted->signature_image,
+                    'name'     => $contracted->name,
+                    'hash'     => optional($csig)->document_hash,
+                    'verified' => $contracted->verifyLatestSignature(),
+                ]]);
+                if ($bytes !== '') {
+                    $path = 'contracts/signed/env-' . $envelope->id . '-hoja.pdf';
+                    Storage::disk('local')->put($path, $bytes);
+                    $annexMetas[] = [
+                        'path' => $path, 'hash' => hash('sha256', $bytes), 'bytes' => strlen($bytes),
+                        'rendered_at' => now()->toDateTimeString(), 'engine' => 'browsershot',
+                        'name' => __('Hoja de información'), 'template_id' => null,
+                    ];
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('ContractSignedRenderer: la Hoja firmada falló — ' . $e->getMessage());
+            }
+        }
+
         if (! $mainMeta && empty($annexMetas)) {
             return null;   // sin plantillas → nada que congelar; se entrega el paquete byte-intact
         }
