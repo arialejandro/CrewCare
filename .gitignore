@@ -49,3 +49,8 @@ yarn-error.log
 tests/Browser/screenshots/
 tests/Browser/console/
 tests/Browser/source/
+
+# Config local de Claude Code (herramienta del dev, no es fuente del producto).
+/.claude/
+# Logo de MARCA de la instancia (subida local, no fuente): se sube por /settings/branding.
+/public/img/badges/logo-1786684392-0da1150d.png
