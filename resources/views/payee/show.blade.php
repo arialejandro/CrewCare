@@ -204,7 +204,14 @@
                                     <tr>
                                         <td data-label="{{ __('Concepto') }}">{{ $conceptLabels[$c->concept] ?? $c->concept }}</td>
                                         <td data-label="{{ __('Contrata') }}">{{ optional($c->contractedBy)->name ? trim($c->contractedBy->name.' '.$c->contractedBy->lname) : '—' }}</td>
-                                        <td data-label="{{ __('Régimen') }}">{{ optional($c->fiscalRegime)->name ?: '—' }}</td>
+                                        <td data-label="{{ __('Régimen') }}">
+                                            @php
+                                                // El código fiscal (ej. 612): del contrato si tiene, o el/los del payee (ya capturados).
+                                                $regCode = optional($c->fiscalRegime)->code
+                                                    ?: $payee->fiscalRegimes->pluck('code')->filter()->implode(', ');
+                                            @endphp
+                                            {{ $regCode ?: '—' }}
+                                        </td>
                                         <td data-label="{{ __('Frecuencia') }}">
                                             @can('periods.manage')
                                                 {{-- La frecuencia HEREDA el periodo de pago; definible caso por caso (day players/apoyos). --}}
@@ -222,7 +229,7 @@
                                                 {{ $c->frequencyLabel() ?: '—' }}
                                             @endcan
                                         </td>
-                                        <td data-label="{{ __('REPSE') }}">@if($c->is_repse)<span class="badge text-bg-warning">{{ __('Sí') }}</span>@else<span class="text-muted">—</span>@endif</td>
+                                        <td data-label="{{ __('REPSE') }}">@if($c->is_repse)<span class="badge text-bg-warning">{{ __('Sí') }}</span>@else<span class="text-muted">{{ __('N/A') }}</span>@endif</td>
                                     </tr>
                                 @endforeach
                             </tbody>

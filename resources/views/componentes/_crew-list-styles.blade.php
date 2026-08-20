@@ -215,6 +215,17 @@
     }
     .crew-page .page-item.disabled .page-link { background: var(--surface); border-color: var(--border); color: var(--text-muted); }
 
+    /* Listas dentro de las tarjetas (documentos, beneficiarios…): Bootstrap las pinta BLANCAS
+       (var(--bs-list-group-bg)) → en oscuro se ven rotas. Heredan el vidrio de la tarjeta. */
+    .crew-page .list-group,
+    .crew-page .list-group-flush,
+    .crew-page .list-group-item {
+        background: transparent;
+        color: var(--text);
+        border-color: var(--stroke, var(--border));
+    }
+    .crew-page .list-group-item .text-muted { color: var(--text-muted) !important; }
+
     /* ── DENSIDAD MÓVIL (2026-08-07) ──────────────────────────────────────────────
        El .cc-stack global apila cada campo en un renglón de ~.5rem+borde → con 6 datos
        + acciones la tarjeta rondaba ~250px y solo cabían ~4 personas por pantalla. Quien
