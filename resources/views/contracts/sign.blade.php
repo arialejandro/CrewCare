@@ -1,7 +1,7 @@
-{{-- PÁGINA DE FIRMA (Paso C) · CEREMONIA DocuSign-like — el contratado firma sin sesión. Ve el
-     PAQUETE COMPLETO (contrato + anexos + Hoja) ARMADO, ADOPTA su autógrafa UNA VEZ (dibuja / escribe
-     / reúsa) y la ESTAMPA en cada etiqueta de firma. La ruta avanza sola. Todo fail-open: si pdf.js o
-     un documento no cargan, quedan los enlaces "Abrir en pestaña" y nunca se atrapa al firmante. --}}
+{{-- PÁGINA DE FIRMA (Paso C) · CEREMONIA tipo DocuSign — el contratado firma sin sesión. Ve el
+     PAQUETE COMPLETO (contrato + anexos + Hoja) ARMADO, ADOPTA su autógrafa UNA VEZ y la ESTAMPA en
+     cada etiqueta; cada firma muestra su HASH (sello). Tema claro, profesional. Todo fail-open: si
+     pdf.js o un documento no cargan, quedan los enlaces "Abrir en pestaña" y nunca se atrapa. --}}
 <!doctype html>
 <html lang="es">
 <head>
@@ -9,455 +9,480 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ __('Firma de contrato') }}</title>
 <style>
-    :root { color-scheme: dark; }
-    * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; background: #0b1220; color: #e5e7eb;
-        font-family: system-ui, -apple-system, Segoe UI, sans-serif; padding: 1.2rem; display: flex; justify-content: center; }
-    .wrap { width: 100%; max-width: 720px; }
-    .card { background: #111a2e; border: 1px solid #1f2b44; border-radius: 16px; padding: 1.4rem; margin-bottom: 1rem; }
-    h1 { font-size: 1.2rem; margin: 0 0 .3rem; }
-    h2 { font-size: 1rem; margin: 0 0 .5rem; }
-    .muted { color: #9aa4b2; font-size: .88rem; }
-    label.consent { display: flex; gap: .6rem; align-items: flex-start; font-size: .88rem; color: #cbd5e1; margin: 1rem 0; }
-    /* El submit tiene su propia clase para NO aplastar los botones del pad de firma (type=button). */
-    .cc-submit { width: 100%; padding: .8rem; border: 0; border-radius: 10px; background: #16a34a; color: #fff; font-weight: 700; font-size: 1.05rem; cursor: pointer; margin-top: 1rem; }
-    .cc-submit:disabled { opacity: .5; cursor: not-allowed; }
-    .ok { color: #86efac; } .warn { color: #fcd34d; }
-    .err { background: #3b1220; border: 1px solid #7f1d3a; color: #fecdd3; padding: .6rem .8rem; border-radius: 10px; font-size: .85rem; margin-bottom: 1rem; }
-    /* Base mínima para el pad de firma (esta página no carga Bootstrap). */
-    .cc-label { display: block; font-size: .82rem; color: #cbd5e1; margin-bottom: .4rem; }
-    .cc-sigpad .btn { width: auto; padding: .38rem .7rem; border: 1px solid #2a3a5c; border-radius: 8px; background: #16233f; color: #e5e7eb; font-size: .8rem; font-weight: 600; cursor: pointer; }
-    .cc-sigpad .form-control { padding: .38rem .6rem; border: 1px solid #2a3a5c; border-radius: 8px; background: #0b1220; color: #e5e7eb; font-size: .85rem; }
-    .cc-sigpad__savelbl { color: #9aa4b2; }
-    /* ADOPTAR mi firma — paso 1 (tipo DocuSign "Adopt your signature"). */
-    .cc-adopt__preview { display: none; align-items: center; gap: .9rem; flex-wrap: wrap; }
-    .cc-adopt__preview img { height: 46px; max-width: 240px; background: #fff; border-radius: 8px; padding: 3px 8px; }
-    .cc-adopt__badge { color: #86efac; font-size: .85rem; font-weight: 600; }
-    .cc-btn { display: inline-flex; align-items: center; gap: .4rem; padding: .6rem 1rem; border: 0; border-radius: 10px; background: #1d4ed8; color: #fff; font-weight: 700; font-size: .95rem; cursor: pointer; }
-    .cc-linkbtn { background: none; border: 0; color: #7dd3fc; font-size: .85rem; text-decoration: underline; cursor: pointer; padding: 0; }
-    /* Rechazar: acción secundaria, subordinada a firmar. */
-    .cc-decline-toggle { background: none; border: 0; color: #9aa4b2; font-size: .85rem; text-decoration: underline; cursor: pointer; padding: 0; }
-    .cc-decline-toggle:hover { color: #cbd5e1; }
-    .cc-decline-input { width: 100%; padding: .5rem .6rem; border: 1px solid #7f1d3a; border-radius: 8px; background: #0b1220; color: #e5e7eb; font-size: .9rem; font-family: inherit; }
-    .cc-decline-submit { width: 100%; margin-top: .7rem; padding: .6rem; border: 1px solid #7f1d3a; border-radius: 10px; background: transparent; color: #fecdd3; font-weight: 700; font-size: .95rem; cursor: pointer; }
-    .cc-decline-submit:hover { background: #3b1220; }
-    /* Barra de progreso de firmas (DocuSign: "X de Y lugares"). */
-    .ccbar { display: flex; align-items: center; justify-content: space-between; gap: .6rem; flex-wrap: wrap; padding: .6rem .8rem; margin-bottom: .8rem; border: 1px solid #1f2b44; border-radius: 10px; background: #0e1526; font-size: .88rem; transition: background .2s, border-color .2s; position: sticky; top: .4rem; z-index: 5; }
-    .ccbar[data-done="1"] { border-color: #166534; background: #0e2417; }
-    .ccbar[data-warn="1"] { border-color: #7f1d3a; background: #3b1220; }
-    .ccbar b { color: #fff; }
-    .ccbar__actions { display: flex; gap: .5rem; flex-wrap: wrap; }
-    .ccbar__btn { border: 0; color: #fff; font-weight: 700; font-size: .82rem; border-radius: 8px; padding: .44rem .8rem; cursor: pointer; white-space: nowrap; background: #1d4ed8; }
-    .ccbar__btn--all { background: #16a34a; }
-    /* Documento del paquete. */
-    .ccdoc { border: 1px solid #1f2b44; border-radius: 12px; overflow: hidden; margin-bottom: .9rem; }
-    .ccdoc__h { display: flex; justify-content: space-between; align-items: center; gap: .6rem; padding: .55rem .8rem; background: #0e1526; border-bottom: 1px solid #1f2b44; }
-    .ccdoc__name { font-weight: 600; font-size: .9rem; }
-    .ccdoc__tagcount { color: #fcd34d; font-size: .78rem; font-weight: 600; }
-    .ccdoc__tagcount[data-done="1"] { color: #86efac; }
-    .ccdoc__open { color: #7dd3fc; text-decoration: none; font-size: .8rem; font-weight: 600; white-space: nowrap; }
-    .ccdoc__pages { max-height: 70vh; overflow: auto; padding: .8rem; background: #525659; -webkit-overflow-scrolling: touch; }
-    .ccdoc__loading { color: #e5e7eb; text-align: center; padding: 1.4rem 0; font-size: .85rem; }
-    .ccpage { margin: 0 auto .7rem; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.4); }
-    .ccpage:last-child { margin-bottom: 0; }
-    /* El contrato HTML armado se embebe en un iframe (documento aislado, con sus propios estilos). */
-    .ccframe { width: 100%; border: 0; background: #fff; display: block; }
-    .ccframe-wrap { max-height: 70vh; overflow: auto; background: #525659; padding: .8rem; }
-    /* Etiqueta de firma sobre PDF (coordenadas). */
-    .ccmk-ov { position: absolute; inset: 0; }
-    .ccmk { position: absolute; box-sizing: border-box; min-height: 30px; border: 2px dashed #f59e0b; background: rgba(245,158,11,.20); color: #7c2d12; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 2px; overflow: hidden; }
-    .ccmk:hover { background: rgba(245,158,11,.34); }
-    .ccmk.pulse { animation: ccpulse 1.4s ease-out; }
-    .ccmk.applied { border: 1.5px solid #16a34a; background: rgba(255,255,255,.95); cursor: default; }
-    .ccmk.applied img { max-width: 100%; max-height: 100%; object-fit: contain; }
-    @keyframes ccpulse { 0% { box-shadow: 0 0 0 0 rgba(245,158,11,.6); } 100% { box-shadow: 0 0 0 14px rgba(245,158,11,0); } }
+    :root{
+        --canvas:#eaedf2; --page:#fff; --ink:#18212f; --muted:#5f6b7c; --faint:#8b95a4;
+        --line:#e3e7ee; --line2:#eef1f5; --brand:#ff0046; --nav:#2563eb; --nav-bg:#eef3ff;
+        --tab:#ffcf4a; --tab-edge:#e3a600; --tab-ink:#6a4a00; --ok:#12a150; --ok-bg:#e7f6ee;
+        --seal:#4b53d6; --shadow-page:0 1px 2px rgba(16,24,40,.06),0 10px 26px rgba(16,24,40,.10);
+        --ease:cubic-bezier(.23,1,.32,1); color-scheme:light;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0}
+    body{background:var(--canvas);color:var(--ink);
+        font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+        font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;}
+    button{font-family:inherit}
+    .center{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:26px 28px;max-width:460px;box-shadow:var(--shadow-page)}
+    .card h1{font-size:1.25rem;margin:0 0 .4rem}
+    .muted{color:var(--muted);font-size:.92rem}
+    .ok{color:var(--ok)} .warn{color:#b7791f}
+    .btn{border:0;border-radius:9px;padding:10px 16px;font-size:14px;font-weight:700;cursor:pointer;
+        transition:transform .12s var(--ease),background .18s var(--ease)}
+    .btn:active{transform:scale(.97)}
+    .btn--finish{background:var(--ok);color:#fff}
+    .btn--finish:disabled{background:#dfe4ea;color:#9aa4b2;cursor:not-allowed}
+    .btn--dark{background:#111827;color:#fff}
+    .btn--ghost{background:#f3f5f9;color:var(--ink)}
+    .btn--ghost:hover{background:#eaeef4}
+
+    /* ── Toolbar ─────────────────────────────────────────── */
+    .tbar{position:fixed;top:0;left:0;right:0;height:60px;z-index:40;background:#fff;
+        border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 18px;}
+    .tbar::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--brand)}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.2px;min-width:0}
+    .brand .logo{width:26px;height:26px;border-radius:7px;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:15px;font-weight:800;flex:0 0 auto}
+    .brand b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .brand small{display:block;font-weight:500;font-size:11px;color:var(--faint);letter-spacing:.3px;text-transform:uppercase}
+    .tbar .grow{flex:1}
+    .prog{display:flex;align-items:center;gap:10px;min-width:150px}
+    .prog__bar{flex:1;height:7px;border-radius:99px;background:#e9edf3;overflow:hidden}
+    .prog__fill{height:100%;width:0;background:var(--ok);border-radius:99px;transition:width .35s var(--ease)}
+    .prog__txt{font-size:12.5px;color:var(--muted);font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+    /* ── Doc tabs ────────────────────────────────────────── */
+    .docs{position:fixed;top:60px;left:0;right:0;z-index:35;background:#fbfcfd;border-bottom:1px solid var(--line);
+        display:flex;gap:4px;padding:8px 16px;overflow-x:auto}
+    .doctab{display:inline-flex;align-items:center;gap:8px;border:1px solid transparent;background:transparent;
+        color:var(--muted);font-size:13px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer;white-space:nowrap;
+        transition:background .15s var(--ease),color .15s var(--ease)}
+    .doctab:hover{background:#eef2f7;color:var(--ink)}
+    .doctab[aria-current="true"]{background:var(--nav-bg);color:var(--nav)}
+    .doctab .dot{width:16px;height:16px;border-radius:99px;border:2px solid #cfd6e0;display:grid;place-items:center;font-size:10px;color:#fff}
+    .doctab[data-done="1"] .dot{background:var(--ok);border-color:var(--ok)}
+    .doctab .pend{background:#fff4d6;color:#8a6400;border-radius:99px;font-size:11px;font-weight:800;padding:1px 7px;min-width:18px;text-align:center}
+    .doctab[data-done="1"] .pend,.doctab .pend:empty{display:none}
+
+    /* ── Stage + pages ───────────────────────────────────── */
+    .stage{padding:132px 14px 120px;max-width:900px;margin:0 auto}
+    .docblock{margin:0 0 28px}
+    .dochead{display:flex;align-items:center;gap:10px;margin:0 4px 10px;color:var(--muted);font-size:13px;font-weight:700}
+    .dochead .kind{background:#eef2f7;color:#586173;border-radius:6px;font-size:11px;padding:2px 8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+    .dochead .open{margin-left:auto;color:var(--nav);text-decoration:none;font-size:12.5px;font-weight:600}
+    /* documento embebido (HTML armado) */
+    .frameShell{background:#525659;border-radius:10px;padding:16px;max-height:74vh;overflow:auto}
+    .ccframe{width:100%;border:0;background:#fff;display:block;border-radius:4px;box-shadow:var(--shadow-page)}
+    /* documento PDF (pdf.js) */
+    .pdfShell{background:#525659;border-radius:10px;padding:14px;max-height:74vh;overflow:auto}
+    .pdfShell .loading{color:#e5e7eb;text-align:center;padding:1.6rem 0;font-size:.86rem}
+    .ccpage{position:relative;margin:0 auto 14px;background:#fff;box-shadow:var(--shadow-page)}
+    .ccpage:last-child{margin-bottom:0}
+    .ccmk-ov{position:absolute;inset:0}
+
+    /* ── Etiqueta de firma (tab) ─────────────────────────── */
+    .ccmk{position:absolute;display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+        background:var(--tab);border:1px solid var(--tab-edge);color:var(--tab-ink);
+        border-radius:5px;padding:8px 12px;font-size:12.5px;font-weight:800;letter-spacing:.2px;
+        box-shadow:0 2px 5px rgba(180,120,0,.28);white-space:nowrap;z-index:3;
+        transition:transform .12s var(--ease),background .15s var(--ease)}
+    .ccmk:hover{background:#ffd968;transform:translateY(-1px)}
+    .ccmk:active{transform:scale(.97)}
+    .ccmk.pulse{animation:pulse 1.2s var(--ease)}
+    @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(234,166,0,.55)}100%{box-shadow:0 0 0 16px rgba(234,166,0,0)}}
+    .ccmk.applied{background:#fff;border:1px solid #d8dcff;box-shadow:0 1px 3px rgba(16,24,40,.1);cursor:default;
+        color:var(--ink);padding:6px 8px;width:auto;max-width:250px;white-space:normal}
+    /* sello estampado (Firmado por: + hash) */
+    .stamp{display:flex;align-items:stretch;gap:6px;text-align:left}
+    .stamp__bar{width:5px;border:1.5px solid var(--seal);border-right:0;border-radius:4px 0 0 4px;flex:0 0 auto}
+    .stamp__body{display:flex;flex-direction:column;min-width:0}
+    .stamp__lbl{font-size:8px;color:#6b7482;letter-spacing:.3px;font-weight:700}
+    .stamp img{height:30px;max-width:170px;object-fit:contain;mix-blend-mode:multiply;display:block}
+    .stamp__hash{font-size:8px;color:var(--ok);font-weight:700;max-width:200px;line-height:1.25;margin-top:1px}
+    .stamp__hash code{font-family:"SFMono-Regular",Consolas,monospace;font-size:8px;color:#5b6472;font-weight:600;word-break:break-all}
+    .ccmk.small.applied .stamp img{height:22px;max-width:100px}
+    .ccmk.small.applied .stamp__lbl{display:none}
+
+    /* ── Botón flotante "Comenzar" ───────────────────────── */
+    .start{position:fixed;left:20px;top:50%;transform:translateY(-50%);z-index:30;
+        background:var(--tab);border:1px solid var(--tab-edge);color:var(--tab-ink);
+        border-radius:10px;padding:12px 15px;font-weight:800;font-size:14px;cursor:pointer;
+        box-shadow:0 6px 18px rgba(180,120,0,.3);display:flex;align-items:center;gap:8px;
+        transition:transform .12s var(--ease),opacity .25s var(--ease)}
+    .start:active{transform:translateY(-50%) scale(.96)}
+    .start.hide{opacity:0;pointer-events:none}
+
+    /* ── Modal adopta ────────────────────────────────────── */
+    .scrim{position:fixed;inset:0;z-index:60;background:rgba(15,22,34,.5);display:none;align-items:center;justify-content:center;padding:18px;opacity:0;transition:opacity .2s var(--ease)}
+    .scrim.open{display:flex;opacity:1}
+    .modal{background:#fff;border-radius:16px;width:100%;max-width:560px;overflow:hidden;transform:scale(.96);opacity:0;transition:transform .22s var(--ease),opacity .22s var(--ease);box-shadow:0 30px 80px rgba(10,16,28,.4)}
+    .scrim.open .modal{transform:scale(1);opacity:1}
+    .modal__h{padding:20px 24px 4px}
+    .modal__h h3{margin:0;font-size:18px;font-weight:700}
+    .modal__h p{margin:4px 0 0;color:var(--muted);font-size:13px}
+    .modal__b{padding:14px 24px 4px}
+    .field{margin-bottom:14px}
+    .field label{display:block;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+    .field input[type=text]{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 14px;font-size:15px;color:var(--ink);background:#fbfcfd}
+    .field input[type=text]:focus{outline:none;border-color:var(--nav);box-shadow:0 0 0 3px var(--nav-bg)}
+    .seg{display:inline-flex;background:#f0f3f7;border-radius:10px;padding:3px;gap:2px;margin-bottom:12px}
+    .seg button{border:0;background:transparent;color:var(--muted);font-size:13px;font-weight:700;padding:7px 15px;border-radius:8px;cursor:pointer}
+    .seg button[aria-selected="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(16,24,40,.12)}
+    .sigbox{border:1px dashed #cfd6e0;border-radius:12px;background:#fffdf5;height:170px;position:relative;overflow:hidden}
+    .sigbox canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+    .sigbox .base{position:absolute;left:8%;right:8%;bottom:34%;border-bottom:1px solid #e2c98a}
+    .sigbox .hint{position:absolute;left:14px;bottom:12px;font-size:11px;color:#b7a56a;font-weight:700;letter-spacing:.5px}
+    .styled{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-family:"Segoe Script","Brush Script MT","Snell Roundhand",cursive;font-size:50px;color:#16233b;padding:0 20px;text-align:center}
+    .reuse{margin:10px 2px 0;font-size:12.5px}
+    .reuse a{color:var(--nav);cursor:pointer;text-decoration:underline}
+    .consent{display:flex;gap:9px;align-items:flex-start;font-size:12px;color:#546070;padding:12px 24px 2px;line-height:1.5}
+    .disc{font-size:11px;color:var(--faint);padding:6px 24px 4px;line-height:1.5}
+    .modal__f{display:flex;align-items:center;gap:10px;padding:14px 24px 22px;border-top:1px solid var(--line2);margin-top:12px}
+    .modal__f .grow{flex:1}
+    .link{background:none;border:0;color:var(--muted);font-size:13px;text-decoration:underline;cursor:pointer;padding:0}
+    .err{background:#fdecef;border:1px solid #f6c2ce;color:#a01235;padding:.6rem .8rem;border-radius:10px;font-size:.85rem;margin:0 0 12px}
+
+    /* Rechazar */
+    .decline{max-width:900px;margin:0 auto;padding:0 14px 40px;text-align:center}
+    .decline__toggle{background:none;border:0;color:var(--muted);font-size:13px;text-decoration:underline;cursor:pointer}
+    .decline__box{display:none;max-width:460px;margin:12px auto 0;text-align:left;background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px}
+    .decline__box textarea{width:100%;border:1px solid #f0c4d0;border-radius:10px;padding:.6rem;font-family:inherit;font-size:.92rem;min-height:76px}
+    .decline__submit{width:100%;margin-top:.7rem;padding:.6rem;border:1px solid #f0c4d0;border-radius:10px;background:#fff;color:#a01235;font-weight:700;cursor:pointer}
+    @media(max-width:640px){.start{display:none}.stage{padding-top:146px}.brand small{display:none}}
 </style>
 @stack('styles')
 </head>
 <body>
-<div class="wrap">
-    @if($stage === 'done')
-        <div class="card">
-            @if($envelope->isDeclined())
-                <h1 class="warn">{{ __('Contrato rechazado') }}</h1>
-                <p class="muted">{{ __('Registramos que no se firmará este contrato. Producción se encargará del siguiente paso.') }}</p>
-            @elseif($envelope->isExpired())
-                <h1 class="warn">{{ __('Sobre vencido') }}</h1>
-                <p class="muted">{{ __('El plazo para firmar este contrato ya pasó. Avísale a producción si aún necesitas firmarlo.') }}</p>
-            @elseif($envelope->isCancelled())
-                <h1 class="warn">{{ __('Sobre anulado') }}</h1>
-                <p class="muted">{{ __('Este contrato fue anulado por producción. No hay nada que firmar aquí.') }}</p>
-            @else
-                <h1 class="ok">{{ __('Listo') }}</h1>
-                <p class="muted">{{ __('Este sobre ya está firmado o cerrado. No hay nada más que hacer aquí.') }}</p>
-            @endif
+@if($stage === 'done')
+    <div class="center"><div class="card">
+        @if($envelope->isDeclined())
+            <h1 class="warn">{{ __('Contrato rechazado') }}</h1>
+            <p class="muted">{{ __('Registramos que no se firmará este contrato. Producción se encargará del siguiente paso.') }}</p>
+        @elseif($envelope->isExpired())
+            <h1 class="warn">{{ __('Sobre vencido') }}</h1>
+            <p class="muted">{{ __('El plazo para firmar este contrato ya pasó. Avísale a producción si aún necesitas firmarlo.') }}</p>
+        @elseif($envelope->isCancelled())
+            <h1 class="warn">{{ __('Sobre anulado') }}</h1>
+            <p class="muted">{{ __('Este contrato fue anulado por producción. No hay nada que firmar aquí.') }}</p>
+        @else
+            <h1 class="ok">{{ __('¡Listo! Contrato firmado') }}</h1>
+            <p class="muted">{{ __('Tu firma quedó estampada y sellada con su hash. Recibirás una copia certificada por correo.') }}</p>
+        @endif
+    </div></div>
+@elseif($stage === 'not_turn')
+    <div class="center"><div class="card">
+        <h1 class="warn">{{ __('Aún no es tu turno') }}</h1>
+        <p class="muted">{{ __('El sobre está en firma con otra persona. En cuanto sea tu turno recibirás un correo con el enlace para firmar.') }}</p>
+    </div></div>
+@else
+    {{-- ── Toolbar ── --}}
+    <div class="tbar">
+        <div class="brand"><span class="logo">C</span><span><b>{{ __('Firma de contrato') }}</b><small>{{ $recipient->name }} · {{ $recipient->roleLabel() }}</small></span></div>
+        <div class="grow"></div>
+        <div class="prog">
+            <div class="prog__bar"><div class="prog__fill" id="pf"></div></div>
+            <span class="prog__txt" id="pt">0 / 0</span>
         </div>
-    @elseif($stage === 'not_turn')
-        <div class="card">
-            <h1 class="warn">{{ __('Aún no es tu turno') }}</h1>
-            <p class="muted">{{ __('El sobre está en firma con otra persona. En cuanto sea tu turno recibirás un correo con el enlace para firmar.') }}</p>
-        </div>
-    @else
-        <div class="card">
-            <h1>{{ __('Firma tu contrato') }}</h1>
-            <p class="muted">{{ $recipient->name }} · {{ $recipient->roleLabel() }}</p>
-        </div>
+        <button type="button" class="btn btn--finish" id="finish" disabled>{{ __('Finalizar y firmar') }}</button>
+    </div>
 
-        {{-- PASO 1 · ADOPTA TU FIRMA (una vez; se estampa en todos los lugares). --}}
-        <div class="card" id="ccAdopt">
-            <h2>{{ __('1 · Adopta tu firma') }}</h2>
-            <p class="muted" style="margin-top:0">{{ __('Dibújala, escríbela o reúsa la guardada. La usarás en todo el paquete.') }}</p>
-            <div id="ccAdoptPad">
-                @include('componentes._signature-pad', [
-                    'name'    => 'adopt_signature',
-                    'label'   => null,
-                    'adopted' => $adopted ?? null,
-                ])
-                <button type="button" class="cc-btn" id="ccAdoptBtn" style="margin-top:.7rem">{{ __('Adoptar mi firma') }}</button>
-            </div>
-            <div class="cc-adopt__preview" id="ccAdoptPreview">
-                <span class="cc-adopt__badge">{{ __('✓ Firma lista') }}</span>
-                <img id="ccAdoptImg" src="" alt="{{ __('Tu firma') }}">
-                <button type="button" class="cc-linkbtn" id="ccAdoptChange">{{ __('Cambiar') }}</button>
-            </div>
-        </div>
+    <nav class="docs" id="docs"></nav>
+    <button type="button" class="start" id="start">→ {{ __('Comenzar') }}</button>
 
-        {{-- PASO 2 · EL PAQUETE — cada documento armado, con TUS lugares de firma. --}}
-        <div class="card">
-            <h2>{{ __('2 · Revisa y firma tu paquete') }}</h2>
-            <div class="ccbar" id="ccBar" data-done="0">
-                <span>{{ __('Firmas colocadas') }}: <b id="ccCount">0 / 0</b></span>
-                <span class="ccbar__actions">
-                    <button type="button" class="ccbar__btn" id="ccNext">{{ __('Ir al siguiente') }}</button>
-                    <button type="button" class="ccbar__btn ccbar__btn--all" id="ccApplyAll">{{ __('Firmar en todos') }}</button>
-                </span>
-            </div>
-
-            @forelse($ceremony as $di => $doc)
-                <section class="ccdoc" data-doc="{{ $di }}">
-                    <div class="ccdoc__h">
-                        <span class="ccdoc__name">{{ $doc['name'] ?? __('Documento') }}</span>
-                        <span style="display:flex;gap:.8rem;align-items:center">
-                            <span class="ccdoc__tagcount" data-doc-count="{{ $di }}"></span>
-                            @if(($doc['mode'] ?? '') === 'pdf' && !empty($doc['url']))
-                                <a class="ccdoc__open" href="{{ $doc['url'] }}" target="_blank" rel="noopener">{{ __('Abrir en pestaña') }}</a>
-                            @endif
-                        </span>
-                    </div>
-                    @if(($doc['mode'] ?? '') === 'html')
-                        <div class="ccframe-wrap">
-                            <iframe class="ccframe" data-doc="{{ $di }}" data-anchors='@json($doc['anchors'] ?? [])'
-                                    srcdoc="{{ $doc['html'] ?? '' }}" title="{{ $doc['name'] ?? __('Documento') }}"></iframe>
-                        </div>
-                    @else
-                        <div class="ccdoc__pages" data-doc="{{ $di }}" data-pdf-src="{{ $doc['url'] ?? '' }}" data-tags='@json($doc['tags'] ?? [])'>
-                            <div class="ccdoc__loading">{{ __('Cargando documento…') }}</div>
-                        </div>
+    <div class="stage" id="stage">
+        @forelse($ceremony as $di => $doc)
+            @php
+                $kind = $doc['key'] === 'hoja' ? __('Informativo') : ($di === 0 || ($doc['key'] ?? '') === 'caratula' ? __('Contrato') : __('Anexo'));
+            @endphp
+            <section class="docblock" data-doc="{{ $di }}" data-name="{{ $doc['name'] ?? __('Documento') }}">
+                <div class="dochead">
+                    <span class="kind">{{ $kind }}</span> {{ $doc['name'] ?? __('Documento') }}
+                    @if(($doc['mode'] ?? '') === 'pdf' && !empty($doc['url']))
+                        <a class="open" href="{{ $doc['url'] }}" target="_blank" rel="noopener">{{ __('Abrir en pestaña') }}</a>
                     @endif
-                </section>
-            @empty
-                <div class="muted">{{ __('No hay documentos para mostrar.') }}</div>
-            @endforelse
-        </div>
-
-        {{-- PASO 3 · FINALIZAR — consiente (una vez) y firma el paquete. --}}
-        <div class="card" id="ccSignBox">
-            @if(session('error'))<div class="err">{{ session('error') }}</div>@endif
-            @if($errors->any())<div class="err">{{ $errors->first() }}</div>@endif
-            <form method="POST" action="{{ $signUrl }}" id="ccSignForm">
-                @csrf
-                @if($needsConsent)
-                    <label class="consent">
-                        <input type="checkbox" name="consent" value="1" required>
-                        <span>{{ __('Acepto firmar electrónicamente. Reconozco que mi firma electrónica tiene la misma validez que la autógrafa (Cód. de Comercio 89 y 89 Bis; CCF 1811).') }}</span>
-                    </label>
+                </div>
+                @if(($doc['mode'] ?? '') === 'html')
+                    <div class="frameShell">
+                        <iframe class="ccframe" data-doc="{{ $di }}" data-anchors='@json($doc['anchors'] ?? [])'
+                                srcdoc="{{ $doc['html'] ?? '' }}" title="{{ $doc['name'] ?? __('Documento') }}"></iframe>
+                    </div>
+                @else
+                    <div class="pdfShell" data-doc="{{ $di }}" data-pdf-src="{{ $doc['url'] ?? '' }}" data-tags='@json($doc['tags'] ?? [])'>
+                        <div class="loading">{{ __('Cargando documento…') }}</div>
+                    </div>
                 @endif
-                <input type="hidden" name="signature_image" id="ccSigInput" value="">
-                <input type="hidden" name="save_signature" id="ccSaveFlag" value="0">
-                <button type="submit" class="cc-submit" id="ccSubmit">{{ __('Finalizar y firmar') }}</button>
-            </form>
-        </div>
+            </section>
+        @empty
+            <div class="muted" style="text-align:center;padding:2rem">{{ __('No hay documentos para mostrar.') }}</div>
+        @endforelse
+    </div>
 
-        {{-- RECHAZAR (Fase 2) — el firmante se niega, con motivo obligatorio. Detiene el sobre. --}}
-        <div class="card">
-            <button type="button" class="cc-decline-toggle" onclick="ccToggleDecline()">{{ __('No puedo firmar este contrato') }}</button>
-            <form method="POST" action="{{ $declineUrl }}" id="ccDeclineForm" style="display:none;margin-top:.9rem">
-                @csrf
-                <label class="cc-label" for="ccDeclineReason">{{ __('Cuéntanos por qué (obligatorio):') }}</label>
-                <textarea id="ccDeclineReason" name="reason" rows="3" maxlength="500" class="cc-decline-input"
-                    placeholder="{{ __('Ej.: el monto no coincide con lo acordado.') }}"></textarea>
-                <button type="submit" class="cc-decline-submit">{{ __('Confirmar que no firmaré') }}</button>
-            </form>
+    {{-- Formulario real (el POST no cambia: una autógrafa; el servidor sella + estampa en todas mis anclas). --}}
+    <form method="POST" action="{{ $signUrl }}" id="signForm" style="display:none">
+        @csrf
+        <input type="hidden" name="consent" id="fConsent" value="0">
+        <input type="hidden" name="signature_image" id="fSig" value="">
+        <input type="hidden" name="save_signature" id="fSave" value="0">
+    </form>
+
+    {{-- Rechazar --}}
+    <div class="decline">
+        <button type="button" class="decline__toggle" onclick="ccDecline()">{{ __('No puedo firmar este contrato') }}</button>
+        <form method="POST" action="{{ $declineUrl }}" id="declineForm" class="decline__box">
+            @csrf
+            <label style="font-size:.85rem;color:#546070;display:block;margin-bottom:.4rem">{{ __('Cuéntanos por qué (obligatorio):') }}</label>
+            <textarea name="reason" id="declineReason" maxlength="500" placeholder="{{ __('Ej.: el monto no coincide con lo acordado.') }}"></textarea>
+            <button type="submit" class="decline__submit">{{ __('Confirmar que no firmaré') }}</button>
+        </form>
+    </div>
+
+    {{-- Modal · adopta tu firma --}}
+    <div class="scrim" id="scrim" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt">
+            <div class="modal__h"><h3 id="mt">{{ __('Adopta tu firma') }}</h3><p>{{ __('Créala una vez; la usarás en todo el paquete.') }}</p></div>
+            <div class="modal__b">
+                @if(session('error') || (isset($errors) && $errors->any()))
+                    <div class="err">{{ session('error') ?: (isset($errors) ? $errors->first() : '') }}</div>
+                @endif
+                <div class="field"><label>{{ __('Nombre completo') }}</label><input type="text" id="fname" value="{{ $recipient->name }}"></div>
+                <div class="seg" role="tablist">
+                    <button type="button" role="tab" aria-selected="true" id="tabDraw">{{ __('Dibujar') }}</button>
+                    <button type="button" role="tab" aria-selected="false" id="tabType">{{ __('Escribir') }}</button>
+                </div>
+                <div class="sigbox">
+                    <span class="base"></span>
+                    <canvas id="cv"></canvas>
+                    <div class="styled" id="styled">{{ $recipient->name }}</div>
+                    <span class="hint" id="hint">{{ __('Dibuja tu firma aquí') }}</span>
+                </div>
+                @if($adopted ?? false)
+                    <div class="reuse"><a id="reuseSig">{{ __('Usar mi firma guardada') }}</a></div>
+                @endif
+            </div>
+            @if($needsConsent)
+                <label class="consent"><input type="checkbox" id="cConsent" checked>
+                    <span>{{ __('Acepto firmar electrónicamente; mi firma electrónica tiene la misma validez que la autógrafa (Cód. de Comercio 89 y 89 Bis; CCF 1811).') }}</span></label>
+            @else
+                <p class="disc">{{ __('Tu firma se sella con SHA-256; el hash acompaña a cada firma como prueba de integridad.') }}</p>
+            @endif
+            <div class="modal__f">
+                <button type="button" class="link" id="clearSig">{{ __('Limpiar') }}</button>
+                <label class="link" style="text-decoration:none;display:inline-flex;gap:6px;align-items:center;cursor:pointer">
+                    <input type="checkbox" id="saveSig"> {{ __('Guardar para reúso') }}
+                </label>
+                <div class="grow"></div>
+                <button type="button" class="link" id="cancelSig">{{ __('Cancelar') }}</button>
+                <button type="button" class="btn btn--dark" id="adoptSig">{{ __('Adoptar y firmar') }}</button>
+            </div>
         </div>
-    @endif
-</div>
+    </div>
+@endif
 
 @if($stage === 'sign')
-    <script>
-        function ccToggleDecline() {
-            var f = document.getElementById('ccDeclineForm');
-            var open = f.style.display !== 'none';
-            f.style.display = open ? 'none' : 'block';
-            var t = document.getElementById('ccDeclineReason');
-            if (open) { t.removeAttribute('required'); } else { t.setAttribute('required', 'required'); t.focus(); }
-        }
-    </script>
+    <script>function ccDecline(){var f=document.getElementById('declineForm');var o=f.style.display==='block';f.style.display=o?'none':'block';var t=document.getElementById('declineReason');o?t.removeAttribute('required'):(t.setAttribute('required','required'),t.focus());}</script>
     <script src="{{ asset('js/vendor/pdfjs/pdf.min.js') }}"></script>
     <script>
-    (function () {
+    (function(){
         'use strict';
-        var T = {
-            adoptFirst: @json(__('Primero adopta tu firma arriba.')),
-            sign:       @json(__('Firmar aquí')),
-            fail:       @json(__('No se pudo mostrar aquí. Usa "Abrir en pestaña".')),
-        };
-        var WORKER = @json(asset('js/vendor/pdfjs/pdf.worker.min.js'));
-        if (window.pdfjsLib) { pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER; }
+        var T={ sign:@json(__('✎ Firmar')), signedBy:@json(__('Firmado por:')), integ:@json(__('íntegra')),
+                fail:@json(__('No se pudo mostrar aquí. Usa "Abrir en pestaña".')), seal:@json(__('Sello SHA-256')),
+                drawFirst:@json(__('Dibuja tu firma primero')) };
+        if(window.pdfjsLib){ pdfjsLib.GlobalWorkerOptions.workerSrc=@json(asset('js/vendor/pdfjs/pdf.worker.min.js')); }
 
-        // ── Estado central de la ceremonia ──────────────────────────────────────
-        var CC = {
-            adopted: '',                 // dataURL de mi autógrafa (tras adoptar)
-            tags: [],                    // {docIdx, applied, apply(), focus()}
-            docTotal: 0,                 // documentos a preparar (iframe/pdf)
-            docReady: 0,                 // documentos ya listos (o fallidos)
-        };
-        var submitBtn = document.getElementById('ccSubmit');
-        var bar       = document.getElementById('ccBar');
-        var countEl   = document.getElementById('ccCount');
-        var sigInput  = document.getElementById('ccSigInput');
-        if (submitBtn) { submitBtn.disabled = true; }   // la ceremonia gobierna; sin JS quedaría habilitado
+        var CC={ adopted:'', tags:[], docTotal:0, docReady:0 };
+        var pf=document.getElementById('pf'), pt=document.getElementById('pt'), finish=document.getElementById('finish'),
+            start=document.getElementById('start'), signForm=document.getElementById('signForm'),
+            fSig=document.getElementById('fSig'), fConsent=document.getElementById('fConsent'), fSave=document.getElementById('fSave');
 
-        function docCountEl(idx) { return document.querySelector('.ccdoc__tagcount[data-doc-count="' + idx + '"]'); }
+        // ── hash (sello) para el preview de la ceremonia; el hash autoritativo lo sella el servidor ──
+        function sha256Hex(s){
+            try{ return crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)).then(function(b){
+                return [].map.call(new Uint8Array(b),function(x){return x.toString(16).padStart(2,'0')}).join(''); }); }
+            catch(e){ return Promise.resolve(''); }
+        }
+        function stampHTML(url,hash,small){
+            if(small){ return '<span class="stamp"><span class="stamp__bar"></span><span class="stamp__body">'+
+                '<img src="'+url+'"><span class="stamp__hash">✓ '+T.integ+'</span></span></span>'; }
+            var h = hash ? ('<span class="stamp__hash">✓ <code>'+hash+'</code></span>') : ('<span class="stamp__hash">✓ '+T.seal+'</span>');
+            return '<span class="stamp"><span class="stamp__bar"></span><span class="stamp__body">'+
+                '<span class="stamp__lbl">'+T.signedBy+'</span><img src="'+url+'">'+h+'</span></span>';
+        }
 
-        function refresh() {
-            var applied = 0;
-            CC.tags.forEach(function (t) { if (t.applied) applied++; });
-            if (countEl) { countEl.textContent = applied + ' / ' + CC.tags.length; }
-            // conteo por documento
-            var perDoc = {};
-            CC.tags.forEach(function (t) {
-                perDoc[t.docIdx] = perDoc[t.docIdx] || { a: 0, n: 0 };
-                perDoc[t.docIdx].n++; if (t.applied) perDoc[t.docIdx].a++;
+        function refresh(){
+            var applied=CC.tags.filter(function(t){return t.applied}).length, tot=CC.tags.length;
+            pf.style.width=(tot?applied/tot*100:0)+'%';
+            pt.textContent=applied+' / '+tot;
+            // por documento
+            var per={};
+            CC.tags.forEach(function(t){ per[t.docIdx]=per[t.docIdx]||{a:0,n:0}; per[t.docIdx].n++; if(t.applied)per[t.docIdx].a++; });
+            document.querySelectorAll('.doctab').forEach(function(tab){
+                var d=tab.dataset.tab, p=per[d];
+                var pend=tab.querySelector('.pend');
+                if(p){ tab.setAttribute('data-done', p.a>=p.n?'1':'0'); if(pend) pend.textContent=(p.n-p.a)||''; }
+                else { tab.setAttribute('data-done','1'); if(pend) pend.textContent=''; }
             });
-            Object.keys(perDoc).forEach(function (idx) {
-                var el = docCountEl(idx); if (!el) return;
-                var d = perDoc[idx];
-                el.textContent = d.a + '/' + d.n + ' ' + (d.a >= d.n ? '✓' : '');
-                el.setAttribute('data-done', d.a >= d.n ? '1' : '0');
-            });
-            var ready = CC.docReady >= CC.docTotal;
-            var done  = ready && (CC.tags.length === 0 || applied >= CC.tags.length);
-            if (submitBtn) { submitBtn.disabled = !(CC.adopted && done); }
-            if (bar) { bar.setAttribute('data-done', (CC.tags.length && applied >= CC.tags.length) ? '1' : '0'); }
+            var ready=CC.docReady>=CC.docTotal, done=ready&&(tot===0||applied>=tot);
+            finish.disabled=!(CC.adopted && done);
+            start.classList.toggle('hide', tot>0 && applied>=tot);
+            if(applied>0) start.textContent='→ '+@json(__('Siguiente'));
         }
+        function docDone(){ CC.docReady++; refresh(); }
 
-        function docDone() { CC.docReady++; refresh(); }
-
-        function warnAdopt() {
-            var pad = document.getElementById('ccAdopt');
-            if (pad) { pad.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-            if (bar) { bar.setAttribute('data-warn', '1'); setTimeout(function () { bar.removeAttribute('data-warn'); }, 2200); }
-        }
-
-        function register(tag) { tag.applied = false; CC.tags.push(tag); }
-
-        function applyOne(tag) {
-            if (!CC.adopted) { warnAdopt(); return; }
-            if (!tag.applied) { tag.applied = true; tag.paint(CC.adopted); refresh(); }
-        }
-
-        function nextTag() {
-            var t = null;
-            for (var i = 0; i < CC.tags.length; i++) { if (!CC.tags[i].applied) { t = CC.tags[i]; break; } }
-            if (t) { t.focus(); }
-        }
-
-        // ── ADOPTAR mi firma ─────────────────────────────────────────────────────
-        (function adopt() {
-            var pad      = document.querySelector('#ccAdoptPad .cc-sigpad');
-            var dataEl   = pad ? pad.querySelector('.cc-sigpad__data') : null;
-            var saveEl   = pad ? pad.querySelector('.cc-sigpad__saveflag') : null;
-            var btn      = document.getElementById('ccAdoptBtn');
-            var padBox   = document.getElementById('ccAdoptPad');
-            var preview  = document.getElementById('ccAdoptPreview');
-            var prevImg  = document.getElementById('ccAdoptImg');
-            var change   = document.getElementById('ccAdoptChange');
-            var saveFlag = document.getElementById('ccSaveFlag');
-
-            function setAdopted(url) {
-                CC.adopted = url || '';
-                if (sigInput) { sigInput.value = CC.adopted; }
-                if (saveFlag && saveEl) { saveFlag.value = saveEl.value || '0'; }
-                if (prevImg) { prevImg.src = CC.adopted; }
-                if (padBox)  { padBox.style.display = 'none'; }
-                if (preview) { preview.style.display = 'flex'; }
-                refresh();
-            }
-            if (btn) {
-                btn.addEventListener('click', function () {
-                    var url = dataEl ? (dataEl.value || '') : '';
-                    if (!url || url.length < 100) { warnAdopt(); return; }
-                    setAdopted(url);
-                });
-            }
-            if (change) {
-                change.addEventListener('click', function () {
-                    if (padBox)  { padBox.style.display = ''; }
-                    if (preview) { preview.style.display = 'none'; }
-                });
-            }
-        })();
-
-        // ── Barra: acciones ──────────────────────────────────────────────────────
-        var applyAllBtn = document.getElementById('ccApplyAll');
-        if (applyAllBtn) {
-            applyAllBtn.addEventListener('click', function () {
-                if (!CC.adopted) { warnAdopt(); return; }
-                CC.tags.forEach(function (t) { if (!t.applied) { t.applied = true; t.paint(CC.adopted); } });
+        function apply(tag){
+            if(!CC.adopted){ openModal(tag); return; }
+            tag.applied=true; tag.el.classList.add('applied'); tag.el.classList.remove('pulse');
+            var small=tag.small;
+            sha256Hex(CC.adopted+'|'+Date.now()+'|'+@json($recipient->id)).then(function(hash){
+                tag.el.innerHTML=stampHTML(CC.adopted,hash,small);
+                if(tag.reframe) tag.reframe();
                 refresh();
             });
+            refresh();
         }
-        var nextBtn = document.getElementById('ccNext');
-        if (nextBtn) { nextBtn.addEventListener('click', function () { if (!CC.adopted) { warnAdopt(); return; } nextTag(); }); }
+        function nextTag(){ var t=CC.tags.filter(function(x){return !x.applied})[0]; if(t){ t.focus(); } }
+        function register(t){ t.applied=false; CC.tags.push(t); }
 
-        // ── Documentos HTML (iframe): mis anclas pendientes → etiquetas clicables ──
-        function initHtmlDoc(iframe) {
-            var docIdx = iframe.getAttribute('data-doc');
-            var mine = [];
-            try { mine = JSON.parse(iframe.getAttribute('data-anchors') || '[]'); } catch (e) { mine = []; }
+        // ── barra + start + finish ──
+        start.onclick=function(){ if(!CC.adopted){ openModal(CC.tags[0]||null); return; } nextTag(); };
+        finish.onclick=function(){ if(finish.disabled) return; fSig.value=CC.adopted; signForm.submit(); };
 
-            function ready() {
-                try {
-                    var idoc = iframe.contentDocument;
-                    if (!idoc) { docDone(); return; }
-                    // auto-alto: mostrar el documento completo (el scroll lo lleva el contenedor)
-                    var h = Math.max(idoc.body ? idoc.body.scrollHeight : 0, idoc.documentElement ? idoc.documentElement.scrollHeight : 0);
-                    if (h > 0) { iframe.style.height = (h + 24) + 'px'; }
-
-                    // estilos de la etiqueta DENTRO del iframe
-                    var st = idoc.createElement('style');
-                    st.textContent =
-                        '.cc-tag{cursor:pointer;outline:2px dashed #d97706;outline-offset:2px;background:rgba(245,158,11,.22)!important;position:relative}' +
-                        '.cc-tag:hover{background:rgba(245,158,11,.36)!important}' +
-                        '.cc-tag .cc-tag-hint{position:absolute;top:-14px;left:0;font-size:8px;font-weight:700;color:#7c2d12;background:#fbbf24;border-radius:3px;padding:0 4px;font-style:normal}' +
-                        '.cc-tag.applied{outline-color:#16a34a;background:rgba(255,255,255,.9)!important}' +
-                        '.cc-tag.applied img{max-height:34px;max-width:170px;display:inline-block;mix-blend-mode:multiply}';
-                    (idoc.head || idoc.body).appendChild(st);
-
-                    mine.forEach(function (key) {
-                        var boxes = idoc.querySelectorAll('[data-anchor="' + key + '"]');
-                        Array.prototype.forEach.call(boxes, function (box) {
-                            box.classList.add('cc-tag');
-                            var hint = idoc.createElement('span'); hint.className = 'cc-tag-hint'; hint.textContent = T.sign;
-                            box.appendChild(hint);
-                            var tag = {
-                                docIdx: docIdx,
-                                paint: function (url) {
-                                    box.classList.add('applied');
-                                    box.innerHTML = '<img src="' + url + '" alt="">';
-                                },
-                                focus: function () {
-                                    try { box.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
-                                    var wrap = iframe.closest('.ccframe-wrap');
-                                    if (wrap) { wrap.scrollTop = Math.max(0, box.offsetTop - 60); }
-                                },
-                            };
-                            box.addEventListener('click', function () { applyOne(tag); });
+        // ── documentos HTML (iframe embebido) ──
+        // srcdoc dispara 'load' ANTES de maquetar el cuerpo → hay que esperar a que aparezcan las
+        // anclas, y re-medir el alto tras asentar tipografías (si no, el contrato queda aplastado).
+        function initHtml(iframe){
+            var docIdx=iframe.getAttribute('data-doc'); var mine=[]; try{mine=JSON.parse(iframe.getAttribute('data-anchors')||'[]')}catch(e){}
+            var wired=false, tries=0;
+            function sizeFrame(){ try{ var d=iframe.contentDocument; var h=Math.max(d.body?d.body.scrollHeight:0, d.documentElement?d.documentElement.scrollHeight:0); if(h>0) iframe.style.height=(h+24)+'px'; }catch(e){} }
+            function attempt(){
+                if(wired) return;
+                var idoc; try{ idoc=iframe.contentDocument; }catch(e){ idoc=null; }
+                var ok = idoc && idoc.body && idoc.querySelector('[data-anchor]');
+                if(!ok){ if(tries++<50){ setTimeout(attempt,70); return; } docDone(); return; }   // fail-open: lectura
+                wired=true;
+                try{
+                    var st=idoc.createElement('style');
+                    st.textContent='[data-anchor].cc-tag{cursor:pointer;background:#ffcf4a!important;border:1px solid #e3a600!important;color:#6a4a00!important;box-shadow:0 2px 5px rgba(180,120,0,.28);border-radius:5px}'+
+                        '[data-anchor].cc-tag:hover{background:#ffd968!important}'+
+                        '.cc-tag.applied{background:#fff!important;border:1px solid #d8dcff!important;box-shadow:0 1px 3px rgba(16,24,40,.1)}'+
+                        '.stamp{display:flex;align-items:stretch;gap:6px;text-align:left}.stamp__bar{width:5px;border:1.5px solid #4b53d6;border-right:0;border-radius:4px 0 0 4px;flex:0 0 auto}'+
+                        '.stamp__body{display:flex;flex-direction:column;min-width:0}.stamp__lbl{font-size:8px;color:#6b7482;font-weight:700}'+
+                        '.stamp img{height:30px;max-width:170px;object-fit:contain;mix-blend-mode:multiply;display:block}'+
+                        '.stamp__hash{font-size:8px;color:#12a150;font-weight:700;max-width:200px;line-height:1.25}.stamp__hash code{font-family:Consolas,monospace;font-size:8px;color:#5b6472;word-break:break-all}';
+                    (idoc.head||idoc.body).appendChild(st);
+                    mine.forEach(function(key){
+                        Array.prototype.forEach.call(idoc.querySelectorAll('[data-anchor="'+key+'"]'), function(box){
+                            box.classList.add('cc-tag'); box.textContent=T.sign;
+                            var small=(key==='rubrica');
+                            var tag={docIdx:docIdx, el:box, small:small, focus:function(){ try{box.scrollIntoView({behavior:'smooth',block:'center'})}catch(e){} box.classList.add('pulse'); setTimeout(function(){box.classList.remove('pulse')},1200);} };
+                            box.addEventListener('click', function(){ apply(tag); });
                             register(tag);
                         });
                     });
-                } catch (e) { /* cross-doc raro → se queda como lectura */ }
+                }catch(e){}
+                sizeFrame(); setTimeout(sizeFrame,300); setTimeout(sizeFrame,1000);
                 docDone();
             }
-
-            if (iframe.contentDocument && iframe.contentDocument.readyState === 'complete') { ready(); }
-            else { iframe.addEventListener('load', ready); iframe.addEventListener('error', docDone); }
+            iframe.addEventListener('load', attempt);
+            attempt();
         }
 
-        // ── Documentos PDF (pdf.js): render + etiquetas por coordenadas ────────────
-        function drawPage(pdf, n, host, done) {
-            pdf.getPage(n).then(function (page) {
-                var maxW = Math.min(host.clientWidth - 24, 900);
-                var base = page.getViewport({ scale: 1 });
-                var vp = page.getViewport({ scale: maxW / base.width });
-                var dpr = window.devicePixelRatio || 1;
-                var wrap = document.createElement('div');
-                wrap.className = 'ccpage';
-                wrap.style.position = 'relative';
-                wrap.style.width = vp.width + 'px';
-                wrap.style.height = vp.height + 'px';
-                var c = document.createElement('canvas');
-                c.width = Math.floor(vp.width * dpr); c.height = Math.floor(vp.height * dpr);
-                c.style.width = vp.width + 'px'; c.style.height = vp.height + 'px';
-                wrap.appendChild(c);
-                var ov = document.createElement('div'); ov.className = 'ccmk-ov';
-                wrap.appendChild(ov);
-                host.appendChild(wrap);
-                page.render({
-                    canvasContext: c.getContext('2d'), viewport: vp,
-                    transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null,
-                }).promise.then(function () { done(ov); });
-            }).catch(function () { done(null); });
+        // ── documentos PDF (pdf.js + coordenadas) ──
+        function drawPage(pdf,n,host,done){
+            pdf.getPage(n).then(function(page){
+                var maxW=Math.min(host.clientWidth-20,900), base=page.getViewport({scale:1}), vp=page.getViewport({scale:maxW/base.width}), dpr=window.devicePixelRatio||1;
+                var wrap=document.createElement('div'); wrap.className='ccpage'; wrap.style.width=vp.width+'px'; wrap.style.height=vp.height+'px';
+                var c=document.createElement('canvas'); c.width=Math.floor(vp.width*dpr); c.height=Math.floor(vp.height*dpr); c.style.width=vp.width+'px'; c.style.height=vp.height+'px'; wrap.appendChild(c);
+                var ov=document.createElement('div'); ov.className='ccmk-ov'; wrap.appendChild(ov); host.appendChild(wrap);
+                page.render({canvasContext:c.getContext('2d'),viewport:vp,transform:dpr!==1?[dpr,0,0,dpr,0,0]:null}).promise.then(function(){done(ov)});
+            }).catch(function(){done(null)});
         }
-
-        function initPdfDoc(host) {
-            var docIdx = host.getAttribute('data-doc');
-            var url = host.getAttribute('data-pdf-src');
-            var tags = [];
-            try { tags = JSON.parse(host.getAttribute('data-tags') || '[]'); } catch (e) { tags = []; }
-            if (!window.pdfjsLib || !url) { host.innerHTML = '<div class="ccdoc__loading">' + T.fail + '</div>'; docDone(); return; }
-
-            var overlays = {};
-            pdfjsLib.getDocument(url).promise.then(function (pdf) {
-                host.innerHTML = '';
-                var n = 1;
-                (function next() {
-                    if (n > pdf.numPages) { placeTags(); return; }
-                    var cur = n;
-                    drawPage(pdf, cur, host, function (ov) { overlays[cur] = ov; n++; next(); });
-                })();
-            }).catch(function () {
-                host.innerHTML = '<div class="ccdoc__loading">' + T.fail + '</div>';
-                docDone();
-            });
-
-            function placeTags() {
-                tags.forEach(function (f) {
-                    var ov = overlays[parseInt(f.page, 10)];
-                    if (!ov) { return; }
-                    var mk = document.createElement('button');
-                    mk.type = 'button'; mk.className = 'ccmk';
-                    mk.style.left = f.x_pct + '%'; mk.style.top = f.y_pct + '%'; mk.style.width = f.w_pct + '%';
-                    mk.textContent = T.sign;
-                    ov.appendChild(mk);
-                    var tag = {
-                        docIdx: docIdx,
-                        paint: function (url2) { mk.classList.add('applied'); mk.textContent = ''; var img = document.createElement('img'); img.src = url2; mk.appendChild(img); },
-                        focus: function () { mk.scrollIntoView({ behavior: 'smooth', block: 'center' }); mk.classList.add('pulse'); setTimeout(function () { mk.classList.remove('pulse'); }, 1400); },
-                    };
-                    mk.addEventListener('click', function () { applyOne(tag); });
+        function initPdf(host){
+            var docIdx=host.getAttribute('data-doc'), url=host.getAttribute('data-pdf-src'), tags=[]; try{tags=JSON.parse(host.getAttribute('data-tags')||'[]')}catch(e){}
+            if(!window.pdfjsLib||!url){ host.innerHTML='<div class="loading">'+T.fail+'</div>'; docDone(); return; }
+            var ov={};
+            pdfjsLib.getDocument(url).promise.then(function(pdf){
+                host.innerHTML=''; var n=1;
+                (function nx(){ if(n>pdf.numPages){ place(); return; } var cur=n; drawPage(pdf,cur,host,function(o){ov[cur]=o;n++;nx();}); })();
+            }).catch(function(){ host.innerHTML='<div class="loading">'+T.fail+'</div>'; docDone(); });
+            function place(){
+                tags.forEach(function(f){
+                    var o=ov[parseInt(f.page,10)]; if(!o) return;
+                    var mk=document.createElement('button'); mk.type='button'; mk.className='ccmk';
+                    mk.style.left=f.x_pct+'%'; mk.style.top=f.y_pct+'%'; mk.style.minWidth=f.w_pct+'%'; mk.textContent=T.sign;
+                    o.appendChild(mk);
+                    var tag={docIdx:docIdx, el:mk, small:false, focus:function(){ mk.scrollIntoView({behavior:'smooth',block:'center'}); mk.classList.add('pulse'); setTimeout(function(){mk.classList.remove('pulse')},1200); }};
+                    mk.addEventListener('click', function(){ apply(tag); });
                     register(tag);
                 });
                 docDone();
             }
         }
 
-        // ── Arranque ──────────────────────────────────────────────────────────────
-        var htmlFrames = document.querySelectorAll('iframe.ccframe');
-        var pdfHosts   = document.querySelectorAll('.ccdoc__pages[data-pdf-src]');
-        CC.docTotal = htmlFrames.length + pdfHosts.length;
-        if (CC.docTotal === 0) { CC.docTotal = 1; docDone(); }   // sin documentos → no atrapar
-        Array.prototype.forEach.call(htmlFrames, initHtmlDoc);
-        Array.prototype.forEach.call(pdfHosts, initPdfDoc);
+        // ── modal adopta ──
+        var scrim=document.getElementById('scrim'), cv=document.getElementById('cv'), ctx=cv.getContext('2d'),
+            fname=document.getElementById('fname'), styled=document.getElementById('styled'), hint=document.getElementById('hint'),
+            mode='draw', drawn=false, pending=null, saveCb=document.getElementById('saveSig'),
+            adoptedSaved=@json($adopted ?? null);
+        function sizeCanvas(){ var r=cv.getBoundingClientRect(); cv.width=r.width*2; cv.height=r.height*2; ctx.scale(2,2); ctx.lineWidth=2.6; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle='#16233b'; }
+        function openModal(tag){ pending=tag||null; scrim.classList.add('open'); scrim.setAttribute('aria-hidden','false'); setTimeout(sizeCanvas,60); }
+        function closeModal(){ scrim.classList.remove('open'); scrim.setAttribute('aria-hidden','true'); }
+        document.getElementById('cancelSig').onclick=closeModal;
+        scrim.addEventListener('click', function(e){ if(e.target===scrim) closeModal(); });
+        var draw=false;
+        function pos(e){ var r=cv.getBoundingClientRect(); var t=(e.touches&&e.touches[0])||e; return {x:t.clientX-r.left,y:t.clientY-r.top}; }
+        cv.addEventListener('mousedown', function(e){draw=true;var p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y)});
+        cv.addEventListener('mousemove', function(e){if(!draw)return;var p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();drawn=true});
+        window.addEventListener('mouseup', function(){draw=false});
+        cv.addEventListener('touchstart', function(e){draw=true;var p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);e.preventDefault()},{passive:false});
+        cv.addEventListener('touchmove', function(e){if(!draw)return;var p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();drawn=true;e.preventDefault()},{passive:false});
+        var tabDraw=document.getElementById('tabDraw'), tabType=document.getElementById('tabType');
+        function setMode(m){ mode=m; tabDraw.setAttribute('aria-selected',m==='draw'); tabType.setAttribute('aria-selected',m==='type');
+            cv.style.display=m==='draw'?'block':'none'; styled.style.display=m==='type'?'flex':'none'; hint.style.display=m==='draw'?'block':'none'; styled.textContent=fname.value||'Tu firma'; }
+        tabDraw.onclick=function(){setMode('draw')}; tabType.onclick=function(){setMode('type')};
+        fname.addEventListener('input', function(){ styled.textContent=fname.value||'Tu firma'; });
+        document.getElementById('clearSig').onclick=function(){ if(mode==='draw'){ ctx.clearRect(0,0,cv.width,cv.height); drawn=false; } };
+        var reuseBtn=document.getElementById('reuseSig');
+        if(reuseBtn){ reuseBtn.onclick=function(){ finalizeAdopt(adoptedSaved); }; }
 
-        // Guarda dura del submit: nunca enviar sin autógrafa (el servidor también lo valida).
-        var form = document.getElementById('ccSignForm');
-        if (form) {
-            form.addEventListener('submit', function (e) {
-                if (!CC.adopted) { e.preventDefault(); warnAdopt(); }
-                else if (sigInput) { sigInput.value = CC.adopted; }
-            });
+        function finalizeAdopt(url){
+            CC.adopted=url; fSig.value=url;
+            fConsent.value = (document.getElementById('cConsent') ? (document.getElementById('cConsent').checked?'1':'0') : '1');
+            fSave.value = saveCb && saveCb.checked ? '1':'0';
+            closeModal();
+            if(pending){ var t=pending; pending=null; apply(t); setTimeout(nextTag,220); }
+            else { refresh(); }
         }
+        document.getElementById('adoptSig').onclick=function(){
+            var cc=document.getElementById('cConsent');
+            if(cc && !cc.checked){ cc.focus(); var lbl=cc.closest('.consent'); if(lbl) lbl.style.color='#c0392b'; return; }
+            var url;
+            if(mode==='draw'){ if(!drawn){ hint.textContent=T.drawFirst; hint.style.color='#c0392b'; return; } url=cv.toDataURL('image/png'); }
+            else { var c=document.createElement('canvas'); c.width=640; c.height=180; var x=c.getContext('2d');
+                x.fillStyle='#16233b'; x.font='italic 74px "Segoe Script","Brush Script MT",cursive'; x.textBaseline='middle';
+                x.fillText(fname.value||'Firma',20,100); url=c.toDataURL('image/png'); }
+            finalizeAdopt(url);
+        };
+        setMode('draw');
+
+        // ── construir tabs de documentos ──
+        var nav=document.getElementById('docs');
+        document.querySelectorAll('.docblock').forEach(function(block){
+            var d=block.dataset.doc, name=block.dataset.name||('Doc '+d);
+            var b=document.createElement('button'); b.type='button'; b.className='doctab'; b.dataset.tab=d;
+            b.innerHTML='<span class="dot">✓</span>'+name+'<span class="pend"></span>';
+            b.onclick=function(){ block.scrollIntoView({behavior:'smooth',block:'start'}); };
+            nav.appendChild(b);
+        });
+        var io=new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){
+            var d=e.target.dataset.doc; document.querySelectorAll('.doctab').forEach(function(x){x.removeAttribute('aria-current')});
+            var tab=document.querySelector('.doctab[data-tab="'+d+'"]'); if(tab)tab.setAttribute('aria-current','true'); }}); },{rootMargin:'-45% 0px -50% 0px'});
+        document.querySelectorAll('.docblock').forEach(function(b){io.observe(b)});
+
+        // ── arranque ──
+        var frames=document.querySelectorAll('iframe.ccframe'), hosts=document.querySelectorAll('.pdfShell[data-pdf-src]');
+        CC.docTotal=frames.length+hosts.length;
+        if(CC.docTotal===0){ CC.docTotal=1; docDone(); }
+        Array.prototype.forEach.call(frames, initHtml);
+        Array.prototype.forEach.call(hosts, initPdf);
         refresh();
     })();
     </script>

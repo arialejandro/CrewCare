@@ -652,7 +652,7 @@ class ContractEnvelopeTest extends QaTestCase
         // Ahora ve la página de firma. Ceremonia DocuSign: adopta su autógrafa y firma el paquete
         // (visor pdf.js). El POST de firma NO cambia (el sello sigue intacto).
         $this->get(ContractSignController::signUrl($rec))->assertOk()
-            ->assertSee('Firma tu contrato')
+            ->assertSee('Firma de contrato')
             ->assertSee('js/vendor/pdfjs/pdf.min.js', false)
             ->assertSee('Adopta tu firma');
 

@@ -128,9 +128,11 @@ class ContractPdfStamper
     }
 
     /**
-     * Firma en (x,y) con ancho w y alto automático (según proporción). Si no hay imagen embebible
-     * (pendiente, o formato no rasterizable como SVG), cae a escribir el nombre del firmante para no
-     * dejar el espacio vacío.
+     * Firma en (x,y) con ancho w y alto según proporción. Si no hay imagen embebible (pendiente, o
+     * formato no rasterizable como SVG), cae a escribir el nombre del firmante para no dejar el espacio
+     * vacío. Debajo estampa el SELLO tipo DocuSign — "Firmado por: … + HASH" — para que TODA firma
+     * muestre su integridad (misma exigencia que el render HTML). Sin hash (preview/pendiente) no se
+     * dibuja el sello.
      */
     private static function drawSignature(Fpdi $pdf, $sig, float $x, float $y, float $w, array &$tmp): void
     {
@@ -141,19 +143,67 @@ class ContractPdfStamper
         [$file, $type] = self::materialize((string) $sig['image']);
         if ($file) {
             $tmp[] = $file;
-            $pdf->Image($file, $x, $y, $w, 0, $type);
+            // Alto real según la proporción de la imagen (para saber dónde cae el sello debajo).
+            $info = @getimagesize($file);
+            $h = ($info && ! empty($info[0])) ? $w * ($info[1] / $info[0]) : $w * 0.34;
+            $h = min($h, $w * 0.7);   // cota: una autógrafa no debe crecer sin límite
+            $pdf->Image($file, $x, $y, $w, $h, $type);
+            self::drawSeal($pdf, $sig, $x, $y + $h + 1.5, $w);
 
             return;
         }
 
-        // Fallback legible: el nombre en cursiva, con una línea base.
+        // Fallback legible: el nombre en cursiva, con una línea base + el sello debajo.
         $name = self::win1252((string) ($sig['signer'] ?? ''));
         if ($name !== '') {
             $pdf->SetFont('Helvetica', 'I', 12);
             $pdf->SetTextColor(15, 17, 21);
             $pdf->SetXY($x, $y);
             $pdf->Cell($w, 14, $name, 0, 0, 'L');
+            self::drawSeal($pdf, $sig, $x, $y + 15, $w);
         }
+    }
+
+    /**
+     * SELLO bajo la firma: "Firmado por: <nombre>" + el HASH completo del sello (verde=íntegra). Las
+     * fuentes core de FPDF (WinAnsi) no tienen ✓, así que se usa texto ("Integra"/"ALTERADA"). El hash
+     * hexadecimal (64) se envuelve con MultiCell dentro del ancho de la firma.
+     */
+    private static function drawSeal(Fpdi $pdf, array $sig, float $x, float $y, float $w): void
+    {
+        $hash = trim((string) ($sig['hash'] ?? ''));
+        if ($hash === '') {
+            return;   // sin sello (preview/pendiente) → nada que mostrar
+        }
+
+        $verified = $sig['verified'] ?? null;
+        $signer   = self::win1252((string) ($sig['signer'] ?? ''));
+
+        // "Firmado por: Nombre" en gris.
+        $pdf->SetFont('Helvetica', '', 5.5);
+        $pdf->SetTextColor(107, 116, 130);
+        $pdf->SetXY($x, $y);
+        $pdf->Cell($w, 6, self::win1252(__('Firmado por:') . ' ') . $signer, 0, 2, 'L');
+
+        // Estado de integridad (verde íntegra / rojo alterada / gris firmada).
+        if ($verified === true) {
+            $pdf->SetTextColor(21, 128, 61);
+            $state = __('Integra');
+        } elseif ($verified === false) {
+            $pdf->SetTextColor(185, 28, 28);
+            $state = __('ALTERADA');
+        } else {
+            $pdf->SetTextColor(107, 116, 130);
+            $state = __('Firmada');
+        }
+        $pdf->SetX($x);
+        $pdf->Cell($w, 5, self::win1252($state) . ' - ' . self::win1252(__('Sello SHA-256')) . ':', 0, 2, 'L');
+
+        // El hash completo, envuelto dentro del ancho de la firma.
+        $pdf->SetFont('Courier', '', 5);
+        $pdf->SetTextColor(91, 100, 114);
+        $pdf->SetX($x);
+        $pdf->MultiCell($w, 5, $hash, 0, 'L');
     }
 
     /**
