@@ -31,6 +31,21 @@
         </div>
     </div>
 
+    {{-- ENVIAR A AUTORIZACIÓN — el disparador del flujo: avisa al autorizador (Line Producer) y el
+         trato entra a su bandeja "Por autorizar". Sin esto, el Infosheet no llega a nadie. --}}
+    @unless($contract->isEmitted())
+        @if(trim((string) $contract->title) !== '' || trim((string) $contract->crew_activity) !== '')
+            <form method="POST" action="{{ route('infosheet.submit', $payee->id) }}" class="mb-3">
+                @csrf
+                <button type="submit" class="btn btn-crew cc-cta d-inline-flex align-items-center gap-1">
+                    @include('componentes._icon', ['name' => 'check-circle', 'class' => 'cc-ico-18', 'label' => null])
+                    {{ __('Enviar a autorización') }}
+                </button>
+                <span class="cc-help d-block mt-1">{{ __('Avisa al autorizador (Line Producer) y el trato aparece en su bandeja "Por autorizar".') }}</span>
+            </form>
+        @endif
+    @endunless
+
     {{-- La mitad PERSONAL vive en el intake: enlace, no se duplica aquí. --}}
     <div class="cc-help mb-3">
         @include('componentes._icon', ['name' => 'info', 'class' => 'cc-ico-14', 'label' => null])

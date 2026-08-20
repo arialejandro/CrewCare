@@ -130,4 +130,51 @@ class InfosheetAuthorizationTest extends QaTestCase
         $this->post(route('infosheet.authorize', $contract->payee_id), ['signature_image' => $this->image()])
             ->assertForbidden();
     }
+
+    /**
+     * EL DISPARADOR (8d) · BANDEJA "por autorizar": el autorizador VE los tratos capturados que le
+     * toca autorizar; los stubs vacíos NO aparecen; quien no es autorizador no ve nada.
+     */
+    public function test_pending_bandeja_lists_captured_infosheet_for_the_authorizer(): void
+    {
+        Storage::fake('local');
+        $this->seatInternals();
+
+        $contract = $this->crewContract();
+        $contract->update(['title' => 'Gaffer']);   // capturado (puesto)
+
+        // Stub vacío (otro payee, sin captura) → NO debe aparecer en la bandeja.
+        $stub = Payee::create(['legal_nature' => 'fisica', 'name' => 'Stub Vacio']);
+        $stub->contracts()->create(['concept' => 'crew_work', 'is_active' => 1, 'production_id' => $this->prodId]);
+
+        // El LP (autorizador por defecto) ve el capturado, no el stub.
+        $this->actingAs($this->makeUser('line-producer'));
+        $this->get(route('infosheet.pending'))->assertOk()
+            ->assertSee('Juan Crew')
+            ->assertDontSee('Stub Vacio');
+
+        // Un crew (no autorizador) no ve el trato.
+        $this->actingAs($this->makeUser('crew'));
+        $this->get(route('infosheet.pending'))->assertOk()->assertDontSee('Juan Crew');
+    }
+
+    /** ENVIAR A AUTORIZACIÓN avisa al autorizador (best-effort) y confirma; NO emite por sí solo. */
+    public function test_submit_to_authorization_notifies_and_confirms(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+        Storage::fake('local');
+        $this->seatInternals();
+
+        $lp = $this->makeUser('line-producer');
+        $lp->forceFill(['email' => 'lp@x.mx'])->save();   // autorizador con correo
+
+        $contract = $this->crewContract();
+        $contract->update(['title' => 'Gaffer']);
+
+        $this->actingAs($lp);   // el capturista (LP tiene capture por bypass) envía a autorización
+        $this->post(route('infosheet.submit', $contract->payee_id))
+            ->assertRedirect()->assertSessionHas('success');
+
+        $this->assertFalse($contract->fresh()->isEmitted(), 'enviar a autorización NO emite; solo avisa');
+    }
 }

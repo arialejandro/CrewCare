@@ -11,6 +11,7 @@ use App\Support\CurrentProduction;
 use App\Support\InfosheetSigning;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * EL INFOSHEET · FASE 2 — la superficie de CAPTURA del TRATO (la mitad que la persona NO pone).
@@ -130,6 +131,66 @@ class InfosheetController extends Controller
             return back()->with('error', $result['message'] ?? __('No se pudo autorizar.'));
         }
         return back()->with('success', $result['message'] ?? __('Autorización registrada.'));
+    }
+
+    /**
+     * BANDEJA "POR AUTORIZAR" — el DISPARADOR de descubrimiento: los tratos crew_work que este usuario
+     * puede autorizar ahora. Sin permiso especial (se auto-limita por `canAuthorize`, como firmas-pendientes).
+     */
+    public function pending(Request $request)
+    {
+        return view('infosheet.pending', [
+            'contracts' => InfosheetSigning::pendingForUser($request->user()),
+        ]);
+    }
+
+    /**
+     * ENVIAR A AUTORIZACIÓN (paso 2 · disparo) — el capturista marca el trato listo y AVISA por correo
+     * a los autorizadores (best-effort; el aviso NUNCA bloquea). Aunque el correo falle, el trato ya
+     * aparece en la bandeja "Por autorizar" del autorizador (el disparador confiable).
+     */
+    public function submit(Request $request, Payee $payee)
+    {
+        $this->authorizeCapture($payee);
+        $contract = $this->resolveContract($payee);
+
+        if ($contract->isEmitted()) {
+            return back()->with('error', __('Este contrato ya fue emitido.'));
+        }
+        if (trim((string) $contract->title) === '' && trim((string) $contract->crew_activity) === '') {
+            return back()->with('error', __('Captura al menos el puesto o la actividad antes de enviar a autorización.'));
+        }
+
+        $recipients = InfosheetSigning::authorizerRecipients($contract);
+        if ($recipients->isEmpty()) {
+            return back()->with('error', __('No hay un autorizador con correo configurado (revisa Producción → módulo de firma). El trato ya aparece en la bandeja "Por autorizar" del autorizador.'));
+        }
+
+        $subject = __('Infosheet por autorizar') . ' — ' . ($payee->name ?: 'CrewCare');
+        $sent = 0;
+        foreach ($recipients as $u) {
+            try {
+                Mail::send('correos.infosheet-authorize', [
+                    'toName'    => trim($u->name . ' ' . $u->lname),
+                    'payeeName' => $payee->name,
+                    'puesto'    => $contract->title ?: $contract->crew_activity,
+                    'url'       => route('infosheet.pending'),
+                ], function ($m) use ($u, $subject) {
+                    $m->from('noreply@crewcare.mx', 'CrewCare');
+                    $m->to($u->email, trim($u->name . ' ' . $u->lname) ?: null);
+                    $m->subject($subject);
+                });
+                $sent++;
+            } catch (\Throwable $e) {
+                // best-effort: el aviso nunca bloquea el flujo (queda la bandeja).
+            }
+        }
+
+        $msg = $sent > 0
+            ? __('Enviado a autorización: se avisó a :n autorizador(es) y aparece en su bandeja "Por autorizar".', ['n' => $sent])
+            : __('El trato ya aparece en la bandeja "Por autorizar" del autorizador. (No se pudo enviar el correo; revisa la configuración de correo.)');
+
+        return back()->with('success', $msg);
     }
 
     private function saveSection(Request $request, PayeeContract $contract, string $section): void

@@ -874,8 +874,12 @@ Route::middleware(['auth'])->group(function () {
     // mismo criterio que el intake del contratante) va DENTRO del controlador. {step} = role|fees|dates.
     Route::get('/payees/{payee}/infosheet/{step?}', [\App\Http\Controllers\InfosheetController::class, 'edit'])->name('infosheet.edit')->whereNumber('payee');
     Route::post('/payees/{payee}/infosheet',        [\App\Http\Controllers\InfosheetController::class, 'save'])->name('infosheet.save')->whereNumber('payee');
+    // EL INFOSHEET · FASE 2b · ENVIAR A AUTORIZACIÓN (disparador): avisa a los autorizadores + entra a su bandeja.
+    Route::post('/payees/{payee}/infosheet/enviar', [\App\Http\Controllers\InfosheetController::class, 'submit'])->name('infosheet.submit')->whereNumber('payee');
     // EL INFOSHEET · FASE 3 · autorización (paso 2): un autorizador aprueba con su firma autógrafa.
     Route::post('/payees/{payee}/infosheet/autorizar', [\App\Http\Controllers\InfosheetController::class, 'approve'])->name('infosheet.authorize')->whereNumber('payee');
+    // EL INFOSHEET · FASE 3 · BANDEJA "por autorizar" (cola de descubrimiento del autorizador).
+    Route::get('/infosheets/por-autorizar', [\App\Http\Controllers\InfosheetController::class, 'pending'])->name('infosheet.pending');
     // EL INFOSHEET · FASE 4 · contratado no-crew: crea/reusa su usuario externo lite + enlace de un solo uso.
     Route::post('/payees/{payee}/acceso-externo', [\App\Http\Controllers\ExternalAccessController::class, 'provision'])->name('external.provision')->whereNumber('payee');
 });

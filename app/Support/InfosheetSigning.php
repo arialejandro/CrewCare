@@ -8,6 +8,7 @@ use App\Models\ContractClause;
 use App\Models\ContractTemplate;
 use App\Models\PayeeContract;
 use App\Models\User;
+use App\Support\CurrentProduction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -241,5 +242,76 @@ class InfosheetSigning
             ->orderByDesc('version')->orderByDesc('id')
             ->get()
             ->first(fn ($c) => $c->appliesToSubtype($contract->concept));
+    }
+
+    /** @var array<string,int> cache por-request del conteo (el sidebar lo pide 2 veces). */
+    private static array $countCache = [];
+
+    /**
+     * BANDEJA "POR AUTORIZAR" — el DISPARADOR de descubrimiento: los tratos crew_work de la producción
+     * que ESTE usuario puede autorizar AHORA: capturados (no un stub vacío del firstOrCreate), aún SIN
+     * sobre (no emitidos), y con un casillero pendiente que el usuario cubre (rol LP / jefatura de depto
+     * / puesto). Espejo de {@see PendingSignatures} para las autorizaciones; no depende del correo.
+     */
+    public static function pendingForUser(User $user, ?int $prodId = null)
+    {
+        $prodId = $prodId ?? CurrentProduction::id();
+
+        return PayeeContract::query()
+            ->where('concept', PayeeContract::CONCEPT_CREW)
+            ->when($prodId, fn ($q) => $q->where('production_id', $prodId))
+            ->whereDoesntHave('envelopes')                       // aún no se generó el contrato
+            ->where(function ($w) {                               // capturado (algo del trato, no un stub)
+                $w->where(fn ($x) => $x->whereNotNull('title')->where('title', '!=', ''))
+                  ->orWhere(fn ($x) => $x->whereNotNull('crew_activity')->where('crew_activity', '!=', ''))
+                  ->orWhere('fee_amount', '>', 0);
+            })
+            ->with(['payee', 'department', 'fiscalRegime'])
+            ->orderByDesc('updated_at')
+            ->get()
+            ->filter(fn ($c) => self::canAuthorize($user, $c))   // tiene un casillero que puede cubrir
+            ->values();
+    }
+
+    /** Conteo ligero para el badge del sidebar (cacheado por-request). */
+    public static function countForUser(User $user, ?int $prodId = null): int
+    {
+        $prodId = $prodId ?? CurrentProduction::id();
+        $key = $user->id . ':' . ($prodId ?? '0');
+        if (! array_key_exists($key, self::$countCache)) {
+            self::$countCache[$key] = self::pendingForUser($user, $prodId)->count();
+        }
+        return self::$countCache[$key];
+    }
+
+    /**
+     * Usuarios a AVISAR de que hay un trato por autorizar: quienes pueden cubrir los casilleros
+     * pendientes (LP por rol, jefe del depto, u ocupantes del puesto). Con correo, distintos.
+     */
+    public static function authorizerRecipients(PayeeContract $contract)
+    {
+        $ids = collect();
+        foreach (self::pendingSlots($contract) as $slot) {
+            if ($slot['type'] === self::ROLE_LP) {
+                $ids = $ids->merge(User::role('line-producer')->pluck('id'));
+            } elseif ($slot['type'] === self::ROLE_DEPT_HOD) {
+                if ($contract->department_id) {
+                    $ids = $ids->merge(DB::table('production_user')
+                        ->where('production_id', $contract->production_id)
+                        ->where('department_id', $contract->department_id)
+                        ->where('is_lead', 1)->pluck('user_id'));
+                }
+            } else {
+                $ids = $ids->merge(DB::table('production_user')
+                    ->where('production_id', $contract->production_id)
+                    ->where('position_id', $slot['position_id'])->pluck('user_id'));
+            }
+        }
+        $ids = $ids->unique()->filter()->values();
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+        return User::whereIn('id', $ids->all())
+            ->whereNotNull('email')->where('email', '!=', '')->get();
     }
 }

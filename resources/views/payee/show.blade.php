@@ -69,7 +69,7 @@
             $canAuthDeal  = $dealContract && $authUser && \App\Support\InfosheetSigning::canAuthorize($authUser, $dealContract);
         @endphp
         @if($dealContract && (!empty($authStatus) || $dealEnvelope))
-            <div class="card mb-4">
+            <div class="card mb-4" id="autorizar-infosheet">
                 <div class="card-header fw-semibold d-flex align-items-center gap-2">
                     @include('componentes._icon', ['name' => 'file-text', 'label' => null]) {{ __('Autorización del Infosheet') }}
                 </div>

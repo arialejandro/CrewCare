@@ -24,6 +24,9 @@
     // FIRMAS PENDIENTES · conteo de la cola personal (badge). Cualquier firmante lo tiene, sin permiso
     // especial; se auto-limita a lo que le toca. Cacheado por-request en PendingSignatures.
     $__pendingSign = \Auth::check() ? \App\Support\PendingSignatures::countForUser((int) \Auth::id()) : 0;
+    // INFOSHEETS POR AUTORIZAR · conteo de la bandeja del autorizador (badge). Se auto-limita a lo que
+    // este usuario puede autorizar (canAuthorize); sin permiso especial. Cacheado por-request.
+    $__pendingAuth = \Auth::check() ? \App\Support\InfosheetSigning::countForUser(\Auth::user()) : 0;
 @endphp
 
 <style>
@@ -261,6 +264,13 @@
                         @include('componentes._icon', ['name' => 'pencil', 'class' => 'cc-item__ico', 'label' => null])
                         <span>{{ __('Contratos por firmar') }}</span>
                         <span class="badge rounded-pill text-bg-primary ms-auto">{{ $__pendingSign }}</span>
+                    </a>
+                    @endif
+                    @if(($__pendingAuth ?? 0) > 0)
+                    <a href="{{ route('infosheet.pending') }}" class="cc-item">
+                        @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
+                        <span>{{ __('Infosheets por autorizar') }}</span>
+                        <span class="badge rounded-pill text-bg-warning ms-auto">{{ $__pendingAuth }}</span>
                     </a>
                     @endif
                 </div></div>
@@ -661,6 +671,13 @@
                             @include('componentes._icon', ['name' => 'pencil', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('Contratos por firmar') }}</span>
                             <span class="badge rounded-pill text-bg-primary ms-auto">{{ $__pendingSign }}</span>
+                        </a>
+                        @endif
+                        @if(($__pendingAuth ?? 0) > 0)
+                        <a href="{{ route('infosheet.pending') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Infosheets por autorizar') }}</span>
+                            <span class="badge rounded-pill text-bg-warning ms-auto">{{ $__pendingAuth }}</span>
                         </a>
                         @endif
                     </div></div>
