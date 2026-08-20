@@ -139,19 +139,13 @@ class ContractSignedRenderer
         return $mainMeta ?: ['annexes' => count($annexMetas)];
     }
 
-    /** Bytes del PDF firmado de UNA plantilla: estampado (PDF) o render por Chrome (HTML). */
+    /**
+     * Bytes del PDF firmado de UNA plantilla — vía el motor UNIFICADO: hoja base (PDF subido o HTML por
+     * Chrome) + etiquetas por coordenadas (field_map). Idéntico a antes para plantillas sin field_map.
+     */
     private static function bytesFor(ContractTemplate $template, ContractEnvelope $envelope, array $values, array $sigMap): string
     {
-        if ($template->isPdfSource()) {
-            return ContractPdfStamper::stamp($template, $values, $sigMap);
-        }
-
-        $html = ContractTemplateRenderer::page(
-            ContractTemplateRenderer::render($template, $values, $sigMap),
-            $template->architecture, $template->page_size, null, $template->font_family, $template->font_size
-        );
-
-        return (string) ContractPdf::render($html);
+        return ContractDocRenderer::renderPdf($template, $values, $sigMap);
     }
 
     /** Metadata de un documento firmado congelado. */
