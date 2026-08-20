@@ -135,6 +135,7 @@
 
                     <div class="cc-desk" id="tplDesk">
                         <div class="cc-page-wrap">
+                            <div id="tplMargins" class="cc-marginframe" aria-hidden="true"></div>
                             <div id="tplCanvas" class="cc-page" contenteditable="true" spellcheck="true"></div>
                             <div id="tplGuides" class="cc-guides" aria-hidden="true"></div>
                         </div>
@@ -291,6 +292,10 @@
 .cc-page-wrap{position:relative;width:-moz-fit-content;width:fit-content;margin:0 auto}
 .cc-page{--pg-w:216mm;--pg-h:279mm;--pg-m:25mm;position:relative;width:var(--pg-w);min-height:var(--pg-h);padding:var(--pg-m);margin:0;background:#fff;color:#1a1a1a;box-shadow:0 3px 16px rgba(0,0,0,.20);font-family:"Courier New",Courier,monospace;line-height:1.15;font-size:9pt}
 .cc-page:focus{outline:none}
+/* Márgenes VISIBLES: recuadro punteado del área imprimible (para colocar firmas/rúbricas sin romper el diseño). */
+.cc-marginframe{position:absolute;inset:0;pointer-events:none;z-index:1}
+.cc-marginframe::before{content:"";position:absolute;inset:var(--pg-m,25mm);border:1px dashed color-mix(in srgb,var(--brand,#ff0046) 30%,transparent);border-radius:2px}
+.cc-marginframe::after{content:"Margen";position:absolute;top:calc(var(--pg-m,25mm) - 15px);left:var(--pg-m,25mm);font:600 .58rem system-ui,-apple-system,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:color-mix(in srgb,var(--brand,#ff0046) 55%,#8a93a2)}
 .cc-guides{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:2}
 .cc-guide{position:absolute;left:0;right:0;border-top:2px dashed color-mix(in srgb, var(--brand,#ff0046) 45%, transparent)}
 .cc-guide span{position:absolute;right:8px;top:-9px;background:var(--surface-2,#e9edf2);color:var(--brand,#ff0046);font:600 .62rem system-ui,-apple-system,sans-serif;padding:0 6px;letter-spacing:.02em}
@@ -332,6 +337,7 @@
     var fontSel  = document.getElementById('tplFont');     // <select> tipografía (barra de formato)
     var sizeSel  = document.getElementById('tplSize');     // <select> tamaño
     var guides   = document.getElementById('tplGuides');
+    var marginsEl = document.getElementById('tplMargins');   // recuadro de márgenes visibles
     var deskEl   = document.getElementById('tplDesk');
     var formatbar = document.getElementById('tplFormatbar');
     var insList  = document.querySelector('.cc-ins-list');
@@ -427,6 +433,7 @@
         canvas.style.setProperty('--pg-w', d.w + 'mm');
         canvas.style.setProperty('--pg-h', d.h + 'mm');
         canvas.style.setProperty('--pg-m', d.margin + 'mm');
+        if(marginsEl){ marginsEl.style.setProperty('--pg-m', d.margin + 'mm'); }   // recuadro de márgenes
     }
 
     // ── Preview PAGINADA (toggle "Vista con datos") — inc.3b ─────────────
