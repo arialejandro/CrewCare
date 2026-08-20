@@ -12,6 +12,11 @@
     $val     = fn ($f, $d = null) => old($f, $contract->$f ?? $d);
     $dateVal = fn ($f) => old($f, optional($contract->$f)->format('Y-m-d'));
     $phaseKeys = ['soft_prep', 'prep', 'shoot', 'wrap'];
+    // Nombre en créditos: por defecto el nombre de la persona (payee o su usuario ligado), editable.
+    // No se teclea a mano; si aún no se ha guardado, arranca con el nombre — nunca vacío.
+    $personName    = trim((string) $payee->name) !== '' ? $payee->name
+                     : trim((string) optional($payee->user)->name . ' ' . optional($payee->user)->lname);
+    $creditDefault = trim((string) $contract->credit_name) !== '' ? $contract->credit_name : $personName;
 @endphp
 
 <div class="container-fluid py-4" style="max-width: 900px;">
@@ -110,7 +115,7 @@
                         <div class="col-md-6">
                             <div class="cc-field">
                                 <label class="cc-label" for="credit_name">{{ __('Nombre en créditos') }}</label>
-                                <input type="text" name="credit_name" id="credit_name" class="form-control cc-control" maxlength="191" value="{{ $val('credit_name') }}">
+                                <input type="text" name="credit_name" id="credit_name" class="form-control cc-control" maxlength="191" value="{{ old('credit_name', $creditDefault) }}">
                             </div>
                         </div>
                         <div class="col-md-4">
