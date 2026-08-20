@@ -50,8 +50,32 @@ class ContractPdfStamper
      */
     public static function stamp(ContractTemplate $template, array $values, array $sigMap): string
     {
-        $abs = self::sourcePath($template);
+        return self::stampSource(self::sourcePath($template), $template->placedFields(), $values, $sigMap);
+    }
 
+    /**
+     * Estampa las etiquetas sobre los BYTES de un PDF YA RENDERIZADO (p.ej. un contrato HTML pasado por
+     * Chrome). Igual que {@see stamp()} pero la "hoja base" no es un archivo subido sino bytes en memoria
+     * (se materializan a un temporal que FPDI pueda importar). Es la costura que unifica plantillas HTML
+     * y PDF: ambas terminan siendo "hoja fija + etiquetas por coordenadas".
+     */
+    public static function stampBytes(string $pdfBytes, array $fields, array $values, array $sigMap): string
+    {
+        $tmp = tempnam(sys_get_temp_dir(), 'ccbase');
+        if ($tmp === false || @file_put_contents($tmp, $pdfBytes) === false) {
+            throw new \RuntimeException(__('No se pudo preparar el PDF base para estampar.'));
+        }
+
+        try {
+            return self::stampSource($tmp, $fields, $values, $sigMap);
+        } finally {
+            @unlink($tmp);
+        }
+    }
+
+    /** Núcleo compartido: importa el PDF de $abs y sobrepone $fields (datos + firmas) por coordenadas. */
+    private static function stampSource(string $abs, array $fields, array $values, array $sigMap): string
+    {
         $pdf = new Fpdi('P', 'pt');
         $pdf->SetAutoPageBreak(false);
         $pdf->SetMargins(0, 0, 0);
@@ -69,7 +93,7 @@ class ContractPdfStamper
 
         // Etiquetas agrupadas por página (fuera de rango → se ignoran, no rompen).
         $byPage = [];
-        foreach ($template->placedFields() as $f) {
+        foreach ($fields as $f) {
             $byPage[(int) $f['page']][] = $f;
         }
 
