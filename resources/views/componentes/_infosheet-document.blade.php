@@ -22,6 +22,10 @@
     $benef   = $p->beneficiaries->first();
     $status  = \App\Support\InfosheetSigning::statusFor($c);
     $regimes = $p->fiscalRegimes->map(fn ($r) => trim(($r->code ? $r->code . ' · ' : '') . ($r->name ?? '')))->filter()->all();
+    // Firma DENTRO del documento (DocuSign): $signSlotLabel = el casillero "Autoriza" que ESTE usuario
+    // firma ahora (o null en solo-lectura). El pad se dibuja en ESE bloque, no en un campo aparte.
+    $signSlotLabel = $signSlotLabel ?? null;
+    $adopted       = $adopted ?? null;
 @endphp
 @once
 @push('styles')
@@ -48,7 +52,17 @@
     .cc-hoja__sign-img { height:46px; object-fit:contain; display:block; margin:0 auto; border-bottom:1px solid #26324a; }
     .cc-hoja__sign b { display:block; font-size:.8rem; margin-top:.2rem; }
     .cc-hoja__sign span { color:#8a93a2; font-size:.68rem; }
+    .cc-hoja__ok { color:#1e6b34; font-size:.66rem; font-weight:700; }
     .cc-hoja__note { margin-top:.8rem; font-size:.68rem; color:#8a93a2; font-style:italic; }
+    /* FIRMAR AQUÍ: el pad va DENTRO del bloque "Autoriza" (no un campo aparte). Bloque a todo el ancho. */
+    .cc-hoja__sign--active { grid-column:1 / -1; text-align:left; }
+    .cc-hoja__signhint { display:block; font-size:.66rem; font-weight:700; color:#26324a; text-transform:uppercase; letter-spacing:.04em; margin-bottom:.25rem; }
+    .cc-hoja__signpad .cc-sigpad__wrap { border:1px dashed #26324a; background:#fff; }
+    .cc-hoja__signpad .cc-sigpad__savelbl { display:none; }
+    .cc-hoja__signpad .cc-sigpad__tools { gap:.3rem; margin-top:.35rem; }
+    .cc-hoja .btn-crew-soft { background:#f1f3f7; border:1px solid #d7dbe0; color:#26324a; }
+    .cc-hoja .btn-crew-soft:hover, .cc-hoja .btn-crew-soft:focus { background:#e6e9ef; color:#26324a; }
+    .cc-hoja .cc-sigpad__typed { background:#fff; border:1px solid #d7dbe0; color:#26324a; max-width:150px; }
     @media (max-width:640px){ .cc-hoja__grid, .cc-hoja__grid--money { grid-template-columns:1fr; } }
 </style>
 @endpush
@@ -154,10 +168,18 @@
             <span>{{ __('Contratado') }}@if($c->title) · {{ $c->title }}@endif</span>
         </div>
         @foreach($status as $st)
-            <div class="cc-hoja__sign">
+            @php $isMine = $signSlotLabel && $st['label'] === $signSlotLabel && empty($st['done']); @endphp
+            <div class="cc-hoja__sign{{ $isMine ? ' cc-hoja__sign--active' : '' }}">
                 @if(!empty($st['done']) && !empty($st['auth']) && $st['auth']->signature_image)
                     <img src="{{ $st['auth']->signature_image }}" alt="" class="cc-hoja__sign-img">
                     <b>{{ $st['auth']->name }}</b>
+                    @if($st['auth']->verifyLatestSignature())<span class="cc-hoja__ok">✓ {{ __('Verificada') }}</span>@endif
+                @elseif($isMine)
+                    {{-- FIRMA AQUÍ: el pad va DENTRO de este bloque del documento. --}}
+                    <span class="cc-hoja__signhint">{{ __('Firma aquí') }}</span>
+                    <div class="cc-hoja__signpad">
+                        @include('componentes._signature-pad', ['label' => null, 'adopted' => $adopted])
+                    </div>
                 @else
                     <div class="cc-hoja__sign-line"></div>
                     <b>&nbsp;</b>

@@ -67,6 +67,7 @@
             $authUser     = auth()->user();
             $authStatus   = $dealContract ? \App\Support\InfosheetSigning::statusFor($dealContract) : [];
             $canAuthDeal  = $dealContract && $authUser && \App\Support\InfosheetSigning::canAuthorize($authUser, $dealContract);
+            $mySlot       = $canAuthDeal ? \App\Support\InfosheetSigning::slotForUser($authUser, $dealContract) : null;
         @endphp
         @if($dealContract && (!empty($authStatus) || $dealEnvelope))
             <div class="card mb-4" id="autorizar-infosheet">
@@ -76,11 +77,6 @@
                 <div class="card-body">
                     @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
                     @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
-
-                    {{-- EL TRATO como DOCUMENTO: qué se autoriza (no un pad de firma a ciegas). --}}
-                    <div class="small text-muted mb-2">{{ __('Revisa la hoja de información del trato y autoriza con tu firma:') }}</div>
-                    @include('componentes._infosheet-document', ['contract' => $dealContract])
-                    <hr class="my-3">
 
                     @if($dealEnvelope)
                         <div class="alert alert-success d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -92,40 +88,27 @@
                         </div>
                     @endif
 
-                    <div class="d-flex flex-column gap-3 mb-1">
-                        @foreach($authStatus as $st)
-                            @if($st['done'] && $st['auth'])
-                                @php $a = $st['auth']; $asig = $a->signatures()->latest('id')->first(); @endphp
-                                <div>
-                                    <div class="small text-muted mb-1">{{ $st['label'] }}</div>
-                                    @include('componentes._signature-block', [
-                                        'image'    => $a->signature_image,
-                                        'signer'   => $a->name,
-                                        'role'     => $st['label'],
-                                        'date'     => $a->accepted_at,
-                                        'hash'     => optional($asig)->document_hash,
-                                        'verified' => $a->verifyLatestSignature(),
-                                    ])
-                                </div>
-                            @else
-                                <div class="d-inline-flex align-items-center gap-2 text-muted">
-                                    @include('componentes._icon', ['name' => 'clock', 'class' => 'cc-ico', 'label' => null])
-                                    <span>{{ $st['label'] }} — {{ __('pendiente de autorizar') }}</span>
-                                </div>
-                            @endif
-                        @endforeach
-                    </div>
-
                     @if($canAuthDeal && ! $dealEnvelope)
-                        <hr>
+                        {{-- DocuSign: la firma va DENTRO del documento (bloque "Autoriza"), no en un campo aparte. --}}
+                        <div class="small text-muted mb-2">{{ __('Revisa la hoja de información y firma en tu bloque de autorización:') }}</div>
                         <form method="POST" action="{{ route('infosheet.authorize', $payee->id) }}">
                             @csrf
-                            <div class="small text-muted mb-2">{{ __('Autoriza este trato con tu firma. Al completarse las autorizaciones, el contrato se genera y se envía a firma automáticamente.') }}</div>
-                            @include('componentes._signature-pad', ['label' => __('Tu firma de autorización:'), 'adopted' => $authUser->adopted_signature])
-                            <button type="submit" class="btn btn-crew mt-2 d-inline-flex align-items-center gap-1">
-                                @include('componentes._icon', ['name' => 'check-circle', 'label' => null]) {{ __('Autorizar con mi firma') }}
-                            </button>
+                            @include('componentes._infosheet-document', [
+                                'contract'      => $dealContract,
+                                'signSlotLabel' => $mySlot['label'] ?? null,
+                                'adopted'       => $authUser->adopted_signature,
+                            ])
+                            <div class="mt-3">
+                                <button type="submit" class="btn btn-crew d-inline-flex align-items-center gap-1">
+                                    @include('componentes._icon', ['name' => 'check-circle', 'label' => null]) {{ __('Autorizar con mi firma') }}
+                                </button>
+                                <div class="small text-muted mt-1">{{ __('Al completarse las autorizaciones, el contrato se genera y se envía a firma automáticamente.') }}</div>
+                            </div>
                         </form>
+                    @else
+                        {{-- Solo lectura: la Hoja con las firmas hechas / pendientes. --}}
+                        <div class="small text-muted mb-2">{{ __('Hoja de información del trato:') }}</div>
+                        @include('componentes._infosheet-document', ['contract' => $dealContract])
                     @endif
                 </div>
             </div>
