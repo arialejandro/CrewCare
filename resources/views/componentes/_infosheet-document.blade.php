@@ -28,7 +28,6 @@
     $adopted       = $adopted ?? null;
 @endphp
 @once
-@push('styles')
 <style>
     .cc-hoja { background:#fff; color:#1f2a3a; border-radius:10px; padding:1.1rem 1.2rem; font-size:.82rem; line-height:1.45; box-shadow:0 2px 10px rgba(0,0,0,.28); }
     .cc-hoja__band { background:#26324a; color:#fff; font-weight:700; font-size:.7rem; letter-spacing:.06em; text-transform:uppercase; padding:.35rem .6rem; border-radius:5px; margin:.95rem 0 .55rem; }
@@ -68,7 +67,6 @@
     .cc-hoja .cc-sigpad__typed { background:#fff; border:1px solid #d7dbe0; color:#26324a; max-width:150px; }
     @media (max-width:640px){ .cc-hoja__grid, .cc-hoja__grid--money { grid-template-columns:1fr; } }
 </style>
-@endpush
 @endonce
 <div class="cc-hoja">
     <div class="cc-hoja__band cc-hoja__title">{{ __('HOJA DE INFORMACIÓN') }} <span>({{ __('CREW') }})</span></div>

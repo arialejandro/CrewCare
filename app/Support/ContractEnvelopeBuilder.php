@@ -194,6 +194,19 @@ class ContractEnvelopeBuilder
         foreach (ContractAnnex::forProduction($prod)->active()->orderBy('sort_order')->get() as $a) {
             $docs[] = ['kind' => 'annex', 'name' => $a->name, 'path' => $a->file_path, 'hash' => $a->file_hash, 'annex_id' => $a->id];
         }
+
+        // LA HOJA DE INFORMACIÓN del trato: va en el paquete para que el CONTRATADO la firme junto al
+        // contrato + anexos (firma COMPLETA del sobre). Best-effort: si el motor PDF falla, NO se rompe
+        // la emisión del sobre (el resto del paquete igual se firma).
+        try {
+            $sheet     = \App\Support\InfosheetSheet::renderPdf($contract);
+            $sheetPath = 'contracts/infosheet/' . $contract->id . '_' . uniqid() . '.pdf';
+            Storage::disk('local')->put($sheetPath, $sheet);
+            $docs[] = ['kind' => 'infosheet', 'name' => 'Hoja de información', 'path' => $sheetPath, 'hash' => hash('sha256', $sheet)];
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('snapshotDocuments: no se pudo generar la Hoja de Información — ' . $e->getMessage());
+        }
+
         return $docs;
     }
 }
