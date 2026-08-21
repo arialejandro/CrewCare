@@ -8,6 +8,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ __('Firma de contrato') }}</title>
+{{-- Letras manuscritas para la galería de estilos (como DocuSign); con respaldo a fuentes del sistema. --}}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&family=Caveat:wght@600&family=Great+Vibes&family=Sacramento&family=Satisfy&display=swap" rel="stylesheet">
 <style>
     :root{
         --canvas:#eaedf2; --page:#fff; --ink:#18212f; --muted:#5f6b7c; --faint:#8b95a4;
@@ -155,13 +159,16 @@
     .seg2 button[aria-selected="true"]{color:var(--nav);border-bottom-color:var(--nav)}
     .fpane{padding-top:12px}
     .stylelist{max-height:250px;overflow:auto;border:1px solid var(--line);border-radius:10px}
-    .styleopt{display:flex;align-items:center;gap:12px;padding:9px 12px;border-bottom:1px solid var(--line2);cursor:pointer}
+    .styleopt{display:flex;align-items:stretch;gap:12px;padding:11px 14px;border-bottom:1px solid var(--line2);cursor:pointer}
     .styleopt:last-child{border-bottom:0}
     .styleopt:hover{background:#f7f9fb}
     .styleopt.sel{background:var(--nav-bg)}
-    .styleopt input{margin:0;flex:0 0 auto}
-    .styleopt .sname{flex:1 1 auto;font-size:25px;color:#16233b;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .styleopt .sini{flex:0 0 74px;text-align:center;font-size:21px;color:#16233b;border-left:1px solid var(--line2);padding-left:10px}
+    .styleopt input{margin:0;align-self:center;flex:0 0 auto}
+    .styleopt .sbrk{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;min-width:0;padding-left:9px;border-left:2px solid #4b53d6}
+    .styleopt .sbrk--ini{flex:0 0 92px}
+    .styleopt .sblab{font-size:8px;font-weight:800;color:#6b7482;letter-spacing:.4px;text-transform:uppercase;margin-bottom:2px}
+    .styleopt .sname{font-size:24px;color:#16233b;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .styleopt .sini{font-size:20px;color:#16233b;line-height:1.1}
     .reuse{margin:10px 2px 0;font-size:12.5px}
     .reuse a{color:var(--nav);cursor:pointer;text-decoration:underline}
     .consent{display:flex;gap:9px;align-items:flex-start;font-size:12px;color:#546070;padding:12px 24px 2px;line-height:1.5}
@@ -469,7 +476,7 @@
             paneElegir=document.getElementById('paneElegir'), paneDibujar=document.getElementById('paneDibujar'),
             tabElegir=document.getElementById('tabElegir'), tabDibujar=document.getElementById('tabDibujar'),
             mode='elegir', drawn=false, drawnR=false, pending=null, saveCb=null, styleIdx=0, initEdited=false,
-            FONTS=['"Segoe Script","Bradley Hand",cursive','"Brush Script MT","Segoe Script",cursive','"Lucida Handwriting","Apple Chancery",cursive','"Segoe Print","Comic Sans MS",cursive','"Gabriola","Palatino Linotype",cursive'];
+            FONTS=["'Dancing Script','Segoe Script',cursive","'Caveat','Bradley Hand','Segoe Print',cursive","'Great Vibes','Lucida Handwriting',cursive","'Sacramento','Segoe Script',cursive","'Satisfy','Brush Script MT',cursive"];
 
         function sizeOne(c,x){ var r=c.getBoundingClientRect(); c.width=r.width*2; c.height=r.height*2; x.setTransform(1,0,0,1,0,0); x.scale(2,2); x.lineWidth=2.6; x.lineCap='round'; x.lineJoin='round'; x.strokeStyle='#16233b'; }
         function sizeCanvas(){ sizeOne(cv,ctx); sizeOne(cvR,ctxR); }
@@ -497,8 +504,9 @@
             styleList.innerHTML=FONTS.map(function(f,i){
                 return '<label class="styleopt'+(i===styleIdx?' sel':'')+'" data-i="'+i+'">'
                     +'<input type="radio" name="sigstyle"'+(i===styleIdx?' checked':'')+'>'
-                    +'<span class="sname" style="font-family:'+f+'">'+esc2(nm)+'</span>'
-                    +'<span class="sini" style="font-family:'+f+'">'+esc2(ini)+'</span></label>';
+                    +'<span class="sbrk"><span class="sblab">Firmado por:</span><span class="sname" style="font-family:'+f+'">'+esc2(nm)+'</span></span>'
+                    +'<span class="sbrk sbrk--ini"><span class="sblab">Rúbrica</span><span class="sini" style="font-family:'+f+'">'+esc2(ini)+'</span></span>'
+                    +'</label>';
             }).join('');
             Array.prototype.forEach.call(styleList.querySelectorAll('.styleopt'), function(el){
                 el.addEventListener('click', function(){ styleIdx=parseInt(el.dataset.i,10)||0;
