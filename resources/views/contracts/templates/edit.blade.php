@@ -38,6 +38,8 @@
             <input type="hidden" name="body" id="tplBodyInput">
             <input type="hidden" name="language" value="{{ old('language', $template->language ?: 'es') }}">
             <input type="hidden" name="bilingual" value="0">
+            {{-- Capa DocuSign: firma/rúbrica/fecha por coordenadas (page,x%,y%,w%,type,key). --}}
+            <input type="hidden" name="field_map" id="tplFieldMapInput" value="{{ old('field_map', json_encode($template->field_map ?? [])) }}">
 
             <div class="cc-editor-grid">
 
@@ -94,6 +96,11 @@
                     {{-- Barra de acciones (SIEMPRE visible, no al fondo del documento) --}}
                     <div class="cc-actionbar">
                         <button class="btn btn-crew" type="submit">{{ __('Guardar') }}</button>
+                        {{-- Modo: REDACTAR (texto + datos) vs FIRMAS (campos libres tipo DocuSign). --}}
+                        <span class="cc-modeseg" role="tablist" aria-label="{{ __('Modo del editor') }}">
+                            <button type="button" id="tplModeText" class="cc-mode-btn" aria-pressed="true">{{ __('Redactar') }}</button>
+                            <button type="button" id="tplModeFields" class="cc-mode-btn" aria-pressed="false">{{ __('Firmas') }}</button>
+                        </span>
                         <button type="button" id="tplTogglePreview" class="cc-act-btn">{{ __('Vista con datos') }}</button>
                     </div>
 
@@ -138,6 +145,20 @@
                             <div id="tplMargins" class="cc-marginframe" aria-hidden="true"></div>
                             <div id="tplCanvas" class="cc-page" contenteditable="true" spellcheck="true"></div>
                             <div id="tplGuides" class="cc-guides" aria-hidden="true"></div>
+                        </div>
+                    </div>
+
+                    {{-- ── MODO FIRMAS · capa de campos (firma/rúbrica/fecha) sobre la hoja paginada ── --}}
+                    <div id="tplFieldWrap" class="cc-fieldwrap" style="display:none">
+                        <div class="cc-fm-palette">
+                            <span class="cc-fm-plabel">{{ __('Colocar en la hoja visible:') }}</span>
+                            <button type="button" class="cc-fm-add" data-t="firma"><span class="cc-fm-ic sig">✍</span>{{ __('Firma') }}</button>
+                            <button type="button" class="cc-fm-add" data-t="rubrica"><span class="cc-fm-ic rub">RB</span>{{ __('Rúbrica') }}</button>
+                            <button type="button" class="cc-fm-add" data-t="fecha"><span class="cc-fm-ic dat">📅</span>{{ __('Fecha') }}</button>
+                            <span class="cc-fm-hint">{{ __('Arrastra para mover · × para quitar · clic para asignar quién firma') }}</span>
+                        </div>
+                        <div class="cc-desk cc-fm-desk">
+                            <div id="tplSheets" class="cc-fm-sheets"></div>
                         </div>
                     </div>
 
@@ -317,6 +338,46 @@
 .cc-tok--sig{background:color-mix(in srgb, #2563eb 14%, #fff);border-color:color-mix(in srgb, #2563eb 38%, transparent)}
 .cc-tok--rub{cursor:move;touch-action:none}
 .cc-tok--rub:hover{box-shadow:0 0 0 2px color-mix(in srgb, #2563eb 40%, transparent)}
+
+/* ── MODO FIRMAS (capa de campos DocuSign) ── */
+.cc-modeseg{display:inline-flex;background:var(--surface-2,#f1f3f7);border:1px solid var(--border,#d7dce4);border-radius:9px;padding:2px;gap:2px}
+.cc-mode-btn{border:0;background:none;color:var(--muted,#6b7482);font-size:.82rem;font-weight:700;padding:6px 13px;border-radius:7px;cursor:pointer}
+.cc-mode-btn[aria-pressed="true"]{background:var(--surface,#fff);color:var(--text,#1a1a1a);box-shadow:0 1px 3px rgba(16,20,30,.12)}
+.cc-fm-palette{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:9px 11px;margin-bottom:10px;background:var(--surface,#fff);border:1px solid var(--border,#d7dce4);border-radius:12px}
+.cc-fm-plabel{font-size:.78rem;font-weight:700;color:var(--muted,#6b7482);text-transform:uppercase;letter-spacing:.04em}
+.cc-fm-add{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border,#d7dce4);background:var(--surface,#fff);border-radius:9px;padding:7px 12px;font-size:.84rem;font-weight:700;color:var(--text,#1a1a1a);cursor:pointer;transition:border-color .14s,transform .1s}
+.cc-fm-add:hover{border-color:var(--brand,#ff0046)}
+.cc-fm-add:active{transform:scale(.98)}
+.cc-fm-ic{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;font-size:12px;font-weight:800}
+.cc-fm-ic.sig{background:#eaf1fe;color:#2563eb}.cc-fm-ic.rub{background:#f2ecfe;color:#7c3aed}.cc-fm-ic.dat{background:#e7f6ee;color:#0f9d58}
+.cc-fm-hint{font-size:.72rem;color:var(--muted,#6b7482);margin-left:auto}
+.cc-fm-desk{max-height:70vh}
+.cc-fm-sheets{display:flex;flex-direction:column;align-items:center;gap:16px;width:-moz-fit-content;width:fit-content;margin:0 auto}
+.cc-fm-sheet{position:relative;background:#fff;box-shadow:0 3px 16px rgba(0,0,0,.20);color:#1a1a1a}
+.cc-fm-content{position:relative;z-index:0}
+.cc-fm-content h1{font-size:1.3rem;text-align:center}
+.cc-fm-content h2{font-size:1.02rem;border-bottom:1px solid #ddd;padding-bottom:3px;margin-top:1.1rem}
+.cc-fm-content table{width:100%;border-collapse:collapse}.cc-fm-content td{padding:5px 7px;vertical-align:top}
+.cc-fm-content .cc-signs{display:flex;flex-wrap:wrap;justify-content:space-around;align-items:flex-end;gap:24px 30px;margin:28px 0 8px}
+.cc-fm-content .cc-sign{flex:1 1 260px;max-width:48%;text-align:center}.cc-fm-content .cc-sign-anchor{min-height:88px}.cc-fm-content .cc-sign-role{font-size:11px;color:#555;margin-top:4px}
+.cc-fm-marg{position:absolute;pointer-events:none;border:1px dashed color-mix(in srgb,var(--brand,#ff0046) 30%,transparent);border-radius:2px;z-index:1}
+.cc-fm-layer{position:absolute;inset:0;z-index:2}
+.cc-fm-num{position:absolute;bottom:6mm;right:10mm;font-size:9pt;color:#b5bdc8;z-index:1}
+/* Un campo colocado */
+.cc-fm-field{position:absolute;min-height:30px;border-radius:6px;border:1.5px solid;display:flex;align-items:center;justify-content:center;gap:5px;font-size:11px;font-weight:800;cursor:grab;user-select:none;padding:3px 6px;text-align:center;background:#fff}
+.cc-fm-field .fl{pointer-events:none;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cc-fm-field.sel{box-shadow:0 0 0 3px color-mix(in srgb,#2563eb 30%,transparent)}
+.cc-fm-field[data-t="firma"]{border-color:#2563eb;background:#eaf1fe;color:#1749b0}
+.cc-fm-field[data-t="rubrica"]{border-color:#7c3aed;background:#f2ecfe;color:#5b21b6}
+.cc-fm-field[data-t="fecha"]{border-color:#0f9d58;background:#e7f6ee;color:#0b7a43}
+.cc-fm-field .fd{position:absolute;top:-9px;right:-9px;width:20px;height:20px;border-radius:50%;background:#fff;border:1px solid #d7dce4;color:#c0392b;font-size:14px;line-height:17px;cursor:pointer;display:none;box-shadow:0 1px 3px rgba(0,0,0,.15);z-index:3}
+.cc-fm-field:hover .fd,.cc-fm-field.sel .fd{display:block}
+.cc-fm-field .fh{position:absolute;top:-8px;left:6px;font-size:8px;font-weight:800;background:#fff;padding:0 4px;border-radius:3px;color:inherit}
+/* Popover para asignar firmante */
+.cc-fm-pop{position:absolute;z-index:20;background:#fff;border:1px solid var(--border,#d7dce4);border-radius:10px;box-shadow:0 8px 26px rgba(16,20,30,.18);padding:8px;display:none;min-width:180px}
+.cc-fm-pop.open{display:block}
+.cc-fm-pop label{display:block;font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#6b7482);margin-bottom:4px}
+.cc-fm-pop select{width:100%;height:32px;border:1px solid var(--border,#d7dce4);border-radius:8px;font-size:.82rem;padding:0 8px;background:#fff;color:var(--text,#1a1a1a)}
 </style>
 @endpush
 
@@ -745,6 +806,162 @@
 
     // ── Al enviar: vuelca el cuerpo serializado ──────────────────────────
     document.getElementById('tplForm').addEventListener('submit', function(){ bodyIn.value = currentBody(); });
+
+    // ── MODO FIRMAS · capa de campos DocuSign (firma/rúbrica/fecha por coordenadas) ──
+    (function(){
+        var wrap = document.getElementById('tplFieldWrap');
+        var sheetsEl = document.getElementById('tplSheets');
+        var fmInput = document.getElementById('tplFieldMapInput');
+        var modeText = document.getElementById('tplModeText');
+        var modeFields = document.getElementById('tplModeFields');
+        if(!wrap || !sheetsEl || !fmInput){ return; }
+        var fields = [], seq = 0, drag = null, selected = null, pop = null;
+
+        function fieldW(t){ return t === 'firma' ? 24 : (t === 'rubrica' ? 15 : 20); }
+        function round(v){ return Math.round(v * 1000) / 1000; }
+
+        // Estado inicial desde el field_map guardado.
+        try{ (JSON.parse(fmInput.value || '[]') || []).forEach(function(m){
+            if(!m || typeof m !== 'object'){ return; }
+            var type = (m.type === 'data') ? 'fecha' : (String(m.key) === 'rubrica' ? 'rubrica' : 'firma');
+            fields.push({ id: ++seq, type: type, key: String(m.key || 'contratado'), page: Math.max(1, parseInt(m.page, 10) || 1),
+                xPct: +m.x_pct || 10, yPct: +m.y_pct || 10, wPct: +m.w_pct || fieldW(type), el: null });
+        }); }catch(e){}
+
+        function toMap(){
+            return fields.map(function(f){
+                return { page: f.page, x_pct: round(f.xPct), y_pct: round(f.yPct), w_pct: round(f.wPct),
+                    type: (f.type === 'fecha' ? 'data' : 'sign'),
+                    key: (f.type === 'rubrica' ? 'rubrica' : (f.type === 'fecha' ? 'fecha_hoy' : f.key)) };
+            });
+        }
+        function serializeToInput(){ fmInput.value = JSON.stringify(toMap()); }
+
+        function sheetForPage(p){
+            var all = sheetsEl.querySelectorAll('.cc-fm-sheet');
+            if(!all.length){ return null; }
+            return all[Math.min(all.length, Math.max(1, p)) - 1];   // clamp a las hojas existentes
+        }
+        function visibleSheetPage(){
+            var desk = wrap.querySelector('.cc-fm-desk'), all = sheetsEl.querySelectorAll('.cc-fm-sheet');
+            if(!all.length || !desk){ return 1; }
+            var mid = desk.scrollTop + desk.clientHeight / 2, best = 1, bd = 1e9;
+            all.forEach(function(s, i){ var c = s.offsetTop + s.offsetHeight / 2, d = Math.abs(c - mid); if(d < bd){ bd = d; best = i + 1; } });
+            return best;
+        }
+        function labelOf(f){ return f.type === 'firma' ? (ANCHORS[f.key] || f.key) : (f.type === 'rubrica' ? 'RB Rúbrica' : '📅 Fecha'); }
+        function headOf(f){ return f.type === 'firma' ? 'Firma' : (f.type === 'rubrica' ? 'Rúbrica' : 'Fecha'); }
+        function fieldOf(node){ var el = node.closest('.cc-fm-field'); return el ? fields.filter(function(f){ return f.el === el; })[0] : null; }
+
+        function attachEl(f){
+            var sheet = sheetForPage(f.page); if(!sheet){ return; }
+            f.page = parseInt(sheet.getAttribute('data-page'), 10);
+            var el = document.createElement('div'); el.className = 'cc-fm-field'; el.dataset.t = f.type; f.el = el;
+            el.style.left = f.xPct + '%'; el.style.top = f.yPct + '%'; el.style.width = f.wPct + '%';
+            el.innerHTML = '<span class="fh"></span><span class="fl"></span><span class="fd" title="Quitar">×</span>';
+            el.querySelector('.fh').textContent = headOf(f); el.querySelector('.fl').textContent = labelOf(f);
+            sheet.querySelector('.cc-fm-layer').appendChild(el);
+        }
+
+        // Render de HOJAS paginadas (cliente): reusa la misma paginación medida del editor.
+        function renderSheets(){
+            var box = contentBox(), d = box.d;
+            var items = measureItems(serialize(), box.w);
+            var pages = splitPages(items, box.h);
+            sheetsEl.innerHTML = '';
+            pages.forEach(function(idxs, pi){
+                var sheet = document.createElement('div'); sheet.className = 'cc-fm-sheet'; sheet.setAttribute('data-page', pi + 1);
+                sheet.style.width = d.w + 'mm'; sheet.style.minHeight = d.h + 'mm'; sheet.style.padding = d.margin + 'mm';
+                var content = document.createElement('div'); content.className = 'cc-fm-content';
+                content.style.fontFamily = fontStack(); content.style.fontSize = fontSizePt();
+                content.innerHTML = idxs.map(function(j){ return items[j].html; }).join('') || '<p>&nbsp;</p>';
+                sheet.appendChild(content);
+                var marg = document.createElement('div'); marg.className = 'cc-fm-marg'; marg.style.inset = d.margin + 'mm'; sheet.appendChild(marg);
+                var layer = document.createElement('div'); layer.className = 'cc-fm-layer'; sheet.appendChild(layer);
+                var num = document.createElement('div'); num.className = 'cc-fm-num'; num.textContent = 'Página ' + (pi + 1) + ' de ' + pages.length; sheet.appendChild(num);
+                sheetsEl.appendChild(sheet);
+            });
+            fields.forEach(attachEl);
+        }
+
+        function addField(type){
+            var page = visibleSheetPage();
+            var same = fields.filter(function(x){ return x.page === page; }).length;
+            var f = { id: ++seq, type: type, key: (type === 'firma' ? 'contratado' : (type === 'rubrica' ? 'rubrica' : 'fecha_hoy')),
+                page: page, xPct: Math.min(70, 30 + same * 4), yPct: Math.min(82, 40 + same * 5), wPct: fieldW(type), el: null };
+            fields.push(f); attachEl(f); selectField(f);
+        }
+        function removeField(f){ if(f.el && f.el.parentNode){ f.el.parentNode.removeChild(f.el); } fields = fields.filter(function(x){ return x !== f; }); if(selected === f){ selected = null; closePop(); } }
+
+        // Selección + popover "¿quién firma aquí?" (solo Firma).
+        function closePop(){ if(pop){ pop.classList.remove('open'); } }
+        function ensurePop(){
+            if(pop){ return pop; }
+            pop = document.createElement('div'); pop.className = 'cc-fm-pop';
+            var opts = Object.keys(ANCHORS).filter(function(k){ return k !== 'rubrica'; })
+                .map(function(k){ return '<option value="' + esc(k) + '">' + esc(ANCHORS[k]) + '</option>'; }).join('');
+            pop.innerHTML = '<label>' + esc('¿Quién firma aquí?') + '</label><select>' + opts + '</select>';
+            wrap.appendChild(pop);
+            pop.querySelector('select').addEventListener('change', function(){
+                if(selected && selected.type === 'firma'){ selected.key = this.value; selected.el.querySelector('.fl').textContent = labelOf(selected); }
+            });
+            return pop;
+        }
+        function openPop(f){
+            ensurePop();
+            pop.querySelector('select').value = f.key;
+            var r = f.el.getBoundingClientRect(), wr = wrap.getBoundingClientRect();
+            pop.style.left = Math.max(0, r.left - wr.left) + 'px';
+            pop.style.top = (r.bottom - wr.top + 6) + 'px';
+            pop.classList.add('open');
+        }
+        function selectField(f){
+            fields.forEach(function(x){ if(x.el){ x.el.classList.remove('sel'); } });
+            selected = f; if(f.el){ f.el.classList.add('sel'); }
+            if(f.type === 'firma'){ openPop(f); } else { closePop(); }
+        }
+
+        // Pointer: borrar (×) / mover / seleccionar.
+        sheetsEl.addEventListener('pointerdown', function(e){
+            var del = e.target.closest ? e.target.closest('.fd') : null;
+            if(del){ var fd = fieldOf(del); if(fd){ removeField(fd); } e.preventDefault(); return; }
+            var el = e.target.closest ? e.target.closest('.cc-fm-field') : null;
+            if(!el){ return; }
+            var f = fieldOf(el); if(!f){ return; }
+            var lr = el.parentNode.getBoundingClientRect(), er = el.getBoundingClientRect();
+            drag = { f: f, moved: false, dx: e.clientX - er.left, dy: e.clientY - er.top, lw: lr.width, lh: lr.height, ll: lr.left, lt: lr.top };
+            try{ el.setPointerCapture(e.pointerId); }catch(_){}
+            el.style.cursor = 'grabbing'; closePop();
+        });
+        document.addEventListener('pointermove', function(e){
+            if(!drag){ return; }
+            var x = (e.clientX - drag.ll - drag.dx) / drag.lw * 100, y = (e.clientY - drag.lt - drag.dy) / drag.lh * 100;
+            x = Math.max(0, Math.min(96, x)); y = Math.max(0, Math.min(97, y));
+            drag.moved = true; drag.f.xPct = x; drag.f.yPct = y; drag.f.el.style.left = x + '%'; drag.f.el.style.top = y + '%';
+        });
+        document.addEventListener('pointerup', function(){
+            if(!drag){ return; } var f = drag.f, moved = drag.moved; if(f.el){ f.el.style.cursor = 'grab'; }
+            if(!moved){ selectField(f); } drag = null;
+        });
+        document.querySelectorAll('.cc-fm-add').forEach(function(b){ b.addEventListener('click', function(){ addField(b.getAttribute('data-t')); }); });
+
+        // Toggle de modo Redactar / Firmas.
+        function enter(){
+            formatbar.style.display = 'none'; deskEl.style.display = 'none'; wrap.style.display = 'block';
+            modeText.setAttribute('aria-pressed', 'false'); modeFields.setAttribute('aria-pressed', 'true');
+            renderSheets();
+        }
+        function exit(){
+            serializeToInput(); closePop(); wrap.style.display = 'none';
+            formatbar.style.display = ''; deskEl.style.display = '';
+            modeText.setAttribute('aria-pressed', 'true'); modeFields.setAttribute('aria-pressed', 'false');
+            scheduleGuides();
+        }
+        modeFields.addEventListener('click', enter);
+        modeText.addEventListener('click', exit);
+        // Al guardar, vuelca el field_map (idempotente si no se tocó el modo Firmas).
+        document.getElementById('tplForm').addEventListener('submit', serializeToInput);
+    })();
 
     // ── Init ─────────────────────────────────────────────────────────────
     try{ document.execCommand('styleWithCSS', false, false); }catch(e){}   // B/I/U como <b>/<i>/<u>, no spans con style
