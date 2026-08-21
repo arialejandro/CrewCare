@@ -204,6 +204,27 @@ class ContractEnvelopeTest extends QaTestCase
         ContractEnvelopeBuilder::build($this->emitContract(PayeeContract::CONCEPT_CREW, $payee), null);
     }
 
+    /**
+     * Autoaprobación SIN usuario ligado: un payee (proveedor/no-crew) sin `user_id` pero cuyo CORREO
+     * coincide con un firmante de la productora también es la misma persona en ambos lados. El candado
+     * NO puede depender solo de user_id (esos payees firman con RFC) → coteja por correo y lo bloquea.
+     */
+    public function test_contracted_without_user_blocked_by_email_collision(): void
+    {
+        Storage::fake('local');
+        [$prep] = $this->seatInternals();   // preparador con correo prep@x.mx
+
+        // Payee SIN usuario ligado cuyo correo de contacto = el del preparador (firmante productora).
+        $payee = Payee::create(['legal_nature' => 'fisica', 'name' => 'Proveedor X', 'email' => $prep->email]);
+        $contract = $payee->contracts()->create([
+            'concept' => PayeeContract::CONCEPT_CREW, 'is_active' => 1,
+            'production_id' => $this->prodId, 'crew_activity' => 'X',
+        ]);
+
+        $this->expectException(ContractEnvelopeException::class);
+        ContractEnvelopeBuilder::build($contract->fresh(), null);
+    }
+
     // ── B1 · DESTINATARIOS DE COPIA / ENTREGA-CERTIFICADA ────────────────────
 
     /** Una copia NO entra a la ruta de firma: no es turno, no bloquea, no cuenta para completar. */

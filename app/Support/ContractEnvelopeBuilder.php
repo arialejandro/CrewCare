@@ -133,18 +133,35 @@ class ContractEnvelopeBuilder
         //    también quedó como firmante de la PRODUCTORA (HOD del depto, preparador, obliga, un
         //    puesto de la lista…), estaría APROBANDO SU PROPIO CONTRATO. No se auto-firma ni se deja
         //    pasar: se corta AQUÍ con un error claro, como vacante/duplicado (mismo principio que
-        //    "nadie valida su propia cédula"). Hay que asignar a OTRA persona en ese rol. ──
-        $contractedUid = optional($contractedUser)->id;
-        if ($contractedUid) {
-            foreach ($route as $spec) {
-                if (($spec['role'] ?? null) !== ContractEnvelopeRecipient::ROLE_CONTRACTED
-                    && (int) ($spec['user_id'] ?? 0) === (int) $contractedUid) {
-                    throw new ContractEnvelopeException(
-                        'La misma persona no puede firmar como contratado y como «'
-                        . ($spec['cargo'] ?: 'firmante de la productora')
-                        . '»: sería aprobar su propio contrato. Asigna a otra persona en ese rol y reintenta.'
-                    );
-                }
+        //    "nadie valida su propia cédula"). Hay que asignar a OTRA persona en ese rol.
+        //
+        //    El cotejo NO puede depender solo de `user_id`: un payee no-crew (proveedor/renta/servicio)
+        //    normalmente NO tiene usuario ligado y firma con su RFC → el candado por id se saltaría por
+        //    completo. Se coteja también por CORREO (único identificador compartido entre el payee y el
+        //    User firmante; los Users no guardan RFC). ──
+        $contractedUid    = (int) optional($contractedUser)->id;
+        $contractedEmails = array_values(array_unique(array_filter(array_map(
+            fn ($e) => mb_strtolower(trim((string) $e)),
+            [
+                $contractedSpec['email'] ?? null,
+                method_exists($payee, 'contactEmail') ? $payee->contactEmail() : null,
+                $payee->email ?? null,
+                optional($contractedUser)->email,
+            ]
+        ))));
+        foreach ($route as $spec) {
+            if (($spec['role'] ?? null) === ContractEnvelopeRecipient::ROLE_CONTRACTED) {
+                continue;
+            }
+            $sameUser    = $contractedUid > 0 && (int) ($spec['user_id'] ?? 0) === $contractedUid;
+            $signerEmail = mb_strtolower(trim((string) ($spec['email'] ?? '')));
+            $sameEmail   = $signerEmail !== '' && in_array($signerEmail, $contractedEmails, true);
+            if ($sameUser || $sameEmail) {
+                throw new ContractEnvelopeException(
+                    'La misma persona no puede firmar como contratado y como «'
+                    . ($spec['cargo'] ?: 'firmante de la productora')
+                    . '»: sería aprobar su propio contrato. Asigna a otra persona en ese rol y reintenta.'
+                );
             }
         }
 
