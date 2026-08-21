@@ -331,7 +331,7 @@
                         @can('payees.view')
                             <a href="{{ route('payees.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'wallet', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ __('Quién cobra') }}</span>
+                                <span>{{ __('Padrón de pago') }}</span>
                             </a>
                         @endcan
                         @can('periods.view')
@@ -742,7 +742,7 @@
                             @can('payees.view')
                                 <a href="{{ route('payees.index') }}" class="cc-item">
                                     @include('componentes._icon', ['name' => 'wallet', 'class' => 'cc-item__ico', 'label' => null])
-                                    <span>{{ __('Quién cobra') }}</span>
+                                    <span>{{ __('Padrón de pago') }}</span>
                                 </a>
                             @endcan
                             @can('periods.view')

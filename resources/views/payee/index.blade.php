@@ -14,7 +14,7 @@
                     @include('componentes._icon', ['name' => 'wallet', 'class' => 'cc-ico', 'label' => null])
                 </span>
                 <div>
-                    <h1 class="crew-title mb-0">{{ __('Quién cobra') }}</h1>
+                    <h1 class="crew-title mb-0">{{ __('Padrón de pago') }}</h1>
                     <p class="text-muted mb-0 small">{{ __('Identidades y contratos que ves según tu departamento.') }}</p>
                 </div>
             </div>

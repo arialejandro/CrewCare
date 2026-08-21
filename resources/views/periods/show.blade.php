@@ -123,12 +123,12 @@
         <div class="card">
             <div class="card-body p-0">
                 @if(empty($board['rows']))
-                    <p class="text-muted mb-0 p-3">{{ __('Nadie con este periodo. Asigna la frecuencia a los contratos (en la ficha de "Quién cobra") para que aparezcan aquí.') }}</p>
+                    <p class="text-muted mb-0 p-3">{{ __('Nadie con este periodo. Asigna la frecuencia a los contratos (en el Padrón de pago) para que aparezcan aquí.') }}</p>
                 @else
                     <div class="table-responsive">
                         <table class="table align-middle mb-0">
                             <thead><tr>
-                                <th>{{ __('Quién cobra') }}</th>
+                                <th>{{ __('Beneficiario') }}</th>
                                 @foreach($renderColumns as $t)
                                     <th class="small">{{ $t->name }}</th>
                                 @endforeach
