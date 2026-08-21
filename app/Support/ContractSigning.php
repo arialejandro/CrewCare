@@ -169,13 +169,13 @@ class ContractSigning
      * viejas; la autógrafa se exige arriba, en el controlador (validación). Al ser columna del
      * destinatario, entra al hash del sello → la firma queda verificable e íntegra.
      */
-    public static function sign(ContractEnvelopeRecipient $r, string $method, ?string $ip, ?string $imageData = null): ContractEnvelope
+    public static function sign(ContractEnvelopeRecipient $r, string $method, ?string $ip, ?string $imageData = null, ?string $rubricaData = null): ContractEnvelope
     {
         // FASE 5 — SECCIÓN CRÍTICA bajo LOCK del sobre: serializa firmas concurrentes del mismo sobre
         // (doble submit, dos personas a la vez) → nadie firma dos veces ni la ruta avanza dos pasos.
         // Solo el ESTADO + el SELLO van dentro del lock; los efectos PESADOS (render del PDF, correos)
         // se difieren FUERA de la transacción para no retener la fila ni arriesgar la firma ya sellada.
-        $outcome = DB::transaction(function () use ($r, $method, $ip, $imageData) {
+        $outcome = DB::transaction(function () use ($r, $method, $ip, $imageData, $rubricaData) {
             $envelope = ContractEnvelope::whereKey($r->envelope_id)->lockForUpdate()->first();
             if (! $envelope) {
                 throw new ContractEnvelopeException('El sobre ya no existe.');
@@ -197,6 +197,7 @@ class ContractSigning
                 'ip_address'      => $ip,
                 'sign_method'     => $method,
                 'signature_image' => $imageData ?: $r->signature_image,
+                'rubrica_image'   => $rubricaData ?: $r->rubrica_image,
             ]);
 
             // Sella el acto de aceptación: el hash cubre la identidad congelada + signed_at + ip +

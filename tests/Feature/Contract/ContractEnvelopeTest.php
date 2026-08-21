@@ -832,6 +832,27 @@ class ContractEnvelopeTest extends QaTestCase
         $this->assertNull($map['puesto:' . $pos]);
     }
 
+    public function test_rubrica_uses_its_own_image_distinct_from_signature(): void
+    {
+        Storage::fake('local');
+        $this->seatOneSigner();
+        $env = ContractEnvelopeBuilder::build($this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee()), null);
+
+        ContractSigning::send($env);
+        $firma   = 'data:image/png;base64,' . str_repeat('F', 160);
+        $rubrica = 'data:image/png;base64,' . str_repeat('R', 160);
+        // La firma y la RÚBRICA son marcas distintas (5º argumento).
+        ContractSigning::sign($env->recipients()->where('role', 'contracted')->first()->fresh(), 'authenticated', '5.5.5.5', $firma, $rubrica);
+
+        $map = ContractTemplateRenderer::sigMapForEnvelope($env->fresh());
+        $this->assertSame($firma, $map['contratado']['image'], 'la firma estampa la autógrafa completa');
+        $this->assertIsArray($map['rubrica']);
+        $this->assertSame($rubrica, $map['rubrica']['image'], 'la rúbrica estampa SU propia imagen');
+        $this->assertNotSame($map['contratado']['image'], $map['rubrica']['image']);
+        // La rúbrica queda FUERA del sello (no altera sobres ya sellados).
+        $this->assertTrue($env->recipients()->where('role', 'contracted')->first()->fresh()->verifyLatestSignature());
+    }
+
     public function test_envelope_template_document_stamps_real_signatures(): void
     {
         Storage::fake('local');

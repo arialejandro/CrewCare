@@ -36,6 +36,9 @@ class ContractEnvelopeRecipient extends Model
         'status', 'sent_at', 'resent_at', 'viewed_at', 'anchor_key',
         // B1 · metadato de ENTREGA (copia certificada): agregar la columna NO altera sellos ya hechos.
         'delivery_mode', 'delivered_at',
+        // Rúbrica: marca secundaria (la firma sellada es el acto autoritativo). Fuera del sello para no
+        // alterar sobres ya sellados antes de esta columna.
+        'rubrica_image',
     ];
 
     const ROLE_PREPARER   = 'preparer';
@@ -60,7 +63,7 @@ class ContractEnvelopeRecipient extends Model
         'envelope_id', 'role', 'sort_order', 'delivery_mode',
         'name', 'email', 'cargo', 'anchor_key', 'empresa', 'user_id', 'payee_id',
         'status', 'sent_at', 'resent_at', 'viewed_at', 'signed_at', 'delivered_at', 'ip_address', 'sign_method',
-        'signature_image',
+        'signature_image', 'rubrica_image',
     ];
 
     protected $casts = [

@@ -189,9 +189,15 @@ class ContractTemplateRenderer
             ];
         }
 
-        // La RÚBRICA es la inicial del contratado: usa su misma firma congelada (render compacto).
+        // La RÚBRICA es una marca DISTINTA de la firma del contratado (iniciales, una variante, o su
+        // propia firma — la elige cada persona). Usa `rubrica_image` congelada; si no la capturó, cae a
+        // la firma. Mismo estado (pendiente/firmada) que el contratado.
         if (array_key_exists('contratado', $map)) {
             $map['rubrica'] = $map['contratado'];
+            $contractedRec = $envelope->recipients->firstWhere('anchor_key', 'contratado');
+            if (is_array($map['rubrica']) && $contractedRec && $contractedRec->rubrica_image) {
+                $map['rubrica']['image'] = $contractedRec->rubrica_image;
+            }
             $map['__labels']['rubrica'] = __('Rúbrica');
         }
 

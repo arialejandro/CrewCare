@@ -118,7 +118,7 @@
     /* ── Modal adopta ────────────────────────────────────── */
     .scrim{position:fixed;inset:0;z-index:60;background:rgba(15,22,34,.5);display:none;align-items:center;justify-content:center;padding:18px;opacity:0;transition:opacity .2s var(--ease)}
     .scrim.open{display:flex;opacity:1}
-    .modal{background:#fff;border-radius:16px;width:100%;max-width:560px;overflow:hidden;transform:scale(.96);opacity:0;transition:transform .22s var(--ease),opacity .22s var(--ease);box-shadow:0 30px 80px rgba(10,16,28,.4)}
+    .modal{background:#fff;border-radius:16px;width:100%;max-width:640px;overflow:hidden;transform:scale(.96);opacity:0;transition:transform .22s var(--ease),opacity .22s var(--ease);box-shadow:0 30px 80px rgba(10,16,28,.4)}
     .scrim.open .modal{transform:scale(1);opacity:1}
     .modal__h{padding:20px 24px 4px}
     .modal__h h3{margin:0;font-size:18px;font-weight:700}
@@ -136,6 +136,17 @@
     .sigbox .base{position:absolute;left:8%;right:8%;bottom:34%;border-bottom:1px solid #e2c98a}
     .sigbox .hint{position:absolute;left:14px;bottom:12px;font-size:11px;color:#b7a56a;font-weight:700;letter-spacing:.5px}
     .styled{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-family:"Segoe Script","Brush Script MT","Snell Roundhand",cursive;font-size:50px;color:#16233b;padding:0 20px;text-align:center}
+    /* dos marcas: Firma (grande) + Rúbrica (marca personal) lado a lado */
+    .markrow{display:flex;gap:12px;align-items:flex-start}
+    .markcol{flex:1 1 auto;min-width:0}
+    .markcol--rub{flex:0 0 42%}
+    .marklbl{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:0 0 5px}
+    .marklbl small{font-weight:600;text-transform:none;letter-spacing:0;color:var(--faint);font-size:10.5px}
+    .sigbox--rub{height:170px}
+    .sigbox--rub .styled{font-size:38px}
+    .usefirma{display:flex;gap:7px;align-items:center;font-size:11.5px;color:var(--muted);margin-top:7px;cursor:pointer}
+    #rubBox.off{opacity:.35;pointer-events:none;filter:grayscale(1)}
+    @media(max-width:560px){.markrow{flex-direction:column}.markcol,.markcol--rub{flex:1 1 auto;width:100%}}
     .reuse{margin:10px 2px 0;font-size:12.5px}
     .reuse a{color:var(--nav);cursor:pointer;text-decoration:underline}
     .consent{display:flex;gap:9px;align-items:flex-start;font-size:12px;color:#546070;padding:12px 24px 2px;line-height:1.5}
@@ -225,6 +236,7 @@
         @csrf
         <input type="hidden" name="consent" id="fConsent" value="0">
         <input type="hidden" name="signature_image" id="fSig" value="">
+        <input type="hidden" name="rubrica_image" id="fRubrica" value="">
         <input type="hidden" name="save_signature" id="fSave" value="0">
     </form>
 
@@ -242,7 +254,8 @@
     {{-- Modal · adopta tu firma --}}
     <div class="scrim" id="scrim" aria-hidden="true">
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt">
-            <div class="modal__h"><h3 id="mt">{{ __('Adopta tu firma') }}</h3><p>{{ __('Créala una vez; la usarás en todo el paquete.') }}</p></div>
+            @php $iniciales = collect(preg_split('/\s+/', trim($recipient->name)))->filter()->map(fn ($w) => mb_strtoupper(mb_substr($w, 0, 1)))->take(4)->implode(''); @endphp
+            <div class="modal__h"><h3 id="mt">{{ __('Adopta tu firma y rúbrica') }}</h3><p>{{ __('Créalas una vez; las usarás en todo el paquete.') }}</p></div>
             <div class="modal__b">
                 @if(session('error') || (isset($errors) && $errors->any()))
                     <div class="err">{{ session('error') ?: (isset($errors) ? $errors->first() : '') }}</div>
@@ -252,11 +265,26 @@
                     <button type="button" role="tab" aria-selected="true" id="tabDraw">{{ __('Dibujar') }}</button>
                     <button type="button" role="tab" aria-selected="false" id="tabType">{{ __('Escribir') }}</button>
                 </div>
-                <div class="sigbox">
-                    <span class="base"></span>
-                    <canvas id="cv"></canvas>
-                    <div class="styled" id="styled">{{ $recipient->name }}</div>
-                    <span class="hint" id="hint">{{ __('Dibuja tu firma aquí') }}</span>
+                <div class="markrow">
+                    <div class="markcol">
+                        <span class="marklbl">{{ __('Firma') }}</span>
+                        <div class="sigbox">
+                            <span class="base"></span>
+                            <canvas id="cv"></canvas>
+                            <div class="styled" id="styled">{{ $recipient->name }}</div>
+                            <span class="hint" id="hint">{{ __('Dibuja tu firma') }}</span>
+                        </div>
+                    </div>
+                    <div class="markcol markcol--rub">
+                        <span class="marklbl">{{ __('Rúbrica') }} <small>{{ __('iniciales o tu marca') }}</small></span>
+                        <div class="sigbox sigbox--rub" id="rubBox">
+                            <span class="base"></span>
+                            <canvas id="cvR"></canvas>
+                            <div class="styled" id="styledR">{{ $iniciales }}</div>
+                            <span class="hint" id="hintR">{{ __('Dibuja tu rúbrica') }}</span>
+                        </div>
+                        <label class="usefirma"><input type="checkbox" id="useFirmaRub"> {{ __('Usar mi firma como rúbrica') }}</label>
+                    </div>
                 </div>
                 @if($adopted ?? false)
                     <div class="reuse"><a id="reuseSig">{{ __('Usar mi firma guardada') }}</a></div>
@@ -292,10 +320,10 @@
                 drawFirst:@json(__('Dibuja tu firma primero')) };
         if(window.pdfjsLib){ pdfjsLib.GlobalWorkerOptions.workerSrc=@json(asset('js/vendor/pdfjs/pdf.worker.min.js')); }
 
-        var CC={ adopted:'', tags:[], docTotal:0, docReady:0 };
+        var CC={ adopted:'', rubrica:'', tags:[], docTotal:0, docReady:0 };
         var pf=document.getElementById('pf'), pt=document.getElementById('pt'), finish=document.getElementById('finish'),
             start=document.getElementById('start'), signForm=document.getElementById('signForm'),
-            fSig=document.getElementById('fSig'), fConsent=document.getElementById('fConsent'), fSave=document.getElementById('fSave');
+            fSig=document.getElementById('fSig'), fRubrica=document.getElementById('fRubrica'), fConsent=document.getElementById('fConsent'), fSave=document.getElementById('fSave');
 
         // ── hash (sello) para el preview de la ceremonia; el hash autoritativo lo sella el servidor ──
         function sha256Hex(s){
@@ -333,11 +361,11 @@
 
         function apply(tag){
             if(!CC.adopted){ openModal(tag); return; }
-            tag.applied=true; tag.el.classList.add('applied'); tag.el.classList.remove('pulse');
             var small=tag.small;
-            sha256Hex(CC.adopted+'|'+Date.now()+'|'+@json($recipient->id)).then(function(hash){
-                tag.el.innerHTML=stampHTML(CC.adopted,hash,small);
-                if(tag.reframe) tag.reframe();
+            var img = small ? (CC.rubrica || CC.adopted) : CC.adopted;   // rúbrica ≠ firma
+            tag.applied=true; tag.el.classList.add('applied'); tag.el.classList.remove('pulse');
+            sha256Hex(img+'|'+Date.now()+'|'+@json($recipient->id)).then(function(hash){
+                tag.el.innerHTML=stampHTML(img,hash,small);
                 refresh();
             });
             refresh();
@@ -347,7 +375,7 @@
 
         // ── barra + start + finish ──
         start.onclick=function(){ if(!CC.adopted){ openModal(CC.tags[0]||null); return; } nextTag(); };
-        finish.onclick=function(){ if(finish.disabled) return; fSig.value=CC.adopted; signForm.submit(); };
+        finish.onclick=function(){ if(finish.disabled) return; fSig.value=CC.adopted; if(fRubrica){ fRubrica.value=CC.rubrica||CC.adopted; } signForm.submit(); };
 
         // ── documentos HTML (iframe embebido) ──
         // srcdoc dispara 'load' ANTES de maquetar el cuerpo → hay que esperar a que aparezcan las
@@ -425,34 +453,54 @@
             }
         }
 
-        // ── modal adopta ──
-        var scrim=document.getElementById('scrim'), cv=document.getElementById('cv'), ctx=cv.getContext('2d'),
-            fname=document.getElementById('fname'), styled=document.getElementById('styled'), hint=document.getElementById('hint'),
-            mode='draw', drawn=false, pending=null, saveCb=document.getElementById('saveSig'),
-            adoptedSaved=@json($adopted ?? null);
-        function sizeCanvas(){ var r=cv.getBoundingClientRect(); cv.width=r.width*2; cv.height=r.height*2; ctx.scale(2,2); ctx.lineWidth=2.6; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle='#16233b'; }
+        // ── modal adopta · DOS marcas: Firma (completa) + Rúbrica (marca personal) ──
+        var scrim=document.getElementById('scrim'),
+            cv=document.getElementById('cv'), ctx=cv.getContext('2d'),
+            cvR=document.getElementById('cvR'), ctxR=cvR.getContext('2d'),
+            fname=document.getElementById('fname'),
+            styled=document.getElementById('styled'), styledR=document.getElementById('styledR'),
+            hint=document.getElementById('hint'), hintR=document.getElementById('hintR'),
+            rubBox=document.getElementById('rubBox'), useFirmaRub=document.getElementById('useFirmaRub'),
+            mode='draw', drawn=false, drawnR=false, pending=null, saveCb=document.getElementById('saveSig'),
+            adoptedSaved=@json($adopted ?? null), INI=@json($iniciales);
+        function sizeOne(c,x){ var r=c.getBoundingClientRect(); c.width=r.width*2; c.height=r.height*2; x.setTransform(1,0,0,1,0,0); x.scale(2,2); x.lineWidth=2.6; x.lineCap='round'; x.lineJoin='round'; x.strokeStyle='#16233b'; }
+        function sizeCanvas(){ sizeOne(cv,ctx); sizeOne(cvR,ctxR); }
         function openModal(tag){ pending=tag||null; scrim.classList.add('open'); scrim.setAttribute('aria-hidden','false'); setTimeout(sizeCanvas,60); }
         function closeModal(){ scrim.classList.remove('open'); scrim.setAttribute('aria-hidden','true'); }
         document.getElementById('cancelSig').onclick=closeModal;
         scrim.addEventListener('click', function(e){ if(e.target===scrim) closeModal(); });
-        var draw=false;
-        function pos(e){ var r=cv.getBoundingClientRect(); var t=(e.touches&&e.touches[0])||e; return {x:t.clientX-r.left,y:t.clientY-r.top}; }
-        cv.addEventListener('mousedown', function(e){draw=true;var p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y)});
-        cv.addEventListener('mousemove', function(e){if(!draw)return;var p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();drawn=true});
-        window.addEventListener('mouseup', function(){draw=false});
-        cv.addEventListener('touchstart', function(e){draw=true;var p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);e.preventDefault()},{passive:false});
-        cv.addEventListener('touchmove', function(e){if(!draw)return;var p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();drawn=true;e.preventDefault()},{passive:false});
-        var tabDraw=document.getElementById('tabDraw'), tabType=document.getElementById('tabType');
-        function setMode(m){ mode=m; tabDraw.setAttribute('aria-selected',m==='draw'); tabType.setAttribute('aria-selected',m==='type');
-            cv.style.display=m==='draw'?'block':'none'; styled.style.display=m==='type'?'flex':'none'; hint.style.display=m==='draw'?'block':'none'; styled.textContent=fname.value||'Tu firma'; }
-        tabDraw.onclick=function(){setMode('draw')}; tabType.onclick=function(){setMode('type')};
-        fname.addEventListener('input', function(){ styled.textContent=fname.value||'Tu firma'; });
-        document.getElementById('clearSig').onclick=function(){ if(mode==='draw'){ ctx.clearRect(0,0,cv.width,cv.height); drawn=false; } };
-        var reuseBtn=document.getElementById('reuseSig');
-        if(reuseBtn){ reuseBtn.onclick=function(){ finalizeAdopt(adoptedSaved); }; }
 
-        function finalizeAdopt(url){
-            CC.adopted=url; fSig.value=url;
+        function bindDraw(c,x,onDraw){
+            var d=false;
+            function pos(e){ var r=c.getBoundingClientRect(); var t=(e.touches&&e.touches[0])||e; return {x:t.clientX-r.left,y:t.clientY-r.top}; }
+            c.addEventListener('mousedown', function(e){d=true;var p=pos(e);x.beginPath();x.moveTo(p.x,p.y)});
+            c.addEventListener('mousemove', function(e){if(!d)return;var p=pos(e);x.lineTo(p.x,p.y);x.stroke();onDraw()});
+            window.addEventListener('mouseup', function(){d=false});
+            c.addEventListener('touchstart', function(e){d=true;var p=pos(e);x.beginPath();x.moveTo(p.x,p.y);e.preventDefault()},{passive:false});
+            c.addEventListener('touchmove', function(e){if(!d)return;var p=pos(e);x.lineTo(p.x,p.y);x.stroke();onDraw();e.preventDefault()},{passive:false});
+        }
+        bindDraw(cv,ctx,function(){drawn=true}); bindDraw(cvR,ctxR,function(){drawnR=true});
+
+        var tabDraw=document.getElementById('tabDraw'), tabType=document.getElementById('tabType');
+        function iniciales(){ var p=(fname.value||'').trim().split(/\s+/).filter(Boolean).slice(0,4).map(function(w){return w.charAt(0).toUpperCase()}).join(''); return p||INI||'—'; }
+        function setMode(m){ mode=m; tabDraw.setAttribute('aria-selected',m==='draw'); tabType.setAttribute('aria-selected',m==='type');
+            cv.style.display=m==='draw'?'block':'none'; styled.style.display=m==='type'?'flex':'none'; hint.style.display=m==='draw'?'block':'none';
+            cvR.style.display=m==='draw'?'block':'none'; styledR.style.display=m==='type'?'flex':'none'; hintR.style.display=m==='draw'?'block':'none';
+            styled.textContent=fname.value||'Tu firma'; styledR.textContent=iniciales(); }
+        tabDraw.onclick=function(){setMode('draw')}; tabType.onclick=function(){setMode('type')};
+        fname.addEventListener('input', function(){ styled.textContent=fname.value||'Tu firma'; styledR.textContent=iniciales(); });
+        document.getElementById('clearSig').onclick=function(){ if(mode==='draw'){ ctx.clearRect(0,0,cv.width,cv.height); drawn=false; ctxR.clearRect(0,0,cvR.width,cvR.height); drawnR=false; } };
+        useFirmaRub.addEventListener('change', function(){ rubBox.classList.toggle('off', this.checked); });
+        var reuseBtn=document.getElementById('reuseSig');
+        if(reuseBtn){ reuseBtn.onclick=function(){ finalizeAdopt(adoptedSaved, adoptedSaved); }; }
+
+        function typedImage(text,size){ var c=document.createElement('canvas'); c.width=640; c.height=200; var x=c.getContext('2d');
+            x.fillStyle='#16233b'; x.font='italic '+(size||74)+'px "Segoe Script","Brush Script MT",cursive'; x.textAlign='center'; x.textBaseline='middle';
+            x.fillText(text||'—',320,100); return c.toDataURL('image/png'); }
+
+        function finalizeAdopt(firmaUrl, rubUrl){
+            CC.adopted=firmaUrl; CC.rubrica=rubUrl||firmaUrl;
+            fSig.value=CC.adopted; if(fRubrica){ fRubrica.value=CC.rubrica; }
             fConsent.value = (document.getElementById('cConsent') ? (document.getElementById('cConsent').checked?'1':'0') : '1');
             fSave.value = saveCb && saveCb.checked ? '1':'0';
             closeModal();
@@ -462,12 +510,16 @@
         document.getElementById('adoptSig').onclick=function(){
             var cc=document.getElementById('cConsent');
             if(cc && !cc.checked){ cc.focus(); var lbl=cc.closest('.consent'); if(lbl) lbl.style.color='#c0392b'; return; }
-            var url;
-            if(mode==='draw'){ if(!drawn){ hint.textContent=T.drawFirst; hint.style.color='#c0392b'; return; } url=cv.toDataURL('image/png'); }
-            else { var c=document.createElement('canvas'); c.width=640; c.height=180; var x=c.getContext('2d');
-                x.fillStyle='#16233b'; x.font='italic 74px "Segoe Script","Brush Script MT",cursive'; x.textBaseline='middle';
-                x.fillText(fname.value||'Firma',20,100); url=c.toDataURL('image/png'); }
-            finalizeAdopt(url);
+            var firmaUrl, rubUrl;
+            if(mode==='draw'){
+                if(!drawn){ hint.textContent=T.drawFirst; hint.style.color='#c0392b'; return; }
+                firmaUrl=cv.toDataURL('image/png');
+                rubUrl = useFirmaRub.checked ? firmaUrl : (drawnR ? cvR.toDataURL('image/png') : typedImage(iniciales(),90));
+            } else {
+                firmaUrl=typedImage(fname.value||'Firma',74);
+                rubUrl = useFirmaRub.checked ? firmaUrl : typedImage(iniciales(),90);
+            }
+            finalizeAdopt(firmaUrl, rubUrl);
         };
         setMode('draw');
 
