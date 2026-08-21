@@ -197,20 +197,26 @@ class ContractSignController extends Controller
         $contract = $envelope->contract;
         abort_unless($contract, 404);
 
+        // La plantilla debe ser de esta producción y aplicar al subtipo. PDF subido O HTML con firmas
+        // por coordenadas (field_map): ambas se sirven como hoja PDF + etiquetas encima (motor unificado).
         $tpl = ContractTemplate::find($template);
         abort_unless(
             $tpl && $tpl->is_active
                 && ($tpl->production_id === null || (int) $tpl->production_id === (int) $envelope->production_id)
-                && $tpl->appliesToSubtype($contract->concept)
-                && $tpl->isPdfSource(),
+                && $tpl->appliesToSubtype($contract->concept),
             404
         );
 
         try {
-            $bytes = ContractPdfStamper::stampForEnvelope($envelope, $tpl);
+            $bytes = \App\Support\ContractDocRenderer::renderForEnvelope($envelope, $tpl);
         } catch (\Throwable $e) {
-            abort_unless($tpl->pdf_path && Storage::disk('local')->exists($tpl->pdf_path), 404);
-            $bytes = Storage::disk('local')->get($tpl->pdf_path);
+            // Respaldo: PDF subido → su archivo original (las coordenadas igual alinean). HTML → sin
+            // respaldo simple (Chrome no rindió) → error accionable, no un documento roto.
+            if ($tpl->isPdfSource() && $tpl->pdf_path && Storage::disk('local')->exists($tpl->pdf_path)) {
+                $bytes = Storage::disk('local')->get($tpl->pdf_path);
+            } else {
+                abort(422, __('No se pudo generar el documento para firmar.'));
+            }
         }
 
         return response($bytes, 200, [

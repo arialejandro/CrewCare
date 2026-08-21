@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\ContractEnvelope;
 use App\Models\ContractTemplate;
 use Illuminate\Support\Facades\Storage;
 
@@ -22,6 +23,20 @@ use Illuminate\Support\Facades\Storage;
  */
 class ContractDocRenderer
 {
+    /**
+     * PDF final de una plantilla PARA UN SOBRE: resuelve los datos del trato + el mapa de firmas reales
+     * (firmadas estampadas, pendientes en blanco) y arma el documento. Es lo que ve la ceremonia y lo
+     * que se congela al completar — misma costura para ambos.
+     */
+    public static function renderForEnvelope(ContractEnvelope $envelope, ContractTemplate $template): string
+    {
+        $contract = $envelope->contract;
+        $values   = $contract ? ContractTemplateRenderer::valuesFor($contract) : [];
+        $sigMap   = ContractTemplateRenderer::sigMapForEnvelope($envelope);
+
+        return self::renderPdf($template, $values, $sigMap);
+    }
+
     /** PDF final (bytes) de la plantilla con datos + firmas del mapa CLAVE→props. */
     public static function renderPdf(ContractTemplate $template, array $values, array $sigMap): string
     {

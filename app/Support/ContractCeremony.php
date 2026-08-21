@@ -93,8 +93,10 @@ class ContractCeremony
     /** Un documento de plantilla (principal o anexo) armado, con MIS lugares de firma. */
     private static function templateDoc(ContractTemplate $tpl, ContractEnvelope $envelope, ContractEnvelopeRecipient $recipient, array $mine, string $name): array
     {
-        // PDF subido: se sirve estampado + etiquetas por coordenadas (solo las de MI ancla).
-        if ($tpl->isPdfSource()) {
+        // Etiquetas por COORDENADAS: PDF subido SIEMPRE; HTML si ya tiene `field_map` (editor DocuSign).
+        // En ambos casos se sirve una HOJA PDF FIJA (motor unificado) + mis etiquetas encima → mismo
+        // camino que los anexos, y muere el problema de la rúbrica-fantasma del iframe.
+        if ($tpl->isPdfSource() || ! empty($tpl->signFields())) {
             $tags = array_values(array_map(
                 fn ($f) => [
                     'page'  => (int) $f['page'],
@@ -114,8 +116,8 @@ class ContractCeremony
             ];
         }
 
-        // HTML: documento armado embebible. Mis anclas se FUERZAN pendientes (clicables) por si el
-        // estado del sobre las diera por firmadas; el resto conserva su estado real.
+        // HTML SIN field_map (plantillas viejas): documento armado embebible. Mis anclas se FUERZAN
+        // pendientes (clicables) por si el estado del sobre las diera por firmadas; el resto real.
         $sigMap = ContractTemplateRenderer::sigMapForEnvelope($envelope);
         foreach ($mine as $k) {
             if (array_key_exists($k, $sigMap) || $k === 'rubrica' || $k === 'contratado') {

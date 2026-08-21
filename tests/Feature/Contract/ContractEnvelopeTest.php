@@ -621,6 +621,37 @@ class ContractEnvelopeTest extends QaTestCase
         $this->assertStringContainsString('data-anchor="contratado"', $hoja['html']);
     }
 
+    public function test_ceremony_serves_html_contract_with_field_map_as_coordinate_pdf(): void
+    {
+        Storage::fake('local');
+        $this->seatInternals();
+        Setting::updateOrCreate(['key' => SignaturePositions::KEY_ORDER], ['value' => 'contracted,preparer,binder']);
+        Branding::forget();
+
+        // CONTRATO HTML pero con field_map (editor DocuSign): firma contratado (p1) + rúbrica (p2).
+        ContractTemplate::create([
+            'production_id' => $this->prodId, 'name' => 'Contrato', 'applies_to' => [PayeeContract::CONCEPT_CREW],
+            'category' => ContractTemplate::CATEGORY_CONTRACT, 'source_kind' => ContractTemplate::SOURCE_HTML,
+            'body' => '<h1>Contrato</h1><p>{{payee_nombre}}</p>',
+            'field_map' => [
+                ['page' => 1, 'x_pct' => 20, 'y_pct' => 80, 'w_pct' => 24, 'type' => 'sign', 'key' => 'contratado'],
+                ['page' => 2, 'x_pct' => 70, 'y_pct' => 6,  'w_pct' => 15, 'type' => 'sign', 'key' => 'rubrica'],
+            ],
+            'architecture' => 'caratula_numbered', 'page_size' => 'carta', 'is_active' => true,
+        ]);
+
+        $env = ContractEnvelopeBuilder::build($this->emitContract(PayeeContract::CONCEPT_CREW, $this->crewPayee('1991-07-09')), null);
+        $rec = $env->recipients()->where('role', 'contracted')->first();
+
+        $docs = \App\Support\ContractCeremony::documents($env, $rec);
+
+        // El contrato HTML-con-field_map se sirve como HOJA PDF FIJA + etiquetas por coordenadas (no iframe).
+        $this->assertSame('pdf', $docs[0]['mode']);
+        $this->assertArrayNotHasKey('html', $docs[0]);
+        $this->assertCount(2, $docs[0]['tags'], 'contratado (p1) + rúbrica (p2) son MIS etiquetas');
+        $this->assertEqualsCanonicalizing([1, 2], collect($docs[0]['tags'])->pluck('page')->all());
+    }
+
     public function test_completed_envelope_refuses_more_signatures(): void
     {
         Storage::fake('local');
