@@ -147,6 +147,21 @@
     .usefirma{display:flex;gap:7px;align-items:center;font-size:11.5px;color:var(--muted);margin-top:7px;cursor:pointer}
     #rubBox.off{opacity:.35;pointer-events:none;filter:grayscale(1)}
     @media(max-width:560px){.markrow{flex-direction:column}.markcol,.markcol--rub{flex:1 1 auto;width:100%}}
+    /* DocuSign: Nombre + Iniciales arriba; pestañas ELEGIR / DIBUJAR; galería de estilos */
+    .namerow{display:flex;gap:12px}
+    .namerow .field{flex:1;margin-bottom:6px}
+    .seg2{display:flex;gap:22px;border-bottom:1px solid var(--line);margin:6px 0 0;padding:0}
+    .seg2 button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);font-size:12.5px;font-weight:700;letter-spacing:.6px;padding:9px 2px;cursor:pointer}
+    .seg2 button[aria-selected="true"]{color:var(--nav);border-bottom-color:var(--nav)}
+    .fpane{padding-top:12px}
+    .stylelist{max-height:250px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+    .styleopt{display:flex;align-items:center;gap:12px;padding:9px 12px;border-bottom:1px solid var(--line2);cursor:pointer}
+    .styleopt:last-child{border-bottom:0}
+    .styleopt:hover{background:#f7f9fb}
+    .styleopt.sel{background:var(--nav-bg)}
+    .styleopt input{margin:0;flex:0 0 auto}
+    .styleopt .sname{flex:1 1 auto;font-size:25px;color:#16233b;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .styleopt .sini{flex:0 0 74px;text-align:center;font-size:21px;color:#16233b;border-left:1px solid var(--line2);padding-left:10px}
     .reuse{margin:10px 2px 0;font-size:12.5px}
     .reuse a{color:var(--nav);cursor:pointer;text-decoration:underline}
     .consent{display:flex;gap:9px;align-items:flex-start;font-size:12px;color:#546070;padding:12px 24px 2px;line-height:1.5}
@@ -255,40 +270,34 @@
     <div class="scrim" id="scrim" aria-hidden="true">
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt">
             @php $iniciales = collect(preg_split('/\s+/', trim($recipient->name)))->filter()->map(fn ($w) => mb_strtoupper(mb_substr($w, 0, 1)))->take(4)->implode(''); @endphp
-            <div class="modal__h"><h3 id="mt">{{ __('Adopta tu firma y rúbrica') }}</h3><p>{{ __('Créalas una vez; las usarás en todo el paquete.') }}</p></div>
+            <div class="modal__h"><h3 id="mt">{{ __('Crear su firma') }}</h3></div>
             <div class="modal__b">
                 @if(session('error') || (isset($errors) && $errors->any()))
                     <div class="err">{{ session('error') ?: (isset($errors) ? $errors->first() : '') }}</div>
                 @endif
-                <div class="field"><label>{{ __('Nombre completo') }}</label><input type="text" id="fname" value="{{ $recipient->name }}"></div>
-                <div class="seg" role="tablist">
-                    <button type="button" role="tab" aria-selected="true" id="tabDraw">{{ __('Dibujar') }}</button>
-                    <button type="button" role="tab" aria-selected="false" id="tabType">{{ __('Escribir') }}</button>
+                <div class="namerow">
+                    <div class="field"><label>{{ __('Nombre completo') }} *</label><input type="text" id="fname" value="{{ $recipient->name }}"></div>
+                    <div class="field"><label>{{ __('Iniciales') }} *</label><input type="text" id="finit" value="{{ $iniciales }}" maxlength="6"></div>
                 </div>
-                <div class="markrow">
-                    <div class="markcol">
-                        <span class="marklbl">{{ __('Firma') }}</span>
-                        <div class="sigbox">
-                            <span class="base"></span>
-                            <canvas id="cv"></canvas>
-                            <div class="styled" id="styled">{{ $recipient->name }}</div>
-                            <span class="hint" id="hint">{{ __('Dibuja tu firma') }}</span>
+                <div class="seg2" role="tablist">
+                    <button type="button" role="tab" aria-selected="true" id="tabElegir">{{ __('ELEGIR') }}</button>
+                    <button type="button" role="tab" aria-selected="false" id="tabDibujar">{{ __('DIBUJAR') }}</button>
+                </div>
+                <div class="fpane" id="paneElegir">
+                    <div class="stylelist" id="styleList"></div>
+                </div>
+                <div class="fpane" id="paneDibujar" style="display:none">
+                    <div class="markrow">
+                        <div class="markcol">
+                            <span class="marklbl">{{ __('Firma') }}</span>
+                            <div class="sigbox"><span class="base"></span><canvas id="cv"></canvas><span class="hint" id="hint">{{ __('Dibujar firma') }}</span></div>
+                        </div>
+                        <div class="markcol markcol--rub">
+                            <span class="marklbl">{{ __('Iniciales') }}</span>
+                            <div class="sigbox sigbox--rub"><span class="base"></span><canvas id="cvR"></canvas><span class="hint" id="hintR">{{ __('Dibujar iniciales') }}</span></div>
                         </div>
                     </div>
-                    <div class="markcol markcol--rub">
-                        <span class="marklbl">{{ __('Rúbrica') }} <small>{{ __('iniciales o tu marca') }}</small></span>
-                        <div class="sigbox sigbox--rub" id="rubBox">
-                            <span class="base"></span>
-                            <canvas id="cvR"></canvas>
-                            <div class="styled" id="styledR">{{ $iniciales }}</div>
-                            <span class="hint" id="hintR">{{ __('Dibuja tu rúbrica') }}</span>
-                        </div>
-                        <label class="usefirma"><input type="checkbox" id="useFirmaRub"> {{ __('Usar mi firma como rúbrica') }}</label>
-                    </div>
                 </div>
-                @if($adopted ?? false)
-                    <div class="reuse"><a id="reuseSig">{{ __('Usar mi firma guardada') }}</a></div>
-                @endif
             </div>
             @if($needsConsent)
                 <label class="consent"><input type="checkbox" id="cConsent" checked>
@@ -297,13 +306,10 @@
                 <p class="disc">{{ __('Tu firma se sella con SHA-256; el hash acompaña a cada firma como prueba de integridad.') }}</p>
             @endif
             <div class="modal__f">
-                <button type="button" class="link" id="clearSig">{{ __('Limpiar') }}</button>
-                <label class="link" style="text-decoration:none;display:inline-flex;gap:6px;align-items:center;cursor:pointer">
-                    <input type="checkbox" id="saveSig"> {{ __('Guardar para reúso') }}
-                </label>
+                <button type="button" class="link" id="clearSig" style="display:none">{{ __('Limpiar') }}</button>
                 <div class="grow"></div>
                 <button type="button" class="link" id="cancelSig">{{ __('Cancelar') }}</button>
-                <button type="button" class="btn btn--dark" id="adoptSig">{{ __('Adoptar y firmar') }}</button>
+                <button type="button" class="btn btn--dark" id="adoptSig">{{ __('Crear') }}</button>
             </div>
         </div>
     </div>
@@ -453,19 +459,21 @@
             }
         }
 
-        // ── modal adopta · DOS marcas: Firma (completa) + Rúbrica (marca personal) ──
+        // ── modal "Crear su firma" (DocuSign): Nombre + Iniciales; pestañas ELEGIR (estilos) / DIBUJAR ──
         var scrim=document.getElementById('scrim'),
             cv=document.getElementById('cv'), ctx=cv.getContext('2d'),
             cvR=document.getElementById('cvR'), ctxR=cvR.getContext('2d'),
-            fname=document.getElementById('fname'),
-            styled=document.getElementById('styled'), styledR=document.getElementById('styledR'),
+            fname=document.getElementById('fname'), finit=document.getElementById('finit'),
             hint=document.getElementById('hint'), hintR=document.getElementById('hintR'),
-            rubBox=document.getElementById('rubBox'), useFirmaRub=document.getElementById('useFirmaRub'),
-            mode='draw', drawn=false, drawnR=false, pending=null, saveCb=document.getElementById('saveSig'),
-            adoptedSaved=@json($adopted ?? null), INI=@json($iniciales);
+            styleList=document.getElementById('styleList'), clearBtn=document.getElementById('clearSig'),
+            paneElegir=document.getElementById('paneElegir'), paneDibujar=document.getElementById('paneDibujar'),
+            tabElegir=document.getElementById('tabElegir'), tabDibujar=document.getElementById('tabDibujar'),
+            mode='elegir', drawn=false, drawnR=false, pending=null, saveCb=null, styleIdx=0, initEdited=false,
+            FONTS=['"Segoe Script","Bradley Hand",cursive','"Brush Script MT","Segoe Script",cursive','"Lucida Handwriting","Apple Chancery",cursive','"Segoe Print","Comic Sans MS",cursive','"Gabriola","Palatino Linotype",cursive'];
+
         function sizeOne(c,x){ var r=c.getBoundingClientRect(); c.width=r.width*2; c.height=r.height*2; x.setTransform(1,0,0,1,0,0); x.scale(2,2); x.lineWidth=2.6; x.lineCap='round'; x.lineJoin='round'; x.strokeStyle='#16233b'; }
         function sizeCanvas(){ sizeOne(cv,ctx); sizeOne(cvR,ctxR); }
-        function openModal(tag){ pending=tag||null; scrim.classList.add('open'); scrim.setAttribute('aria-hidden','false'); setTimeout(sizeCanvas,60); }
+        function openModal(tag){ pending=tag||null; scrim.classList.add('open'); scrim.setAttribute('aria-hidden','false'); buildStyles(); if(mode==='dibujar'){ setTimeout(sizeCanvas,60); } }
         function closeModal(){ scrim.classList.remove('open'); scrim.setAttribute('aria-hidden','true'); }
         document.getElementById('cancelSig').onclick=closeModal;
         scrim.addEventListener('click', function(e){ if(e.target===scrim) closeModal(); });
@@ -481,22 +489,39 @@
         }
         bindDraw(cv,ctx,function(){drawn=true}); bindDraw(cvR,ctxR,function(){drawnR=true});
 
-        var tabDraw=document.getElementById('tabDraw'), tabType=document.getElementById('tabType');
-        function iniciales(){ var p=(fname.value||'').trim().split(/\s+/).filter(Boolean).slice(0,4).map(function(w){return w.charAt(0).toUpperCase()}).join(''); return p||INI||'—'; }
-        function setMode(m){ mode=m; tabDraw.setAttribute('aria-selected',m==='draw'); tabType.setAttribute('aria-selected',m==='type');
-            cv.style.display=m==='draw'?'block':'none'; styled.style.display=m==='type'?'flex':'none'; hint.style.display=m==='draw'?'block':'none';
-            cvR.style.display=m==='draw'?'block':'none'; styledR.style.display=m==='type'?'flex':'none'; hintR.style.display=m==='draw'?'block':'none';
-            styled.textContent=fname.value||'Tu firma'; styledR.textContent=iniciales(); }
-        tabDraw.onclick=function(){setMode('draw')}; tabType.onclick=function(){setMode('type')};
-        fname.addEventListener('input', function(){ styled.textContent=fname.value||'Tu firma'; styledR.textContent=iniciales(); });
-        document.getElementById('clearSig').onclick=function(){ if(mode==='draw'){ ctx.clearRect(0,0,cv.width,cv.height); drawn=false; ctxR.clearRect(0,0,cvR.width,cvR.height); drawnR=false; } };
-        useFirmaRub.addEventListener('change', function(){ rubBox.classList.toggle('off', this.checked); });
-        var reuseBtn=document.getElementById('reuseSig');
-        if(reuseBtn){ reuseBtn.onclick=function(){ finalizeAdopt(adoptedSaved, adoptedSaved); }; }
+        function esc2(s){ return String(s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+        function iniciales(){ var p=(fname.value||'').trim().split(/\s+/).filter(Boolean).slice(0,4).map(function(w){return w.charAt(0).toUpperCase()}).join(''); return p||'—'; }
+        // ELEGIR: galería de estilos (el mismo nombre+iniciales en varias letras manuscritas).
+        function buildStyles(){
+            var nm=fname.value||'Firma', ini=finit.value||iniciales();
+            styleList.innerHTML=FONTS.map(function(f,i){
+                return '<label class="styleopt'+(i===styleIdx?' sel':'')+'" data-i="'+i+'">'
+                    +'<input type="radio" name="sigstyle"'+(i===styleIdx?' checked':'')+'>'
+                    +'<span class="sname" style="font-family:'+f+'">'+esc2(nm)+'</span>'
+                    +'<span class="sini" style="font-family:'+f+'">'+esc2(ini)+'</span></label>';
+            }).join('');
+            Array.prototype.forEach.call(styleList.querySelectorAll('.styleopt'), function(el){
+                el.addEventListener('click', function(){ styleIdx=parseInt(el.dataset.i,10)||0;
+                    styleList.querySelectorAll('.styleopt').forEach(function(x){x.classList.remove('sel')}); el.classList.add('sel');
+                    var r=el.querySelector('input'); if(r) r.checked=true; });
+            });
+        }
+        // Las iniciales se autocompletan del nombre hasta que el usuario las edita a mano.
+        finit.addEventListener('input', function(){ initEdited=true; buildStyles(); });
+        fname.addEventListener('input', function(){ if(!initEdited){ finit.value=iniciales(); } buildStyles(); });
 
-        function typedImage(text,size){ var c=document.createElement('canvas'); c.width=640; c.height=200; var x=c.getContext('2d');
-            x.fillStyle='#16233b'; x.font='italic '+(size||74)+'px "Segoe Script","Brush Script MT",cursive'; x.textAlign='center'; x.textBaseline='middle';
-            x.fillText(text||'—',320,100); return c.toDataURL('image/png'); }
+        function setMode(m){ mode=m;
+            tabElegir.setAttribute('aria-selected', m==='elegir'); tabDibujar.setAttribute('aria-selected', m==='dibujar');
+            paneElegir.style.display = m==='elegir'?'block':'none'; paneDibujar.style.display = m==='dibujar'?'block':'none';
+            clearBtn.style.display = m==='dibujar'?'inline':'none';
+            if(m==='dibujar'){ setTimeout(sizeCanvas,30); }
+        }
+        tabElegir.onclick=function(){ setMode('elegir'); }; tabDibujar.onclick=function(){ setMode('dibujar'); };
+        clearBtn.onclick=function(){ ctx.clearRect(0,0,cv.width,cv.height); drawn=false; ctxR.clearRect(0,0,cvR.width,cvR.height); drawnR=false; };
+
+        function typedImage(text,font,size){ var c=document.createElement('canvas'); c.width=680; c.height=210; var x=c.getContext('2d');
+            x.fillStyle='#16233b'; x.font='italic '+(size||74)+'px '+(font||'"Segoe Script",cursive'); x.textAlign='center'; x.textBaseline='middle';
+            x.fillText(text||'—',340,105); return c.toDataURL('image/png'); }
 
         function finalizeAdopt(firmaUrl, rubUrl){
             CC.adopted=firmaUrl; CC.rubrica=rubUrl||firmaUrl;
@@ -510,18 +535,19 @@
         document.getElementById('adoptSig').onclick=function(){
             var cc=document.getElementById('cConsent');
             if(cc && !cc.checked){ cc.focus(); var lbl=cc.closest('.consent'); if(lbl) lbl.style.color='#c0392b'; return; }
-            var firmaUrl, rubUrl;
-            if(mode==='draw'){
+            var ini=finit.value||iniciales(), firmaUrl, rubUrl;
+            if(mode==='dibujar'){
                 if(!drawn){ hint.textContent=T.drawFirst; hint.style.color='#c0392b'; return; }
                 firmaUrl=cv.toDataURL('image/png');
-                rubUrl = useFirmaRub.checked ? firmaUrl : (drawnR ? cvR.toDataURL('image/png') : typedImage(iniciales(),90));
+                rubUrl = drawnR ? cvR.toDataURL('image/png') : typedImage(ini, FONTS[0], 92);
             } else {
-                firmaUrl=typedImage(fname.value||'Firma',74);
-                rubUrl = useFirmaRub.checked ? firmaUrl : typedImage(iniciales(),90);
+                var f=FONTS[styleIdx]||FONTS[0];
+                firmaUrl=typedImage(fname.value||'Firma', f, 74);
+                rubUrl=typedImage(ini, f, 92);
             }
             finalizeAdopt(firmaUrl, rubUrl);
         };
-        setMode('draw');
+        setMode('elegir');
 
         // ── construir tabs de documentos ──
         var nav=document.getElementById('docs');
