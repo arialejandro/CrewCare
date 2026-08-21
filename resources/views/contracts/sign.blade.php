@@ -31,6 +31,15 @@
     .card h1{font-size:1.25rem;margin:0 0 .4rem}
     .muted{color:var(--muted);font-size:.92rem}
     .ok{color:var(--ok)} .warn{color:#b7791f}
+    .card--done{text-align:center;max-width:440px}
+    .card--done h1{margin-top:0}
+    .donebadge{width:62px;height:62px;margin:2px auto 14px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--ok-bg);color:var(--ok)}
+    .donebadge--warn{background:#fdf3e2;color:#b7791f}
+    .donebadge svg{width:32px;height:32px}
+    .doneacts{display:flex;flex-direction:column;gap:10px;align-items:center;margin-top:22px}
+    .doneacts .btn{width:100%;max-width:260px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+    .doneacts .note{margin:2px 0 0;font-size:.85rem}
+    .doneacts .closehint{margin:2px 0 0;font-size:.85rem;color:var(--faint)}
     .btn{border:0;border-radius:9px;padding:10px 16px;font-size:14px;font-weight:700;cursor:pointer;
         transition:transform .12s var(--ease),background .18s var(--ease)}
     .btn:active{transform:scale(.97)}
@@ -190,21 +199,49 @@
 </head>
 <body>
 @if($stage === 'done')
-    <div class="center"><div class="card">
+    @php
+        $isWarn    = $envelope->isDeclined() || $envelope->isExpired() || $envelope->isCancelled();
+        $homeUrl   = auth()->check() ? route('home') : null;
+        $verifyUrl = (! $isWarn && $envelope->isCompleted() && $envelope->uuid)
+            ? route('seal.verify', ['tipo' => 'cenv', 'uuid' => $envelope->uuid]) : null;
+    @endphp
+    <div class="center"><div class="card card--done">
         @if($envelope->isDeclined())
+            <div class="donebadge donebadge--warn" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></div>
             <h1 class="warn">{{ __('Contrato rechazado') }}</h1>
             <p class="muted">{{ __('Registramos que no se firmará este contrato. Producción se encargará del siguiente paso.') }}</p>
         @elseif($envelope->isExpired())
+            <div class="donebadge donebadge--warn" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
             <h1 class="warn">{{ __('Sobre vencido') }}</h1>
             <p class="muted">{{ __('El plazo para firmar este contrato ya pasó. Avísale a producción si aún necesitas firmarlo.') }}</p>
         @elseif($envelope->isCancelled())
+            <div class="donebadge donebadge--warn" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg></div>
             <h1 class="warn">{{ __('Sobre anulado') }}</h1>
             <p class="muted">{{ __('Este contrato fue anulado por producción. No hay nada que firmar aquí.') }}</p>
         @else
+            <div class="donebadge" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
             <h1 class="ok">{{ __('¡Listo! Contrato firmado') }}</h1>
             <p class="muted">{{ __('Tu firma quedó estampada y sellada con su hash. Recibirás una copia certificada por correo.') }}</p>
+            @unless($envelope->isCompleted())
+                <p class="muted note">{{ __('Faltan otras firmas del sobre; te avisaremos cuando el contrato quede completo.') }}</p>
+            @endunless
         @endif
+
+        <div class="doneacts">
+            @if($verifyUrl)
+                <a class="btn btn--dark" href="{{ $verifyUrl }}" target="_blank" rel="noopener">{{ __('Verificar la firma') }}</a>
+            @endif
+            @if($homeUrl)
+                <a class="btn btn--ghost" href="{{ $homeUrl }}">{{ __('Ir al inicio') }}</a>
+                <p class="muted note">{{ __('Te llevaremos al inicio en unos segundos…') }}</p>
+            @else
+                <p class="closehint">{{ __('Ya puedes cerrar esta ventana.') }}</p>
+            @endif
+        </div>
     </div></div>
+    @if($homeUrl)
+        <script>setTimeout(function(){ window.location.href = @json($homeUrl); }, 7000);</script>
+    @endif
 @elseif($stage === 'not_turn')
     <div class="center"><div class="card">
         <h1 class="warn">{{ __('Aún no es tu turno') }}</h1>
