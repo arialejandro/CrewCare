@@ -158,7 +158,12 @@
                                     <div class="cc-step__side">
                                         <span class="cc-step__state cc-step__state--{{ $chip[0] }}">{!! $svg($chip[2]) !!}{{ $chip[1] }}</span>
                                         @if($isNow)
-                                            <a href="{{ \App\Http\Controllers\ContractSignController::signUrl($r) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success">{{ __('Abrir firma') }}</a>
+                                            @php $signHref = \App\Http\Controllers\ContractSignController::signUrl($r); @endphp
+                                            <a href="{{ $signHref }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success">{{ __('Abrir firma') }}</a>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary js-copy-link" data-url="{{ $signHref }}" data-copied="{{ __('¡Copiado!') }}">{{ __('Copiar enlace') }}</button>
+                                            @if($r->user_id)
+                                                <span class="d-block small text-muted mt-1">{{ __('Sin panel: firma por este enlace + su 2º factor') }} ({{ \App\Support\ContractSigning::factorType($envelope) === 'rfc' ? __('RFC') : __('fecha de nacimiento') }}).</span>
+                                            @endif
                                         @endif
                                     </div>
                                 </div>
@@ -313,4 +318,26 @@
     .cc-log__time small { opacity: .7; }
     .cc-log__meta { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
 </style>
+@endpush
+
+@push('scripts')
+<script>
+// Copiar enlace de firma: para entregar el enlace a quien no tiene panel (WhatsApp, etc.).
+// El enlace es seguro: al abrirlo pide el 2º factor de la persona (fecha de nacimiento o RFC).
+document.querySelectorAll('.js-copy-link').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        var url = btn.getAttribute('data-url') || '';
+        var done = function () {
+            var t = btn.textContent;
+            btn.textContent = btn.getAttribute('data-copied') || '¡Copiado!';
+            setTimeout(function () { btn.textContent = t; }, 1600);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(done).catch(function () { window.prompt('Copia el enlace:', url); });
+        } else {
+            window.prompt('Copia el enlace:', url);
+        }
+    });
+});
+</script>
 @endpush

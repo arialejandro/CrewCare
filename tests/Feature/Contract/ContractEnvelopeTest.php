@@ -182,6 +182,28 @@ class ContractEnvelopeTest extends QaTestCase
         $this->assertSame('signed_link_2fa', $r->sign_method);
     }
 
+    /**
+     * GOBERNANZA · el CONTRATADO no puede ser además firmante de la PRODUCTORA de su propio contrato
+     * (HOD, preparador, obliga, un puesto…): sería aprobar su propio contrato. El armado lo RECHAZA
+     * con un error claro — no se auto-firma ni se deja en limbo. Hay que asignar a otra persona.
+     */
+    public function test_contracted_cannot_also_be_a_producer_signer(): void
+    {
+        Storage::fake('local');
+
+        // $u es el CONTRATADO (payee) y ADEMÁS ocupa el puesto de preparador de la productora.
+        $u = $this->makeUser('crew');
+        $u->forceFill(['name' => 'Dual', 'lname' => 'Role', 'email' => 'dual@x.mx', 'borndate' => '1990-05-15'])->save();
+        $this->attachPosition($u, $this->prepPos);
+        $bind = $this->makeUser('line-producer');
+        $bind->forceFill(['name' => 'Bind', 'lname' => 'Dos', 'email' => 'bind@x.mx'])->save();
+        $this->attachPosition($bind, $this->bindPos);
+        $payee = Payee::create(['legal_nature' => 'fisica', 'name' => 'Dual Role', 'user_id' => $u->id]);
+
+        $this->expectException(ContractEnvelopeException::class);
+        ContractEnvelopeBuilder::build($this->emitContract(PayeeContract::CONCEPT_CREW, $payee), null);
+    }
+
     // ── B1 · DESTINATARIOS DE COPIA / ENTREGA-CERTIFICADA ────────────────────
 
     /** Una copia NO entra a la ruta de firma: no es turno, no bloquea, no cuenta para completar. */
@@ -552,7 +574,7 @@ class ContractEnvelopeTest extends QaTestCase
 
         // La ceremonia: adopción + contrato como PDF con MI etiqueta (pág 1), NO la ajena (pág 5).
         $this->get(ContractSignController::signUrl($rec))->assertOk()
-            ->assertSee('Adopta tu firma')
+            ->assertSee('Crear su firma')
             ->assertSee('Finalizar y firmar')
             ->assertSee('data-pdf-src', false)
             ->assertSee('"page":1', false)
@@ -692,7 +714,7 @@ class ContractEnvelopeTest extends QaTestCase
         $this->get(ContractSignController::signUrl($rec))->assertOk()
             ->assertSee('Firma de contrato')
             ->assertSee('js/vendor/pdfjs/pdf.min.js', false)
-            ->assertSee('Adopta tu firma');
+            ->assertSee('Crear su firma');
 
         // Firmar el paquete (con consentimiento + FIRMA AUTÓGRAFA obligatoria, DocuSign).
         $signUrl = URL::temporarySignedRoute('contracts.sign.do', now()->addHours(3), ['recipient' => $rec->id]);
