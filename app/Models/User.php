@@ -454,6 +454,12 @@ class User extends Authenticatable
                     return true;
                 }
             }
+            // Consulta de contratos: contabilidad / oficina de producción / producción (los que "ven
+            // todo") entran al panel aunque no tengan otro permiso. Los HOD de cada depto ya entran por
+            // sus permisos y ven lo suyo. Regla en App\Support\ContractVisibility.
+            if (\App\Support\ContractVisibility::seesAll($this)) {
+                return true;
+            }
         } catch (\Throwable $e) {
             // Permiso inexistente en una instancia sin sembrar → no reventar el layout.
         }

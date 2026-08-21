@@ -16,6 +16,7 @@ use App\Support\ContractEnvelopeBuilder;
 use App\Support\ContractEventLog;
 use App\Support\ContractSigning;
 use App\Support\ContractTemplateRenderer;
+use App\Support\ContractVisibility;
 use App\Support\CurrentProduction;
 use App\Support\SignaturePositions;
 use App\Models\User;
@@ -70,6 +71,20 @@ class ContractEnvelopeController extends Controller
     }
 
     /**
+     * Guarda de LECTURA para la CONSULTA de contratos: deja ver/descargar si el usuario ve este sobre
+     * por su departamento ({@see ContractVisibility}) — producción / oficina de producción / contabilidad
+     * ven todo; cada depto ve lo suyo. Si no aplica, cae a la guarda existente del payee (admin/captura).
+     */
+    private function authorizeConsultView(ContractEnvelope $envelope): void
+    {
+        $u = auth()->user();
+        if ($u && $u->canSeePanel() && ContractVisibility::canView($u, $envelope)) {
+            return;
+        }
+        $this->authorize('view', $envelope->contract->payee);
+    }
+
+    /**
      * FASE 1c — el CONTRATO ARMADO con la plantilla activa del subtipo + las firmas REALES del sobre.
      * Cada `[[firma:...]]` se estampa con la autógrafa CONGELADA de su destinatario (o "pendiente" si
      * aún no firma). Prueba viva del lazo plantilla → firma, sin tocar el paquete byte-intact.
@@ -77,7 +92,7 @@ class ContractEnvelopeController extends Controller
     public function templateDocument(Request $request, ContractEnvelope $envelope)
     {
         abort_unless($envelope->contract && $envelope->contract->payee, 404);
-        $this->authorize('view', $envelope->contract->payee);
+        $this->authorizeConsultView($envelope);
 
         $contract = $envelope->contract;
         $template = ContractTemplate::activeFor($envelope->production_id, $contract->concept);
@@ -233,7 +248,7 @@ class ContractEnvelopeController extends Controller
     public function certificate(Request $request, ContractEnvelope $envelope)
     {
         abort_unless($envelope->contract && $envelope->contract->payee, 404);
-        $this->authorize('view', $envelope->contract->payee);
+        $this->authorizeConsultView($envelope);
 
         $html = \App\Support\ContractCompletionCertificate::html($envelope);
 
@@ -252,7 +267,7 @@ class ContractEnvelopeController extends Controller
     public function signedDocument(Request $request, ContractEnvelope $envelope)
     {
         abort_unless($envelope->contract && $envelope->contract->payee, 404);
-        $this->authorize('view', $envelope->contract->payee);
+        $this->authorizeConsultView($envelope);
 
         $meta = $envelope->signed_document ?? [];
         abort_unless(! empty($meta['path']) && Storage::disk('local')->exists($meta['path']), 404);
@@ -265,7 +280,7 @@ class ContractEnvelopeController extends Controller
     public function signedAnnex(Request $request, ContractEnvelope $envelope, int $index)
     {
         abort_unless($envelope->contract && $envelope->contract->payee, 404);
-        $this->authorize('view', $envelope->contract->payee);
+        $this->authorizeConsultView($envelope);
 
         $anx = ($envelope->signed_annexes ?? [])[$index] ?? null;
         abort_unless($anx && ! empty($anx['path']) && Storage::disk('local')->exists($anx['path']), 404);
@@ -278,7 +293,7 @@ class ContractEnvelopeController extends Controller
     public function document(Request $request, ContractEnvelope $envelope, int $index)
     {
         abort_unless($envelope->contract && $envelope->contract->payee, 404);
-        $this->authorize('view', $envelope->contract->payee);
+        $this->authorizeConsultView($envelope);
 
         return self::serveDocument($envelope, $index);
     }

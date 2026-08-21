@@ -984,6 +984,10 @@ Route::middleware(['auth'])->group(function () {
     // FASE 3c — el CERTIFICADO DE CIERRE (constancia del proceso de firma). HTML, o ?pdf=1 para PDF.
     Route::get('/contratos/sobre/{envelope}/certificado', [\App\Http\Controllers\ContractEnvelopeController::class, 'certificate'])->name('contracts.envelope.certificate')->whereNumber('envelope');
 
+    // CONSULTA de contratos (SOLO LECTURA), por departamento. Prod/Oficina de Prod/Contabilidad ven
+    // todo; cada depto ve lo suyo (App\Support\ContractVisibility). Sin acciones de administración.
+    Route::get('/contratos/consultar', [\App\Http\Controllers\ContractConsultController::class, 'index'])->name('contracts.consult.index');
+
     // FIRMAS PENDIENTES (la "cola" de firmas a escala). Bandeja personal (auto-limitada al propio
     // usuario) + lote detrás del flag; el TABLERO por figura es de administración (settings.manage).
     Route::get('/contratos/firmas-pendientes',       [\App\Http\Controllers\PendingSignatureController::class, 'index'])->name('contracts.pending.index');

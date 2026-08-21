@@ -27,6 +27,9 @@
     // INFOSHEETS POR AUTORIZAR · conteo de la bandeja del autorizador (badge). Se auto-limita a lo que
     // este usuario puede autorizar (canAuthorize); sin permiso especial. Cacheado por-request.
     $__pendingAuth = \Auth::check() ? \App\Support\InfosheetSigning::countForUser(\Auth::user()) : 0;
+    // CONSULTA DE CONTRATOS · quién ve la entrada "Contratos" (por departamento). Producción / Oficina
+    // de Producción / Contabilidad y super-admin ven todo; cada depto ve lo suyo. Ver ContractVisibility.
+    $__seesContracts = \Auth::check() ? \App\Support\ContractVisibility::seesAny($__u) : false;
 @endphp
 
 <style>
@@ -271,6 +274,12 @@
                         @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
                         <span>{{ __('Infosheets por autorizar') }}</span>
                         <span class="badge rounded-pill text-bg-warning ms-auto">{{ $__pendingAuth }}</span>
+                    </a>
+                    @endif
+                    @if($__seesContracts)
+                    <a href="{{ route('contracts.consult.index') }}" class="cc-item">
+                        @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
+                        <span>{{ __('Contratos') }}</span>
                     </a>
                     @endif
                 </div></div>
@@ -678,6 +687,12 @@
                             @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('Infosheets por autorizar') }}</span>
                             <span class="badge rounded-pill text-bg-warning ms-auto">{{ $__pendingAuth }}</span>
+                        </a>
+                        @endif
+                        @if($__seesContracts)
+                        <a href="{{ route('contracts.consult.index') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Contratos') }}</span>
                         </a>
                         @endif
                     </div></div>
