@@ -842,11 +842,14 @@
             if(!all.length){ return null; }
             return all[Math.min(all.length, Math.max(1, p)) - 1];   // clamp a las hojas existentes
         }
+        // La hoja MÁS visible en el scroll: se compara por rects de viewport (no offsetTop, cuyo
+        // offsetParent no es el contenedor con scroll → siempre daba página 1).
         function visibleSheetPage(){
             var desk = wrap.querySelector('.cc-fm-desk'), all = sheetsEl.querySelectorAll('.cc-fm-sheet');
-            if(!all.length || !desk){ return 1; }
-            var mid = desk.scrollTop + desk.clientHeight / 2, best = 1, bd = 1e9;
-            all.forEach(function(s, i){ var c = s.offsetTop + s.offsetHeight / 2, d = Math.abs(c - mid); if(d < bd){ bd = d; best = i + 1; } });
+            if(!all.length){ return 1; }
+            var dr = desk ? desk.getBoundingClientRect() : { top: 0, height: window.innerHeight };
+            var midY = dr.top + dr.height / 2, best = 1, bd = 1e9;
+            all.forEach(function(s, i){ var r = s.getBoundingClientRect(); var c = r.top + r.height / 2; var d = Math.abs(c - midY); if(d < bd){ bd = d; best = i + 1; } });
             return best;
         }
         function labelOf(f){ return f.type === 'firma' ? (ANCHORS[f.key] || f.key) : (f.type === 'rubrica' ? 'RB Rúbrica' : '📅 Fecha'); }
