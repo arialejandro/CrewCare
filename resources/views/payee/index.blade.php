@@ -20,6 +20,11 @@
             </div>
 
             <div class="d-flex flex-column align-items-lg-end gap-2">
+                @if(\App\Support\ContractVisibility::seesAny(auth()->user()))
+                    <a href="{{ route('providers.create') }}" class="btn btn-crew">
+                        @include('componentes._icon', ['name' => 'plus', 'label' => null]) {{ __('Nuevo proveedor') }}
+                    </a>
+                @endif
                 <form method="GET" action="{{ route('payees.index') }}" class="d-flex flex-wrap gap-2" role="search">
                     <input type="search" name="q" value="{{ $q }}" class="form-control" style="min-width:220px"
                            placeholder="{{ __('Buscar por nombre o RFC…') }}" aria-label="{{ __('Buscar') }}">
