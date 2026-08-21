@@ -103,6 +103,7 @@ class ContractCeremony
                     'x_pct' => (float) $f['x_pct'],
                     'y_pct' => (float) $f['y_pct'],
                     'w_pct' => (float) ($f['w_pct'] ?? 24),
+                    'key'   => (string) ($f['key'] ?? ''),   // el front distingue rúbrica de firma
                 ],
                 array_filter($tpl->signFields(), fn ($f) => in_array((string) ($f['key'] ?? ''), $mine, true))
             ));

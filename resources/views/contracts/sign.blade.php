@@ -88,6 +88,9 @@
         transition:transform .12s var(--ease),background .15s var(--ease)}
     .ccmk:hover{background:#ffd968;transform:translateY(-1px)}
     .ccmk:active{transform:scale(.97)}
+    /* Rúbrica (iniciales): etiqueta compacta y en tono violeta para distinguirla de la firma. */
+    .ccmk.small{padding:5px 8px;font-size:11px;background:#e9defb;border-color:#b794f4;color:#5b21b6}
+    .ccmk.small:hover{background:#ddd0f7}
     .ccmk.pulse{animation:pulse 1.2s var(--ease)}
     @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(234,166,0,.55)}100%{box-shadow:0 0 0 16px rgba(234,166,0,0)}}
     .ccmk.applied{background:#fff;border:1px solid #d8dcff;box-shadow:0 1px 3px rgba(16,24,40,.1);cursor:default;
@@ -284,7 +287,7 @@
     <script>
     (function(){
         'use strict';
-        var T={ sign:@json(__('✎ Firmar')), signedBy:@json(__('Firmado por:')), integ:@json(__('íntegra')),
+        var T={ sign:@json(__('✎ Firmar')), rubrica:@json(__('🅡 Rúbrica')), signedBy:@json(__('Firmado por:')), integ:@json(__('íntegra')),
                 fail:@json(__('No se pudo mostrar aquí. Usa "Abrir en pestaña".')), seal:@json(__('Sello SHA-256')),
                 drawFirst:@json(__('Dibuja tu firma primero')) };
         if(window.pdfjsLib){ pdfjsLib.GlobalWorkerOptions.workerSrc=@json(asset('js/vendor/pdfjs/pdf.worker.min.js')); }
@@ -410,10 +413,11 @@
             function place(){
                 tags.forEach(function(f){
                     var o=ov[parseInt(f.page,10)]; if(!o) return;
-                    var mk=document.createElement('button'); mk.type='button'; mk.className='ccmk';
-                    mk.style.left=f.x_pct+'%'; mk.style.top=f.y_pct+'%'; mk.style.minWidth=f.w_pct+'%'; mk.textContent=T.sign;
+                    var isRub=(f.key==='rubrica');
+                    var mk=document.createElement('button'); mk.type='button'; mk.className='ccmk'+(isRub?' small':'');
+                    mk.style.left=f.x_pct+'%'; mk.style.top=f.y_pct+'%'; mk.style.minWidth=f.w_pct+'%'; mk.textContent=isRub?T.rubrica:T.sign;
                     o.appendChild(mk);
-                    var tag={docIdx:docIdx, el:mk, small:false, focus:function(){ mk.scrollIntoView({behavior:'smooth',block:'center'}); mk.classList.add('pulse'); setTimeout(function(){mk.classList.remove('pulse')},1200); }};
+                    var tag={docIdx:docIdx, el:mk, small:isRub, focus:function(){ mk.scrollIntoView({behavior:'smooth',block:'center'}); mk.classList.add('pulse'); setTimeout(function(){mk.classList.remove('pulse')},1200); }};
                     mk.addEventListener('click', function(){ apply(tag); });
                     register(tag);
                 });

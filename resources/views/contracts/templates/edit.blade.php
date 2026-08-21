@@ -373,8 +373,8 @@
 .cc-fm-field .fd{position:absolute;top:-9px;right:-9px;width:20px;height:20px;border-radius:50%;background:#fff;border:1px solid #d7dce4;color:#c0392b;font-size:14px;line-height:17px;cursor:pointer;display:none;box-shadow:0 1px 3px rgba(0,0,0,.15);z-index:3}
 .cc-fm-field:hover .fd,.cc-fm-field.sel .fd{display:block}
 .cc-fm-field .fh{position:absolute;top:-8px;left:6px;font-size:8px;font-weight:800;background:#fff;padding:0 4px;border-radius:3px;color:inherit}
-/* Popover para asignar firmante */
-.cc-fm-pop{position:absolute;z-index:20;background:#fff;border:1px solid var(--border,#d7dce4);border-radius:10px;box-shadow:0 8px 26px rgba(16,20,30,.18);padding:8px;display:none;min-width:180px}
+/* Popover para asignar firmante (fixed → junto al campo, sin depender de ancestros con scroll/transform) */
+.cc-fm-pop{position:fixed;z-index:1200;background:var(--surface,#fff);border:1px solid var(--border,#d7dce4);border-radius:10px;box-shadow:0 10px 30px rgba(16,20,30,.28);padding:10px;display:none;min-width:200px}
 .cc-fm-pop.open{display:block}
 .cc-fm-pop label{display:block;font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#6b7482);margin-bottom:4px}
 .cc-fm-pop select{width:100%;height:32px;border:1px solid var(--border,#d7dce4);border-radius:8px;font-size:.82rem;padding:0 8px;background:#fff;color:var(--text,#1a1a1a)}
@@ -869,7 +869,10 @@
         // Render de HOJAS paginadas (cliente): reusa la misma paginación medida del editor.
         function renderSheets(){
             var box = contentBox(), d = box.d;
-            var items = measureItems(serialize(), box.w);
+            // En modo Firmas las firmas van por coordenadas → se ocultan del texto las anclas inline
+            // `[[firma:…]]` residuales del editor viejo (no se ven como texto crudo).
+            var body = serialize().replace(/\[\[firma:[a-z0-9_:\-]+(?:\|-?\d+,-?\d+)?\]\]/gi, '');
+            var items = measureItems(body, box.w);
             var pages = splitPages(items, box.h);
             sheetsEl.innerHTML = '';
             pages.forEach(function(idxs, pi){
@@ -904,7 +907,7 @@
             var opts = Object.keys(ANCHORS).filter(function(k){ return k !== 'rubrica'; })
                 .map(function(k){ return '<option value="' + esc(k) + '">' + esc(ANCHORS[k]) + '</option>'; }).join('');
             pop.innerHTML = '<label>' + esc('¿Quién firma aquí?') + '</label><select>' + opts + '</select>';
-            wrap.appendChild(pop);
+            document.body.appendChild(pop);   // fixed → cuelga del body (fuera de ancestros con scroll/transform)
             pop.querySelector('select').addEventListener('change', function(){
                 if(selected && selected.type === 'firma'){ selected.key = this.value; selected.el.querySelector('.fl').textContent = labelOf(selected); }
             });
@@ -913,9 +916,9 @@
         function openPop(f){
             ensurePop();
             pop.querySelector('select').value = f.key;
-            var r = f.el.getBoundingClientRect(), wr = wrap.getBoundingClientRect();
-            pop.style.left = Math.max(0, r.left - wr.left) + 'px';
-            pop.style.top = (r.bottom - wr.top + 6) + 'px';
+            var r = f.el.getBoundingClientRect(), pw = 210;   // coords de VIEWPORT (position:fixed)
+            pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 12)) + 'px';
+            pop.style.top = Math.min(r.bottom + 6, window.innerHeight - 100) + 'px';
             pop.classList.add('open');
         }
         function selectField(f){
