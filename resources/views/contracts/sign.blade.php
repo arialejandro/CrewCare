@@ -383,11 +383,27 @@
             });
             refresh();
         }
-        function nextTag(){ var t=CC.tags.filter(function(x){return !x.applied})[0]; if(t){ t.focus(); } }
+        // Posición ABSOLUTA del tag en la página (reading order). Para tags dentro de un iframe
+        // el rect es relativo al iframe → hay que sumar el offset del iframe (igual que focus()).
+        function tagPos(t){
+            try{
+                var el=t.el, doc=el.ownerDocument, r=el.getBoundingClientRect(), ox=0, oy=0;
+                if(doc!==document){ var fr=doc.defaultView&&doc.defaultView.frameElement; if(fr){ var fb=fr.getBoundingClientRect(); ox=fb.left; oy=fb.top; } }
+                return { y: window.scrollY+oy+r.top, x: window.scrollX+ox+r.left };
+            }catch(e){ return {y:0,x:0}; }
+        }
+        // Pendientes en orden de lectura: por Y (arriba→abajo) y, en la misma fila, por X (izq→der).
+        function pendingSorted(){
+            return CC.tags.filter(function(x){return !x.applied})
+                .map(function(t){ var p=tagPos(t); return {t:t,y:p.y,x:p.x}; })
+                .sort(function(a,b){ return (Math.abs(a.y-b.y)>6 ? a.y-b.y : a.x-b.x); })
+                .map(function(o){ return o.t; });
+        }
+        function nextTag(){ var p=pendingSorted()[0]; if(p){ p.focus(); } }
         function register(t){ t.applied=false; CC.tags.push(t); }
 
         // ── barra + start + finish ──
-        start.onclick=function(){ if(!CC.adopted){ openModal(CC.tags[0]||null); return; } nextTag(); };
+        start.onclick=function(){ if(!CC.adopted){ openModal(pendingSorted()[0]||null); return; } nextTag(); };
         finish.onclick=function(){ if(finish.disabled) return; fSig.value=CC.adopted; if(fRubrica){ fRubrica.value=CC.rubrica||CC.adopted; } signForm.submit(); };
 
         // ── documentos HTML (iframe embebido) ──
