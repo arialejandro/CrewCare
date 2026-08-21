@@ -99,6 +99,60 @@ class ProviderController extends Controller
     }
 
     /**
+     * CARRIL 2 — agrega un contrato de RENTA/SERVICIO a una identidad YA existente (el driver que ya es
+     * crew y renta su auto, o un proveedor con un segundo trato). REUSA el payee (no duplica). Si es
+     * renta, captura la REFERENCIA MÍNIMA del vehículo (gancho para el módulo de Transportación). El
+     * contrato hereda el departamento de sus otros contratos (o el del que da de alta) y su propia
+     * frecuencia de pago — distinta del contrato de trabajo.
+     */
+    public function addContract(Request $request, Payee $payee)
+    {
+        $this->authorize('capture', $payee);
+
+        $data = $request->validate([
+            'concept'           => ['required', 'in:equipment_rental,service'],
+            'title'             => ['nullable', 'string', 'max:191'],
+            'fee_amount'        => ['nullable', 'numeric', 'min:0'],
+            'fee_currency'      => ['nullable', 'in:MXN,USD'],
+            'payment_frequency' => ['nullable', 'in:weekly,biweekly,day_player'],
+            'asset_make'        => ['nullable', 'string', 'max:60'],
+            'asset_model'       => ['nullable', 'string', 'max:60'],
+            'asset_plate'       => ['nullable', 'string', 'max:20'],
+            'asset_year'        => ['nullable', 'integer', 'min:1900', 'max:2100'],
+        ]);
+
+        // Ficha mínima del vehículo/equipo SOLO en renta (gancho a Transportación).
+        $assetRef = null;
+        if ($data['concept'] === PayeeContract::CONCEPT_RENTAL) {
+            $ref = array_filter([
+                'make'  => $data['asset_make'] ?? null,
+                'model' => $data['asset_model'] ?? null,
+                'plate' => $data['asset_plate'] ?? null,
+                'year'  => $data['asset_year'] ?? null,
+            ], fn ($v) => $v !== null && $v !== '');
+            $assetRef = $ref ?: null;
+        }
+
+        $deptId = $payee->contracts()->whereNotNull('department_id')->value('department_id')
+            ?: $request->user()->ownDepartmentIds()->first();
+
+        $payee->contracts()->create([
+            'production_id'         => CurrentProduction::id(),
+            'concept'               => $data['concept'],
+            'title'                 => $data['title'] ?? null,
+            'asset_ref'             => $assetRef,
+            'department_id'         => $deptId,
+            'contracted_by_user_id' => $request->user()->id,
+            'fee_amount'            => $data['fee_amount'] ?? null,
+            'fee_currency'          => $data['fee_currency'] ?? 'MXN',
+            'payment_frequency'     => $data['payment_frequency'] ?? null,
+            'is_active'             => 1,
+        ]);
+
+        return back()->with('status', __('Contrato agregado.'));
+    }
+
+    /**
      * Departamentos donde ESTE usuario puede dar de alta proveedores: ve-todo (producción / oficina de
      * producción / contabilidad / super-admin / bypass) → todos; el resto → su(s) departamento(s).
      */

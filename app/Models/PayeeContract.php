@@ -50,7 +50,7 @@ class PayeeContract extends Model
     const ROSTER_OUT        = 'out';           // vencido o inactivo (o no es crew_work)
 
     protected $fillable = [
-        'payee_id', 'fiscal_regime_id', 'production_id', 'concept', 'title',
+        'payee_id', 'fiscal_regime_id', 'production_id', 'concept', 'title', 'asset_ref',
         'contracted_by_user_id', 'payment_frequency', 'is_repse',
         'notes', 'is_active', 'sort_order', 'created_by_id',
         // PASO A · CARÁTULA crew_work (todo NULL en rental/service). La frecuencia de honorarios
@@ -81,6 +81,7 @@ class PayeeContract extends Model
     protected $casts = [
         'is_repse'   => 'boolean',
         'is_active'  => 'boolean',
+        'asset_ref'  => 'array',
         'sort_order' => 'integer',
         // PASO A · carátula crew_work
         'effective_date'             => 'date',

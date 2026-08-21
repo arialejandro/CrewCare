@@ -893,6 +893,8 @@ Route::middleware(['auth','permission:payees.view'])->group(function () {
     // ALTA DE PROVEEDOR (carril proveedor puro, fuera del llamado). Antes del {payee} numérico.
     Route::get('/payees/proveedor/nuevo',          [\App\Http\Controllers\ProviderController::class, 'create'])->name('providers.create');
     Route::post('/payees/proveedor',               [\App\Http\Controllers\ProviderController::class, 'store'])->name('providers.store');
+    // CARRIL 2 · agregar un contrato de renta/servicio a una identidad existente (reusa el payee).
+    Route::post('/payees/{payee}/contrato',        [\App\Http\Controllers\ProviderController::class, 'addContract'])->name('payees.contract.store')->whereNumber('payee');
     Route::get('/payees/descargas.zip',            [\App\Http\Controllers\PayeeController::class, 'downloadBulk'])->name('payees.documents.bulk');
     Route::get('/payees/{payee}',                  [\App\Http\Controllers\PayeeController::class, 'show'])->name('payees.show')->whereNumber('payee');
     Route::get('/payees/{payee}/documento/{doc}',  [\App\Http\Controllers\PayeeController::class, 'document'])->name('payees.document')->whereNumber('payee')->whereNumber('doc');

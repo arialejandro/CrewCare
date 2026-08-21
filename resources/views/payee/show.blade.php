@@ -190,7 +190,12 @@
                             <tbody>
                                 @foreach($payee->contracts as $c)
                                     <tr>
-                                        <td data-label="{{ __('Concepto') }}">{{ $conceptLabels[$c->concept] ?? $c->concept }}</td>
+                                        <td data-label="{{ __('Concepto') }}">
+                                            {{ $conceptLabels[$c->concept] ?? $c->concept }}
+                                            @if($c->asset_ref)
+                                                <div class="small text-muted">{{ __('Vehículo') }}: {{ collect($c->asset_ref)->only(['make','model','year','plate'])->filter()->implode(' · ') }}</div>
+                                            @endif
+                                        </td>
                                         <td data-label="{{ __('Contrata') }}">{{ optional($c->contractedBy)->name ? trim($c->contractedBy->name.' '.$c->contractedBy->lname) : '—' }}</td>
                                         <td data-label="{{ __('Régimen') }}">
                                             @php
@@ -224,6 +229,57 @@
                         </table>
                     </div>
                 @endif
+
+                {{-- CARRIL 2 · agregar renta/servicio a ESTA identidad (el driver que ya es crew y renta
+                     su auto, o un proveedor con otro trato). Reusa el payee; la ficha del vehículo solo
+                     aparece en renta. --}}
+                @can('capture', $payee)
+                    <div class="mt-3 pt-3 border-top">
+                        <button class="btn btn-sm btn-crew-soft" type="button" data-bs-toggle="collapse" data-bs-target="#addContractForm">
+                            @include('componentes._icon', ['name' => 'plus', 'label' => null]) {{ __('Agregar contrato (renta / servicio)') }}
+                        </button>
+                        <div class="collapse mt-3" id="addContractForm">
+                            <form method="POST" action="{{ route('payees.contract.store', $payee) }}" class="row g-2">
+                                @csrf
+                                <div class="col-md-4">
+                                    <label class="form-label small mb-1">{{ __('Concepto') }}</label>
+                                    <select name="concept" id="ac_concept" class="form-select form-select-sm">
+                                        <option value="service">{{ __('Servicio') }}</option>
+                                        <option value="equipment_rental">{{ __('Renta de equipo') }}</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label small mb-1">{{ __('Descripción') }}</label>
+                                    <input type="text" name="title" class="form-control form-control-sm" maxlength="191" placeholder="{{ __('Ej.: renta de camioneta') }}">
+                                </div>
+                                <div class="col-12" id="ac_asset" style="display:none">
+                                    <div class="row g-2">
+                                        <div class="col-6 col-md-3"><label class="form-label small mb-1">{{ __('Marca') }}</label><input name="asset_make" class="form-control form-control-sm" maxlength="60"></div>
+                                        <div class="col-6 col-md-3"><label class="form-label small mb-1">{{ __('Modelo') }}</label><input name="asset_model" class="form-control form-control-sm" maxlength="60"></div>
+                                        <div class="col-6 col-md-3"><label class="form-label small mb-1">{{ __('Placa') }}</label><input name="asset_plate" class="form-control form-control-sm" maxlength="20" style="text-transform:uppercase"></div>
+                                        <div class="col-6 col-md-3"><label class="form-label small mb-1">{{ __('Año') }}</label><input type="number" name="asset_year" class="form-control form-control-sm" min="1900" max="2100"></div>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4"><label class="form-label small mb-1">{{ __('Monto') }}</label><input type="number" step="0.01" min="0" name="fee_amount" class="form-control form-control-sm"></div>
+                                <div class="col-6 col-md-4"><label class="form-label small mb-1">{{ __('Moneda') }}</label><select name="fee_currency" class="form-select form-select-sm"><option value="MXN">MXN</option><option value="USD">USD</option></select></div>
+                                <div class="col-12 col-md-4"><label class="form-label small mb-1">{{ __('Frecuencia') }}</label>
+                                    <select name="payment_frequency" class="form-select form-select-sm">
+                                        <option value="">{{ __('—') }}</option>
+                                        @foreach(\App\Models\PayeeContract::frequencies() as $fv => $fl)<option value="{{ $fv }}">{{ $fl }}</option>@endforeach
+                                    </select>
+                                </div>
+                                <div class="col-12"><button class="btn btn-sm btn-crew" type="submit">{{ __('Agregar contrato') }}</button></div>
+                            </form>
+                        </div>
+                    </div>
+                    @push('scripts')
+                    <script>
+                    (function(){ var c=document.getElementById('ac_concept'), a=document.getElementById('ac_asset');
+                        if(!c||!a) return; function s(){ a.style.display = c.value==='equipment_rental' ? '' : 'none'; }
+                        c.addEventListener('change', s); s(); })();
+                    </script>
+                    @endpush
+                @endcan
             </div>
         </div>
 

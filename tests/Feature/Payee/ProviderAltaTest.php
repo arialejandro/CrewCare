@@ -94,4 +94,48 @@ class ProviderAltaTest extends QaTestCase
         $crew = $this->makeUser('crew');   // sin payees.view → ni siquiera entra al módulo
         $this->actingAs($crew)->get(route('providers.create'))->assertForbidden();
     }
+
+    /**
+     * CARRIL 2 — el driver que YA es crew renta su auto: se AGREGA un contrato de renta a su MISMA
+     * identidad (no se duplica), con su propia frecuencia y la ficha mínima del vehículo.
+     */
+    public function test_add_rental_contract_with_vehicle_to_existing_crew_identity(): void
+    {
+        $hod = $this->hodInDept('Transportación');
+
+        $driver = $this->makeUser('crew');
+        DB::table('production_user')->updateOrInsert(
+            ['production_id' => $this->prodId, 'user_id' => $driver->id],
+            ['department_id' => $this->deptId('Transportación'), 'role' => 'crew', 'is_lead' => 0, 'created_at' => now(), 'updated_at' => now()]
+        );
+        $payee = Payee::create(['legal_nature' => 'fisica', 'name' => 'Juan Driver', 'user_id' => $driver->id]);
+        $payee->contracts()->create([
+            'production_id' => $this->prodId, 'concept' => 'crew_work',
+            'department_id' => $this->deptId('Transportación'), 'contracted_by_user_id' => $hod->id,
+            'payment_frequency' => 'weekly', 'is_active' => 1,
+        ]);
+
+        $this->actingAs($hod)->post(route('payees.contract.store', $payee), [
+            'concept'           => 'equipment_rental',
+            'title'             => 'Renta de camioneta',
+            'fee_amount'        => 8000,
+            'fee_currency'      => 'MXN',
+            'payment_frequency' => 'biweekly',
+            'asset_make'        => 'Toyota',
+            'asset_model'       => 'Hilux',
+            'asset_plate'       => 'ABC123',
+            'asset_year'        => 2020,
+        ])->assertRedirect();
+
+        $payee->refresh()->load('contracts');
+        $this->assertCount(2, $payee->contracts, 'una identidad, dos contratos (trabajo + renta)');
+
+        $rental = $payee->contracts->firstWhere('concept', 'equipment_rental');
+        $this->assertNotNull($rental);
+        $this->assertSame('biweekly', $rental->payment_frequency, 'frecuencia propia, distinta del trabajo');
+        $this->assertSame('Toyota', $rental->asset_ref['make'] ?? null);
+        $this->assertSame('Hilux', $rental->asset_ref['model'] ?? null);
+        $this->assertSame(2020, (int) ($rental->asset_ref['year'] ?? 0));
+        $this->assertSame('ABC123', $rental->asset_ref['plate'] ?? null);
+    }
 }
