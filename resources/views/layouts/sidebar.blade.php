@@ -298,6 +298,29 @@
                     <div class="cc-sec-body"><div class="cc-sec-body__inner">
                         {{-- (2026-08-07) El "nuevo" se movió a la ACCIÓN PRIMARIA de cada lista
                              (arriba a la derecha). El menú deja UNA entrada por módulo: la lista. --}}
+                        {{-- (2026-08-23) Roster RETIRADO por el owner (redundante con el llamado): detrás
+                             del flag roster_day_view, apagado por default. --}}
+                        @feature('roster_day_view')
+                        @can('crew.view')
+                            <a href="{{ route('roster.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'calendar', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Roster del día') }}</span>
+                            </a>
+                        @endcan
+                        @endfeature
+                        {{-- (2026-08-23) Llamado: motor de horarios + back exportable (oficina de producción). --}}
+                        @can('callsheet.manage')
+                            <a href="{{ route('callsheet.landing') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'clapperboard', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Llamado del día') }}</span>
+                            </a>
+                        @endcan
+                        @can('settings.manage')
+                            <a href="{{ route('deliveries.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'send', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Distribución') }}</span>
+                            </a>
+                        @endcan
                         @can('users.view')
                             <a href="{{ route('usuarioscrud') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'users', 'class' => 'cc-item__ico', 'label' => null])
@@ -617,6 +640,10 @@
                         @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
                     </button>
                     <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                        <a href="{{ route('production.calendar.edit') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'calendar', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>Calendario de rodaje</span>
+                        </a>
                         <a href="{{ route('settings.branding.edit') }}" class="cc-item">
                             @include('componentes._icon', ['name' => 'settings', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('nav.settings_branding') }}</span>
@@ -709,6 +736,26 @@
                         </button>
                         <div class="cc-sec-body"><div class="cc-sec-body__inner">
                             {{-- (2026-08-07) El "nuevo" es la acción primaria de cada lista. --}}
+                            @feature('roster_day_view')
+                            @can('crew.view')
+                                <a href="{{ route('roster.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'calendar', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Roster del día') }}</span>
+                                </a>
+                            @endcan
+                            @endfeature
+                            @can('callsheet.manage')
+                                <a href="{{ route('callsheet.landing') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'clapperboard', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Llamado del día') }}</span>
+                                </a>
+                            @endcan
+                            @can('settings.manage')
+                                <a href="{{ route('deliveries.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'send', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Distribución') }}</span>
+                                </a>
+                            @endcan
                             @can('users.view')
                                 <a href="{{ route('usuarioscrud') }}" class="cc-item">
                                     @include('componentes._icon', ['name' => 'users', 'class' => 'cc-item__ico', 'label' => null])
@@ -1023,6 +1070,10 @@
                             @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
                         </button>
                         <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                            <a href="{{ route('production.calendar.edit') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'calendar', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>Calendario de rodaje</span>
+                            </a>
                             <a href="{{ route('settings.branding.edit') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'settings', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.settings_branding') }}</span>

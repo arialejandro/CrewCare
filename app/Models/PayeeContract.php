@@ -45,9 +45,14 @@ class PayeeContract extends Model
     // unique(production_id,user_id) de production_user, que queda intacto.
     // ⚠ La CADENA completa (contrato firmado + autorizado) es una PUERTA que se añade en el
     // Paso C (el sobre): "sin ruta de firma completa no produce roster". Aquí va solo la base.
-    const ROSTER_CALLED     = 'called';       // activo + fecha ese día
+    const ROSTER_CALLED     = 'called';       // activo + fecha ese día + sobre completado
     const ROSTER_NOT_CALLED = 'not_called';   // activo, sin fecha ese día
-    const ROSTER_OUT        = 'out';           // vencido o inactivo (o no es crew_work)
+    const ROSTER_OUT        = 'out';           // inactivo, o DAY PLAYER vencido (el crew fijo no vence), o no crew_work
+    // 4º estado (2026-08-22, vista del roster): tiene fecha de trabajo ese día PERO el sobre de
+    // firma no está completo → NO cuenta como llamado (la puerta no cambia), pero deja de ser
+    // invisible: es el caso accionable "debería estar hoy y no ha firmado". Lo DERIVA la consulta
+    // agregada del roster (DayRosterBuilder); rosterStateOn() —para un contrato suelto— NO cambia.
+    const ROSTER_PENDING_SIGNATURE = 'pending_signature';
 
     protected $fillable = [
         'payee_id', 'fiscal_regime_id', 'production_id', 'concept', 'title', 'asset_ref',
@@ -211,34 +216,72 @@ class PayeeContract extends Model
     }
 
     /**
-     * ESTADO DEL ROSTER de este contrato en una fecha: LLAMADO / NO LLAMADO / FUERA.
-     *  - FUERA: no es crew_work, o está inactivo, o ya venció (fecha > vigencia definitiva).
-     *  - LLAMADO: activo y con una fila de fecha de trabajo ese día.
-     *  - NO LLAMADO: activo, sin fila ese día.
-     * No necesita fila por-persona-por-día → "apagar" = vencer/inactivar el contrato.
-     * 🔴 PUERTA (Paso C): un contrato SIN su sobre de firma COMPLETADO NO produce roster → nunca
-     * aparece llamado. Se superpone al mapeo base (activo + fecha + vigencia).
+     * FUENTE ÚNICA del estado de roster de UNA fila/contrato en una fecha (PARTE C, 2026-08-23).
+     * La usan POR IGUAL {@see \App\Support\DayRosterBuilder::stateOf} (consulta agregada, por fila) y
+     * {@see rosterStateOn} (contrato suelto): así NO hay una segunda implementación del mapeo.
+     *
+     * DOS POBLACIONES, distinguidas por la frecuencia del periodo de pago:
+     *  - CREW FIJO (weekly / biweekly / NULL): el VENCIMIENTO no lo saca; se queda hasta el wrap.
+     *    Sólo lo sacan is_active=0 (contrato apagado) o users.activo=0 (persona dada de baja —
+     *    filtrado en la consulta agregada, ver PARTE G).
+     *  - DAY PLAYER (day_player): el vencimiento SÍ opera → pasada la vigencia definitiva, FUERA.
+     *
+     * 4 estados: OUT (inactivo, o day player vencido) · NOT_CALLED (sin fecha) · CALLED (fecha +
+     * sobre completado) · PENDING_SIGNATURE (fecha ese día pero SIN sobre completado — la PUERTA:
+     * nunca cuenta como llamado, pero es visible y accionable, no invisible).
+     *
+     * NO valida concept: eso es concern del contrato suelto (rosterStateOn lo guarda antes); la
+     * consulta agregada ya filtra concept=crew_work.
      */
-    public function rosterStateOn($date): string
-    {
-        if (! $this->isCrewWork() || ! $this->is_active) {
+    public static function resolveRosterState(
+        bool $isActive,
+        ?string $frequency,
+        $definitiveEndDate,
+        bool $called,
+        bool $envelopeCompleted,
+        $date
+    ): string {
+        if (! $isActive) {
             return self::ROSTER_OUT;
         }
 
-        if (! $this->hasCompletedEnvelope()) {
-            return self::ROSTER_OUT;   // sin ruta de firma completa, no aparece llamado ningún día
+        // Vencimiento: SÓLO para day players. El crew fijo no cae a OUT por vencer (se queda con N/C).
+        if ($frequency === self::FREQ_DAY_PLAYER && $definitiveEndDate) {
+            $day = $date instanceof Carbon ? $date->copy()->startOfDay() : Carbon::parse($date)->startOfDay();
+            if (Carbon::parse($definitiveEndDate)->startOfDay()->lt($day)) {
+                return self::ROSTER_OUT;
+            }
         }
 
-        $day = $date instanceof Carbon ? $date->copy()->startOfDay() : Carbon::parse($date)->startOfDay();
-
-        if ($this->definitive_end_date
-            && Carbon::parse($this->definitive_end_date)->startOfDay()->lt($day)) {
-            return self::ROSTER_OUT;   // vencido
+        if (! $called) {
+            return self::ROSTER_NOT_CALLED;
         }
 
+        return $envelopeCompleted ? self::ROSTER_CALLED : self::ROSTER_PENDING_SIGNATURE;
+    }
+
+    /**
+     * ESTADO DEL ROSTER de este contrato en una fecha — HELPER DE UNA SOLA FILA. Delega en
+     * {@see resolveRosterState} (la fuente única). Un contrato que no es crew_work nunca produce
+     * roster (guarda propia del contrato suelto). Devuelve los 4 estados, igual que la agregada.
+     */
+    public function rosterStateOn($date): string
+    {
+        if (! $this->isCrewWork()) {
+            return self::ROSTER_OUT;
+        }
+
+        $day    = $date instanceof Carbon ? $date->copy()->startOfDay() : Carbon::parse($date)->startOfDay();
         $called = $this->workDates()->whereDate('work_date', $day->toDateString())->exists();
 
-        return $called ? self::ROSTER_CALLED : self::ROSTER_NOT_CALLED;
+        return self::resolveRosterState(
+            (bool) $this->is_active,
+            $this->payment_frequency,
+            $this->definitive_end_date,
+            $called,
+            $this->hasCompletedEnvelope(),
+            $day
+        );
     }
 
     /**

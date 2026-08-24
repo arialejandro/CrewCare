@@ -35,6 +35,9 @@ class FeatureFlagController extends Controller
             'contracts_queue_email'   => 'Contratos · correos de firma en segundo plano (cola)',
             'contracts_batch_signing' => 'Contratos · firma en lote (varios a la vez)',
             'contracts_queue_render'  => 'Contratos · render del contrato firmado en segundo plano (cola)',
+            'roster_day_view'         => 'Roster del día (vista rápida "¿quién trabaja hoy?")',
+            'callsheet_wrap_estimate' => 'Llamado · campo de wrap estimado',
+            'callsheet_extra_docs'    => 'Llamado · adjuntar PDF adicional al paquete (después del back)',
         ];
     }
 

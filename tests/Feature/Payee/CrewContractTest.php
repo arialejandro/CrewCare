@@ -79,25 +79,49 @@ class CrewContractTest extends QaTestCase
 
     public function test_roster_state_mapping(): void
     {
-        $c = $this->crewContract(['definitive_end_date' => '2026-10-31']);
+        // CREW FIJO (weekly): base del roster + PUERTA de firma (PARTE C).
+        $c = $this->crewContract(['definitive_end_date' => '2026-10-31', 'payment_frequency' => 'weekly']);
         $c->workDates()->create(['work_date' => '2026-09-08', 'phase' => PayeeContractWorkDate::PHASE_SHOOT]);
 
-        // 🔴 PUERTA (Paso C): sin sobre de firma COMPLETADO, no aparece llamado ningún día.
-        $this->assertSame(PayeeContract::ROSTER_OUT, $c->rosterStateOn('2026-09-08'), 'sin sobre completado = fuera');
+        // 🔴 PUERTA: con fecha ese día pero SIN sobre completado = PENDIENTE DE FIRMA (visible,
+        // accionable — no invisible, no fuera). Nunca cuenta como llamado.
+        $this->assertSame(PayeeContract::ROSTER_PENDING_SIGNATURE, $c->rosterStateOn('2026-09-08'), 'fecha ese día sin sobre = pendiente de firma');
+        $this->assertSame(PayeeContract::ROSTER_NOT_CALLED,        $c->rosterStateOn('2026-09-09'), 'sin fecha ese día = no llamado');
 
-        // Con el sobre completado, aplica el mapeo base (activo + fecha + vigencia).
+        // Con el sobre completado, el día con fecha pasa a LLAMADO.
         ContractEnvelope::create([
             'payee_contract_id' => $c->id, 'production_id' => $c->production_id,
             'status' => ContractEnvelope::STATUS_COMPLETED,
         ]);
 
-        $this->assertSame(PayeeContract::ROSTER_CALLED,     $c->rosterStateOn('2026-09-08'), 'activo + fecha = llamado');
+        $this->assertSame(PayeeContract::ROSTER_CALLED,     $c->rosterStateOn('2026-09-08'), 'activo + fecha + sobre = llamado');
         $this->assertSame(PayeeContract::ROSTER_NOT_CALLED, $c->rosterStateOn('2026-09-09'), 'activo sin fecha = no llamado');
-        $this->assertSame(PayeeContract::ROSTER_OUT,        $c->rosterStateOn('2026-11-15'), 'después de la vigencia definitiva = fuera');
+        // 🔴 CREW FIJO vencido: NO cae a fuera; se queda hasta el wrap (PARTE C). Sin fecha ese día → no llamado.
+        $this->assertSame(PayeeContract::ROSTER_NOT_CALLED, $c->rosterStateOn('2026-11-15'), 'crew fijo vencido sigue en el roster (no llamado)');
 
-        // Vencer/inactivar lo saca sin borrar nada.
+        // Inactivar el CONTRATO sí lo saca, sin borrar nada.
         $c->update(['is_active' => 0]);
-        $this->assertSame(PayeeContract::ROSTER_OUT, $c->fresh()->rosterStateOn('2026-09-08'), 'inactivo = fuera');
+        $this->assertSame(PayeeContract::ROSTER_OUT, $c->fresh()->rosterStateOn('2026-09-08'), 'contrato inactivo = fuera');
         $this->assertSame(1, $c->workDates()->count(), 'las fechas siguen ahí (no se borran)');
+    }
+
+    public function test_day_player_vence_pero_crew_fijo_no(): void
+    {
+        // DAY PLAYER: el vencimiento SÍ opera (PARTE C).
+        $dp = $this->crewContract(['definitive_end_date' => '2026-10-31', 'payment_frequency' => 'day_player']);
+        ContractEnvelope::create([
+            'payee_contract_id' => $dp->id, 'production_id' => $dp->production_id,
+            'status' => ContractEnvelope::STATUS_COMPLETED,
+        ]);
+        $this->assertSame(PayeeContract::ROSTER_NOT_CALLED, $dp->rosterStateOn('2026-10-15'), 'day player vigente sin fecha = no llamado');
+        $this->assertSame(PayeeContract::ROSTER_OUT,        $dp->rosterStateOn('2026-11-15'), 'day player vencido = fuera');
+
+        // Crew FIJO en la misma fecha vencida NO cae a fuera.
+        $fx = $this->crewContract(['definitive_end_date' => '2026-10-31', 'payment_frequency' => 'biweekly']);
+        ContractEnvelope::create([
+            'payee_contract_id' => $fx->id, 'production_id' => $fx->production_id,
+            'status' => ContractEnvelope::STATUS_COMPLETED,
+        ]);
+        $this->assertSame(PayeeContract::ROSTER_NOT_CALLED, $fx->rosterStateOn('2026-11-15'), 'crew fijo vencido = no llamado (sigue)');
     }
 }

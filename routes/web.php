@@ -170,6 +170,59 @@ Route::middleware(['auth','permission:users.assign-role'])->group(function () {
 Route::middleware(['auth','permission:crew.view'])->group(function () {
     Route::get('/searchusers/{valor}/',[App\Http\Controllers\SearchController::class,'users'])->name('searchusers');
     Route::get('/searchidcard/{valor}/',[App\Http\Controllers\SearchController::class,'idcards'])->name('searchidcard');
+    // ROSTER "¿quién trabaja hoy?" (2026-08-22): SOLO LECTURA, navegable por fecha. El HOD lo ve
+    // acotado a su depto (applyDepartmentScope); producción/coordinación ven todo.
+    Route::get('/roster',[App\Http\Controllers\RosterController::class,'index'])->name('roster.index');
+});
+
+// ---- LLAMADO · motor de horarios + back exportable (PARTES D/E/F) ----
+// Herramienta de OFICINA DE PRODUCCIÓN → gate callsheet.manage (super-admin/line-producer/coordinator;
+// el HOD usa el roster de solo-lectura). {date} = Y-m-d. Todo se guarda como OFFSET (CallSheetEngine).
+Route::middleware(['auth','permission:callsheet.manage'])->group(function () {
+    $cs = App\Http\Controllers\CallSheetController::class;
+    Route::get('/llamado', [$cs, 'landing'])->name('callsheet.landing');
+    Route::get('/llamado/lugares',  [$cs, 'places'])->name('callsheet.places');
+    Route::post('/llamado/lugares', [$cs, 'savePlaces'])->name('callsheet.places.save');
+    Route::get('/llamado/notas',  [$cs, 'notes'])->name('callsheet.notes');
+    Route::post('/llamado/notas', [$cs, 'saveNotes'])->name('callsheet.notes.save');
+    Route::get('/llamado/formato',  [$cs, 'format'])->name('callsheet.format');
+    Route::post('/llamado/formato', [$cs, 'saveFormat'])->name('callsheet.format.save');
+    Route::get('/llamado/{date}/paquete',            [$cs, 'package'])->name('callsheet.package')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/paquete/front',     [$cs, 'uploadFront'])->name('callsheet.package.front')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/paquete/front/off', [$cs, 'removeFront'])->name('callsheet.package.front.remove')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/paquete/pdf',        [$cs, 'packageMerged'])->name('callsheet.package.pdf')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/paquete/back',       [$cs, 'downloadBack'])->name('callsheet.package.back')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/paquete/front-pdf',  [$cs, 'frontFile'])->name('callsheet.package.front.file')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/paquete/firmas',     [$cs, 'signLayout'])->name('callsheet.package.layout')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/paquete/firmas',    [$cs, 'saveSignLayout'])->name('callsheet.package.layout.save')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/paquete/enviar',    [$cs, 'sendForApproval'])->name('callsheet.package.send')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/paquete/firmar',     [$cs, 'signScreen'])->name('callsheet.package.sign')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/paquete/firmar',    [$cs, 'sign'])->name('callsheet.package.sign.do')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/paquete/estado',     [$cs, 'packageState'])->name('callsheet.package.state')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/paquete/reabrir',   [$cs, 'reopenPackage'])->name('callsheet.package.reopen')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/paquete/adicional',     [$cs, 'uploadExtra'])->name('callsheet.package.extra')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/paquete/adicional/off', [$cs, 'removeExtra'])->name('callsheet.package.extra.remove')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/paquete/enviar-crew', [$cs, 'sendToCrew'])->name('callsheet.package.send.crew')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/paquete/envio-estado', [$cs, 'packageDeliveryState'])->name('callsheet.package.delivery.state')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/comidas/restablecer', [$cs, 'regenMeals'])->name('callsheet.meals.regen')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/config',  [$cs, 'config'])->name('callsheet.config')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/config', [$cs, 'saveConfig'])->name('callsheet.config.save')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/departamentos',  [$cs, 'departments'])->name('callsheet.departments')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/departamentos', [$cs, 'saveDepartments'])->name('callsheet.departments.save')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/personas',  [$cs, 'people'])->name('callsheet.people')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/personas', [$cs, 'savePeople'])->name('callsheet.people.save')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/back', [$cs, 'back'])->name('callsheet.back')->where('date', '\d{4}-\d{2}-\d{2}');
+});
+
+// ---- DISTRIBUCIÓN · envío de documentos con marca de agua por persona (reusa el outbox del llamado) ----
+// Mandar a todo el sitio es acción de administración → gate settings.manage. El cron drena el outbox.
+Route::middleware(['auth','permission:settings.manage'])->group(function () {
+    $fd = App\Http\Controllers\FileDeliveryController::class;
+    Route::get('/distribucion',              [$fd, 'index'])->name('deliveries.index');
+    Route::get('/distribucion/nuevo',        [$fd, 'create'])->name('deliveries.create');
+    Route::post('/distribucion',             [$fd, 'store'])->name('deliveries.store');
+    Route::get('/distribucion/{delivery}',   [$fd, 'show'])->name('deliveries.show')->whereNumber('delivery');
+    Route::get('/distribucion/{delivery}/estado', [$fd, 'state'])->name('deliveries.state')->whereNumber('delivery');
 });
 
 // ---- RBAC: asignación de rol + departamento (pantalla #3) ----
@@ -557,6 +610,10 @@ Route::middleware(['auth','permission:injury.view'])->group(function () {
 Route::middleware(['auth','permission:settings.manage'])->group(function () {
     Route::get('/settings/branding', [App\Http\Controllers\BrandingController::class, 'edit'])->name('settings.branding.edit');
     Route::post('/settings/branding', [App\Http\Controllers\BrandingController::class, 'update'])->name('settings.branding.update');
+
+    // PARTE A · CALENDARIO DE RODAJE: inicio + semanas + días/semana → total y wrap estimado.
+    Route::get('/settings/calendario',  [App\Http\Controllers\ProductionCalendarController::class, 'edit'])->name('production.calendar.edit');
+    Route::post('/settings/calendario', [App\Http\Controllers\ProductionCalendarController::class, 'update'])->name('production.calendar.update');
 });
 
 // ---- CATÁLOGOS (departamentos / puestos / notificaciones) ----

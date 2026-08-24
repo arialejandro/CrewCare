@@ -46,4 +46,18 @@ return [
     'contracts_queue_email'   => false,
     'contracts_batch_signing' => false,
     'contracts_queue_render'  => false,
+
+    // Llamado del día (2026-08-23).
+    //  - roster_day_view:        la vista rápida "¿quién trabaja hoy?" (/roster). RETIRADA por el owner
+    //                            (redundante con el llamado); apagada por default, se puede reactivar.
+    //  - callsheet_wrap_estimate: muestra el campo de WRAP estimado en la config del llamado y en el back.
+    //                            Apagada por default; al encenderla aparece el campo de hora de wrap.
+    'roster_day_view'         => false,
+    'callsheet_wrap_estimate' => false,
+
+    //  - callsheet_extra_docs: permite adjuntar PDF(s) ADICIONAL(es) al paquete del llamado, después
+    //                          del back ([front → back → adicionales]). Algunas producciones mandan
+    //                          documentos extra (mapas, avisos). Apagado por default; todo el paquete
+    //                          se envía con marca de agua por persona igual.
+    'callsheet_extra_docs'    => false,
 ];

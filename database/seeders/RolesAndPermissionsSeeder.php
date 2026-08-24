@@ -46,6 +46,10 @@ class RolesAndPermissionsSeeder extends Seeder
             'crew.view.contact',          // ver teléfono/email en resultados de búsqueda
             'crew.view.personal',         // ver fecha de nacimiento / sexo
             'crew.view.all-departments',  // alcance: ver TODOS los departamentos (ausencia ⇒ solo su propio departamento)
+            // LLAMADO — armar/editar el back del día (motor de horarios). Herramienta de OFICINA DE
+            // PRODUCCIÓN: super-admin/line-producer/coordinator. NO el HOD (usa el roster de lectura),
+            // NI medic/safety-officer/auditor (que tienen all-departments pero no arman llamados). 2026-08-23.
+            'callsheet.manage',
             // Catalogs (departments / positions / notifications)
             'catalogs.view', 'catalogs.manage',
             // H&S — Injuries
@@ -58,6 +62,10 @@ class RolesAndPermissionsSeeder extends Seeder
             'dsr.view', 'dsr.create', 'dsr.update', 'dsr.export',
             // Reports (cross-cutting view/export — auditor relevant)
             'reports.view', 'reports.export',
+            // Consolidación de reportes de seguridad: ver TODOS los DSR/Injury/Actos/Condiciones
+            // sin importar el autor. Espejo de medical.consolidate (KEY MEDIC). Aísla a los safety
+            // entre sí: el safety-officer NO lo tiene → solo ve lo suyo (2026-08-21, auditoría #1).
+            'safety.consolidate',
             // Medical (sensitive)
             'medical.view', 'medical.create', 'medical.update',
             'medical.materials', // conteo interno de medicamentos (presupuesto/materialidad) — 2026-07-06
@@ -138,12 +146,14 @@ class RolesAndPermissionsSeeder extends Seeder
             'users.assign-role', 'users.assign-department',
             'crew.register', 'crew.view',
             'crew.view.contact', 'crew.view.all-departments',
+            'callsheet.manage', // arma el back del día (oficina de producción)
             'catalogs.view', 'catalogs.manage',
             'injury.view', 'injury.create', 'injury.manage',
             'hazards.view', 'hazards.create', 'hazards.manage',
             'locations.view', 'locations.create', 'locations.manage',
             'dsr.view', 'dsr.create', 'dsr.update', 'dsr.export',
             'reports.view', 'reports.export',
+            'safety.consolidate', // ve TODOS los reportes de seguridad (consolidación de producción)
             'medical.view', // ve consultas médicas (matriz de menú, owner 2026-06-24) — dato sensible
             'medical.materials', // conteo interno de medicamentos (presupuesto/materialidad) — 2026-07-06
             'documents.view', 'documents.create', 'documents.assign', 'documents.sign',
@@ -160,11 +170,13 @@ class RolesAndPermissionsSeeder extends Seeder
             'users.view', 'users.create', 'users.update', 'users.assign-department',
             'crew.register', 'crew.view',
             'crew.view.contact', 'crew.view.all-departments',
+            'callsheet.manage', // arma el back del día (oficina de producción)
             'catalogs.view',
             'injury.view', 'hazards.view',
             'locations.view', 'locations.create', // Scoutings / crear scouting (matriz de menú, owner 2026-06-24)
             'dsr.view',
             'reports.view',
+            'safety.consolidate', // Coord de Prod: ve TODOS los reportes de seguridad (consolidación)
             'medical.view', // ve consultas médicas / expediente (grant de menú médico, 2026-07-06) — dato sensible
             'documents.view', 'documents.create', 'documents.assign', 'documents.sign',
             'badge.design', // diseñar plantilla de gafete (2026-07-06)
@@ -244,8 +256,9 @@ class RolesAndPermissionsSeeder extends Seeder
         $viewOnly = Permission::where('name', 'like', '%.view')
             ->where('name', '!=', 'medical.view')
             ->pluck('name')->all();
-        // Auditor read-only: + ver TODOS los departamentos, pero SIN PII (contact/personal).
-        $roles['auditor']->syncPermissions(array_merge($viewOnly, ['crew.view.all-departments']));
+        // Auditor read-only: + ver TODOS los departamentos, pero SIN PII (contact/personal),
+        // + consolidación de reportes de seguridad (compliance ve todos los DSR/Injury/Actos/Cond.).
+        $roles['auditor']->syncPermissions(array_merge($viewOnly, ['crew.view.all-departments', 'safety.consolidate']));
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 

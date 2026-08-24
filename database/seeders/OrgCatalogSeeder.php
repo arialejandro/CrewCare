@@ -25,7 +25,7 @@ class OrgCatalogSeeder extends Seeder
                 ['Director', true], ['Asistente de Director', false],
                 ['Continuista', false], ['Asst. Continuista', false],
             ]],
-            'Asistente de Dirección' => ['1', [
+            'Asistentes de Dirección' => ['1', [
                 ['1er AD', true], ['Key 2nd AD', false], ['2nd AD', false],
                 ['2nd 2nd AD', false], ['Key Set PA', false], ['Set PA', false], ['Cast PA', false],
             ]],
@@ -38,7 +38,11 @@ class OrgCatalogSeeder extends Seeder
                 ['Coordinador de Viajes', false], ['Asst. de Coordinador de Viajes', false],
                 ['Asst. de Oficina de Producción', false], ['Recepción de Oficina', false],
             ]],
-            'Producción Ejecutiva' => ['3', [
+            // (2026-08-23) RENOMBRADO 'Producción Ejecutiva' → 'Productores' (canónico del call sheet;
+            // el owner: "es el mismo bloque con distinto nombre, aparece uno o el otro"). El registro
+            // y sus puestos se conservan; solo cambia la etiqueta. SignaturePositions::SIGNER_DEPARTMENTS
+            // se actualizó en paralelo (lo referencia por nombre).
+            'Productores' => ['3', [
                 ['Productor Ejecutivo', true], ['Coord. Ejecutivo', false],
                 ['Jefa de Equipo', false], ['Ejecutivo Creativo', false],
                 ['Asistente Ejecutivo', false], ['Coordinador Ejecutivo', false],
@@ -69,7 +73,8 @@ class OrgCatalogSeeder extends Seeder
             'Sonido' => ['7', [
                 ['Sonido Directo', true], ['Operador de Boom', false], ['Utility', false],
             ]],
-            'Video/VTR' => ['7', [
+            // (2026-08-23) RENOMBRADO 'Video/VTR' → 'Video Assist, DIT y Data' (canónico del call sheet).
+            'Video Assist, DIT y Data' => ['7', [
                 ['Operador de VTR', true], ['Asistente de Video', false],
             ]],
             'Maquillaje y Peinados' => ['9', [
@@ -164,7 +169,7 @@ class OrgCatalogSeeder extends Seeder
             'Música' => [null, [
                 ['Supervisora de Música', true],
             ]],
-            'VFX' => [null, [
+            'Efectos Visuales' => [null, [
                 ['Productor de VFX', true], ['Supervisor de VFX', true],
                 ['Supervisor de VFX en Set', false],
             ]],
@@ -177,7 +182,7 @@ class OrgCatalogSeeder extends Seeder
                 ['Contador Fiscal', false], ['Auxiliar de Contabilidad', false],
                 ['Asistente de Contabilidad', false],
             ]],
-            'Catering' => ['13', [
+            'Alimentación' => ['13', [
                 ['Coordinador de Craft', true], ['Cafetero', false],
                 ['Asst. Cafetero', false], ['Crew de Cocina', false],
             ]],
@@ -194,7 +199,7 @@ class OrgCatalogSeeder extends Seeder
                 ['Coordinador de Seguridad', true], ['Coordinador HG', false],
                 ['Elemento de Seguridad HG', false],
             ]],
-            'A.N.D.A.' => [null, [
+            'ANDA' => [null, [
                 ['Delegada del A.N.D.A.', false],
             ]],
             // (2026-07-18) Destilación EFD: son TRES cosas DISTINTAS, no "Ambulancia (EFD)" bajo S&S.
@@ -202,7 +207,7 @@ class OrgCatalogSeeder extends Seeder
             //   · Ambulancia = su PROPIO depto (servicio médico), NO Salud y Seguridad ni EFD.
             //   · Animalero = su propio depto (antes colgaba de Utilería).
             // El owner-apply 2026-07-18-departments-animalero-equipo.sql hace lo mismo en BD ya sembrada.
-            'Animalero' => [null, [
+            'Animales' => [null, [
                 ['Animalero', false],
             ]],
             'Equipo' => [null, [
@@ -217,6 +222,17 @@ class OrgCatalogSeeder extends Seeder
                 ['Coordinadora de Intimidad', false], ['Intérprete de Señas', false],
                 ['Foto Fija', false],
             ]],
+            // (2026-08-23) LOS SEIS DEPTOS FALTANTES del call sheet real (bloque owner PARTE B). Nacen
+            // SIN puestos: el owner-apply hace lo mismo en BD ya sembrada. NO se mueven puestos que hoy
+            // viven bajo otro depto (Continuista→Dirección, Foto Fija→Otros, Coordinador de Craft→Catering,
+            // Director de Casting de Extras→Extras): eso alteraría la agrupación de crew ya asignado y va
+            // como decisión aparte. El sort_order y name_en se fijan en el paso canónico de abajo.
+            'Continuidad'       => [null, []],
+            'Casting de Extras' => [null, []],
+            'Foto Fija'         => [null, []],
+            'Craft Service'     => [null, []],
+            'Servicios Médicos' => [null, []],
+            'Legal y Clearance' => [null, []],
         ];
 
         $deptCount = 0;
@@ -236,6 +252,65 @@ class OrgCatalogSeeder extends Seeder
                 );
                 $posCount++;
             }
+        }
+
+        // -----------------------------------------------------------------------------------------
+        // ORDEN CANÓNICO DEL CALL SHEET + name_en (bloque owner PARTE B, 2026-08-23).
+        // Una fila por depto: [sort_order, name_en]. El sort_order es la POSICIÓN×10 (deja hueco para
+        // insertar). Los name_en son la traducción del back bilingüe. Los nombres en ESPAÑOL se
+        // conservan tal cual (solo se renombraron 'Productores' y 'Video Assist, DIT y Data', arriba):
+        // Nombres en ESPAÑOL alineados a la lista canónica del owner (2026-08-23, 2ª pasada): se
+        // renombraron VFX→Efectos Visuales, Animalero→Animales, Catering→Alimentación, A.N.D.A.→ANDA,
+        // Asistente→Asistentes de Dirección (arriba, en las keys del catálogo). 'Crew Adicional' NO es
+        // depto (bucket sintético del back).
+        $canonical = [
+            'Productores'              => [10,  'Producers'],
+            'Dirección'                => [20,  'Direction'],
+            'Escritores'               => [30,  'Writers'],
+            'Producción'               => [40,  'Production'],
+            'Oficina de Producción'    => [50,  'Production Office'],
+            'Asistentes de Dirección'  => [60,  'Assistant Directors'],
+            'Continuidad'              => [70,  'Continuity'],
+            'Casting'                  => [80,  'Casting'],
+            'Casting de Extras'        => [90,  'Extras Casting'],
+            'Cámara'                   => [100, 'Camera'],
+            'Video Assist, DIT y Data' => [110, 'Video Assist, DIT & Data'],
+            'Sonido'                   => [120, 'Sound'],
+            'Eléctricos'               => [130, 'Electric'],
+            'Grips'                    => [140, 'Grip'],
+            'Rigging'                  => [150, 'Rigging'],
+            'Foto Fija'                => [160, 'Still Photography'],
+            'Arte'                     => [170, 'Art Department'],
+            'Decoración'               => [180, 'Set Decoration'],
+            'Utilería'                 => [190, 'Property'],
+            'Construcción'             => [200, 'Construction'],
+            'Vestuario'                => [210, 'Wardrobe'],
+            'Maquillaje y Peinados'    => [220, 'Make-Up & Hair'],
+            'Efectos Especiales'       => [230, 'Special Effects'],
+            'Efectos Visuales'         => [240, 'Visual Effects'],
+            'Stunts'                   => [250, 'Stunts'],
+            'Picture Cars'             => [260, 'Picture Cars'],
+            'Animales'                 => [270, 'Animals'],
+            'Extras'                   => [280, 'Background'],
+            'Locaciones'               => [290, 'Locations'],
+            'Transportación'           => [300, 'Transportation'],
+            'Alimentación'             => [310, 'Catering'],
+            'Craft Service'            => [320, 'Craft Service'],
+            'Equipo'                   => [330, 'Equipment'],
+            'Ambulancia'               => [340, 'Ambulance'],
+            'Seguridad'                => [350, 'Security'],
+            'Salud y Seguridad'        => [360, 'Health & Safety'],
+            'Servicios Médicos'        => [370, 'Medic'],
+            'Sustentabilidad'          => [380, 'Sustainability'],
+            'Contabilidad'             => [390, 'Accounting'],
+            'Legal y Clearance'        => [400, 'Legal & Clearance'],
+            'ANDA'                     => [410, 'ANDA'],
+            'Post Producción'          => [420, 'Post Production'],
+            'Música'                   => [430, 'Music'],
+            'Otros'                    => [440, 'Other'],
+        ];
+        foreach ($canonical as $name => [$sort, $nameEn]) {
+            Department::where('name', $name)->update(['sort_order' => $sort, 'name_en' => $nameEn]);
         }
 
         $this->command->info("Departments seeded: {$deptCount} | Positions processed: {$posCount}");

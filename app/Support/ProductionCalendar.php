@@ -155,6 +155,115 @@ class ProductionCalendar
     }
 
     // ---------------------------------------------------------------------------------------
+    // Calendario PLANEADO (PARTE A) — la "M" de "Día N de M" y el wrap estimado
+    // ---------------------------------------------------------------------------------------
+    //
+    // DOS FUENTES QUE NO SE PISAN:
+    //   · PLANEADO  → shoot_weeks × shoot_days_per_week da la M y el wrap estimado (esta sección).
+    //   · REAL      → los DSR declaran el día que OCURRIÓ (shootDates/shootDaysCount, más abajo).
+    // Si divergen (día de lluvia, company move), la divergencia se MUESTRA, no se resuelve sola
+    // (ver scheduleSummary + el panel de configuración). Decisión del owner.
+
+    /**
+     * DÍAS DE RODAJE POR SEMANA planeados (5 o 6). Default 6 (semana lunes-a-sábado, consistente con
+     * la prep). Es lo que separa una semana de 5 de una de 6 al derivar el wrap.
+     */
+    public static function shootDaysPerWeek(): int
+    {
+        $prod = CurrentProduction::get();
+        $d = $prod ? (int) ($prod->shoot_days_per_week ?? 0) : 0;
+
+        return ($d === 5 || $d === 6) ? $d : self::PREP_WEEK_DAYS;
+    }
+
+    /**
+     * LA "M": TOTAL de días de rodaje PLANEADOS = semanas × días/semana. null si la producción no
+     * configuró su calendario (entonces el encabezado dice sólo "Día N"). Distinto de
+     * shootDaysCount(), que cuenta los días REALES con DSR.
+     *
+     * @return int|null
+     */
+    public static function plannedShootDays()
+    {
+        $prod = CurrentProduction::get();
+        if (! $prod) {
+            return null;
+        }
+        $weeks   = (int) ($prod->shoot_weeks ?? 0);
+        $perWeek = (int) ($prod->shoot_days_per_week ?? 0);
+        if ($weeks <= 0 || ($perWeek !== 5 && $perWeek !== 6)) {
+            return null;
+        }
+
+        return $weeks * $perWeek;
+    }
+
+    /**
+     * WRAP ESTIMADO derivado: la fecha del día de rodaje número M contando desde el ancla (día 1),
+     * saltando los NO laborables de la semana configurada (domingo si 6/sem; sábado+domingo si
+     * 5/sem). null si falta ancla o calendario. Es el DEFAULT del wrap; `end_date` lo sobrescribe.
+     *
+     * @return \Carbon\Carbon|null
+     */
+    public static function plannedWrapDate()
+    {
+        $m     = self::plannedShootDays();
+        $ancla = self::anchorDate();
+        if ($m === null || $ancla === null) {
+            return null;
+        }
+
+        return self::advanceWorkingDays($ancla->copy(), $m - 1, self::shootDaysPerWeek());
+    }
+
+    /**
+     * RESUMEN calendario PLANEADO vs REAL para el panel de configuración y el tablero. NO resuelve la
+     * divergencia — la EXPONE: días planeados vs días con DSR, y cuántos días de rodaje "deberían"
+     * llevar contra los que llevan. `divergence` > 0 = por detrás del plan (lluvia/company move);
+     * = 0 al día; null si aún no hay con qué comparar.
+     *
+     * @return array
+     */
+    public static function scheduleSummary()
+    {
+        $prod     = CurrentProduction::get();
+        $start    = self::anchorDate();
+        $m        = self::plannedShootDays();
+        $perWeek  = self::shootDaysPerWeek();
+        $realDays = self::shootDaysCount();
+        $dates    = self::shootDates();
+        $lastReal = ! empty($dates) ? Carbon::parse(end($dates))->startOfDay() : null;
+
+        // "Deberían" = días laborables (según la semana configurada) del ancla a HOY, tope en M.
+        // Se compara contra los días REALES con DSR. La diferencia es la señal de atraso.
+        $divergence = null;
+        if ($start !== null) {
+            $hoy = Carbon::now()->startOfDay();
+            if ($hoy->gte($start)) {
+                $expected = self::countWorkingDays($start, $hoy, $perWeek);
+                if ($m !== null) {
+                    $expected = min($expected, $m);
+                }
+                $divergence = $expected - $realDays;
+            }
+        }
+
+        return [
+            'configured'    => $m !== null,
+            'start'         => $start,
+            'weeks'         => $prod && $prod->shoot_weeks !== null ? (int) $prod->shoot_weeks : null,
+            'days_per_week' => $perWeek,
+            'planned_total' => $m,                        // la M
+            'planned_wrap'  => self::plannedWrapDate(),   // wrap derivado
+            'set_wrap'      => self::wrapDate(),          // wrap ajustado (end_date)
+            'real_days'     => $realDays,                 // días con DSR
+            'last_real'     => $lastReal,
+            'today_n'       => self::dayNumber(Carbon::now()),
+            'divergence'    => $divergence,
+        ];
+    }
+
+    // ---------------------------------------------------------------------------------------
     // El contador
     // ---------------------------------------------------------------------------------------
 
@@ -244,6 +353,59 @@ class ProductionCalendar
     }
 
     /**
+     * Avanza $steps días LABORABLES desde $from (que cuenta como día 1). Con 6/semana salta domingos;
+     * con 5/semana salta sábado y domingo. Guardarraíl contra rangos absurdos (fecha corrupta).
+     */
+    private static function advanceWorkingDays(Carbon $from, int $steps, int $daysPerWeek): Carbon
+    {
+        $cur = $from->copy()->startOfDay();
+        if ($steps <= 0) {
+            return $cur;
+        }
+        $counted = 0;
+        $guard   = 0;
+        while ($counted < $steps && $guard < 3650) {
+            $cur->addDay();
+            $guard++;
+            $isOff = ($cur->dayOfWeek === Carbon::SUNDAY)
+                || ($daysPerWeek <= 5 && $cur->dayOfWeek === Carbon::SATURDAY);
+            if (! $isOff) {
+                $counted++;
+            }
+        }
+
+        return $cur;
+    }
+
+    /**
+     * Cuenta los días LABORABLES en [$desde, $hasta] (AMBOS inclusive), según la semana configurada
+     * (6/sem salta domingo; 5/sem salta sábado+domingo). Lo usa scheduleSummary para los "esperados".
+     */
+    private static function countWorkingDays(Carbon $desde, Carbon $hasta, int $daysPerWeek): int
+    {
+        $ini = $desde->copy()->startOfDay();
+        $fin = $hasta->copy()->startOfDay();
+        if ($ini->gt($fin)) {
+            return 0;
+        }
+        if ($ini->diffInDays($fin) > 3650) {
+            return 0;
+        }
+        $n   = 0;
+        $cur = $ini->copy();
+        while ($cur->lte($fin)) {
+            $isOff = ($cur->dayOfWeek === Carbon::SUNDAY)
+                || ($daysPerWeek <= 5 && $cur->dayOfWeek === Carbon::SATURDAY);
+            if (! $isOff) {
+                $n++;
+            }
+            $cur->addDay();
+        }
+
+        return $n;
+    }
+
+    /**
      * Número que le corresponde a un DSR que se está guardando. Es lo que el store persiste en
      * `shoot_day` en vez de pedírselo al usuario.
      *
@@ -314,6 +476,23 @@ class ProductionCalendar
         }
 
         return '—';
+    }
+
+    /**
+     * Etiqueta con TOTAL para el encabezado del back/roster: "Día 12 de 72" cuando es día de rodaje
+     * (N>0) y la M planeada está configurada; "Día 12" si no hay total; para prep u otros cae a
+     * labelFor(). El total es la M PLANEADA, no los días reales con DSR.
+     */
+    public static function dayLabelWithTotal($fecha): string
+    {
+        $n = self::dayNumber($fecha);
+        if ($n !== null && $n > 0) {
+            $m = self::plannedShootDays();
+
+            return $m !== null ? ('Día ' . $n . ' de ' . $m) : ('Día ' . $n);
+        }
+
+        return self::labelFor($fecha);
     }
 
     /**

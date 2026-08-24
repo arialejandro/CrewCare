@@ -49,7 +49,9 @@ class SignaturePositions
 
     // Solo estos deptos aportan firmantes/autorizadores (cabezas de producción) — no un asistente
     // de arte ni un coordinador de vestuario. El HOD de cada depto entra por la entrada DEPT_HOD.
-    const SIGNER_DEPARTMENTS = ['Producción', 'Oficina de Producción', 'Producción Ejecutiva', 'Contabilidad'];
+    // (2026-08-23) 'Producción Ejecutiva' → 'Productores': el depto se renombró en PARTE B y este
+    // arreglo lo referencia POR NOMBRE (signerEligiblePositions), así que se actualiza en paralelo.
+    const SIGNER_DEPARTMENTS = ['Producción', 'Oficina de Producción', 'Productores', 'Contabilidad'];
 
     public static function preparerPositionId(): ?int
     {
