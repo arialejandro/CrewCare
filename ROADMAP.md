@@ -14,6 +14,15 @@ Sirve para entender el panorama y decidir el orden.
 > Las FASES de abajo siguen siendo la guía estratégica; no reflejan aún todo lo implementado.
 
 > **🔺 MILESTONE ESTRATÉGICO (2026-08-11): PUESTA A PUNTO DEL STACK — CASI TERMINADA.** ✅ HECHAS en rama `upgrade/laravel-13` (`clean-main` intacta): **Fase 0** (rollback probado), **Fase 1** (migraciones limpias — `migrate` levanta el esquema 76/76 idéntico), **Fase 1b** (seeders de fábrica — `db:seed` deja app usable), **Fase 2** (suite de QA COMPLETA: **14 verticales, 475 tests verde; los 7 bugs cerrados, 0 abiertos**), **Fases 3–4 · UPGRADE COMPLETO: PHP 7.4→8.3 + Laravel 8→13** (5 majors, 475 verde en cada salto; commits `6447f9fe`…`5ea79567`). ⬜ FALTA SOLO: **Fase 5 (cierre)** — verificación VISUAL del PDF (Browsershot 5) + cutover del sello **SHA→HMAC**. Ver [[qa-suite-and-findings]] y [[code-health-and-db-baseline-plan]].
+
+> **🚀 (2026-08-24) HACIA EL PRIMER DEPLOY REAL — la rama ya está en GitHub.** Tras el upgrade, la capa
+> de **PRODUCTO** (coordinación de producción) creció fuerte: contratos/firmas tipo DocuSign, Padrón de pago,
+> y el **Llamado del día** (motor de horarios + back CASPER + Paquete front+back→firma) con **envío masivo con
+> marca de agua por persona** + módulo **Distribución**. Punto clave del día: hasta hoy **nada se había
+> commiteado desde el 21-ago ni la rama se había pusheado** — se subió todo (5 commits) a
+> **`origin/upgrade/laravel-13`**, ahora clonable desde el VPS. El deploy se rige por **`DEPLOY-RUNBOOK.md`**
+> (fuente única: `git clone` → `composer install` → `.env` → `migrate --force` + `db:seed --force` →
+> `storage:link` → **cron `schedule:run`** → caché → anti-demo). Registro por bloque en [PROGRESS.md](PROGRESS.md).
 > Con el H&S ya construido, el siguiente foco es el **cimiento**: (1) cerrar la deuda de `migrate`
 > con **migraciones limpias** (hoy `migrate` levanta 56 de 92 tablas); (2) **actualizar a Laravel 13 /
 > PHP 8.3** (ambos actuales están EOL → soporte + seguridad); (3) **suite de QA profunda** (headless,
