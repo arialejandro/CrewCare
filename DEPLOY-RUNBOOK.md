@@ -4,9 +4,13 @@
 > NO es para tu entorno local (en local aplicas los `owner-apply/*.sql` a mano; ver §9).
 >
 > **Idea central:** el esquema y los catálogos NO se aplican a mano SQL-por-SQL. Todo está horneado en
-> **migraciones** (126) + **seeders encadenados**. Un `migrate --force` + `db:seed --force` sobre una BD
+> **migraciones** + **seeders encadenados**. Un `migrate --force` + `db:seed --force` sobre una BD
 > vacía deja el install de fábrica **completo**. Lo único manual es el **entorno** (`.env`, `storage:link`,
-> caché) y el **chequeo anti-demo**.
+> **cron**, caché) y el **chequeo anti-demo**.
+>
+> **📌 Este archivo es la ÚNICA fuente de los pasos de deploy.** Cuando una racha agregue un requisito
+> nuevo (variable de entorno, binario del host, cron, seeder, columna), se anota **aquí** — en el paso que
+> corresponda y en el changelog de §10 — no en notas sueltas. Así no se duplica ni se desactualiza.
 
 ---
 
@@ -14,6 +18,8 @@
 - **PHP 8.3** con extensiones: `pdo_mysql`, `mbstring`, `openssl`, `fileinfo`, `gd`, `zip`, `curl`, `bcmath`.
 - **MySQL 5.7+ / 8.x** (crea la base vacía en el paso 3).
 - **Composer** y, si compilas assets, **Node 18+**.
+- **Cron** disponible para el scheduler de Laravel (`schedule:run` cada minuto — se registra en §5·b).
+  Sin él, el **envío masivo en segundo plano** (llamado / Distribución) no drena su cola.
 - **Chrome/Chromium headless + Node** para los PDF por Browsershot (contrato firmado, certificados, wrap).
   Apunta las rutas en `.env` (`BROWSERSHOT_CHROME`, `BROWSERSHOT_NODE`). Sin esto, los PDF por Chrome fallan
   (la app degrada, pero no genera esos documentos).
@@ -98,6 +104,23 @@ php artisan view:cache
 php artisan permission:cache-reset       # asienta el store de permisos Spatie
 ```
 
+## 5·b · Programador de tareas (cron) — OBLIGATORIO para envíos en segundo plano
+CrewCare corre trabajos periódicos con el **scheduler de Laravel**. En el host nuevo hay que registrar
+**una** línea de cron que dispare `schedule:run` cada minuto:
+```bash
+# crontab -e  (del usuario del web server)
+* * * * * cd /ruta/al/proyecto && php artisan schedule:run >> /dev/null 2>&1
+```
+Qué depende de esto **hoy**:
+- **Envío del llamado + Distribución con marca de agua** (comando `deliveries:dispatch`): el envío masivo
+  se **encola** y este cron lo drena en tandas (marca cada copia con el nombre de quien la recibe + correo).
+  Sin el cron, al presionar "Enviar" solo sale la **ráfaga inline** (~20 personas) y el resto queda en cola
+  **sin salir**. Con el cron, el resto sale solo, ~cada minuto. Funciona con `QUEUE_CONNECTION=sync` (no
+  necesita worker de cola).
+
+Es el cron estándar de cualquier Laravel; si mañana se agenda otra tarea, ya queda cubierto. Si por lo que
+sea el cron no está, la app **no se rompe** — solo los envíos masivos no se completan solos.
+
 ## 6 · ⛔ Chequeo anti-demo (OBLIGATORIO antes de abrir)
 Confirma que la instancia NO trae datos de demostración ni cuentas de prueba:
 ```bash
@@ -135,8 +158,24 @@ Si alguna vez estuvo rastreado, rota `APP_KEY`, `DB_PASSWORD`, `MAIL_PASSWORD` e
 
 ---
 
-## 10 · Estado de la racha actual (contratos / firmas)
-Todo **committeado**. Cambios de esta racha:
+## 10 · Cambios por racha (más reciente arriba)
+
+### Racha 2026-08-24 · Envío de archivos con marca de agua (Distribución + envío del llamado)
+- **🆕 Requisito PERMANENTE nuevo:** el **cron** de §5·b. Sin él, los envíos masivos no se completan solos.
+- **Esquema:** 2 tablas (`file_deliveries`, `file_delivery_recipients`) + columna `call_packages.extra_docs`.
+  En deploy fresco **entran solas con `migrate`** (migraciones `2026_08_24_000002` y `000003`). Los gemelos
+  `owner-apply/2026-08-24-file-deliveries.sql` (+ los `2026-08-23/24-*` del llamado/paquete) son solo para
+  parchar una BD ya poblada (§9).
+- **Flag** `callsheet_extra_docs` (adjuntar PDF adicional al paquete): **apagado** por default, viaja en código.
+- **A prueba de fallos:** si las tablas/columna no están (BD sin la actualización), el módulo de Distribución
+  se muestra "no disponible", el botón de envío avisa y el cron imprime "0" — **NO rompe el resto de la app**
+  (guardas `Schema::hasTable`/`hasColumn`). El PDF **congelado/firmado** nunca se toca: la marca de agua se
+  aplica a la copia de cada persona al enviar.
+- Puro código lo demás (motor `PdfWatermarker`, outbox + despachador, pantalla `/distribucion`, gate
+  `settings.manage`). Nombre marcado = créditos, o primer nombre + primer apellido. **Suite: 787 verde.**
+
+### Racha anterior · contratos / firmas
+Cambios de esa racha:
 - **Sin SQL** (puro código, viaja con el deploy): nav de firma secuencial, pantalla final con acciones,
   bloqueo de **autoaprobación** (+ cotejo por correo para payees sin usuario), botón **Copiar enlace**,
   **panel de consulta de contratos** por departamento (`ContractVisibility`).
