@@ -229,6 +229,29 @@ class User extends Authenticatable
     }
 
     /**
+     * Nombre para la MARCA DE AGUA (y cualquier crédito COMPACTO): el Nombre en Créditos si existe
+     * de verdad; si no, **PRIMER nombre + PRIMER apellido** (regla owner 2026-08-24 — el nombre
+     * completo "se ve largo" en la marca de agua diagonal). Difiere de [[shortName]], que arrastra el
+     * apellido COMPLETO ("Mariana Arismendi Castro" vs. aquí "Mariana Arismendi"). Solo lee
+     * `ncreditos`, `name`, `lname`.
+     */
+    public static function creditShortName($user): string
+    {
+        $cred = trim((string) ($user->ncreditos ?? ''));
+        if ($cred !== '' && preg_match('/\p{L}/u', $cred)) {
+            return $cred;
+        }
+
+        $name  = trim((string) ($user->name ?? ''));
+        $lname = trim((string) ($user->lname ?? ''));
+        $first = $name  === '' ? '' : preg_split('/\s+/', $name)[0];
+        $ap1   = $lname === '' ? '' : preg_split('/\s+/', $lname)[0];
+        $short = trim($first . ' ' . $ap1);
+
+        return $short !== '' ? $short : self::shortName($user);
+    }
+
+    /**
      * Valor de una columna del pivote de la producción VIGENTE para un usuario (por id), o null.
      * Espeja la lectura del write-path (CrewController::useredit). Cachea TODO el pivote de la
      * producción una sola vez por petición → evita el N+1 cuando una lista (usuarioscrud,
@@ -297,6 +320,43 @@ class User extends Authenticatable
                 ->whereColumn('production_user.user_id', 'users.id')
                 ->whereIn('production_user.department_id', $ownDeptIds->all());
         });
+    }
+
+    /**
+     * ORDEN JERÁRQUICO del listado de crew (2026-08-21): departamento por el `sort_order`
+     * del catálogo y, dentro de cada uno, el puesto por su `sort_order` (HOD primero) — el
+     * MISMO criterio del documento de export (CrewRosterBuilder), ahora también en las
+     * pantallas (antes: users.id DESC). Se resuelve con subconsultas ESCALARES en el ORDER
+     * BY (no JOINs) para NO multiplicar filas ni alterar el conteo de la paginación. Fuente
+     * de verdad: el pivote production_user de la producción vigente; fallback a las etiquetas
+     * legacy zone/puestodepartamento sólo cuando no hay fila pivote (igual que CrewRosterBuilder).
+     * Sin orden resoluble → al final (999999), desempate por apellido y luego id.
+     *
+     * @param  \Illuminate\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder  $query
+     */
+    public static function applyRosterOrder($query, ?int $productionId = null)
+    {
+        $pid = $productionId ?? \App\Support\CurrentProduction::id();
+        $prodFilterPivot = $pid ? ' AND pu.production_id = ' . (int) $pid : '';   // (int) → sin inyección
+        $prodFilterPivot2 = $pid ? ' AND pu2.production_id = ' . (int) $pid : '';
+
+        $deptSort = '(COALESCE('
+            . '(SELECT d.sort_order FROM production_user pu JOIN departments d ON d.id = pu.department_id'
+            . ' WHERE pu.user_id = users.id' . $prodFilterPivot . ' LIMIT 1),'
+            . '(SELECT d2.sort_order FROM departments d2 WHERE d2.name = users.zone LIMIT 1),'
+            . '999999))';
+
+        $posSort = '(COALESCE('
+            . '(SELECT p.sort_order FROM production_user pu2 JOIN positions p ON p.id = pu2.position_id'
+            . ' WHERE pu2.user_id = users.id' . $prodFilterPivot2 . ' LIMIT 1),'
+            . '(SELECT p2.sort_order FROM positions p2 WHERE p2.name = users.puestodepartamento LIMIT 1),'
+            . '999999))';
+
+        return $query
+            ->orderByRaw($deptSort . ' asc')
+            ->orderByRaw($posSort . ' asc')
+            ->orderBy('users.lname', 'asc')
+            ->orderBy('users.id', 'desc');
     }
 
     /**

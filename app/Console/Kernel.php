@@ -14,6 +14,7 @@ class Kernel extends ConsoleKernel
      */
     protected $commands = [
         Commands\CrewWelcomeResend::class,
+        Commands\DispatchFileDeliveries::class,
     ];
 
     /**
@@ -36,6 +37,12 @@ class Kernel extends ConsoleKernel
         //
         // ⚠ DEPLOY: el VPS puede seguir corriendo `php artisan schedule:run`; ya no hace nada.
         // No lo quites por si mañana se agenda algo aquí.
+
+        // (2026-08-24) ENVÍO DE ARCHIVOS CON MARCA DE AGUA — drena el outbox cada minuto. El request
+        // solo ENCOLA (más una ráfaga inline chica); este cron manda el resto FLUIDO y sin perderse.
+        // `withoutOverlapping` evita que dos corridas pisen las mismas filas (además del reclamo
+        // atómico del despachador). Inofensivo si no hay nada encolado.
+        $schedule->command('deliveries:dispatch')->everyMinute()->withoutOverlapping();
     }
 
     /**
