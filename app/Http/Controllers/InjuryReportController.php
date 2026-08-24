@@ -13,7 +13,10 @@ class InjuryReportController extends Controller
 {
     public function inicial()
     {
-        $injuryReports = InjuryReport::latest()->paginate(10);
+        // Aislamiento por propiedad (auditoría #1): cada quien sólo lo que capturó (safety aislados
+        // entre sí, y el médico igual); la CONSOLIDACIÓN (safety.consolidate) ve todo.
+        $injuryReports = \App\Support\ReportVisibility::apply(InjuryReport::query(), auth()->user())
+            ->latest()->paginate(10);
         return view('admin.injuryreports', compact('injuryReports'));
     }
 
@@ -47,6 +50,9 @@ class InjuryReportController extends Controller
     public function edit($id)
     {
         $injuryReport = InjuryReport::findOrFail($id);
+        // Aislamiento por autor (auditoría #1): editar sólo el autor o la consolidación (leer es transversal).
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $injuryReport), 403,
+            'Solo el autor o la consolidación de seguridad pueden editar este reporte.');
         $user = auth()->user();
         $standards = \App\Models\SafetyStandard::orderBy('category_name', 'asc')->get();
         $hazardEvents = Schema::hasTable('hazard_events')
@@ -157,6 +163,10 @@ class InjuryReportController extends Controller
     public function update(Request $request, $id)
     {
         $injuryReport = InjuryReport::findOrFail($id);
+
+        // Aislamiento por autor (auditoría #1): sólo el autor o la consolidación pueden editar/re-sellar.
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $injuryReport), 403,
+            'Solo el autor o la consolidación de seguridad pueden editar este reporte.');
 
         // Fase 2 SIEMPRE valida estricto (matriz 5×5, injury_type, causas, etc.).
         $validatedData = $request->validate($this->validationRules($request, true));

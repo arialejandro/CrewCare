@@ -89,9 +89,12 @@ class ResolveParkedStandardsSeeder extends Seeder
             // GRUPO 1 · CSATF — cada addendum/hoja como FILA PROPIA (NUNCA colapsar al boletín base).
             // Código = 'Bulletin #NNA' (los raws '#NNA ...' resuelven vía StandardCodeResolver::ADJUDICATED).
             ['Adenda de regulaciones FAA para drones/UAS (addendum del boletín #36)', 'CSATF', 'Bulletin #36A',  'https://www.csatf.org/36a_safety_bltn_faa_regulations/', 'FAA regulations addendum for drones/UAS (addendum to Bulletin #36)'],
-            // ⚠ #4A y #8A: los addenda EXISTEN (CSATF) pero NO pude confirmar el PDF exacto (slugs candidatos 404) → URL VACÍA a propósito. NO se apunta al boletín base.
-            ['Adenda de actividades especializadas (addendum del boletín #4)', 'CSATF', 'Bulletin #4A',  null, 'Specialized activities addendum (addendum to Bulletin #4)'],
-            ['Adenda de process trailers / vehículos remolcados (addendum del boletín #8)', 'CSATF', 'Bulletin #8A',  null, 'Process trailers / towed vehicles addendum (addendum to Bulletin #8)'],
+            // #4A y #8A: URL CONFIRMADA (2026-08-21) — se descargó el PDF de cada slug y se verificó el
+            // texto de portada. #4A = "SAFETY BULLETIN #4 · STUNTS · ADDENDUM A — SPECIALIZED ACTIVITIES"
+            // (issued 03/27/25). #8A = "SAFETY BULLETIN #8 · TRADITIONAL CAMERA CARS · ADDENDUM A —
+            // PROCESS TRAILER/TOWED VEHICLE" (rev 08/28/12). Mismo patrón de slug que #36A.
+            ['Adenda de actividades especializadas (addendum del boletín #4)', 'CSATF', 'Bulletin #4A',  'https://www.csatf.org/04a_safety_bltn_stunts/', 'Specialized activities addendum (addendum to Bulletin #4)'],
+            ['Adenda de process trailers / vehículos remolcados (addendum del boletín #8)', 'CSATF', 'Bulletin #8A',  'https://www.csatf.org/08a_safety_bltn_towed_vehicles/', 'Process trailers / towed vehicles addendum (addendum to Bulletin #8)'],
             ['Guía de Procedimiento #1 — Menores en actividad física', 'CSATF', 'Guía de Procedimiento #1',  'https://www.csatf.org/wp-content/uploads/2018/05/Guideline001.MINORS.pdf', 'Procedural Guideline #1 — Minors performing physical activities'],
             ['Hoja de concientización CSATF — seguridad de baterías de litio', 'CSATF', 'Hoja informativa CSATF litio',  'https://www.csatf.org/ifs_lithium-ion_battery_safety-sp/', 'CSATF awareness sheet — Lithium-ion battery safety'],
 

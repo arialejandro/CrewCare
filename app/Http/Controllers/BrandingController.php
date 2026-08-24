@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Setting;
 use App\Support\Branding;
+use App\Support\ImageCompressor;
 
 /**
  * BrandingController — pantalla "Marca" (solo super-admin, permission:settings.manage).
@@ -36,7 +37,7 @@ class BrandingController extends Controller
             'rfc'                 => 'nullable|string|max:20',
             'representante_legal' => 'nullable|string|max:160',
             'correo_contratante'  => 'nullable|string|max:160',
-            'client_logo'     => 'nullable|mimes:png,jpg,jpeg,webp,svg|max:2048',
+            'client_logo'     => 'nullable|mimes:png,jpg,jpeg,webp,svg,heic,heif|heic_ok|max:2048',
         ]);
 
         // Campos de texto/color → settings clave/valor.
@@ -47,8 +48,10 @@ class BrandingController extends Controller
         }
 
         // Logo del cliente: si suben archivo, se guarda y se persiste su URL pública.
+        // HEIC (iPhone) → JPEG donde el servidor pueda convertir (mismo pipeline que el resto de
+        // subidas); si no puede, se conserva el archivo tal cual y la extensión real lo refleja.
         if ($request->hasFile('client_logo')) {
-            $file = $request->file('client_logo');
+            $file = ImageCompressor::normalizeForUpload($request->file('client_logo'));
             $filename = 'client_logo_' . time() . '.' . $file->getClientOriginalExtension();
             $path = $file->storeAs('branding', $filename, 'public');
             Setting::updateOrCreate(['key' => 'client_logo'], ['value' => Storage::url($path)]);

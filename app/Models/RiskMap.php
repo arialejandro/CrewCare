@@ -411,6 +411,33 @@ class RiskMap extends Model
     }
 
     /**
+     * Pines de PELIGRO cuyo event_id YA NO está evaluado en el scouting (colgantes).
+     * Deriva de eligibleEvents() en vivo; no toca columnas ni el sello. Es la señal de
+     * que el scouting quitó ese peligro DESPUÉS de haberlo mapeado: el pin quedaría
+     * huérfano (sin nombre ni normas) y —sin este control— su event_id entraría al hash
+     * igual, certificando un peligro que ese scouting ya no evalúa. Devuelve una
+     * colección de RiskMapMarker (su vista queda accesible por ->view).
+     */
+    public function orphanHazardMarkers(): Collection
+    {
+        $elig = $this->eligibleEvents();
+        $out = collect();
+        foreach ($this->views as $v) {
+            foreach ($v->markers as $m) {
+                if ($m->kind === 'hazard' && $m->event_id && ! $elig->has((int) $m->event_id)) {
+                    $out->push($m);
+                }
+            }
+        }
+        return $out;
+    }
+
+    public function hasOrphanHazards(): bool
+    {
+        return $this->orphanHazardMarkers()->isNotEmpty();
+    }
+
+    /**
      * Inventario CONTADO de recursos por tipo, sumando todas las vistas.
      * Devuelve las 8 llaves SIEMPRE (los ceros se imprimen).
      */

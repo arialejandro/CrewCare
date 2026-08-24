@@ -42,7 +42,7 @@ class BadgeController extends Controller
             'card_bg'               => ['nullable', 'string', 'max:255'],
             'card_bg_file'          => ['nullable', 'mimes:jpg,jpeg,png,gif,bmp,svg,webp,heic,heif', 'heic_ok', 'max:8192'],
             'production_logo'       => ['nullable', 'string', 'max:255'],
-            'production_logo_file'  => ['nullable', 'mimes:png,jpg,jpeg,webp,svg', 'max:8192'],
+            'production_logo_file'  => ['nullable', 'mimes:png,jpg,jpeg,webp,svg,heic,heif', 'heic_ok', 'max:8192'],
             'font_family'           => ['required', 'in:' . implode(',', BadgeTemplate::FONTS)],
             'text_color'            => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'photo_shape'           => ['required', 'in:' . implode(',', BadgeTemplate::PHOTO_SHAPES)],

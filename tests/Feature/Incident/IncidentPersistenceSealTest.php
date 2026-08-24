@@ -176,7 +176,10 @@ class IncidentPersistenceSealTest extends QaTestCase
     public function test_manager_cierra_y_reabre_un_action_item(): void
     {
         [, $item] = $this->hazardConAccion();
-        $manager = $this->actingAsRole('safety-officer');
+        // (auditoría #1) El hazard de hazardConAccion() nace SIN autor; quien cierra/reabre es la
+        // CONSOLIDACIÓN (line-producer con safety.consolidate). Un safety-officer AJENO ya NO puede
+        // (ver test_un_safety_ajeno_no_cierra_la_accion_de_otro).
+        $manager = $this->actingAsRole('line-producer');
 
         // Cerrar → status closed + verificador + fecha.
         $this->post(route('action_items.close', $item->id))->assertRedirect();
@@ -196,7 +199,8 @@ class IncidentPersistenceSealTest extends QaTestCase
     public function test_no_se_puede_cerrar_el_hazard_con_una_accion_abierta(): void
     {
         [$haz, $item] = $this->hazardConAccion();
-        $this->actingAsRole('safety-officer');
+        // (auditoría #1) hazard sin autor → gestiona la consolidación (line-producer).
+        $this->actingAsRole('line-producer');
 
         // Con la acción ABIERTA: intentar "Cerrar" el reporte rebota con error de validación.
         $this->from(route('hazard_notifications.show', $haz->id))
@@ -209,6 +213,36 @@ class IncidentPersistenceSealTest extends QaTestCase
         $this->post(route('hazard_notifications.status', $haz->id), ['action_status' => 'Cerrado'])
             ->assertSessionDoesntHaveErrors('action_status');
         $this->assertSame('Cerrado', hazardnotification::find($haz->id)->action_status);
+    }
+
+    /**
+     * (auditoría #1) AISLAMIENTO EN EL CIERRE PDCA: un safety-officer AJENO —tiene hazards.manage
+     * pero NO safety.consolidate— no puede cerrar la acción correctiva del hallazgo de otro.
+     */
+    public function test_un_safety_ajeno_no_cierra_la_accion_de_otro(): void
+    {
+        [, $item] = $this->hazardConAccion(); // hazard SIN autor (created_by_id NULL)
+        $this->actingAsRole('safety-officer'); // fresco, ajeno, sin consolidación
+        $this->post(route('action_items.close', $item->id))->assertForbidden();
+        $this->assertDatabaseHas('action_items', ['id' => $item->id, 'status' => ActionItem::STATUS_OPEN]);
+    }
+
+    /** (auditoría #1) El AUTOR sí cierra la acción correctiva de su propio hallazgo. */
+    public function test_el_autor_cierra_la_accion_de_su_propio_hallazgo(): void
+    {
+        $autor = $this->makeUser('safety-officer');
+        $haz = hazardnotification::create([
+            'production_name'               => 'Demo',
+            'name_loc'                      => 'Set 1',
+            'description_hazard_unsafe_act' => 'Extintor caducado',
+        ]);
+        $haz->created_by_id = $autor->id;
+        $haz->save();
+        $item = $haz->syncAutoActionItem('Reemplazar extintor', 'suggestions_corrective_action');
+
+        $this->actingAs($autor);
+        $this->post(route('action_items.close', $item->id))->assertRedirect();
+        $this->assertSame(ActionItem::STATUS_CLOSED, $item->fresh()->status);
     }
 
     // ==================================================================================

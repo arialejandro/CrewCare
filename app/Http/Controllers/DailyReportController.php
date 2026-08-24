@@ -28,7 +28,11 @@ class DailyReportController extends Controller
         // mostraba los días desordenados (Día 2, 3, 5, 6, 8…). Ahora que el número de día lo
         // DERIVA la fecha, el listado tiene que seguir esa misma fecha o se contradice solo.
         // `id` sólo desempata dos reportes del mismo día.
-        $dailyReports = DailyReport::orderBy('report_date', 'desc')
+        // Aislamiento por propiedad (auditoría #1): cada quien ve sólo los DSR que capturó
+        // (safety aislados entre sí); la CONSOLIDACIÓN (safety.consolidate = LP/coord/auditor/
+        // super-admin) ve todo.
+        $dailyReports = \App\Support\ReportVisibility::apply(DailyReport::query(), auth()->user())
+            ->orderBy('report_date', 'desc')
             ->orderBy('id', 'desc')
             ->paginate(10);
         return view('admin.dailyreports.index', compact('dailyReports'));
@@ -304,6 +308,12 @@ class DailyReportController extends Controller
     {
         $report = DailyReport::findOrFail($id);
 
+        // Aislamiento por autor (auditoría #1): agregar una entrada de bitácora es ESCRIBIR en el
+        // DSR de alguien más → sólo el autor o la consolidación (safety.consolidate). No existe el
+        // caso de que otro safety agregue bitácora al DSR ajeno. Leer la ficha SÍ es transversal.
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $report), 403,
+            'Solo el autor o la consolidación de seguridad pueden agregar bitácora a este reporte.');
+
         // Candado de cumplimiento PRIMERO (fail-fast, igual que update()): si el reporte está
         // sellado (>24 h) ni siquiera validamos ni procesamos el upload — se rechaza de una.
         if ($report->created_at->diffInHours(now()) >= 24) {
@@ -387,6 +397,11 @@ class DailyReportController extends Controller
     public function update(Request $request, $id)
     {
         $report = DailyReport::findOrFail($id);
+
+        // Aislamiento por autor (auditoría #1): editar/cerrar/re-sellar sólo el autor o la
+        // consolidación (safety.consolidate). Un safety no toca el DSR de otro. Leer es transversal.
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $report), 403,
+            'Solo el autor o la consolidación de seguridad pueden editar este reporte.');
 
         // Candado de seguridad en Backend
         if ($report->created_at->diffInHours(now()) >= 24) {

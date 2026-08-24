@@ -29,7 +29,8 @@ class CrewListController extends Controller
         // ven a todos. Mismo helper que usa SearchController → una sola fuente de verdad.
         $query = DB::table('users')->where('activo', '=', 1);
         $query = User::applyDepartmentScope($query, auth()->user());
-        $usuarios = $query->orderBy('users.id', 'desc')->paginate(50);
+        // Orden jerárquico depto→puesto (HOD arriba), igual que el export. Antes: users.id DESC.
+        $usuarios = User::applyRosterOrder($query)->paginate(50);
 
         return view ('admin/usuarioscrud', compact('usuarios'));
     }
@@ -57,7 +58,7 @@ class CrewListController extends Controller
         // (SearchController::PRESET_MEDICAL): nunca SELECT * — no arrastra el hash de contraseña —
         // y las dos rutas alimentan el MISMO parcial de cards con las mismas columnas. Sin
         // teléfono ni email: la lista médica no los muestra.
-        $usuarios = $query->orderBy('users.id', 'desc')
+        $usuarios = User::applyRosterOrder($query)
             ->paginate(50, ['users.id', 'users.name', 'users.lname', 'users.lname2',
                 'users.puestodepartamento', 'users.zone', 'users.imgperfil',
                 'users.borndate', 'users.sex']);
@@ -92,7 +93,8 @@ class CrewListController extends Controller
         ];
 
         // withCount('badgePrint') → cada fila expone badge_print_count (0/1 = impreso).
-        $usuarios = (clone $base)->withCount('badgePrint')->orderBy('id', 'desc')->paginate(50);
+        // Orden jerárquico depto→puesto (HOD arriba), igual que el export. Antes: id DESC.
+        $usuarios = User::applyRosterOrder((clone $base)->withCount('badgePrint'))->paginate(50);
 
         return view('admin/idcardscrud', compact('usuarios', 'counts'));
     }

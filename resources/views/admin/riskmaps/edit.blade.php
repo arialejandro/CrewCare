@@ -136,6 +136,27 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
     @endif
 
+    {{-- Pines de peligro COLGANTES: el scouting quitó ese peligro después de mapearlo.
+         Se avisa aquí (antes del sello) para que el safety decida; el sellado queda
+         bloqueado hasta resolverlos. NO se borran pines automáticamente. --}}
+    @if(!empty($orphanMarkers) && $orphanMarkers->count())
+        <div class="alert alert-warning" role="alert" style="border-left:4px solid var(--warning,#d97706)">
+            <strong>Atención:</strong> {{ $orphanMarkers->count() }}
+            {{ $orphanMarkers->count() === 1 ? 'señal de peligro ya no está' : 'señales de peligro ya no están' }}
+            evaluada{{ $orphanMarkers->count() === 1 ? '' : 's' }} en el scouting de origen
+            @php
+                $orphanViews = collect($orphanMarkers)
+                    ->map(fn($m) => optional($views->firstWhere('id', $m->view_id))->displayLabel())
+                    ->filter()->unique()->values();
+            @endphp
+            @if($orphanViews->count())
+                (en: {{ $orphanViews->implode(', ') }})
+            @endif.
+            Corrige la evaluación del scouting o retira {{ $orphanMarkers->count() === 1 ? 'ese pin' : 'esos pines' }}
+            antes de sellar. <strong>No se sellará</strong> mientras haya peligros colgantes.
+        </div>
+    @endif
+
     <div class="rm-ed-top">
         <div class="titlewrap">
             <div class="rm-ed-eyebrow">@include('componentes._icon', ['name' => 'map-pin']) <span>{{ $map->locationName() }}</span></div>

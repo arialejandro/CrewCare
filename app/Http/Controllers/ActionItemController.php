@@ -23,6 +23,19 @@ class ActionItemController extends Controller
         }
 
         $item = ActionItem::findOrFail($id);
+        $actionable = $item->actionable;
+
+        // Aislamiento por autor (auditoría #1): cerrar la acción correctiva de un REPORTE DE
+        // SEGURIDAD = autor del hallazgo o consolidación (safety.consolidate). Un safety no cierra
+        // el hallazgo de otro; si el autor no está, lo cierra la consolidación. Los verticales
+        // NO-reporte (inspección de herramienta) conservan su propia autorización de módulo.
+        if ($actionable instanceof \App\Models\hazardnotification
+            || $actionable instanceof \App\Models\unsafecond
+            || $actionable instanceof \App\Models\InjuryReport) {
+            abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $actionable), 403,
+                'Solo el autor del hallazgo o la consolidación de seguridad pueden cerrar esta acción.');
+        }
+
         $item->status         = ActionItem::STATUS_CLOSED;
         $item->verified_by_id = auth()->id();
         $item->closed_at      = now();
@@ -30,7 +43,6 @@ class ActionItemController extends Controller
 
         // (2026-07-26) Si la acción cuelga de un acta de inspección con PARO, cerrarla LEVANTA
         // el paro (con autor y hora, y re-sella el acta). "El paro se levanta al cerrar el item."
-        $actionable = $item->actionable;
         if ($actionable instanceof \App\Models\ToolInspection && $actionable->isBlocked()) {
             $actionable->unblock(auth()->user());
             return back()->with('success', 'Acción cerrada y PARO levantado: el acta quedó re-sellada.');
@@ -49,6 +61,17 @@ class ActionItemController extends Controller
         }
 
         $item = ActionItem::findOrFail($id);
+
+        // Aislamiento por autor (auditoría #1): reabrir la acción de un reporte de seguridad =
+        // autor del hallazgo o consolidación (mismo eje que cerrar).
+        $actionable = $item->actionable;
+        if ($actionable instanceof \App\Models\hazardnotification
+            || $actionable instanceof \App\Models\unsafecond
+            || $actionable instanceof \App\Models\InjuryReport) {
+            abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $actionable), 403,
+                'Solo el autor del hallazgo o la consolidación de seguridad pueden reabrir esta acción.');
+        }
+
         $item->status         = ActionItem::STATUS_OPEN;
         $item->verified_by_id = null;
         $item->closed_at      = null;

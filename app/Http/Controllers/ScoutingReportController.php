@@ -128,7 +128,9 @@ class ScoutingReportController extends Controller
     public function index()
     {
         // paginate(12): divisible entre las 1/2/3 columnas del grid de cards.
-        $reports = ScoutingReport::orderBy('id', 'desc')->paginate(12);
+        // Aislamiento por propiedad (auditoría #1): autor, con bypass safety.consolidate.
+        $reports = \App\Support\ReportVisibility::apply(ScoutingReport::query(), auth()->user())
+            ->orderBy('id', 'desc')->paginate(12);
         return view('admin.scoutings.index', compact('reports'));
     }
 
@@ -390,6 +392,9 @@ class ScoutingReportController extends Controller
     public function edit($id)
     {
         $report       = ScoutingReport::findOrFail($id);
+        // Aislamiento por autor (auditoría #1): editar sólo el autor o la consolidación (leer es transversal).
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $report), 403,
+            'Solo el autor o la consolidación de seguridad pueden editar este scouting.');
         $productions  = Production::orderBy('name')->get();
         $standards    = SafetyStandard::orderBy('category_name')->get();
         $categories   = $this->categories();
@@ -411,6 +416,10 @@ class ScoutingReportController extends Controller
     public function update(Request $request, $id)
     {
         $report = ScoutingReport::findOrFail($id);
+
+        // Aislamiento por autor (auditoría #1): sólo el autor o la consolidación pueden editar/re-sellar.
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $report), 403,
+            'Solo el autor o la consolidación de seguridad pueden editar este scouting.');
 
         $this->validateReport($request);
 

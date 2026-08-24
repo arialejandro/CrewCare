@@ -226,6 +226,9 @@ class unsafecondNotificationController extends Controller
     public function edit($id)
     {
         $report = unsafecond::findOrFail($id);
+        // Aislamiento por autor (auditoría #1): editar sólo el autor o la consolidación (leer es transversal).
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $report), 403,
+            'Solo el autor o la consolidación de seguridad pueden editar este reporte.');
         // (2026-07-24) Para prellenar el responsable/fecha de la acción correctiva en el form.
         if (\Illuminate\Support\Facades\Schema::hasTable('action_items')) {
             $report->load('actionItems');
@@ -246,6 +249,10 @@ class unsafecondNotificationController extends Controller
     public function update(Request $request, $id)
     {
         $report = unsafecond::findOrFail($id);
+
+        // Aislamiento por autor (auditoría #1): sólo el autor o la consolidación pueden editar/re-sellar.
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $report), 403,
+            'Solo el autor o la consolidación de seguridad pueden editar este reporte.');
 
         // (2026-07-23) Blindaje anti-"solo espacios" (Fase 2 no pasa por el FormRequest, así que
         // se replica el trim de prepareForValidation): "   " → "" → dispara el obligatorio.
@@ -387,7 +394,9 @@ class unsafecondNotificationController extends Controller
    public function index()
     {
         // breadcrumb: antes 'unsafecond::all()' (sin paginar). Ahora paginado de 15 en 15, más reciente primero.
-        $unsafenotifications = unsafecond::orderBy('id', 'desc')->paginate(15);
+        // Aislamiento por propiedad (auditoría #1): autor, con bypass safety.consolidate.
+        $unsafenotifications = \App\Support\ReportVisibility::apply(unsafecond::query(), auth()->user())
+            ->orderBy('id', 'desc')->paginate(15);
         return View::make('admin.unsafeconds', compact('unsafenotifications'));
     }
 
@@ -440,6 +449,9 @@ class unsafecondNotificationController extends Controller
     {
         $request->validate(['action_status' => 'required|in:Abierto,En proceso,Cerrado']);
         $n = unsafecond::findOrFail($id);
+        // Aislamiento por autor (auditoría #1): cambiar el estado / cerrar = autor o consolidación.
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $n), 403,
+            'Solo el autor o la consolidación de seguridad pueden cambiar el estado de este reporte.');
         // (2026-07-09) Bloqueo de estado PDCA: no se puede "Cerrar" con acciones abiertas.
         if ($request->input('action_status') === 'Cerrado') {
             $n->assertActionItemsClosed('action_status');

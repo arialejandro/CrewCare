@@ -243,6 +243,11 @@ class HazardNotificationController extends Controller
     {
         $report = HazardNotification::findOrFail($id);
 
+        // Aislamiento por autor (auditoría #1): editar sólo el autor o la consolidación
+        // (safety.consolidate). Un safety no edita el hallazgo de otro. Leer la ficha SÍ es transversal.
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $report), 403,
+            'Solo el autor o la consolidación de seguridad pueden editar este reporte.');
+
         // (2026-07-24) Para prellenar el responsable/fecha de la acción correctiva en el form.
         if (\Illuminate\Support\Facades\Schema::hasTable('action_items')) {
             $report->load('actionItems');
@@ -273,6 +278,10 @@ class HazardNotificationController extends Controller
     public function update(Request $request, $id)
     {
         $report = HazardNotification::findOrFail($id);
+
+        // Aislamiento por autor (auditoría #1): sólo el autor o la consolidación pueden editar/re-sellar.
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $report), 403,
+            'Solo el autor o la consolidación de seguridad pueden editar este reporte.');
 
         // (2026-07-23) Blindaje anti-"solo espacios" (Fase 2 no pasa por el FormRequest, así que
         // se replica aquí el trim de prepareForValidation): "   " → "" → dispara el obligatorio.
@@ -424,7 +433,9 @@ class HazardNotificationController extends Controller
      */
     public function index()
     {
-        $hazardNotifications = HazardNotification::orderBy('id', 'desc')->paginate(15);
+        // Aislamiento por propiedad (auditoría #1): autor, con bypass safety.consolidate.
+        $hazardNotifications = \App\Support\ReportVisibility::apply(HazardNotification::query(), auth()->user())
+            ->orderBy('id', 'desc')->paginate(15);
         return View::make('admin.hazards', compact('hazardNotifications'));
     }
 
@@ -502,6 +513,10 @@ class HazardNotificationController extends Controller
     {
         $request->validate(['action_status' => 'required|in:Abierto,En proceso,Cerrado']);
         $n = HazardNotification::findOrFail($id);
+        // Aislamiento por autor (auditoría #1): cambiar el estado / cerrar el hallazgo = autor o
+        // consolidación. Un safety no cierra el hallazgo de otro.
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $n), 403,
+            'Solo el autor o la consolidación de seguridad pueden cambiar el estado de este reporte.');
         // (2026-07-09) Bloqueo de estado PDCA: no se puede pasar a "Cerrado" si quedan
         // acciones correctivas abiertas (lanza ValidationException → se muestra en el show).
         if ($request->input('action_status') === 'Cerrado') {

@@ -116,6 +116,7 @@ class RiskMapController extends Controller
             'views'          => $views,
             'current'        => $current,
             'eligibleEvents' => $map->eligibleEvents(),
+            'orphanMarkers'  => $map->orphanHazardMarkers(), // pines de peligro que el scouting ya no evalúa
             'scoutingPhotos' => $this->scoutingPhotos($map->scouting),
             'viewTypes'      => RiskMapView::VIEW_TYPES,
             'resourceTypes'  => RiskMapMarker::RESOURCE_TYPES,
@@ -301,6 +302,17 @@ class RiskMapController extends Controller
         }
         if ($map->views()->count() < 1) {
             return back()->withErrors(['seal' => 'Agrega al menos una vista antes de sellar.']);
+        }
+
+        // Pines de peligro COLGANTES: el scouting quitó ese peligro después de mapearlo.
+        // No se sella un documento que certificaría un peligro que el scouting ya no
+        // evalúa. NO se borran pines por nuestra cuenta: lo resuelve el safety (corrige
+        // la evaluación del scouting o retira el pin en el editor). Ver RiskMap::orphanHazardMarkers().
+        $orphans = $map->orphanHazardMarkers();
+        if ($orphans->isNotEmpty()) {
+            return back()->withErrors(['seal' =>
+                'Hay ' . $orphans->count() . ' señal(es) de peligro que el scouting ya no evalúa. '
+                . 'Corrige la evaluación del scouting o retira esos pines en el editor antes de sellar.']);
         }
 
         $map->status    = 'sealed';

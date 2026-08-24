@@ -53,6 +53,61 @@ class RiskMapPersistenceSealTest extends RiskMapVerticalTestCase
         $this->assertFalse($map->fresh()->isSealed(), 'Sin vistas no debe sellarse.');
     }
 
+    /**
+     * #1 (auditoría 2026-08-21) — EL SELLO NO DEBE MENTIR. Si el scouting quita del
+     * risk_assessment un peligro que YA estaba mapeado, su pin queda COLGANTE: sin
+     * nombre ni normas, pero su event_id entraría al hash igual. seal() lo BLOQUEA;
+     * el mapa NO se sella y el pin NO se borra (lo resuelve el safety).
+     */
+    public function test_seal_bloqueado_por_pin_de_peligro_colgante(): void
+    {
+        $sc   = $this->makeScouting(true);            // risk_assessment cita un evento real
+        $eid  = $this->firstEligibleEventId($sc);
+        $map  = $this->makeDraftMap($sc);
+        $view = $this->addView($map);
+
+        // El pin se coloca por el flujo REAL (AJAX), que exige que el peligro sea elegible.
+        $this->actingAsRole('safety-officer');
+        $this->postJson(route('riskmaps.markers.store', ['id' => $map->id, 'view' => $view->id]), [
+            'kind' => 'hazard', 'event_id' => $eid, 'x_pct' => 50, 'y_pct' => 50,
+        ])->assertOk();
+
+        // El scouting DEJA de evaluar ese peligro después de mapearlo → el pin queda colgante.
+        $sc->risk_assessment = [];
+        $sc->save();
+        $this->assertTrue($map->fresh()->hasOrphanHazards(), 'precondición: hay un pin colgante');
+
+        // El sello se bloquea con error y el mapa sigue en borrador.
+        $this->from(route('riskmaps.edit', $map->id))
+            ->post(route('riskmaps.seal', $map->id))
+            ->assertSessionHasErrors('seal');
+
+        $this->assertFalse($map->fresh()->isSealed(), 'No se sella con peligros colgantes.');
+        // NO se borran pines por nuestra cuenta: el marcador sigue ahí.
+        $this->assertDatabaseHas('risk_map_markers', [
+            'view_id' => $view->id, 'kind' => 'hazard', 'event_id' => $eid,
+        ]);
+    }
+
+    /** Contraparte: con el peligro AÚN evaluado, el sello procede (la guarda no sobre-bloquea). */
+    public function test_seal_procede_con_pin_de_peligro_elegible(): void
+    {
+        $sc   = $this->makeScouting(true);
+        $eid  = $this->firstEligibleEventId($sc);
+        $map  = $this->makeDraftMap($sc);
+        $view = $this->addView($map);
+
+        $this->actingAsRole('safety-officer');
+        $this->postJson(route('riskmaps.markers.store', ['id' => $map->id, 'view' => $view->id]), [
+            'kind' => 'hazard', 'event_id' => $eid, 'x_pct' => 50, 'y_pct' => 50,
+        ])->assertOk();
+
+        $this->assertFalse($map->fresh()->hasOrphanHazards(), 'sin colgantes: el peligro sigue evaluado');
+        $this->post(route('riskmaps.seal', $map->id))
+            ->assertRedirect(route('riskmaps.document', $map->id));
+        $this->assertTrue($map->fresh()->isSealed(), 'con el peligro elegible, el sello procede');
+    }
+
     public function test_mapeo_sellado_es_inmutable(): void
     {
         $map = $this->sealMap();
