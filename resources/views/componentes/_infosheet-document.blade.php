@@ -68,7 +68,9 @@
     .cc-hoja__signpad { max-width:400px; }
     .cc-hoja__signpad .cc-sigpad__canvas { height:120px; }
     .cc-hoja__signpad .cc-sigpad__wrap { border:1px dashed #26324a; background:#fff; }
-    .cc-hoja__signpad .cc-sigpad__savelbl { display:none; }
+    /* "Guardar para reúso" (firma ADOPTADA) — estaba en display:none y por eso nadie podía adoptar
+       su firma: había que redibujarla en cada Hoja. En una producción se autorizan cientos. */
+    .cc-hoja__signpad .cc-sigpad__savelbl { margin:.15rem 0 0; font-size:.7rem; color:#26324a; font-weight:600; }
     .cc-hoja__signpad .cc-sigpad__tools { gap:.3rem; margin-top:.35rem; }
     .cc-hoja .btn-crew-soft { background:#f1f3f7; border:1px solid #d7dbe0; color:#26324a; }
     .cc-hoja .btn-crew-soft:hover, .cc-hoja .btn-crew-soft:focus { background:#e6e9ef; color:#26324a; }

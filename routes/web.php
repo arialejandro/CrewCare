@@ -977,6 +977,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/payees/{payee}/infosheet/autorizar', [\App\Http\Controllers\InfosheetController::class, 'approve'])->name('infosheet.authorize')->whereNumber('payee');
     // EL INFOSHEET · FASE 3 · BANDEJA "por autorizar" (cola de descubrimiento del autorizador).
     Route::get('/infosheets/por-autorizar', [\App\Http\Controllers\InfosheetController::class, 'pending'])->name('infosheet.pending');
+    // Autorización EN LOTE con la firma adoptada (misma puerta que la individual, pieza por pieza).
+    Route::post('/infosheets/por-autorizar', [\App\Http\Controllers\InfosheetController::class, 'batch'])->name('infosheet.batch');
     // EL INFOSHEET · FASE 4 · contratado no-crew: crea/reusa su usuario externo lite + enlace de un solo uso.
     Route::post('/payees/{payee}/acceso-externo', [\App\Http\Controllers\ExternalAccessController::class, 'provision'])->name('external.provision')->whereNumber('payee');
 });
