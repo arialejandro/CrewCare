@@ -100,12 +100,52 @@
                             </div>
                             <div class="col-6"><input type="text" name="folio" class="form-control form-control-sm" placeholder="{{ __('Folio') }}"></div>
                             <div class="col-6"><input type="date" name="valid_until" class="form-control form-control-sm" title="{{ __('Vencimiento') }}"></div>
-                            <div class="col-12"><input type="file" name="photo" class="form-control form-control-sm" accept="image/*"></div>
+                            <div class="col-12"><input type="file" name="photo" class="form-control form-control-sm" accept="image/*,.heic,.heif"></div>
                             <div class="col-12"><button type="submit" class="btn btn-sm btn-crew-soft">{{ __('Capturar documento') }}</button></div>
                         </div>
                     </form>
                 </div>
             </div>
+        </div>
+
+        {{-- Licencia del conductor (§2): vive en el paquete del driver (contabilidad); aquí se MUESTRA. --}}
+        <div class="card border-0 shadow-sm rounded-3 p-3 p-md-4 mt-4">
+            <h5 class="mb-3">{{ __('Licencia del conductor') }}</h5>
+            @if (! $vehicle->driver_user_id)
+                <p class="text-muted mb-0">{{ __('Asigna un conductor para registrar y ver su licencia.') }}</p>
+            @else
+                <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                    <div>
+                        <div class="fw-semibold">{{ $vehicle->driverLabel() }}</div>
+                        @if ($driverLicense)
+                            @if ($driverLicense->isValidated())
+                                <span class="text-success small">@include('componentes._icon', ['name' => 'file-check', 'label' => null]) {{ __('Licencia validada') }}@if($driverLicense->effectiveValidUntil()) · {{ __('vence') }} {{ $driverLicense->effectiveValidUntil()->format('d/m/Y') }}@endif</span>
+                            @else
+                                <span class="text-muted small">{{ __('Licencia capturada, pendiente de validar') }}@if($driverLicense->effectiveValidUntil()) · {{ __('vence') }} {{ $driverLicense->effectiveValidUntil()->format('d/m/Y') }}@endif</span>
+                            @endif
+                            <div class="text-muted small">{{ __('En el paquete documental del conductor (para contabilidad). No se copia.') }}</div>
+                        @else
+                            <span class="text-muted small">{{ __('Sin licencia registrada en el paquete del conductor.') }}</span>
+                        @endif
+                    </div>
+                    @if ($driverLicense && $driverLicense->isPending())
+                        <form method="post" action="{{ route('transport.document.validate', $driverLicense->id) }}" onsubmit="return confirm('{{ __('¿Validar la licencia? Queda a tu nombre.') }}');" class="m-0">
+                            @csrf
+                            <input type="hidden" name="attestation" value="1">
+                            <button type="submit" class="btn btn-sm btn-outline-success">{{ __('Validar') }}</button>
+                        </form>
+                    @endif
+                </div>
+                <form method="post" action="{{ route('transport.driver.license.store', $vehicle) }}" enctype="multipart/form-data" class="mt-3">
+                    @csrf
+                    <div class="row g-2 align-items-end">
+                        <div class="col-6 col-md-3"><input type="text" name="folio" class="form-control form-control-sm" placeholder="{{ __('Folio de licencia') }}"></div>
+                        <div class="col-6 col-md-3"><input type="date" name="valid_until" class="form-control form-control-sm" title="{{ __('Vencimiento') }}"></div>
+                        <div class="col-8 col-md-4"><input type="file" name="photo" class="form-control form-control-sm" accept="image/*,.heic,.heif"></div>
+                        <div class="col-4 col-md-2"><button type="submit" class="btn btn-sm btn-crew-soft w-100">{{ __('Capturar') }}</button></div>
+                    </div>
+                </form>
+            @endif
         </div>
 
         {{-- Actas / historial --}}

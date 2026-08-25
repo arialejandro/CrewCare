@@ -28,8 +28,13 @@ class Vehicle extends Model
     const OWNER_PERSON   = 'person';
     const OWNER_OTHER    = 'other';
 
-    /** Códigos del catálogo document_types exigidos para la marca "Documentos revisados" (§4). */
-    const REQUIRED_DOC_CODES = ['VEH_TARJETA', 'VEH_POLIZA', 'VEH_VERIFICACION', 'VEH_LICENCIA'];
+    /**
+     * Documentos DEL VEHÍCULO exigidos para la marca "Documentos revisados" (§4).
+     * La LICENCIA del conductor (VEH_LICENCIA) NO va aquí: vive en el paquete documental del DRIVER
+     * (payees), junto a su 32-D/CSF/comprobante, para consulta de contabilidad. En la ficha se
+     * MUESTRA (no se copia) vía {@see driverLicense()}.
+     */
+    const REQUIRED_DOC_CODES = ['VEH_TARJETA', 'VEH_POLIZA', 'VEH_VERIFICACION'];
 
     protected $fillable = [
         'vehicle_type_id', 'type_code',
@@ -108,6 +113,47 @@ class Vehicle extends Model
     public function driverLabel(): ?string
     {
         return $this->driver ? User::displayName($this->driver) : null;
+    }
+
+    // ── Licencia del conductor (§2): vive en el PAQUETE del driver (payees), aquí se MUESTRA ──
+    /** El payee (paquete documental) del conductor asignado, o null. Vínculo 1:1 por convención. */
+    public function driverPayee(): ?Payee
+    {
+        if (! $this->driver_user_id) {
+            return null;
+        }
+        return Payee::where('user_id', $this->driver_user_id)->first();
+    }
+
+    /**
+     * La LICENCIA del conductor asignado, resuelta de su paquete de payee (holder=Payee,
+     * document_type VEH_LICENCIA), la más reciente. Read-only: NO se copia al vehículo.
+     */
+    public function driverLicense(): ?ExternalAuthorization
+    {
+        $payee = $this->driverPayee();
+        if (! $payee) {
+            return null;
+        }
+        $typeId = self::licenseTypeId();
+        if (! $typeId) {
+            return null;
+        }
+        return $payee->documents()
+            ->where('document_type_id', $typeId)
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /** id del tipo de documento VEH_LICENCIA (cacheado por petición). */
+    public static function licenseTypeId(): ?int
+    {
+        static $id = false;
+        if ($id === false) {
+            $dt = DocumentType::where('code', 'VEH_LICENCIA')->first();
+            $id = $dt ? (int) $dt->id : null;
+        }
+        return $id;
     }
 
     // ── Marca 1: INSPECCIONADO (checklist aprobado) ───────────────────────────

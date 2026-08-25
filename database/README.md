@@ -192,6 +192,7 @@ el porqué del cambio y su **reversión** (el `DROP` correspondiente, comentado)
 | 105 | `2026-08-21-payee-contract-asset-ref` | `payee_contracts.asset_ref` — referencia mínima del ACTIVO en el contrato de renta (hook Transportación). **Requiere #73.** |
 | 106 | `2026-08-24-transport-catalog` | Transportación · Bloque 1 — catálogo `vehicle_types` + `vehicle_check_points` (2 tablas NUEVAS). Sin dependencias. |
 | 107 | `2026-08-24-transport-vehicles` | Transportación · Bloque 1 — `vehicles` + `vehicle_inspections` (2 tablas NUEVAS) + puente `payee_contracts.vehicle_id` (ALTER idempotente). **Requiere `payee_contracts`.** |
+| 108 | `2026-08-24-transport-drafts` | Transportación · Bloque 1 §1 — `vehicle_inspection_drafts` (1 tabla NUEVA, borrador del checklist del autor). Sin dependencias. El ajuste §3 (is_towed/REM-004 → 51 puntos) NO es SQL: re-correr `VehicleCatalogSeeder`. |
 
 > **Nota (2026-08-24):** entre el #105 y el #106 existen también los deltas `2026-08-23-*` (calendario/departamentos/
 > call-sheet/back/hotel) y `2026-08-24-call-packages`/`-file-deliveries` del bloque Llamado/Distribución, no numerados

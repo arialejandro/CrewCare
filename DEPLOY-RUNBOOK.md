@@ -23,8 +23,11 @@
 - **Chrome/Chromium headless + Node** para los PDF por Browsershot (contrato firmado, certificados, wrap).
   Apunta las rutas en `.env` (`BROWSERSHOT_CHROME`, `BROWSERSHOT_NODE`). Sin esto, los PDF por Chrome fallan
   (la app degrada, pero no genera esos documentos).
-- **Opcional — HEIC (fotos de iPhone):** ImageMagick con delegado `libheif` + `php-imagick`. Si no está, un
-  HEIC crudo se **rechaza con mensaje claro** (nunca se guarda invisible). Verifica con
+- **HEIC (fotos de iPhone) — REQUISITO recomendado (respaldo del servidor):** ImageMagick con delegado
+  `libheif` + `php-imagick`. El cliente convierte HEIC→JPEG en iPhone/iPad (WebKit) ANTES de subir, pero
+  Chrome/Firefox de escritorio NO decodifican HEIC → caen a este respaldo del servidor. Con la verificación
+  de vehículos, donde **la foto por punto es obligatoria**, sin este respaldo un HEIC de escritorio se
+  **rechaza con mensaje claro** (nunca se guarda invisible). Verifica con
   `php -r "var_dump(extension_loaded('imagick'));"` y `(new Imagick())->queryFormats('HEIC')`.
 
 ## 1 · Código
@@ -159,6 +162,18 @@ Si alguna vez estuvo rastreado, rota `APP_KEY`, `DB_PASSWORD`, `MAIL_PASSWORD` e
 ---
 
 ## 10 · Cambios por racha (más reciente arriba)
+
+### Racha 2026-08-24 · Transportación · Bloque 1 · AJUSTES (borrador, licencia, is_towed, HEIC global)
+- **§1 Borrador del checklist:** 1 tabla nueva `vehicle_inspection_drafts` (guardado parcial en servidor, del
+  autor, retomable desde otro dispositivo; al sellar se borra). Fresh = migración `2026_08_24_000015`; BD poblada
+  = `owner-apply/2026-08-24-transport-drafts.sql`.
+- **§3 is_towed / REM-004:** solo DATO del catálogo — re-corre `db:seed --class=VehicleCatalogSeeder` (→ **51 puntos**,
+  agrega REM-004 y las exclusiones de núcleo para unidades remolcadas). Sin SQL de esquema.
+- **§2 Licencia con la persona + §4 HEIC global:** puro código (viaja con el deploy). La licencia del conductor
+  sale de los docs del vehículo y vive en el paquete del driver (payee); la conversión HEIC en cliente ahora es
+  global (todas las páginas, `cc-photo-auto.js` idempotente).
+- **🆕 Requisito del host reforzado:** con foto obligatoria por punto, `Imagick`+`libheif` pasa de opcional a
+  **respaldo requerido** (ver §0). **Suite: 815 verde.**
 
 ### Racha 2026-08-24 · Transportación · Bloque 1 (entidad Vehículo + verificación de seguridad)
 - **Esquema:** 4 tablas (`vehicle_types`, `vehicle_check_points`, `vehicles`, `vehicle_inspections`) + puente

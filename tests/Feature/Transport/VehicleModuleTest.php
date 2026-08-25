@@ -7,7 +7,10 @@ use App\Models\ExternalAuthorization;
 use App\Models\Vehicle;
 use App\Models\VehicleCheckPoint;
 use App\Models\VehicleInspection;
+use App\Models\VehicleInspectionDraft;
 use App\Models\VehicleType;
+use App\Support\VehicleChecklist;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -23,7 +26,7 @@ class VehicleModuleTest extends VehicleVerticalTestCase
     public function test_catalogo_de_fabrica_sembrado(): void
     {
         $this->assertSame(13, VehicleType::count(), '13 tipos de fábrica.');
-        $this->assertSame(50, VehicleCheckPoint::count(), '50 puntos de fábrica.');
+        $this->assertSame(51, VehicleCheckPoint::count(), '51 puntos de fábrica.');
     }
 
     public function test_applies_when_enciende_modulos_por_atributos(): void
@@ -38,6 +41,32 @@ class VehicleModuleTest extends VehicleVerticalTestCase
         $this->assertNotContains('OCU-001', $autoCodes, 'Auto (5 plazas) NO enciende alta ocupación.');
         $this->assertContains('OCU-001', $vanCodes, 'Van (12 plazas) SÍ enciende alta ocupación.');
         $this->assertNotContains('ELE-001', $autoCodes, 'Combustión NO enciende tracción eléctrica.');
+    }
+
+    public function test_is_towed_excluye_puntos_de_conduccion_pero_conserva_modulos(): void
+    {
+        // planta_luz trae is_towed=true por perfil.
+        $towed = $this->makeVehicle('planta_luz');
+        $codes = $this->applicableCodes($towed);
+
+        // Excluidos en una unidad remolcada (no se conduce): frenos de conducción, rodaje, luces de
+        // cabina, cinturones, motor y combustible de propulsión.
+        foreach (['VEH-001', 'VEH-010', 'VEH-011', 'VEH-013', 'VEH-021', 'VEH-015', 'VEH-019'] as $c) {
+            $this->assertNotContains($c, $codes, "$c NO aplica a una unidad remolcada.");
+        }
+        // Conservados: llantas, equipo, energía (genset) y REMOLQUE (con REM-004 = frenos del remolque).
+        $this->assertContains('VEH-005', $codes, 'Las llantas siguen aplicando.');
+        $this->assertContains('VEH-022', $codes, 'El extintor sigue aplicando.');
+        $this->assertContains('ENE-001', $codes, 'La energía (genset) sigue aplicando.');
+        $this->assertContains('REM-004', $codes, 'Los frenos del remolque se revisan por REMOLQUE.');
+
+        // Un camper AUTOPROPULSADO (is_towed=false) SÍ recibe los puntos de conducción.
+        $self = $this->makeVehicle('planta_luz', [
+            'attr_values' => \App\Support\VehicleChecklist::normalizeAttributes([
+                'powertrain' => 'combustion', 'has_genset_or_heat_appliances' => true, 'is_towed' => false,
+            ]),
+        ]);
+        $this->assertContains('VEH-011', $this->applicableCodes($self), 'Una unidad autopropulsada sí recibe luces principales.');
     }
 
     // ── Acta APTA (camino feliz) ─────────────────────────────────────────────
@@ -201,6 +230,78 @@ class VehicleModuleTest extends VehicleVerticalTestCase
         $this->assertSame($new->id, $vehicle->fresh()->latestInspection()->id);
     }
 
+    // ── Borrador del checklist (§1) ──────────────────────────────────────────
+    public function test_borrador_guarda_parcial_en_servidor_y_es_del_autor(): void
+    {
+        $a = $this->actingAsRole('safety-officer');
+        $vehicle = $this->makeVehicle('auto');
+
+        // Guardado PARCIAL: unas respuestas + una foto, sin cerrar.
+        $this->post(route('transport.inspect.draft'), [
+            'vehicle_id'   => $vehicle->id,
+            'answers'      => ['VEH-001' => 'ok', 'VEH-002' => 'fail'],
+            'point_photos' => ['VEH-005' => UploadedFile::fake()->image('x.jpg', 24, 24)],
+            'km'           => 500,
+        ])->assertSessionHasNoErrors();
+
+        $draft = VehicleInspectionDraft::forAuthor($vehicle->id, $a->id);
+        $this->assertNotNull($draft, 'El borrador se guarda en el servidor.');
+        $this->assertSame('ok', $draft->answers['VEH-001'] ?? null);
+        $this->assertSame('fail', $draft->answers['VEH-002'] ?? null);
+        $this->assertNotEmpty($draft->point_photos['VEH-005'] ?? null, 'La foto se guarda al vuelo.');
+        $this->assertSame(500, (int) $draft->km);
+
+        // DEL AUTOR: otro usuario no ve el borrador.
+        $b = $this->makeUser('safety-officer');
+        $this->assertNull(VehicleInspectionDraft::forAuthor($vehicle->id, $b->id), 'Solo el autor ve su borrador.');
+    }
+
+    public function test_borrador_se_sella_reusando_sus_fotos_y_se_borra(): void
+    {
+        $a = $this->actingAsRole('safety-officer');
+        $vehicle = $this->makeVehicle('auto');
+
+        // 1) Borrador con las fotos obligatorias (VEH-005/007/022).
+        $this->post(route('transport.inspect.draft'), [
+            'vehicle_id'   => $vehicle->id,
+            'point_photos' => [
+                'VEH-005' => UploadedFile::fake()->image('a.jpg', 24, 24),
+                'VEH-007' => UploadedFile::fake()->image('b.jpg', 24, 24),
+                'VEH-022' => UploadedFile::fake()->image('c.jpg', 24, 24),
+            ],
+        ])->assertSessionHasNoErrors();
+        $this->assertNotNull(VehicleInspectionDraft::forAuthor($vehicle->id, $a->id));
+
+        // 2) Sellar SIN re-subir fotos (se retomó desde otro dispositivo): solo respuestas.
+        $points  = VehicleChecklist::pointsFor($vehicle->resolvedAttributes());
+        $answers = [];
+        foreach ($points as $p) {
+            $answers[$p->code] = 'ok';
+        }
+        $this->post(route('transport.inspect.store'), ['vehicle_id' => $vehicle->id, 'answers' => $answers])
+            ->assertSessionHasNoErrors();
+
+        $acta = VehicleInspection::latest('id')->first();
+        $this->assertNotNull($acta, 'El acta se sella reusando las fotos del borrador.');
+        $this->assertSame(VehicleInspection::VERDICT_APTO, $acta->verdict);
+        $snap = collect($acta->checklist_snapshot)->firstWhere('code', 'VEH-005');
+        $this->assertNotEmpty($snap['photo_path'] ?? null, 'El acta conserva la ruta de foto del borrador.');
+
+        // El borrador se BORRA al sellar (el acta es la fuente inmutable).
+        $this->assertNull(VehicleInspectionDraft::forAuthor($vehicle->id, $a->id), 'El borrador se borra al sellar.');
+    }
+
+    public function test_descartar_borrador_lo_elimina(): void
+    {
+        $a = $this->actingAsRole('safety-officer');
+        $vehicle = $this->makeVehicle('auto');
+        $this->post(route('transport.inspect.draft'), ['vehicle_id' => $vehicle->id, 'answers' => ['VEH-001' => 'ok']]);
+        $this->assertNotNull(VehicleInspectionDraft::forAuthor($vehicle->id, $a->id));
+
+        $this->post(route('transport.inspect.draft.discard', $vehicle))->assertSessionHasNoErrors();
+        $this->assertNull(VehicleInspectionDraft::forAuthor($vehicle->id, $a->id));
+    }
+
     // ── Documentos → marca "Documentos revisados" ────────────────────────────
     public function test_documentos_validados_y_vigentes_encienden_la_marca(): void
     {
@@ -231,6 +332,35 @@ class VehicleModuleTest extends VehicleVerticalTestCase
             ->update(['valid_until' => now()->subDay()]);
 
         $this->assertFalse($vehicle->fresh()->docsReviewed(), 'Un documento caducado apaga la marca.');
+    }
+
+    // ── Licencia del conductor (§2): va con la PERSONA, no con el vehículo ────
+    public function test_licencia_va_al_paquete_del_driver_y_es_unica_por_conductor(): void
+    {
+        $this->actingAsRole('safety-officer');
+        $driver = $this->makeUser('crew');
+        $v1 = $this->makeVehicle('auto', ['driver_user_id' => $driver->id]);
+
+        $this->post(route('transport.driver.license.store', $v1), [
+            'folio'       => 'LIC-1',
+            'valid_until' => now()->addYear()->toDateString(),
+        ])->assertSessionHasNoErrors();
+
+        // Vive en el PAYEE del conductor (holder=Payee, level persona), no en el vehículo.
+        $payee = \App\Models\Payee::where('user_id', $driver->id)->first();
+        $this->assertNotNull($payee, 'Se asegura el payee del conductor.');
+        $lic = $payee->documents()->whereHas('documentType', fn ($q) => $q->where('code', 'VEH_LICENCIA'))->first();
+        $this->assertNotNull($lic, 'La licencia cuelga del payee del conductor.');
+        $this->assertSame('persona', $lic->level);
+        $this->assertSame(0, $v1->documents()->count(), 'La licencia NO cuelga del vehículo.');
+
+        // La ficha la MUESTRA (no la copia) y ya no está en los docs requeridos del vehículo.
+        $this->assertSame($lic->id, $v1->fresh()->driverLicense()->id);
+        $this->assertNotContains('VEH_LICENCIA', Vehicle::REQUIRED_DOC_CODES);
+
+        // Un segundo vehículo del MISMO conductor ve la MISMA licencia (una sola registrada).
+        $v2 = $this->makeVehicle('suv', ['driver_user_id' => $driver->id]);
+        $this->assertSame($lic->id, $v2->driverLicense()->id, 'Un driver con dos unidades tiene una sola licencia.');
     }
 
     public function test_captura_y_validacion_de_documento_por_endpoint(): void

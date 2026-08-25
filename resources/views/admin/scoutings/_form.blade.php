@@ -851,7 +851,7 @@
                             <small class="cc-muted">Imagen actual — sube una nueva para <strong>reemplazarla</strong>.</small>
                         </div>
                     @endif
-                    <input type="file" id="main-image-input" name="main_image" class="form-control" accept="image/*,.heic,.heif">
+                    <input type="file" id="main-image-input" name="main_image" class="form-control" accept="image/*,.heic,.heif" data-cc-noauto>
                     <small class="cc-muted d-block mt-1">JPG, PNG o GIF · hasta 12 MB. Se optimiza sola al subir.</small>
                 </div>
                 <div class="col-md-6">
@@ -899,7 +899,7 @@
                     {{-- Uploader múltiple con mejora progresiva: el input real funciona solo;
                          el JS (si el navegador lo permite) lo oculta y muestra botón + miniaturas con pie de foto. --}}
                     <div id="ai-uploader">
-                        <input type="file" id="ai-input" name="additional_images[]" accept="image/*,.heic,.heif" multiple class="form-control">
+                        <input type="file" id="ai-input" name="additional_images[]" accept="image/*,.heic,.heif" multiple class="form-control" data-cc-noauto>
                         <button type="button" id="ai-add" class="ai-add-btn d-inline-flex align-items-center gap-1" style="display:none;">
                             @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-ico'])
                             <span>Agregar imágenes</span>

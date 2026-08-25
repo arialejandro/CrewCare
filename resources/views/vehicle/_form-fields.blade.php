@@ -94,7 +94,8 @@
         <div class="form-check"><input type="hidden" name="has_cargo_box" value="0"><input class="form-check-input" type="checkbox" name="has_cargo_box" value="1" id="hcb" @checked($ak('has_cargo_box'))><label class="form-check-label" for="hcb">{{ __('Caja / plataforma / rampa') }}</label></div>
         <div class="form-check"><input type="hidden" name="has_lpg_or_sanitary" value="0"><input class="form-check-input" type="checkbox" name="has_lpg_or_sanitary" value="1" id="hls" @checked($ak('has_lpg_or_sanitary'))><label class="form-check-label" for="hls">{{ __('Gas LP / sanitario') }}</label></div>
         <div class="form-check"><input type="hidden" name="has_genset_or_heat_appliances" value="0"><input class="form-check-input" type="checkbox" name="has_genset_or_heat_appliances" value="1" id="hgh" @checked($ak('has_genset_or_heat_appliances'))><label class="form-check-label" for="hgh">{{ __('Energía / aparatos de calor') }}</label></div>
-        <div class="form-check"><input type="hidden" name="tows" value="0"><input class="form-check-input" type="checkbox" name="tows" value="1" id="tows" @checked($ak('tows'))><label class="form-check-label" for="tows">{{ __('Remolca / remolcado') }}</label></div>
+        <div class="form-check"><input type="hidden" name="tows" value="0"><input class="form-check-input" type="checkbox" name="tows" value="1" id="tows" @checked($ak('tows'))><label class="form-check-label" for="tows">{{ __('Jala remolque (tractor/pickup)') }}</label></div>
+        <div class="form-check"><input type="hidden" name="is_towed" value="0"><input class="form-check-input" type="checkbox" name="is_towed" value="1" id="is_towed" @checked($ak('is_towed'))><label class="form-check-label" for="is_towed">{{ __('Es remolcada (no se conduce)') }}</label></div>
     </div>
 </div>
 

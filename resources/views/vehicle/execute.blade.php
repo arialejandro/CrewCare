@@ -16,6 +16,15 @@
         }
     }
     $isReeval = isset($origin) && $origin;
+
+    // BORRADOR (§1): retoma respuestas/fotos guardadas por el AUTOR. old() gana sobre el borrador
+    // tras un error de validación.
+    $draft        = $draft ?? null;
+    $draftAnswers = $draft ? (array) $draft->answers : [];
+    $draftPhotos  = $draft ? (array) $draft->point_photos : [];
+    $ansVal = function ($code) use ($draftAnswers) {
+        return old('answers.' . $code, $draftAnswers[$code] ?? null);
+    };
 @endphp
 
 <div class="crew-page insp-page">
@@ -63,14 +72,33 @@
                 <div class="alert alert-info">{{ __('Reevaluación de') }} <strong>{{ $origin->folio() }}</strong>. {{ __('Los documentos ya validados y vigentes no se vuelven a pedir. Marca los puntos reparados.') }}</div>
             @endif
 
+            {{-- Borrador retomado (§1): se puede descartar. El form de descarte va FUERA del form principal. --}}
+            @if ($draft)
+                <div class="alert alert-secondary d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <span>@include('componentes._icon', ['name' => 'clock', 'label' => null]) {{ __('Retomando un borrador guardado') }} · {{ optional($draft->updated_at)->format('d/m/Y H:i') }}</span>
+                    <form method="post" action="{{ route('transport.inspect.draft.discard', $vehicle) }}" onsubmit="return confirm('{{ __('¿Descartar el borrador? Se perderá lo capturado.') }}');" class="m-0">
+                        @csrf
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">{{ __('Descartar borrador') }}</button>
+                    </form>
+                </div>
+            @endif
+
             <form method="post" action="{{ route('transport.inspect.store') }}" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="vehicle_id" value="{{ $vehicle->id }}">
                 @if ($isReeval)<input type="hidden" name="reeval" value="{{ $origin->id }}">@endif
 
                 @foreach ($groups as $mod => $rows)
+                    @php
+                        $modTotal = count($rows);
+                        $modDone  = 0;
+                        foreach ($rows as $rp) { if (in_array($ansVal($rp->code), ['ok', 'fail'], true)) { $modDone++; } }
+                    @endphp
                     <div class="card border-0 shadow-sm rounded-3 p-3 p-md-4 mb-3">
-                        <h6 class="mb-3 text-uppercase text-muted" style="letter-spacing:.06em;font-size:.72rem">{{ $moduleNames[$mod] ?? ucfirst($mod) }}</h6>
+                        <h6 class="mb-3 text-uppercase text-muted d-flex align-items-center gap-2" style="letter-spacing:.06em;font-size:.72rem">
+                            {{ $moduleNames[$mod] ?? ucfirst($mod) }}
+                            <span class="badge {{ $modDone === $modTotal ? 'bg-success' : 'bg-secondary' }}">{{ $modDone }}/{{ $modTotal }}</span>
+                        </h6>
                         @foreach ($rows as $p)
                             @php $ct = $classTag[$p->class] ?? ['Menor', 'secondary']; @endphp
                             <div class="py-2 border-bottom">
@@ -84,9 +112,9 @@
                                     </div>
                                     <div class="d-flex align-items-center gap-3 flex-shrink-0">
                                         <div class="btn-group btn-group-sm" role="group">
-                                            <input type="radio" class="btn-check" name="answers[{{ $p->code }}]" id="ok-{{ $p->code }}" value="ok" autocomplete="off">
+                                            <input type="radio" class="btn-check" name="answers[{{ $p->code }}]" id="ok-{{ $p->code }}" value="ok" autocomplete="off" @checked($ansVal($p->code) === 'ok')>
                                             <label class="btn btn-outline-success" for="ok-{{ $p->code }}">{{ __('Cumple') }}</label>
-                                            <input type="radio" class="btn-check" name="answers[{{ $p->code }}]" id="bad-{{ $p->code }}" value="fail" autocomplete="off">
+                                            <input type="radio" class="btn-check" name="answers[{{ $p->code }}]" id="bad-{{ $p->code }}" value="fail" autocomplete="off" @checked($ansVal($p->code) === 'fail')>
                                             <label class="btn btn-outline-danger" for="bad-{{ $p->code }}">{{ __('Falla') }}</label>
                                         </div>
                                         @if ($isReeval)
@@ -98,8 +126,11 @@
                                     </div>
                                 </div>
                                 <div class="mt-2">
-                                    <input type="file" name="point_photos[{{ $p->code }}]" class="form-control form-control-sm" accept="image/*"
+                                    <input type="file" name="point_photos[{{ $p->code }}]" class="form-control form-control-sm" accept="image/*,.heic,.heif"
                                            title="{{ __('Foto del punto (obligatoria si reprueba o si el punto la exige)') }}">
+                                    @if (! empty($draftPhotos[$p->code]))
+                                        <div class="form-text text-success">@include('componentes._icon', ['name' => 'file-check', 'label' => null]) {{ __('Foto guardada en el borrador (no hace falta re-subirla).') }}</div>
+                                    @endif
                                 </div>
                             </div>
                         @endforeach
@@ -111,24 +142,27 @@
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label">{{ __('Kilometraje') }}</label>
-                            <input type="number" name="km" value="{{ old('km', $vehicle->initial_km) }}" class="form-control" min="0" @if($isReeval) readonly @endif>
+                            <input type="number" name="km" value="{{ old('km', ($draft && $draft->km !== null) ? $draft->km : $vehicle->initial_km) }}" class="form-control" min="0" @if($isReeval) readonly @endif>
                             @if ($isReeval)<div class="form-text">{{ __('Se conserva el de la primera inspección.') }}</div>@endif
                         </div>
                         <div class="col-md-8">
                             <label class="form-label">{{ __('Foto general de la unidad (opcional)') }}</label>
-                            <input type="file" name="unit_photo" class="form-control" accept="image/*">
+                            <input type="file" name="unit_photo" class="form-control" accept="image/*,.heic,.heif">
                         </div>
                         <div class="col-12">
                             <label class="form-label">{{ __('Resumen y recomendaciones (opcional)') }}</label>
-                            <textarea name="observations" class="form-control" rows="3" maxlength="4000">{{ old('observations') }}</textarea>
+                            <textarea name="observations" class="form-control" rows="3" maxlength="4000">{{ old('observations', $draft->observations ?? '') }}</textarea>
                         </div>
                     </div>
                 </div>
 
-                <div class="d-flex gap-2 mb-5">
+                <div class="d-flex gap-2 mb-5 flex-wrap">
                     <button type="submit" class="btn btn-crew-accent">{{ __('Cerrar y sellar acta') }}</button>
+                    {{-- Guardar borrador: mismo form, otra acción. formnovalidate = no exige checklist completo. --}}
+                    <button type="submit" class="btn btn-crew-soft" formaction="{{ route('transport.inspect.draft') }}" formnovalidate>{{ __('Guardar borrador') }}</button>
                     <a href="{{ route('transport.vehicle.show', $vehicle) }}" class="btn btn-crew-soft">{{ __('Cancelar') }}</a>
                 </div>
+                <p class="text-muted small mb-5">{{ __('Guardar borrador conserva respuestas y fotos en el servidor; puedes retomarlo desde otro dispositivo. Cerrar y sellar exige el checklist completo y ya no se edita.') }}</p>
             </form>
         @endif
 

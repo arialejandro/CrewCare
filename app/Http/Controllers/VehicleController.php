@@ -9,6 +9,7 @@ use App\Models\Payee;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleInspection;
+use App\Models\VehicleInspectionDraft;
 use App\Models\VehicleType;
 use App\Support\CurrentProduction;
 use App\Support\ImageCompressor;
@@ -93,11 +94,12 @@ class VehicleController extends Controller
         abort_unless(TransportAccess::canFull($request->user()), 403);
 
         $vehicle->load(['type', 'driver', 'ownerPayee', 'ownerUser', 'documents.documentType']);
-        $inspections = $vehicle->inspections()->get();
-        $docState    = $vehicle->requiredDocState();
-        $docTypes    = DocumentType::whereIn('code', Vehicle::REQUIRED_DOC_CODES)->orderBy('sort_order')->get();
+        $inspections   = $vehicle->inspections()->get();
+        $docState      = $vehicle->requiredDocState();
+        $docTypes      = DocumentType::whereIn('code', Vehicle::REQUIRED_DOC_CODES)->orderBy('sort_order')->get();
+        $driverLicense = $vehicle->driverLicense(); // §2: vive en el paquete del driver, aquí se MUESTRA
 
-        return view('vehicle.vehicle-show', compact('vehicle', 'inspections', 'docState', 'docTypes'));
+        return view('vehicle.vehicle-show', compact('vehicle', 'inspections', 'docState', 'docTypes', 'driverLicense'));
     }
 
     /** Formulario de edición del vehículo (atributos ajustables por unidad, driver, propietario). */
@@ -200,6 +202,70 @@ class VehicleController extends Controller
         return back()->with('success', 'Documento validado bajo tu responsabilidad (documentos revisados).');
     }
 
+    /**
+     * LICENCIA DEL CONDUCTOR (§2): NO es del vehículo. Vive en el paquete documental del DRIVER
+     * (payee 1:1 por user_id), junto a su 32-D/CSF, para consulta de contabilidad. Se captura UNA
+     * vez por conductor; si maneja dos unidades, la licencia sigue siendo una sola. Nace pendiente.
+     */
+    public function storeDriverLicense(Request $request, Vehicle $vehicle)
+    {
+        abort_unless(TransportAccess::canFull($request->user()), 403);
+
+        if (! $vehicle->driver_user_id) {
+            return back()->with('error', 'Asigna un conductor al vehículo antes de capturar su licencia.');
+        }
+        $driver = User::find($vehicle->driver_user_id);
+        if (! $driver) {
+            return back()->with('error', 'El conductor asignado no existe.');
+        }
+
+        $data = $request->validate([
+            'authority'   => 'nullable|string|max:255',
+            'folio'       => 'nullable|string|max:160',
+            'valid_until' => 'nullable|date',
+            'photo'       => 'nullable|mimes:jpeg,png,jpg,gif,webp,heic,heif|heic_ok|max:12288',
+        ]);
+
+        $type = DocumentType::where('code', 'VEH_LICENCIA')->first();
+        if (! $type) {
+            return back()->with('error', 'El tipo de documento de licencia no está disponible.');
+        }
+
+        // La licencia va al PAQUETE del driver. Se asegura su payee (idempotente, 1:1 por user_id).
+        $payee = Payee::firstOrCreate(
+            ['user_id' => $driver->id],
+            [
+                'legal_nature' => Payee::NATURE_FISICA,
+                'name'         => trim(($driver->name ?? '') . ' ' . ($driver->lname ?? '')) ?: ($driver->name ?? 'Conductor'),
+                'is_active'    => 1,
+            ]
+        );
+
+        $author    = $request->user();
+        $photoPath = $request->hasFile('photo')
+            ? ImageCompressor::store($request->file('photo'), 'vehicle/licenses')
+            : null;
+
+        ExternalAuthorization::create([
+            'holder_type'      => Payee::class,
+            'holder_id'        => $payee->id,
+            'level'            => ExternalAuthorization::LEVEL_PERSON, // 'persona' → sección "Para cobrar" del payee
+            'document_type'    => $type->name,
+            'document_type_id' => $type->id,
+            'authority'        => $data['authority'] ?? null,
+            'folio'            => $data['folio'] ?? null,
+            'valid_until'      => $data['valid_until'] ?? null,
+            'photo_path'       => $photoPath,
+            'origen'           => 'normativo',
+            'is_gate'          => 0,
+            'status'           => ExternalAuthorization::STATUS_PRESENTED,
+            'is_active'        => 1,
+            'created_by_id'    => $author ? $author->id : null,
+        ]);
+
+        return back()->with('success', 'Licencia capturada en el paquete del conductor. Queda pendiente de validar.');
+    }
+
     /* ===================== VERIFICACIÓN (CHECKLIST) ===================== */
 
     /**
@@ -234,16 +300,108 @@ class VehicleController extends Controller
             }
         }
 
+        // BORRADOR del autor para este vehículo (§1): retoma respuestas/fotos guardadas. Si el
+        // borrador es de una reevaluación, recupera su acta de origen.
+        $draft = $vehicle ? VehicleInspectionDraft::forAuthor($vehicle->id, optional($request->user())->id) : null;
+        if ($draft && $draft->is_reevaluation && $draft->origin_inspection_id && ! $origin) {
+            $origin = VehicleInspection::find($draft->origin_inspection_id);
+        }
+
         $vehicles = Vehicle::active()->with('type')->orderBy('make')->orderBy('model')->get();
         $docState = $vehicle ? $vehicle->requiredDocState() : [];
 
-        return view('vehicle.execute', compact('vehicles', 'vehicle', 'points', 'attrs', 'origin', 'docState'));
+        return view('vehicle.execute', compact('vehicles', 'vehicle', 'points', 'attrs', 'origin', 'docState', 'draft'));
+    }
+
+    /**
+     * BORRADOR (§1): guardado parcial EN SERVIDOR. NO es un acta ni sella nada. Del AUTOR: un
+     * borrador vivo por vehículo+autor. Las respuestas contestadas se MERGEAN (una nula no borra);
+     * cada foto nueva se guarda al vuelo y su ruta se recuerda (no se re-sube al retomar/sellar).
+     */
+    public function saveDraft(Request $request)
+    {
+        abort_unless(TransportAccess::canFull($request->user()), 403);
+
+        $photoRule = 'nullable|mimes:jpeg,png,jpg,gif,webp,heic,heif|heic_ok|max:12288';
+        $data = $request->validate([
+            'vehicle_id'     => 'required|integer|exists:vehicles,id',
+            'answers'        => 'nullable|array',
+            'answers.*'      => 'nullable|in:ok,fail',
+            'point_photos'   => 'nullable|array',
+            'point_photos.*' => $photoRule,
+            'km'             => 'nullable|integer|min:0|max:9999999',
+            'unit_photo'     => $photoRule,
+            'observations'   => 'nullable|string|max:4000',
+            'reeval'         => 'nullable|integer|exists:vehicle_inspections,id',
+        ]);
+
+        $vehicle = Vehicle::find($data['vehicle_id']);
+        if (! $vehicle) {
+            return back()->with('error', 'El vehículo no está disponible.');
+        }
+        $author = $request->user();
+
+        $draft = VehicleInspectionDraft::forAuthor($vehicle->id, $author->id)
+            ?? new VehicleInspectionDraft(['vehicle_id' => $vehicle->id, 'created_by_id' => $author->id]);
+
+        // Respuestas: MERGE (solo las contestadas; una nula no borra lo guardado).
+        $answers = (array) ($draft->answers ?? []);
+        foreach (($data['answers'] ?? []) as $code => $val) {
+            if ($val === 'ok' || $val === 'fail') {
+                $answers[$code] = $val;
+            }
+        }
+
+        // Fotos por punto: cada archivo NUEVO se guarda al vuelo; su ruta se recuerda.
+        $photos = (array) ($draft->point_photos ?? []);
+        foreach ((array) $request->file('point_photos', []) as $code => $file) {
+            if ($file) {
+                $stored = ImageCompressor::store($file, 'vehicle/points');
+                if ($stored) {
+                    $photos[$code] = $stored;
+                }
+            }
+        }
+
+        $unitPhoto = $request->hasFile('unit_photo')
+            ? ImageCompressor::store($request->file('unit_photo'), 'vehicle/units')
+            : $draft->unit_photo_path;
+
+        $origin = $request->filled('reeval') ? VehicleInspection::find($data['reeval']) : null;
+
+        $draft->fill([
+            'production_id'        => CurrentProduction::id(),
+            'is_reevaluation'      => $origin ? 1 : 0,
+            'origin_inspection_id' => $origin ? $origin->id : null,
+            'answers'              => $answers,
+            'point_photos'         => $photos,
+            'unit_photo_path'      => $unitPhoto,
+            'km'                   => $request->filled('km') ? (int) $data['km'] : $draft->km,
+            'observations'         => $data['observations'] ?? $draft->observations,
+        ]);
+        $draft->save();
+
+        $params = ['vehicle_id' => $vehicle->id] + ($origin ? ['reeval' => $origin->id] : []);
+        return redirect()->route('transport.inspect.form', $params)
+            ->with('success', 'Borrador guardado. Puedes retomarlo desde cualquier dispositivo.');
+    }
+
+    /** Descarta el borrador del autor para un vehículo. */
+    public function discardDraft(Request $request, Vehicle $vehicle)
+    {
+        abort_unless(TransportAccess::canFull($request->user()), 403);
+        $draft = VehicleInspectionDraft::forAuthor($vehicle->id, optional($request->user())->id);
+        if ($draft) {
+            $draft->delete();
+        }
+        return redirect()->route('transport.vehicle.show', $vehicle)->with('success', 'Borrador descartado.');
     }
 
     /**
      * Ejecuta la verificación y sella el acta. Fail-safe DOBLE: (1) punto aplicable sin contestar
      * aborta el guardado; (2) foto obligatoria (requires_photo o punto reprobado) faltante aborta.
      * Los puntos y su clase se leen SIEMPRE del servidor, nunca del cliente. Veredicto graduado.
+     * Si hay borrador del autor, sus fotos ya guardadas sirven de respaldo; al sellar se BORRA.
      */
     public function storeInspection(Request $request)
     {
@@ -276,6 +434,11 @@ class VehicleController extends Controller
             return back()->withInput()->with('error', 'Este vehículo no tiene puntos de verificación aplicables.');
         }
 
+        // Borrador del autor (§1): sus fotos ya guardadas sirven de RESPALDO si no se re-subió el
+        // archivo en el envío final (se retomó desde otro dispositivo). Al sellar, el borrador se borra.
+        $draft       = VehicleInspectionDraft::forAuthor($vehicle->id, optional($author)->id);
+        $draftPhotos = $draft ? (array) $draft->point_photos : [];
+
         $origin  = $request->filled('reeval') ? VehicleInspection::find($data['reeval']) : null;
         $isReeval = $origin !== null;
 
@@ -300,6 +463,8 @@ class VehicleController extends Controller
             $photoPath  = null;
             if (isset($photos[$code]) && $photos[$code]) {
                 $photoPath = ImageCompressor::store($photos[$code], 'vehicle/points');
+            } elseif (! empty($draftPhotos[$code])) {
+                $photoPath = $draftPhotos[$code]; // respaldo: foto ya guardada en el borrador
             }
             if ($needsPhoto && ! $photoPath) {
                 $why = $ans === false ? 'un punto reprobado exige foto' : 'este punto exige foto';
@@ -324,10 +489,10 @@ class VehicleController extends Controller
 
         $result = VehicleVerdict::compute($executed);
 
-        // Foto general de la unidad (opcional) ANTES de sellar (su ruta entra al hash).
+        // Foto general de la unidad (opcional) ANTES de sellar (su ruta entra al hash). Respaldo del borrador.
         $unitPhoto = $request->hasFile('unit_photo')
             ? ImageCompressor::store($request->file('unit_photo'), 'vehicle/units')
-            : null;
+            : ($draft ? $draft->unit_photo_path : null);
 
         // KM: se captura en la PRIMERA inspección; en reevaluación se conserva el del vehículo.
         $km = $data['km'] ?? $vehicle->initial_km;
@@ -393,6 +558,9 @@ class VehicleController extends Controller
             }
             return $insp;
         });
+
+        // Sellada el acta, el borrador ya no sirve: se borra (el acta es la fuente inmutable).
+        optional($draft)->delete();
 
         return redirect()->route('transport.acta', $inspection->uuid)
             ->with('success', 'Verificación registrada y sellada.');

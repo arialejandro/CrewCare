@@ -21,8 +21,13 @@ class VehicleChecklist
     /** Powertrains válidos. */
     const POWERTRAINS = ['combustion', 'electric', 'hybrid'];
 
-    /** Llaves booleanas del perfil de atributos. */
-    const BOOL_KEYS = ['has_cargo_box', 'has_lpg_or_sanitary', 'has_genset_or_heat_appliances', 'tows'];
+    /**
+     * Llaves booleanas del perfil de atributos.
+     *   tows      = esta unidad JALA algo (tractor/pickup con enganche).
+     *   is_towed  = esta unidad ES remolcada (no se conduce: sin volante/cinturones/luces
+     *               principales/rodaje propio; sus frenos y luces se revisan por REMOLQUE).
+     */
+    const BOOL_KEYS = ['has_cargo_box', 'has_lpg_or_sanitary', 'has_genset_or_heat_appliances', 'tows', 'is_towed'];
 
     /** Llaves enteras nulables. */
     const INT_KEYS = ['seats', 'water_tank_liters'];
@@ -60,6 +65,26 @@ class VehicleChecklist
         $expr = trim((string) $expr);
         if ($expr === '') {
             return true; // aplica siempre
+        }
+
+        // Conjunción (AND): "a && b" → TODAS deben cumplirse. Se evalúa antes que || (precedencia).
+        if (strpos($expr, '&&') !== false) {
+            foreach (explode('&&', $expr) as $part) {
+                if (! self::applies(trim($part), $attrs)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Disyunción (OR): "a || b" → CUALQUIERA cumple.
+        if (strpos($expr, '||') !== false) {
+            foreach (explode('||', $expr) as $part) {
+                if (self::applies(trim($part), $attrs)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         // "attr OP valor"

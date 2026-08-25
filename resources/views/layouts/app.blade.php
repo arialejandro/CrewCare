@@ -120,6 +120,15 @@
         {{-- Per-page scripts (additive): views push their JS here, after the layout's
              own JS (Bootstrap 5 bundle, jQuery, Chart.js, app.js) so dependencies exist. --}}
         @stack('scripts')
+
+        {{-- (2026-08-24) CONVERSIÓN HEIC EN CLIENTE, GLOBAL. Antes se incluía por página; ahora
+             engancha CUALQUIER <input type=file accept*=image> del sitio (idempotente: si una vista
+             vieja también lo incluye, no se duplica el listener). Un iPhone convierte su HEIC a JPEG
+             ANTES de subir → el servidor no lo ve. Los flujos con cableado manual (scouting/riskmap)
+             marcan sus inputs con data-cc-noauto. El servidor conserva su conversión (Imagick+libheif)
+             como respaldo y el rechazo accionable como último recurso. --}}
+        <script src="{{ asset('js/cc-photo.js') }}"></script>
+        <script src="{{ asset('js/cc-photo-auto.js') }}"></script>
     </body>
 
 </html>

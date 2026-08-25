@@ -502,6 +502,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/transportacion/vehiculos', [App\Http\Controllers\VehicleController::class, 'storeVehicle'])->name('transport.vehicle.store');
     Route::get('/transportacion/verificar', [App\Http\Controllers\VehicleController::class, 'inspectForm'])->name('transport.inspect.form');
     Route::post('/transportacion/verificar', [App\Http\Controllers\VehicleController::class, 'storeInspection'])->name('transport.inspect.store');
+    Route::post('/transportacion/verificar/borrador', [App\Http\Controllers\VehicleController::class, 'saveDraft'])->name('transport.inspect.draft');
+    Route::post('/transportacion/vehiculo/{vehicle}/borrador/descartar', [App\Http\Controllers\VehicleController::class, 'discardDraft'])->name('transport.inspect.draft.discard')->whereNumber('vehicle');
     Route::get('/transportacion/actas', [App\Http\Controllers\VehicleController::class, 'records'])->name('transport.records');
     Route::get('/transportacion/acta/{inspection:uuid}', [App\Http\Controllers\VehicleController::class, 'actaShow'])->name('transport.acta')->where('inspection', '[0-9a-fA-F-]{36}');
     Route::get('/transportacion/acta/{inspection:uuid}/rechazo', [App\Http\Controllers\VehicleController::class, 'rejectionPdf'])->name('transport.acta.rejection')->where('inspection', '[0-9a-fA-F-]{36}');
@@ -509,6 +511,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/transportacion/vehiculo/{vehicle}/editar', [App\Http\Controllers\VehicleController::class, 'editVehicle'])->name('transport.vehicle.edit')->whereNumber('vehicle');
     Route::post('/transportacion/vehiculo/{vehicle}', [App\Http\Controllers\VehicleController::class, 'updateVehicle'])->name('transport.vehicle.update')->whereNumber('vehicle');
     Route::post('/transportacion/vehiculo/{vehicle}/documento', [App\Http\Controllers\VehicleController::class, 'storeDocument'])->name('transport.document.store')->whereNumber('vehicle');
+    Route::post('/transportacion/vehiculo/{vehicle}/licencia', [App\Http\Controllers\VehicleController::class, 'storeDriverLicense'])->name('transport.driver.license.store')->whereNumber('vehicle');
     Route::post('/transportacion/documento/{doc}/validar', [App\Http\Controllers\VehicleController::class, 'validateDocument'])->name('transport.document.validate')->whereNumber('doc');
 });
 

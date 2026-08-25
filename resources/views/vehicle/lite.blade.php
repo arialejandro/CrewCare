@@ -33,7 +33,7 @@
                             @php
                                 $state    = $vehicle->requiredDocState();
                                 $tarjeta  = $state['VEH_TARJETA'] ?? null;
-                                $licencia = $state['VEH_LICENCIA'] ?? null;
+                                $licencia = $vehicle->driverLicense(); // §2: del paquete del conductor
                             @endphp
                             <tr>
                                 <td>
@@ -49,10 +49,12 @@
                                     @endif
                                 </td>
                                 <td>
-                                    @if ($licencia)
-                                        <span class="text-success small">@include('componentes._icon', ['name' => 'file-check', 'label' => null]) {{ __('Vigente') }}</span>
-                                    @else
+                                    @if ($licencia && $licencia->isValidated())
+                                        <span class="text-success small">@include('componentes._icon', ['name' => 'file-check', 'label' => null]) {{ __('Vigente') }}@if($licencia->effectiveValidUntil()) · {{ $licencia->effectiveValidUntil()->format('d/m/Y') }}@endif</span>
+                                    @elseif ($licencia)
                                         <span class="text-muted small">{{ __('Sin validar') }}</span>
+                                    @else
+                                        <span class="text-muted small">{{ __('Sin registrar') }}</span>
                                     @endif
                                 </td>
                                 <td>{{ $vehicle->driverLabel() ?: '—' }}</td>

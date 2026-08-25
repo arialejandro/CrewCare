@@ -13,8 +13,10 @@
  * original (el servidor entonces lo rechaza con un mensaje que dice qué hacer) — nunca rompe el
  * envío del formulario.
  *
- * Convive con el cableado manual de scouting/riskmap: esos NO incluyen este archivo, así que no
- * hay doble procesado.
+ * (2026-08-24) GLOBAL: ahora se carga en el layout (todas las páginas) y engancha CUALQUIER
+ * <input type=file accept*=image>. IDEMPOTENTE: registrar dos veces (layout + include viejo por
+ * página) no duplica el listener. Los flujos con cableado MANUAL (scouting/riskmap) marcan sus
+ * inputs con `data-cc-noauto` para que este archivo NO los toque (evita doble procesado).
  */
 (function (w, d) {
     'use strict';
@@ -22,6 +24,10 @@
     if (!w.CCPhoto || typeof w.CCPhoto.process !== 'function') {
         return; // la librería base no cargó → no-op (el servidor sigue validando/rechazando)
     }
+
+    // Idempotente: si ya se cableó (otra copia del script en la misma página), no re-registrar.
+    if (w.__ccPhotoAutoWired) { return; }
+    w.__ccPhotoAutoWired = true;
 
     var BUSY = '__ccPhotoBusy';
 
@@ -81,7 +87,9 @@
     // (imágenes adicionales que se agregan con JS). El evento 'change' burbujea.
     d.addEventListener('change', function (e) {
         var t = e.target;
-        if (t && t.matches && t.matches('input[type="file"][data-cc-photo]')) {
+        // GLOBAL: cualquier input de imagen, salvo los que se cablean a mano (data-cc-noauto).
+        // Se sigue aceptando el opt-in histórico data-cc-photo (que trae accept*=image igualmente).
+        if (t && t.matches && t.matches('input[type="file"][accept*="image"]:not([data-cc-noauto])')) {
             handle(t);
         }
     }, true);
