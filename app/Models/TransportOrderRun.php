@@ -39,6 +39,20 @@ class TransportOrderRun extends Model
     public const PLACE_PRIVATE = 'private'; // transport_addresses
     public const PLACE_TEXT    = 'text';
 
+    /** Identidad estable: se asigna al crear, persiste al editar, se copia al clonar la versión. */
+    protected static function booted()
+    {
+        static::creating(function (self $run) {
+            try {
+                if (empty($run->run_key) && \Illuminate\Support\Facades\Schema::hasColumn($run->getTable(), 'run_key')) {
+                    $run->run_key = (string) \Illuminate\Support\Str::uuid();
+                }
+            } catch (\Throwable $e) {
+                // Columna inexistente o driver sin introspección: no romper.
+            }
+        });
+    }
+
     // ── Relaciones ───────────────────────────────────────────────────────────
     public function order(): BelongsTo
     {

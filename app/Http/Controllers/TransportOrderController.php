@@ -13,8 +13,10 @@ use App\Models\Vehicle;
 use App\Support\CurrentProduction;
 use App\Support\DayRosterBuilder;
 use App\Support\TransportAccess;
+use App\Support\TransportOrderSnapshot;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Transportación · Bloque 2 (§1-§6) — ORDEN DE TRANSPORTACIÓN (captura).
@@ -57,25 +59,99 @@ class TransportOrderController extends Controller
         $pid  = CurrentProduction::id();
         $date = Carbon::parse($data['order_date'])->toDateString();
 
-        // No dupliques borradores: si ya hay uno abierto ese día, ve a él.
+        // 1) Borrador abierto ese día → retomarlo (no dupliques borradores).
         $draft = TransportOrder::where('production_id', $pid)
             ->whereDate('order_date', $date)
             ->where('status', TransportOrder::STATUS_DRAFT)
             ->where('is_active', 1)
             ->orderByDesc('version')
             ->first();
-
-        if (! $draft) {
-            $draft = TransportOrder::create([
-                'production_id' => $pid,
-                'order_date'    => $date,
-                'version'       => TransportOrder::nextVersionFor($pid, $date),
-                'status'        => TransportOrder::STATUS_DRAFT,
-                'created_by_id' => $request->user()->id,
-            ]);
+        if ($draft) {
+            return redirect()->route('transport.order.show', $draft);
         }
 
+        // 2) Ya hay una versión CONGELADA ese día → emitir una NUEVA versión clonándola
+        //    (conserva los run_key para que el diff empareje por corrida, no por fila).
+        $latestFrozen = TransportOrder::latestFrozenFor($pid, $date);
+        if ($latestFrozen) {
+            $draft = $this->cloneToNewDraft($latestFrozen, $request->user());
+            return redirect()->route('transport.order.show', $draft)
+                ->with('ok', 'Nueva versión en borrador a partir de v' . $latestFrozen->version . '.');
+        }
+
+        // 3) Primera orden del día.
+        $draft = TransportOrder::create([
+            'production_id' => $pid,
+            'order_date'    => $date,
+            'version'       => TransportOrder::nextVersionFor($pid, $date),
+            'status'        => TransportOrder::STATUS_DRAFT,
+            'created_by_id' => $request->user()->id,
+        ]);
+
         return redirect()->route('transport.order.show', $draft);
+    }
+
+    // ── Congelar / emitir versión ────────────────────────────────────────────
+    public function freeze(Request $request, TransportOrder $order)
+    {
+        $this->authorizeEdit($request, $order);
+
+        if ($order->runs()->count() === 0 && trim((string) $order->notes_general) === '') {
+            return back()->withErrors(['freeze' => 'La orden está vacía: agrega al menos una corrida o una nota antes de emitir.']);
+        }
+
+        // Congela el documento resuelto (etiquetas materializadas) + la leyenda derivada.
+        $snapshot = TransportOrderSnapshot::build($order);
+        $order->frozen_snapshot = $snapshot;
+        $order->legend          = $snapshot['legend'] ?? null;
+        $order->status          = TransportOrder::STATUS_FROZEN;
+        $order->frozen_at       = now();
+        $order->frozen_by_id    = $request->user()->id;
+        $order->save();
+
+        return redirect()->route('transport.order.show', $order)
+            ->with('ok', 'Orden emitida: v' . $order->version . ' congelada.');
+    }
+
+    /** Clona una orden CONGELADA a un borrador nuevo (versión+1), copiando corridas y ocupantes
+     *  CON su run_key (identidad estable) y encadenando con prev_version_id. */
+    private function cloneToNewDraft(TransportOrder $frozen, $user): TransportOrder
+    {
+        return DB::transaction(function () use ($frozen, $user) {
+            $draft = TransportOrder::create([
+                'production_id'   => $frozen->production_id,
+                'order_date'      => $frozen->order_date,
+                'version'         => TransportOrder::nextVersionFor($frozen->production_id, $frozen->order_date),
+                'status'          => TransportOrder::STATUS_DRAFT,
+                'notes_general'   => $frozen->notes_general,
+                'prev_version_id' => $frozen->id,
+                'created_by_id'   => $user->id,
+            ]);
+
+            foreach ($frozen->runs()->with('occupants')->get() as $run) {
+                $newRun = $run->replicate(['created_at', 'updated_at']); // conserva run_key
+                $newRun->transport_order_id = $draft->id;
+                $newRun->save();
+                foreach ($run->occupants as $occ) {
+                    $newOcc = $occ->replicate(['created_at', 'updated_at']);
+                    $newOcc->transport_order_run_id = $newRun->id;
+                    $newOcc->save();
+                }
+            }
+
+            return $draft;
+        });
+    }
+
+    // ── Notas generales (§1: hitos sin vehículo) ─────────────────────────────
+    public function updateOrder(Request $request, TransportOrder $order)
+    {
+        $this->authorizeEdit($request, $order);
+        $data = $request->validate(['notes_general' => 'nullable|string']);
+        $order->notes_general = $data['notes_general'] ?? null;
+        $order->save();
+
+        return back()->with('ok', 'Notas generales guardadas.');
     }
 
     // ── Editor / consulta de una orden ───────────────────────────────────────
@@ -86,8 +162,21 @@ class TransportOrderController extends Controller
         $order->load(['runs.occupants']);
         $canEdit = TransportAccess::canFull($request->user()) && $order->isDraft();
 
+        // Diff contra la versión inmediata anterior (§4), emparejado por run_key.
+        $current = TransportOrderSnapshot::build($order);
+        $prev = null;
+        if ($order->prev_version_id) {
+            $prevOrder = TransportOrder::find($order->prev_version_id);
+            if ($prevOrder) {
+                $prev = is_array($prevOrder->frozen_snapshot) && ! empty($prevOrder->frozen_snapshot)
+                    ? $prevOrder->frozen_snapshot
+                    : TransportOrderSnapshot::build($prevOrder);
+            }
+        }
+        $diff = TransportOrderSnapshot::diff($current, $prev);
+
         return view('transport.orders.edit', array_merge(
-            ['order' => $order, 'canEdit' => $canEdit],
+            ['order' => $order, 'canEdit' => $canEdit, 'diff' => $diff, 'legend' => $current['legend']],
             $this->editorData($order, $request->user())
         ));
     }

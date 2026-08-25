@@ -524,6 +524,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/transportacion/orden/{order}/corrida/{run}/eliminar', [App\Http\Controllers\TransportOrderController::class, 'destroyRun'])->name('transport.order.run.destroy')->whereNumber('order')->whereNumber('run');
     Route::post('/transportacion/orden/{order}/corrida/{run}/ocupante', [App\Http\Controllers\TransportOrderController::class, 'storeOccupant'])->name('transport.order.occupant.store')->whereNumber('order')->whereNumber('run');
     Route::post('/transportacion/orden/{order}/ocupante/{occupant}/eliminar', [App\Http\Controllers\TransportOrderController::class, 'destroyOccupant'])->name('transport.order.occupant.destroy')->whereNumber('order')->whereNumber('occupant');
+    Route::post('/transportacion/orden/{order}/notas', [App\Http\Controllers\TransportOrderController::class, 'updateOrder'])->name('transport.order.update')->whereNumber('order');
+    Route::post('/transportacion/orden/{order}/congelar', [App\Http\Controllers\TransportOrderController::class, 'freeze'])->name('transport.order.freeze')->whereNumber('order');
 });
 
 // ---- VIGILANCIA EPIDEMIOLÓGICA: panel silencioso + estudio de brote (2026-07-31 · delta #45) ----

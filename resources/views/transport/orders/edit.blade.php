@@ -8,15 +8,18 @@
     $crewById  = collect($crew)->keyBy('user_id');
     $deptById  = $departments->keyBy('id');
     $typeLabels = ['normal' => __('Normal'), 'aeropuerto' => __('Aeropuerto'), 'aplicacion' => __('Transporte de aplicación')];
+    $byKey = $diff['byKey'] ?? [];
+    $dsum  = $diff['summary'] ?? ['has_prev' => false, 'counts' => ['nueva' => 0, 'modificada' => 0, 'baja' => 0], 'dropped' => []];
+    $totalChanges = ($dsum['counts']['nueva'] ?? 0) + ($dsum['counts']['modificada'] ?? 0) + ($dsum['counts']['baja'] ?? 0);
 
-    // Rótulo de un lugar de corrida. En el EDITOR transpo ve el rótulo real (el enmascarado 'CASA'
-    // es del PDF/no-transpo). kind: call|private|text.
     $placeLabel = function ($kind, $id, $text) use ($callById, $privById) {
         if ($kind === 'text')    return $text ?: '—';
         if ($kind === 'call')    return optional($callById->get($id))->name ?? '—';
         if ($kind === 'private') return optional($privById->get($id))->label ?? '—';
         return '—';
     };
+    // Marca de cambio (doble señal): color+peso+▸, sobrevive B/N. $chg('campo') para una corrida.
+    $mark = function (bool $on) { return $on ? 'cc-chg' : ''; };
 @endphp
 
 <div class="crew-page insp-page">
@@ -43,32 +46,32 @@
             </div>
         </div>
 
-        @if (session('ok'))
-            <div class="alert alert-success py-2">{{ session('ok') }}</div>
-        @endif
+        @if (session('ok'))<div class="alert alert-success py-2">{{ session('ok') }}</div>@endif
         @if ($errors->any())
-            <div class="alert alert-danger py-2">
-                @foreach ($errors->all() as $e)<div>{{ $e }}</div>@endforeach
+            <div class="alert alert-danger py-2">@foreach ($errors->all() as $e)<div>{{ $e }}</div>@endforeach</div>
+        @endif
+
+        {{-- Cinta de cambios contra la versión inmediata anterior (§4). --}}
+        @if (($dsum['has_prev'] ?? false) && $totalChanges > 0)
+            <div class="alert alert-info py-2 d-flex flex-wrap gap-2 align-items-center">
+                <strong>{{ __('Cambios vs. v') }}{{ $dsum['prev_version'] ?? ($order->version - 1) }}:</strong>
+                @if($dsum['counts']['nueva'])<span class="badge bg-success">{{ $dsum['counts']['nueva'] }} {{ __('nueva(s)') }}</span>@endif
+                @if($dsum['counts']['modificada'])<span class="badge bg-warning text-dark">{{ $dsum['counts']['modificada'] }} {{ __('modificada(s)') }}</span>@endif
+                @if($dsum['counts']['baja'])<span class="badge bg-danger">{{ $dsum['counts']['baja'] }} {{ __('baja(s)') }}</span>@endif
             </div>
         @endif
 
-        {{-- Encabezado por PUESTO (§1): crew registrado del día, dinámico. Referencia para armar ocupantes. --}}
+        {{-- Encabezado por PUESTO (§1). --}}
         <details class="mb-3">
-            <summary class="fw-semibold small text-uppercase text-muted" style="cursor:pointer">
-                {{ __('Crew del día por puesto') }} ({{ $roster['counts']['total'] ?? 0 }})
-            </summary>
+            <summary class="fw-semibold small text-uppercase text-muted" style="cursor:pointer">{{ __('Crew del día por puesto') }} ({{ $roster['counts']['total'] ?? 0 }})</summary>
             <div class="row g-2 mt-1">
                 @forelse ($roster['groups'] as $g)
-                    <div class="col-md-4">
-                        <div class="border rounded p-2 h-100">
-                            <div class="small fw-semibold">{{ $g['label'] }}</div>
-                            <ul class="list-unstyled mb-0 small text-muted">
-                                @foreach ($g['people'] as $p)
-                                    <li>{{ $p['name'] }}@if($p['cargo']) · {{ $p['cargo'] }}@endif</li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    </div>
+                    <div class="col-md-4"><div class="border rounded p-2 h-100">
+                        <div class="small fw-semibold">{{ $g['label'] }}</div>
+                        <ul class="list-unstyled mb-0 small text-muted">
+                            @foreach ($g['people'] as $p)<li>{{ $p['name'] }}@if($p['cargo']) · {{ $p['cargo'] }}@endif</li>@endforeach
+                        </ul>
+                    </div></div>
                 @empty
                     <div class="col-12"><p class="text-muted small mb-0">{{ __('Sin crew llamado ese día.') }}</p></div>
                 @endforelse
@@ -79,60 +82,60 @@
         <h2 class="h6 text-uppercase text-muted mb-2">{{ __('Corridas') }}</h2>
 
         @forelse ($order->runs as $run)
-            @php $veh = $run->vehicle_id ? $vehById->get($run->vehicle_id) : null; @endphp
-            <div class="border rounded-3 p-3 mb-3">
+            @php
+                $veh = $run->vehicle_id ? $vehById->get($run->vehicle_id) : null;
+                $d = $byKey[$run->run_key] ?? ['status' => 'sin_cambio', 'changed' => []];
+                $chg = fn ($f) => $mark(in_array($f, $d['changed'] ?? [], true));
+            @endphp
+            <div class="border rounded-3 p-3 mb-3 {{ ($d['status'] ?? '') === 'nueva' ? 'border-success' : '' }}">
                 <div class="d-flex align-items-start justify-content-between">
                     <div>
-                        <span class="badge bg-light text-dark border">
+                        <span class="badge bg-light text-dark border {{ $chg('type_label') }}">
                             @if ($run->run_type === 'aeropuerto')@include('componentes._icon', ['name' => 'map-pin', 'label' => null]) @endif
                             {{ $typeLabels[$run->run_type] ?? $run->run_type }}
                         </span>
-                        <span class="fw-semibold ms-2">
+                        <span class="fw-semibold ms-2 {{ $chg('vehicle_label') }}">
                             @if ($veh){{ $veh['label'] }}@if($veh['plate']) <span class="text-muted font-monospace small">{{ $veh['plate'] }}</span>@endif
                             @elseif ($run->run_type === 'aplicacion')<span class="text-muted">{{ __('Sin vehículo (aplicación)') }}</span>
                             @else <span class="text-muted">—</span>@endif
                         </span>
+                        @if (($d['status'] ?? '') === 'nueva')<span class="badge bg-success ms-2">{{ __('NUEVA') }}</span>@endif
                     </div>
                     @if ($canEdit)
                         <form method="POST" action="{{ route('transport.order.run.destroy', [$order, $run]) }}" onsubmit="return confirm('¿Eliminar la corrida?')">
-                            @csrf
-                            <button class="btn btn-sm btn-outline-danger">{{ __('Eliminar') }}</button>
+                            @csrf<button class="btn btn-sm btn-outline-danger">{{ __('Eliminar') }}</button>
                         </form>
                     @endif
                 </div>
 
                 <div class="row g-2 mt-1 small">
-                    <div class="col-md-3"><span class="text-muted">{{ __('Conductor') }}:</span> {{ $run->driver_user_id ? optional($crewById->get($run->driver_user_id))['name'] ?? ('#'.$run->driver_user_id) : '—' }}</div>
-                    <div class="col-md-3"><span class="text-muted">{{ __('Pick up') }}:</span> {{ $run->pickup_literal ?: '—' }} @if($run->pickup_place_kind) · {{ $placeLabel($run->pickup_place_kind, $run->pickup_place_id, $run->pickup_place_text) }}@endif</div>
-                    <div class="col-md-3"><span class="text-muted">{{ __('Destino') }}:</span> {{ $placeLabel($run->dest_place_kind, $run->dest_place_id, $run->dest_text) }}</div>
+                    <div class="col-md-3"><span class="text-muted">{{ __('Conductor') }}:</span> <span class="{{ $chg('driver_label') }}">{{ $run->driver_user_id ? (optional($crewById->get($run->driver_user_id))['name'] ?? ('#'.$run->driver_user_id)) : '—' }}</span></div>
+                    <div class="col-md-3"><span class="text-muted">{{ __('Pick up') }}:</span> <span class="{{ $chg('pickup') }}">{{ $run->pickup_literal ?: '—' }}@if($run->pickup_place_kind) · {{ $placeLabel($run->pickup_place_kind, $run->pickup_place_id, $run->pickup_place_text) }}@endif</span></div>
+                    <div class="col-md-3"><span class="text-muted">{{ __('Destino') }}:</span> <span class="{{ $chg('dest') }}">{{ $placeLabel($run->dest_place_kind, $run->dest_place_id, $run->dest_text) }}</span></div>
                     <div class="col-md-3">
                         <span class="text-muted">{{ __('Equipo') }}:</span>
+                        <span class="{{ $chg('equipment_label') }}">
                         @forelse (($run->equipment ?? []) as $code)
-                            <span class="badge bg-light text-dark border me-1" title="{{ optional($equipByCode->get($code))->name_es ?? $code }}">
-                                @include('componentes._transport-equip-icon', ['icon' => optional($equipByCode->get($code))->icon ?? ''])
-                                {{ optional($equipByCode->get($code))->name_es ?? $code }}
-                            </span>
+                            <span class="badge bg-light text-dark border me-1" title="{{ optional($equipByCode->get($code))->name_es ?? $code }}">@include('componentes._transport-equip-icon', ['icon' => optional($equipByCode->get($code))->icon ?? '']) {{ optional($equipByCode->get($code))->name_es ?? $code }}</span>
                         @empty — @endforelse
+                        </span>
                     </div>
                 </div>
-                @if ($run->notes)<div class="small text-muted mt-1">{{ $run->notes }}</div>@endif
+                @if ($run->notes)<div class="small mt-1 {{ $chg('notes') }}">{{ $run->notes }}</div>@endif
 
-                {{-- Ocupantes de la corrida --}}
+                {{-- Ocupantes --}}
                 <div class="mt-2 pt-2 border-top">
-                    <div class="small text-muted text-uppercase mb-1">{{ __('Ocupantes') }}</div>
+                    <div class="small text-muted text-uppercase mb-1 {{ $chg('occupants_label') }}">{{ __('Ocupantes') }}</div>
                     @foreach ($run->occupants as $occ)
                         <div class="d-flex align-items-center justify-content-between small py-1">
                             <span>
                                 {{ $occ->displayName() ?: '—' }}
                                 @if ($occ->source !== 'crew')<span class="badge bg-info-subtle text-dark border ms-1">{{ $occ->source }}</span>@endif
-                                @if ($occ->department_id) · <span class="text-muted">{{ optional($deptById->get($occ->department_id))->name }}</span>@endif
-                                @if ($occ->load_note) · <span class="text-muted">{{ $occ->load_note }}</span>@endif
+                                @if ($occ->department_id)<span class="text-muted"> · {{ optional($deptById->get($occ->department_id))->name }}</span>@endif
+                                @if ($occ->load_note)<span class="text-muted"> · {{ $occ->load_note }}</span>@endif
                             </span>
                             @if ($canEdit)
-                                <form method="POST" action="{{ route('transport.order.occupant.destroy', [$order, $occ]) }}">
-                                    @csrf
-                                    <button class="btn btn-sm btn-link text-danger p-0">{{ __('quitar') }}</button>
-                                </form>
+                                <form method="POST" action="{{ route('transport.order.occupant.destroy', [$order, $occ]) }}">@csrf<button class="btn btn-sm btn-link text-danger p-0">{{ __('quitar') }}</button></form>
                             @endif
                         </div>
                     @endforeach
@@ -152,137 +155,102 @@
                             <div class="col">
                                 <select name="user_id" class="form-select form-select-sm occ-crew js-typeahead">
                                     <option value="">{{ __('Buscar crew…') }}</option>
-                                    @foreach ($crew as $c)
-                                        <option value="{{ $c['user_id'] }}">{{ $c['name'] }}@if($c['cargo']) — {{ $c['cargo'] }}@endif</option>
-                                    @endforeach
+                                    @foreach ($crew as $c)<option value="{{ $c['user_id'] }}">{{ $c['name'] }}@if($c['cargo']) — {{ $c['cargo'] }}@endif</option>@endforeach
                                 </select>
                                 <input type="text" name="name" class="form-control form-control-sm occ-name d-none" list="ccPartyList" placeholder="{{ __('Nombre…') }}" autocomplete="off">
                             </div>
                             <div class="col-auto">
                                 <select name="department_id" class="form-select form-select-sm">
                                     <option value="">{{ __('Depto') }}</option>
-                                    @foreach ($departments as $d)
-                                        <option value="{{ $d->id }}">{{ $d->name }}</option>
-                                    @endforeach
+                                    @foreach ($departments as $dp)<option value="{{ $dp->id }}">{{ $dp->name }}</option>@endforeach
                                 </select>
                             </div>
-                            <div class="col-auto">
-                                <input type="text" name="load_note" class="form-control form-control-sm" placeholder="{{ __('Carga') }}" maxlength="120">
-                            </div>
-                            <div class="col-auto">
-                                <button class="btn btn-sm btn-outline-primary">{{ __('+ ocupante') }}</button>
-                            </div>
+                            <div class="col-auto"><input type="text" name="load_note" class="form-control form-control-sm" placeholder="{{ __('Carga') }}" maxlength="120"></div>
+                            <div class="col-auto"><button class="btn btn-sm btn-outline-primary">{{ __('+ ocupante') }}</button></div>
                         </form>
                     @endif
                 </div>
+
+                {{-- Editar la corrida EN EL LUGAR (conserva su identidad run_key). --}}
+                @if ($canEdit)
+                    <details class="mt-2">
+                        <summary class="small text-primary" style="cursor:pointer">{{ __('Editar corrida') }}</summary>
+                        <div class="mt-2">
+                            @include('transport.orders._run-form', ['run' => $run, 'action' => route('transport.order.run.update', [$order, $run]), 'submitLabel' => __('Guardar corrida')])
+                        </div>
+                    </details>
+                @endif
             </div>
         @empty
-            <p class="text-muted">{{ __('Sin corridas todavía.') }}@if(!$canEdit && !$order->isFrozen()) {{ __('El borrador está vacío.') }}@endif</p>
+            <p class="text-muted">{{ __('Sin corridas todavía.') }}</p>
         @endforelse
 
-        {{-- Hitos SIN vehículo van a NOTAS GENERALES (§1); notas + emisión de versión = capa siguiente. --}}
-        @if ($order->notes_general)
-            <div class="border rounded p-2 mb-3 small"><span class="text-muted text-uppercase">{{ __('Notas generales') }}:</span> {{ $order->notes_general }}</div>
+        {{-- Bajas contra la versión anterior (§4): no como corrida vacía, como nota. --}}
+        @if (! empty($dsum['dropped']))
+            <div class="border rounded p-2 mb-3 small">
+                <span class="text-danger fw-semibold text-uppercase">{{ __('Bajas vs. v') }}{{ $dsum['prev_version'] ?? ($order->version - 1) }}:</span>
+                <ul class="mb-0">
+                    @foreach ($dsum['dropped'] as $dr)
+                        <li>{{ $dr['type_label'] ?? '' }} · {{ $dr['vehicle_label'] ?: __('sin vehículo') }} @if($dr['pickup']) · {{ $dr['pickup'] }}@endif</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        {{-- ===== NOTAS GENERALES (§1: hitos sin vehículo) ===== --}}
+        <h2 class="h6 text-uppercase text-muted mb-2 mt-4">{{ __('Notas generales') }}</h2>
+        @if ($canEdit)
+            <form method="POST" action="{{ route('transport.order.update', $order) }}" class="mb-3">
+                @csrf
+                <textarea name="notes_general" class="form-control form-control-sm" rows="3" placeholder="{{ __('Hitos sin vehículo, avisos del día…') }}">{{ $order->notes_general }}</textarea>
+                <button class="btn btn-sm btn-outline-secondary mt-1">{{ __('Guardar notas') }}</button>
+            </form>
+        @elseif ($order->notes_general)
+            <div class="border rounded p-2 mb-3 small">{{ $order->notes_general }}</div>
+        @else
+            <p class="text-muted small">—</p>
+        @endif
+
+        {{-- ===== LEYENDA (solo las claves usadas ese día) ===== --}}
+        @php $lg = $legend ?? ['types' => [], 'equipment' => []]; @endphp
+        @if (! empty($lg['types']) || ! empty($lg['equipment']))
+            <div class="small text-muted mb-3">
+                <span class="text-uppercase">{{ __('Leyenda') }}:</span>
+                @foreach (($lg['equipment'] ?? []) as $code => $name)
+                    <span class="me-2">@include('componentes._transport-equip-icon', ['icon' => optional($equipByCode->get($code))->icon ?? '']) {{ $name }}</span>
+                @endforeach
+                @if (! empty($lg['types']['aeropuerto']))<span class="me-2">@include('componentes._icon', ['name' => 'map-pin', 'label' => null]) {{ __('Aeropuerto') }}</span>@endif
+            </div>
         @endif
 
         {{-- ===== AGREGAR CORRIDA ===== --}}
         @if ($canEdit)
-            <div class="border rounded-3 p-3 bg-body-tertiary">
+            <div class="border rounded-3 p-3 bg-body-tertiary mb-3">
                 <h3 class="h6 mb-2">{{ __('Agregar corrida') }}</h3>
-                <form method="POST" action="{{ route('transport.order.run.store', $order) }}" class="row g-2" id="ccAddRun">
-                    @csrf
-                    <div class="col-md-3">
-                        <label class="form-label small mb-0">{{ __('Tipo') }}</label>
-                        <select name="run_type" class="form-select form-select-sm" id="ccRunType">
-                            <option value="normal">{{ __('Normal') }}</option>
-                            <option value="aeropuerto">{{ __('Aeropuerto') }}</option>
-                            <option value="aplicacion">{{ __('Transporte de aplicación') }}</option>
-                        </select>
-                    </div>
-                    <div class="col-md-5">
-                        <label class="form-label small mb-0">{{ __('Vehículo') }} <span class="text-muted" id="ccVehHint"></span></label>
-                        <select name="vehicle_id" class="form-select form-select-sm js-typeahead" id="ccVehSel">
-                            <option value="">{{ __('Sin vehículo…') }}</option>
-                            @foreach ($vehicles as $v)
-                                <option value="{{ $v['id'] }}" data-driver="{{ $v['driver_id'] }}">{{ $v['label'] }}@if($v['plate']) — {{ $v['plate'] }}@endif</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label small mb-0">{{ __('Conductor') }}</label>
-                        <select name="driver_user_id" class="form-select form-select-sm js-typeahead" id="ccDriverSel">
-                            <option value="">{{ __('Conductor…') }}</option>
-                            @foreach ($crew as $c)
-                                <option value="{{ $c['user_id'] }}">{{ $c['name'] }}@if($c['cargo']) — {{ $c['cargo'] }}@endif</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="col-md-3">
-                        <label class="form-label small mb-0">{{ __('Pick up (hora)') }}</label>
-                        <input type="text" name="pickup_literal" class="form-control form-control-sm" placeholder="06:30" maxlength="16">
-                    </div>
-                    <div class="col-md-5">
-                        <label class="form-label small mb-0">{{ __('Lugar de pick up') }}</label>
-                        <select name="pickup_ref" class="form-select form-select-sm cc-ref" data-text="#ccPickupText">
-                            <option value="">{{ __('—') }}</option>
-                            <optgroup label="{{ __('Lugares del llamado') }}">
-                                @foreach ($callPlaces as $pl)<option value="call:{{ $pl->id }}">{{ $pl->name }}</option>@endforeach
-                            </optgroup>
-                            <optgroup label="{{ __('Direcciones privadas') }}">
-                                @foreach ($privateAddresses as $ad)<option value="private:{{ $ad->id }}">{{ $ad->label }}</option>@endforeach
-                            </optgroup>
-                            <option value="text">{{ __('Otro (escribir)…') }}</option>
-                        </select>
-                        <input type="text" name="pickup_place_text" id="ccPickupText" class="form-control form-control-sm mt-1 d-none" placeholder="{{ __('Escribe el lugar') }}" maxlength="255">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label small mb-0">{{ __('Destino') }}</label>
-                        <select name="dest_ref" class="form-select form-select-sm cc-ref" data-text="#ccDestText">
-                            <option value="">{{ __('—') }}</option>
-                            <optgroup label="{{ __('Lugares del llamado') }}">
-                                @foreach ($callPlaces as $pl)<option value="call:{{ $pl->id }}">{{ $pl->name }}</option>@endforeach
-                            </optgroup>
-                            <optgroup label="{{ __('Direcciones privadas') }}">
-                                @foreach ($privateAddresses as $ad)<option value="private:{{ $ad->id }}">{{ $ad->label }}</option>@endforeach
-                            </optgroup>
-                            <option value="text">{{ __('Otro (escribir)…') }}</option>
-                        </select>
-                        <input type="text" name="dest_text" id="ccDestText" class="form-control form-control-sm mt-1 d-none" placeholder="{{ __('Escribe el destino') }}" maxlength="255">
-                    </div>
-
-                    <div class="col-12">
-                        <label class="form-label small mb-0">{{ __('Equipamiento') }}</label>
-                        <div class="d-flex flex-wrap gap-2">
-                            @foreach ($equipment as $eq)
-                                <label class="border rounded px-2 py-1 small d-inline-flex align-items-center gap-1" style="cursor:pointer">
-                                    <input type="checkbox" name="equipment[]" value="{{ $eq->code }}" class="form-check-input mt-0">
-                                    @include('componentes._transport-equip-icon', ['icon' => $eq->icon])
-                                    {{ $eq->name_es }}
-                                </label>
-                            @endforeach
-                        </div>
-                    </div>
-
-                    <div class="col-12">
-                        <label class="form-label small mb-0">{{ __('Notas') }}</label>
-                        <input type="text" name="notes" class="form-control form-control-sm" maxlength="255">
-                    </div>
-
-                    <div class="col-12">
-                        <button class="btn btn-primary btn-sm">@include('componentes._icon', ['name' => 'file-plus', 'label' => null]) {{ __('Agregar corrida') }}</button>
-                    </div>
-                </form>
+                @include('transport.orders._run-form', ['run' => null, 'action' => route('transport.order.run.store', $order), 'submitLabel' => __('Agregar corrida')])
             </div>
+
+            {{-- Emitir / congelar --}}
+            <form method="POST" action="{{ route('transport.order.freeze', $order) }}" onsubmit="return confirm('¿Emitir esta versión? Una vez congelada no se edita; para cambios se emite una versión nueva.')">
+                @csrf
+                <button class="btn btn-primary">@include('componentes._icon', ['name' => 'clipboard-check', 'label' => null]) {{ __('Emitir / congelar versión') }} v{{ $order->version }}</button>
+            </form>
         @elseif ($order->isFrozen())
             <p class="text-muted small">{{ __('Orden congelada: sólo lectura.') }}</p>
+            @if (\App\Support\TransportAccess::canFull(auth()->user()))
+                <form method="POST" action="{{ route('transport.order.create') }}">
+                    @csrf
+                    <input type="hidden" name="order_date" value="{{ \Carbon\Carbon::parse($order->order_date)->toDateString() }}">
+                    <button class="btn btn-outline-primary">@include('componentes._icon', ['name' => 'file-plus', 'label' => null]) {{ __('Emitir nueva versión') }}</button>
+                </form>
+            @endif
         @endif
 
-        {{-- Padrón ligero (cast/agencia/cliente) para sugerir la 2ª vez (§2). --}}
+        {{-- UUID discreto (control); en el PDF va al pie de todas las páginas. --}}
+        <p class="text-muted mt-4" style="font-size:.72rem">{{ __('Control') }}: {{ $order->uuid }}</p>
+
         <datalist id="ccPartyList">
-            @foreach ($parties as $kind => $list)
-                @foreach ($list as $party)<option value="{{ $party->name }}">@endforeach
-            @endforeach
+            @foreach ($parties as $kind => $list)@foreach ($list as $party)<option value="{{ $party->name }}">@endforeach @endforeach
         </datalist>
 
     </div>
@@ -291,34 +259,38 @@
 @push('styles')
     @include('componentes._crew-list-styles')
     @include('componentes._inspection-styles')
+    <style>
+        .cc-chg { color:#c2410c; font-weight:600; }
+        .cc-chg::before { content:"\25B8\00a0"; } /* ▸ — sobrevive impresión B/N */
+    </style>
 @endpush
 
 @push('scripts')
     @include('componentes._typeahead')
 <script>
 (function () {
-    // Vehículo → propone conductor (§2: la relación es bidireccional).
-    var veh = document.getElementById('ccVehSel'),
-        drv = document.getElementById('ccDriverSel'),
-        rt  = document.getElementById('ccRunType'),
-        hint = document.getElementById('ccVehHint');
-    if (veh && drv) {
-        veh.addEventListener('change', function () {
-            var opt = veh.options[veh.selectedIndex];
-            var d = opt ? opt.getAttribute('data-driver') : '';
-            if (d && !drv.value) { drv.value = d; drv.dispatchEvent(new Event('change')); }
+    // Cada formulario de corrida se cablea por SÍ MISMO (hay varios: alta + edición por corrida).
+    document.querySelectorAll('.cc-run-form').forEach(function (form) {
+        var veh = form.querySelector('.cc-veh'),
+            drv = form.querySelector('.cc-driver'),
+            rt  = form.querySelector('.cc-runtype'),
+            hint = form.querySelector('.cc-veh-hint');
+        if (veh && drv) {
+            veh.addEventListener('change', function () {
+                var opt = veh.options[veh.selectedIndex];
+                var d = opt ? opt.getAttribute('data-driver') : '';
+                if (d && !drv.value) { drv.value = d; drv.dispatchEvent(new Event('change')); }
+            });
+        }
+        if (rt && hint) {
+            var syncHint = function () { hint.textContent = rt.value === 'aplicacion' ? '{{ __('(opcional)') }}' : '{{ __('(obligatorio)') }}'; };
+            rt.addEventListener('change', syncHint); syncHint();
+        }
+        form.querySelectorAll('.cc-ref').forEach(function (sel) {
+            var target = form.querySelector(sel.getAttribute('data-text'));
+            var sync = function () { if (target) target.classList.toggle('d-none', sel.value !== 'text'); };
+            sel.addEventListener('change', sync); sync();
         });
-    }
-    if (rt && hint) {
-        var syncHint = function () { hint.textContent = rt.value === 'aplicacion' ? '{{ __('(opcional)') }}' : '{{ __('(obligatorio)') }}'; };
-        rt.addEventListener('change', syncHint); syncHint();
-    }
-
-    // Lugar = "Otro (escribir)" → muestra el texto libre.
-    document.querySelectorAll('.cc-ref').forEach(function (sel) {
-        var target = document.querySelector(sel.getAttribute('data-text'));
-        var sync = function () { if (target) target.classList.toggle('d-none', sel.value !== 'text'); };
-        sel.addEventListener('change', sync); sync();
     });
 
     // Ocupante: la fuente decide crew (select) vs nombre libre (texto + padrón).
