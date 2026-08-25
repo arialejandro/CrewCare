@@ -832,6 +832,47 @@ class ContractEnvelopeTest extends QaTestCase
         $this->assertTrue($env->verifyLatestSignature());
     }
 
+    /**
+     * EL JEFE NO FIRMA SU PROPIO CONTRATO (owner 2026-08-25). Cuando `dept_hod` resuelve a la MISMA
+     * persona contratada, ese casillero no aplica a ese contrato: se omite y la ruta sale con los
+     * demás firmantes. Antes trababa la emisión y obligaba a mover jefaturas a mano — que es
+     * exactamente lo que pasó con el contrato de la Gerente de Producción.
+     */
+    public function test_dept_hod_is_skipped_when_the_hod_is_the_contracted_person(): void
+    {
+        Storage::fake('local');
+
+        $dept  = \App\Models\Department::first();
+        $payee = $this->crewPayee();
+        $jefe  = $payee->user;   // la contratada ES la jefa del depto
+        $this->assertNotNull($jefe, 'el payee crew tiene usuario');
+        DB::table('production_user')->updateOrInsert(
+            ['production_id' => $this->prodId, 'user_id' => $jefe->id],
+            ['department_id' => $dept->id, 'is_lead' => 1, 'role' => 'crew', 'created_at' => now(), 'updated_at' => now()]
+        );
+
+        $signerPos  = Position::orderBy('id')->first()->id;
+        $signerUser = $this->makeUser('coordinator'); $signerUser->forceFill(['name' => 'Firma', 'lname' => 'Puesto'])->save();
+        $this->attachPosition($signerUser, $signerPos);
+
+        Setting::updateOrCreate(['key' => SignaturePositions::KEY_SIGNERS],
+            ['value' => json_encode([$signerPos, SignaturePositions::DEPT_HOD])]);
+        Branding::forget();
+
+        $contract = $this->emitContract(PayeeContract::CONCEPT_CREW, $payee);
+        $contract->update(['department_id' => $dept->id]);
+
+        // El pre-vuelo pasa (no es un error) y el sobre se arma SIN el casillero del HOD.
+        ContractEnvelopeBuilder::preflight($contract->fresh());
+        $env  = ContractEnvelopeBuilder::build($contract->fresh(), null);
+        $recs = $env->orderedRecipients()->get();
+
+        $this->assertSame(['contracted', 'signer'], $recs->pluck('role')->all(), 'sin el casillero del HOD');
+        $this->assertSame((int) $signerUser->id, (int) $recs[1]->user_id);
+        $this->assertNotContains('dept_hod', $recs->pluck('anchor_key')->all());
+        $this->assertTrue($env->verifyLatestSignature(), 'la ruta sigue sellada e íntegra');
+    }
+
     // ── Fase 1c · la plantilla se estampa con las firmas REALES del sobre ──────
     private function seatOneSigner(): int
     {
