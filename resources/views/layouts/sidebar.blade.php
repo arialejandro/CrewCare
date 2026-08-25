@@ -546,6 +546,10 @@
                             @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ \App\Support\TransportAccess::canFull(auth()->user()) ? __('Verificación de vehículos') : __('Flota') }}</span>
                         </a>
+                        <a href="{{ route('transport.order.index') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Orden de transportación') }}</span>
+                        </a>
                     </div></div>
                 </div>
             @endif
@@ -995,6 +999,10 @@
                             <a href="{{ \App\Support\TransportAccess::canFull(auth()->user()) ? route('transport.index') : route('transport.lite') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ \App\Support\TransportAccess::canFull(auth()->user()) ? __('Verificación de vehículos') : __('Flota') }}</span>
+                            </a>
+                            <a href="{{ route('transport.order.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Orden de transportación') }}</span>
                             </a>
                         </div></div>
                     </div>

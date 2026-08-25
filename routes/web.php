@@ -513,6 +513,17 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/transportacion/vehiculo/{vehicle}/documento', [App\Http\Controllers\VehicleController::class, 'storeDocument'])->name('transport.document.store')->whereNumber('vehicle');
     Route::post('/transportacion/vehiculo/{vehicle}/licencia', [App\Http\Controllers\VehicleController::class, 'storeDriverLicense'])->name('transport.driver.license.store')->whereNumber('vehicle');
     Route::post('/transportacion/documento/{doc}/validar', [App\Http\Controllers\VehicleController::class, 'validateDocument'])->name('transport.document.validate')->whereNumber('doc');
+
+    // ---- Bloque 2 — ORDEN de transportación (por día; se CONGELA, NO se sella ni firma) ----
+    // canLite (producción) consulta; canFull construye/edita. La orden congelada es inmutable.
+    Route::get('/transportacion/ordenes', [App\Http\Controllers\TransportOrderController::class, 'index'])->name('transport.order.index');
+    Route::post('/transportacion/ordenes', [App\Http\Controllers\TransportOrderController::class, 'create'])->name('transport.order.create');
+    Route::get('/transportacion/orden/{order}', [App\Http\Controllers\TransportOrderController::class, 'show'])->name('transport.order.show')->whereNumber('order');
+    Route::post('/transportacion/orden/{order}/corrida', [App\Http\Controllers\TransportOrderController::class, 'storeRun'])->name('transport.order.run.store')->whereNumber('order');
+    Route::post('/transportacion/orden/{order}/corrida/{run}', [App\Http\Controllers\TransportOrderController::class, 'updateRun'])->name('transport.order.run.update')->whereNumber('order')->whereNumber('run');
+    Route::post('/transportacion/orden/{order}/corrida/{run}/eliminar', [App\Http\Controllers\TransportOrderController::class, 'destroyRun'])->name('transport.order.run.destroy')->whereNumber('order')->whereNumber('run');
+    Route::post('/transportacion/orden/{order}/corrida/{run}/ocupante', [App\Http\Controllers\TransportOrderController::class, 'storeOccupant'])->name('transport.order.occupant.store')->whereNumber('order')->whereNumber('run');
+    Route::post('/transportacion/orden/{order}/ocupante/{occupant}/eliminar', [App\Http\Controllers\TransportOrderController::class, 'destroyOccupant'])->name('transport.order.occupant.destroy')->whereNumber('order')->whereNumber('occupant');
 });
 
 // ---- VIGILANCIA EPIDEMIOLÓGICA: panel silencioso + estudio de brote (2026-07-31 · delta #45) ----
