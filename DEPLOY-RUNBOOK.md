@@ -80,8 +80,8 @@ php artisan db:seed --force
 ```
 `db:seed` encadena (ya, sin correr nada suelto): **roles y permisos** (incluye `contracts.author`, `payees.view`,
 `periods.view`, `tools.inspect`, `permits.issue`, `epi.view`, `medevac.issue`, `riskmap.issue`, `pae.issue`,
-`ambulance.*`…), **catálogos** (departamentos/puestos —incluye *Contabilidad*—, normas, eventos, PPE, SPFX,
-herramientas/permisos, medicamentos, ambulancias, tipos de documento), la **fila de producción** y el **primer
+`ambulance.*`, `transport.*`…), **catálogos** (departamentos/puestos —incluye *Contabilidad*—, normas, eventos, PPE, SPFX,
+herramientas/permisos, medicamentos, ambulancias, **vehículos** (13 tipos/50 puntos), tipos de documento), la **fila de producción** y el **primer
 super-admin**. **No** encadena los seeders de demo (ver §6).
 
 > ⚠️ **No corras `migrate` en tu LOCAL** (`crewcare`): ahí aplicaste los deltas a mano, la tabla `migrations`
@@ -159,6 +159,21 @@ Si alguna vez estuvo rastreado, rota `APP_KEY`, `DB_PASSWORD`, `MAIL_PASSWORD` e
 ---
 
 ## 10 · Cambios por racha (más reciente arriba)
+
+### Racha 2026-08-24 · Transportación · Bloque 1 (entidad Vehículo + verificación de seguridad)
+- **Esquema:** 4 tablas (`vehicle_types`, `vehicle_check_points`, `vehicles`, `vehicle_inspections`) + puente
+  `payee_contracts.vehicle_id`. En deploy fresco **entran solas con `migrate`** (migraciones `2026_08_24_000010..000014`)
+  y el catálogo (13 tipos/50 puntos) + permisos `transport.*` **entran solos con `db:seed`** (`VehicleCatalogSeeder`
+  + `TransportPermissionsSeeder` ya encadenados). Los 4 tipos de documento `VEH_*` entran con `DocumentTypeSeeder`.
+- **Para parchar una BD ya poblada (§9):** gemelos `owner-apply/2026-08-24-transport-catalog.sql` + `-vehicles.sql`
+  + `db:seed --class=VehicleCatalogSeeder` + `--class=TransportPermissionsSeeder` + `--class=DocumentTypeSeeder` +
+  `cache:clear`. Backfill opcional `TransportBackfillVehiclesSeeder` (promueve `payee_contracts.asset_ref`).
+- **RBAC HÍBRIDO:** `transport.manage` (safety + super-admin), `transport.view` (producción → vista lite), y el
+  **departamento de Transportación** levanta el checklist por pertenencia (sin rol nuevo; `App\Support\TransportAccess`).
+  Transpo es su **propia sección** de menú (≠ Seguridad).
+- **A prueba de fallos:** verificador público `'veh'` nunca filtra el nivel interno; el acta sella HMAC (estado
+  hash-excluido). ⚠ Fotos OBLIGATORIAS por punto → host sin Imagick+libheif rechaza HEIC (usuario sube JPG).
+  Puro código lo demás (acta, vistas, rutas). **Suite: 810 verde.**
 
 ### Racha 2026-08-24 · Envío de archivos con marca de agua (Distribución + envío del llamado)
 - **🆕 Requisito PERMANENTE nuevo:** el **cron** de §5·b. Sin él, los envíos masivos no se completan solos.

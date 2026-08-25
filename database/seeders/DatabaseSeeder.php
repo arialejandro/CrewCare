@@ -46,6 +46,7 @@ class DatabaseSeeder extends Seeder
             RiskMapPermissionsSeeder::class,           // riskmap.issue
             PaePermissionsSeeder::class,               // pae.issue
             AmbulancePermissionsSeeder::class,         // ambulance.manage + ambulance.view (visibilidad producción/safety)
+            TransportPermissionsSeeder::class,         // transport.manage + transport.view (Transportación · Bloque 1)
             PayeeAccessPermissionsSeeder::class,       // payees.view (quien cobra · Paso 4) — DESPUÉS del barrido %.view del auditor
             PeriodPermissionsSeeder::class,            // periods.view/manage (ventana de recepción) — mismo motivo, después del barrido
             ContractAuthorPermissionsSeeder::class,    // contracts.author (Contract Builder → line-producer)
@@ -77,6 +78,7 @@ class DatabaseSeeder extends Seeder
             MedicationCatalogSeeder::class,            // medicamentos
             IndicatorTermSeeder::class,                // terminos indicadores
             AmbulanceCatalogSeeder::class,             // tipos + puntos de ambulancia
+            VehicleCatalogSeeder::class,               // tipos + puntos de vehículo (Transportación · Bloque 1)
             DocumentTypeSeeder::class,                 // catalogo de tipos de documento (quien cobra)
             DocumentRequirementSeeder::class,          // paquete + settings de la produccion (Paso 2)
         ]);

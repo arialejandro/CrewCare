@@ -190,6 +190,12 @@ el porqué del cambio y su **reversión** (el `DROP` correspondiente, comentado)
 | 103 | `2026-08-17-sfx-effects-all-verified` | SPFX de fábrica nacen VERIFICADOS de origen (UPDATE de datos). |
 | 104 | `2026-08-20-recipient-rubrica-image` | Marca de rúbrica aparte de la firma en el sobre. **Requiere #66 y #79.** |
 | 105 | `2026-08-21-payee-contract-asset-ref` | `payee_contracts.asset_ref` — referencia mínima del ACTIVO en el contrato de renta (hook Transportación). **Requiere #73.** |
+| 106 | `2026-08-24-transport-catalog` | Transportación · Bloque 1 — catálogo `vehicle_types` + `vehicle_check_points` (2 tablas NUEVAS). Sin dependencias. |
+| 107 | `2026-08-24-transport-vehicles` | Transportación · Bloque 1 — `vehicles` + `vehicle_inspections` (2 tablas NUEVAS) + puente `payee_contracts.vehicle_id` (ALTER idempotente). **Requiere `payee_contracts`.** |
+
+> **Nota (2026-08-24):** entre el #105 y el #106 existen también los deltas `2026-08-23-*` (calendario/departamentos/
+> call-sheet/back/hotel) y `2026-08-24-call-packages`/`-file-deliveries` del bloque Llamado/Distribución, no numerados
+> aquí; en un deploy fresco TODOS entran solos por migración + chain (esta tabla es referencia para parchar BD poblada).
 
 > Los deltas **#38/#39 no son de esquema**: en una BD NUEVA (camino A) se OMITEN; sólo importan al
 > entregar una instancia que arrastró datos demo. Se numeran al final del bloque `07-24` por completitud.
@@ -278,6 +284,9 @@ php artisan db:seed --class=EnrichedCatalogSeeder         # categorías finas + 
 php artisan db:seed --class=SpfxCatalogSeeder             # 25 tipos de efecto SFX
 php artisan db:seed --class=HazardEventPpeSeeder          # EPP por familia de riesgo
 php artisan db:seed --class=ToolPermitCatalogSeeder       # 73 herramientas + 15 permisos (requiere las 83 normas)
+php artisan db:seed --class=VehicleCatalogSeeder          # Transportación: 13 tipos + 50 puntos (requiere #106)
+php artisan db:seed --class=TransportPermissionsSeeder    # transport.manage/view (aditivo; luego cache:clear)
+php artisan db:seed --class=DocumentTypeSeeder            # +4 tipos VEH_* (idempotente)
 ```
 
 > `ToolPermitCatalogSeeder` **requiere que `SafetyCatalogSeeder`/`EnrichedCatalogSeeder` ya

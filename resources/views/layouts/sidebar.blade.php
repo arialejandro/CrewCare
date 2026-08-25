@@ -532,6 +532,24 @@
                 </div>
             @endcanany
 
+            {{-- ===== TRANSPORTACIÓN (departamento PROPIO, distinto de Seguridad — aun el checklist) ===== --}}
+            @if(\App\Support\TransportAccess::canLite(auth()->user()))
+                <div class="cc-sec" data-open="false">
+                    <button type="button" class="cc-sec-head" aria-expanded="false">
+                        @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-sec-head__ico', 'label' => null])
+                        <span class="cc-sec-head__label">{{ __('Transportación') }}</span>
+                        <span class="cc-sec-head__count" aria-hidden="true"></span>
+                        @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
+                    </button>
+                    <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                        <a href="{{ \App\Support\TransportAccess::canFull(auth()->user()) ? route('transport.index') : route('transport.lite') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ \App\Support\TransportAccess::canFull(auth()->user()) ? __('Verificación de vehículos') : __('Flota') }}</span>
+                        </a>
+                    </div></div>
+                </div>
+            @endif
+
             {{-- ===== LLAMADOS (Call Sheet) — EN PAUSA: se reconstruye "con dirección" ===== --}}
 
             {{-- ===== MÉDICO ===== --}}
@@ -963,6 +981,24 @@
                         </div></div>
                     </div>
                 @endcanany
+
+                {{-- ===== TRANSPORTACIÓN (departamento PROPIO, distinto de Seguridad — aun el checklist) ===== --}}
+                @if(\App\Support\TransportAccess::canLite(auth()->user()))
+                    <div class="cc-sec" data-open="false">
+                        <button type="button" class="cc-sec-head" aria-expanded="false">
+                            @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-sec-head__ico', 'label' => null])
+                            <span class="cc-sec-head__label">{{ __('Transportación') }}</span>
+                            <span class="cc-sec-head__count" aria-hidden="true"></span>
+                            @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
+                        </button>
+                        <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                            <a href="{{ \App\Support\TransportAccess::canFull(auth()->user()) ? route('transport.index') : route('transport.lite') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ \App\Support\TransportAccess::canFull(auth()->user()) ? __('Verificación de vehículos') : __('Flota') }}</span>
+                            </a>
+                        </div></div>
+                    </div>
+                @endif
 
                 {{-- ===== MÉDICO ===== --}}
                 @can('medical.view')

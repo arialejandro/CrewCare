@@ -486,6 +486,32 @@ Route::middleware(['auth','permission:ambulance.manage'])->group(function () {
     Route::post('/ambulancia/proveedor/{provider}/tripulante', [App\Http\Controllers\AmbulanceController::class, 'storeCrew'])->name('ambulance.crew.store')->whereNumber('provider');
 });
 
+// ---- TRANSPORTACIÓN · Bloque 1 — verificación de vehículos (2026-08-24) ----
+// Entidad Vehículo + checklist GRADUADO (critical/major/minor) + acta sellada (verificador público
+// 'veh', ruta sin sesión más abajo). AUTORIZACIÓN HÍBRIDA en el controlador ({@see TransportAccess}):
+// `transport.manage` O pertenencia al departamento de Transportación = gestión (canFull); `transport.view`
+// = solo la vista LITE de producción (canLite). Por eso el grupo va solo con `auth` y cada acción
+// hace su propio abort_unless. Los prefijos fijos van antes de los {param}; el acta se liga por uuid.
+Route::middleware(['auth'])->group(function () {
+    // Vista LITE de producción (tarjeta/placas/licencia/conductor; sin nivel, puntos ni acta).
+    Route::get('/transportacion/flota', [App\Http\Controllers\VehicleController::class, 'lite'])->name('transport.lite');
+
+    // HUB + flota + verificación + actas (canFull).
+    Route::get('/transportacion', [App\Http\Controllers\VehicleController::class, 'index'])->name('transport.index');
+    Route::get('/transportacion/vehiculos', [App\Http\Controllers\VehicleController::class, 'vehicles'])->name('transport.vehicles');
+    Route::post('/transportacion/vehiculos', [App\Http\Controllers\VehicleController::class, 'storeVehicle'])->name('transport.vehicle.store');
+    Route::get('/transportacion/verificar', [App\Http\Controllers\VehicleController::class, 'inspectForm'])->name('transport.inspect.form');
+    Route::post('/transportacion/verificar', [App\Http\Controllers\VehicleController::class, 'storeInspection'])->name('transport.inspect.store');
+    Route::get('/transportacion/actas', [App\Http\Controllers\VehicleController::class, 'records'])->name('transport.records');
+    Route::get('/transportacion/acta/{inspection:uuid}', [App\Http\Controllers\VehicleController::class, 'actaShow'])->name('transport.acta')->where('inspection', '[0-9a-fA-F-]{36}');
+    Route::get('/transportacion/acta/{inspection:uuid}/rechazo', [App\Http\Controllers\VehicleController::class, 'rejectionPdf'])->name('transport.acta.rejection')->where('inspection', '[0-9a-fA-F-]{36}');
+    Route::get('/transportacion/vehiculo/{vehicle}', [App\Http\Controllers\VehicleController::class, 'vehicleShow'])->name('transport.vehicle.show')->whereNumber('vehicle');
+    Route::get('/transportacion/vehiculo/{vehicle}/editar', [App\Http\Controllers\VehicleController::class, 'editVehicle'])->name('transport.vehicle.edit')->whereNumber('vehicle');
+    Route::post('/transportacion/vehiculo/{vehicle}', [App\Http\Controllers\VehicleController::class, 'updateVehicle'])->name('transport.vehicle.update')->whereNumber('vehicle');
+    Route::post('/transportacion/vehiculo/{vehicle}/documento', [App\Http\Controllers\VehicleController::class, 'storeDocument'])->name('transport.document.store')->whereNumber('vehicle');
+    Route::post('/transportacion/documento/{doc}/validar', [App\Http\Controllers\VehicleController::class, 'validateDocument'])->name('transport.document.validate')->whereNumber('doc');
+});
+
 // ---- VIGILANCIA EPIDEMIOLÓGICA: panel silencioso + estudio de brote (2026-07-31 · delta #45) ----
 // SILENCIOSO: no manda correos, no alerta, no declara brotes. Solo LEE consultas selladas y muestra
 // conteos AGREGADOS (nunca nombres). Gate único epi.view (solo safety y médico). El estudio de brote

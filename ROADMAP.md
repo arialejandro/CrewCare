@@ -18,7 +18,9 @@ Sirve para entender el panorama y decidir el orden.
 > **🚀 (2026-08-24) HACIA EL PRIMER DEPLOY REAL — la rama ya está en GitHub.** Tras el upgrade, la capa
 > de **PRODUCTO** (coordinación de producción) creció fuerte: contratos/firmas tipo DocuSign, Padrón de pago,
 > y el **Llamado del día** (motor de horarios + back CASPER + Paquete front+back→firma) con **envío masivo con
-> marca de agua por persona** + módulo **Distribución**. Punto clave del día: hasta hoy **nada se había
+> marca de agua por persona** + módulo **Distribución**. Y, ya sobre la rama, **Transportación · Bloque 1**
+> (entidad Vehículo + verificación de seguridad GRADUADA, acta sellada `'veh'`, 2 marcas, RBAC híbrido; suite 810)
+> — Transpo es su PROPIO departamento, ≠ Seguridad ([[transport-vehicle-module]]). Punto clave del día: hasta hoy **nada se había
 > commiteado desde el 21-ago ni la rama se había pusheado** — se subió todo (5 commits) a
 > **`origin/upgrade/laravel-13`**, ahora clonable desde el VPS. El deploy se rige por **`DEPLOY-RUNBOOK.md`**
 > (fuente única: `git clone` → `composer install` → `.env` → `migrate --force` + `db:seed --force` →

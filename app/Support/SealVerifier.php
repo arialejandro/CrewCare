@@ -102,6 +102,13 @@ class SealVerifier
         // rechazado / vencido, con su fecha vía sealRetirement()) / ALTERADO (solo si el hash del
         // paquete sellado no coincide). Un camino de escape NUNCA se lee como ALTERADO.
         'cenv'   => ['App\Models\ContractEnvelope',       'Sobre de contrato',         'CENV',  'CREWCARE-CENV'],
+        // (2026-08-24 · Transportación · Bloque 1) Acta de verificación de vehículo. Etiqueta
+        // genérica para el acuse público: dice que es un acta de verificación de vehículo, nunca
+        // de qué unidad ni el veredicto (y NUNCA el nivel interno alto_riesgo/pobre/... que solo
+        // ven transpo y safety). El folio lo calcula VehicleInspection::folio() (VEHI-####).
+        // Vigencia de 3 estados: vigente / RETIRADO (con fecha y, si existe, folio que sustituye,
+        // vía sealRetirement()) / ALTERADO (solo si el hash no coincide). Retirar ≠ alterar.
+        'veh'    => ['App\Models\VehicleInspection',      'Acta de verificación de vehículo', 'VEHI', 'CREWCARE-VEHI'],
     ];
 
     /**

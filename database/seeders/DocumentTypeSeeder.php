@@ -66,6 +66,16 @@ class DocumentTypeSeeder extends Seeder
             ['AMB_CONOCER',         'Certificación CONOCER',                   $O, $PE, 'fisica', null, null, 0, 0, null, 340],
             ['AMB_TAMP',            'Formación TAMP',                          $O, $PE, 'fisica', null, null, 0, 0, null, 350],
             ['AMB_CEDULA',          'Cédula profesional',                      $O, $PE, 'fisica', null, null, 0, 0, null, 360],
+
+            // ── OPERATE (Transportación · Bloque 1 — documentos del vehículo, §4) ──
+            // Se captura FECHA DE VENCIMIENTO explícita (validity_shape null → no auto-deriva; la
+            // vigencia sale del valid_until capturado). NO duplican los docs FISCALES del proveedor
+            // (esos viven en el payee). La licencia es del conductor (scope persona), pero se valida
+            // en el contexto de operatividad del vehículo (holder = Vehicle).
+            ['VEH_TARJETA',       'Tarjeta de circulación',      $O, $ID, 'ambas',  null, null, 0, 0, null, 400],
+            ['VEH_POLIZA',        'Póliza de seguro (vehículo)', $O, $ID, 'ambas',  null, null, 0, 0, null, 410],
+            ['VEH_VERIFICACION',  'Verificación vehicular',      $O, $ID, 'ambas',  null, null, 0, 0, null, 420],
+            ['VEH_LICENCIA',      'Licencia del conductor',      $O, $PE, 'fisica', null, null, 0, 0, null, 430],
         ];
 
         foreach ($rows as $r) {
