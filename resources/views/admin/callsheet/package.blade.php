@@ -158,11 +158,18 @@
     <div class="card cs-card">
         <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
             <span><span class="pk-step">4</span> Aprobación <span class="text-muted fw-normal" style="font-size:.82rem">· firman las 3 figuras (sobre el front)</span></span>
-            @if($hasFront)
-                <a class="btn btn-sm btn-outline-secondary" href="{{ route('callsheet.package.layout', ['date' => $ds]) }}">
-                    @include('componentes._icon', ['name' => 'pencil', 'class' => 'cc-ico me-1', 'label' => null]) Colocar firmas
-                </a>
-            @endif
+            <span class="d-flex gap-2 flex-wrap">
+                @if($pkg->status === CallPackage::DRAFT)
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ route('callsheet.format') }}">
+                        @include('componentes._icon', ['name' => 'users', 'class' => 'cc-ico me-1', 'label' => null]) Quién aprueba
+                    </a>
+                @endif
+                @if($hasFront)
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ route('callsheet.package.layout', ['date' => $ds]) }}">
+                        @include('componentes._icon', ['name' => 'pencil', 'class' => 'cc-ico me-1', 'label' => null]) Colocar firmas
+                    </a>
+                @endif
+            </span>
         </div>
         <div class="card-body">
             @if($hasFront && empty($pkg->sign_field_map))
@@ -175,7 +182,15 @@
                         <span class="pk-signer__ico">@include('componentes._icon', ['name' => $signed ? 'check-circle' : 'pencil', 'class' => 'cc-ico', 'label' => null])</span>
                         <div class="pk-signer__body">
                             <div class="pk-signer__role">{{ $sg['role_label'] }}</div>
-                            <div class="pk-signer__name">{{ $sg['name'] ?: '—' }}</div>
+                            <div class="pk-signer__name">
+                                @if($sg['name'])
+                                    {{ $sg['name'] }}
+                                @elseif($pkg->status === CallPackage::DRAFT)
+                                    <a href="{{ route('callsheet.format') }}">Sin asignar — elegir</a>
+                                @else
+                                    —
+                                @endif
+                            </div>
                         </div>
                         <span class="pk-signer__state">{{ $signed ? ('Firmó ' . $sig->signed_at->isoFormat('HH:mm')) : 'Pendiente' }}</span>
                     </div>

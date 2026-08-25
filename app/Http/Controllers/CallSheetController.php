@@ -244,6 +244,11 @@ class CallSheetController extends Controller
             'current' => $s['callsheet_preset'] ?? CallSheetFormats::DEFAULT,
             'paper'   => $s['callsheet_paper'] ?? 'legal',
             'bands'   => $s['callsheet_bands'] ?? 'gray',
+            // Figuras que aprueban el back: etiqueta de fábrica + a quién se fijó (o auto por puesto).
+            'signerRoles' => self::SIGNER_ROLES,
+            'signerPicks' => $this->signerPicks(),
+            'signerAuto'  => $this->autoSignerNames(),
+            'crew'        => $this->productionPeople(),
         ]);
     }
 
@@ -255,11 +260,24 @@ class CallSheetController extends Controller
             'preset' => ['required', 'string', 'in:' . implode(',', array_keys(CallSheetFormats::PRESETS))],
             'paper'  => ['nullable', 'string', 'in:' . implode(',', array_keys(CallSheetFormats::PAPERS))],
             'bands'  => ['nullable', 'string', 'in:' . implode(',', array_keys(CallSheetFormats::BANDS))],
+            'signers'   => ['nullable', 'array'],
+            'signers.*' => ['nullable', 'integer', 'exists:users,id'],
         ]);
         $s = is_array($prod->settings) ? $prod->settings : [];
         $s['callsheet_preset'] = $data['preset'];
         $s['callsheet_paper']  = $data['paper'] ?? 'legal';
         $s['callsheet_bands']  = $data['bands'] ?? 'gray';
+
+        // Figuras de aprobación: solo las 3 keys conocidas; vacío = AUTO (se resuelve por puesto).
+        $picks = [];
+        foreach (array_keys(self::SIGNER_ROLES) as $key) {
+            $uid = $data['signers'][$key] ?? null;
+            if ($uid) {
+                $picks[$key] = (int) $uid;
+            }
+        }
+        $s['callsheet_signers'] = $picks;
+
         $prod->settings = $s;
         $prod->save();
         CurrentProduction::forget();
@@ -307,7 +325,14 @@ class CallSheetController extends Controller
         ]);
     }
 
-    /** El CallPackage del día (lo crea con firmantes + posición de firmas RECORDADA la 1ª vez). */
+    /**
+     * El CallPackage del día (lo crea con firmantes + posición de firmas RECORDADA la 1ª vez).
+     *
+     * Mientras el paquete siga en BORRADOR los firmantes se RE-RESUELVEN en cada visita: así se
+     * refleja a quien fijaste en Formato del back o a quien entró al roster después de crear el
+     * paquete. Al mandarlo a aprobación (pending/changed/approved) quedan CONGELADOS — ya hay
+     * filas de firma colgando de cada key.
+     */
     private function resolvePackage(User $user, Carbon $day, int $pid): CallPackage
     {
         $pkg = CallPackage::firstOrNew(['production_id' => $pid, 'call_date' => $day->toDateString()]);
@@ -319,6 +344,12 @@ class CallSheetController extends Controller
             $pkg->sign_field_map = $ps['callsheet_sign_layout'] ?? null;   // recuerda la posición de la producción
             $pkg->status = CallPackage::DRAFT;
             $pkg->save();
+        } elseif ($pkg->status === CallPackage::DRAFT) {
+            $fresh = $this->packageSigners(CallSheetEngine::forDay($user, $day, true), false);
+            if ($fresh !== ($pkg->signers ?? [])) {
+                $pkg->signers = $fresh;
+                $pkg->save();
+            }
         }
         $pkg->load('signatures');
 
@@ -1287,7 +1318,23 @@ class CallSheetController extends Controller
         'ad'  => ['es' => '1er AD',                'en' => '1st AD',             'm' => ['1er ad', '1st ad', 'first asst director', 'first assistant director', 'primer asistente de dirección']],
     ];
 
-    /** Resuelve cada rol firmante → [key => ['name'=>, 'user_id'=>]] desde el roster (vacío si no está). */
+    /** A quién se FIJÓ a mano en Formato del back: [key => user_id]. Vacío = auto por puesto. */
+    private function signerPicks(): array
+    {
+        $prod = CurrentProduction::get();
+        $s    = ($prod && is_array($prod->settings)) ? $prod->settings : [];
+        $picks = is_array($s['callsheet_signers'] ?? null) ? $s['callsheet_signers'] : [];
+
+        return array_intersect_key($picks, self::SIGNER_ROLES);
+    }
+
+    /**
+     * Resuelve cada rol firmante → [key => ['name'=>, 'user_id'=>]].
+     *
+     * 1º manda lo FIJADO en Formato del back (persona explícita); si esa key está en automático
+     * se busca en el roster del día por el PUESTO (patrones 'm'). Si tampoco, la línea queda
+     * rellenable a mano en el papel.
+     */
     private function resolveSigners(array $engine): array
     {
         $people = [];
@@ -1299,15 +1346,98 @@ class CallSheetController extends Controller
             }
         }
 
+        $picks = $this->signerPicks();
+
         $out = [];
         foreach (self::SIGNER_ROLES as $key => $r) {
             $found = ['name' => '', 'user_id' => null];
+
+            if (! empty($picks[$key])) {
+                $uid = (int) $picks[$key];
+                // Si además está en el roster, reusa su nombre de ahí (mismo criterio de créditos).
+                $inRoster = null;
+                foreach ($people as $pp) {
+                    if ((int) ($pp['user_id'] ?? 0) === $uid) { $inRoster = $pp; break; }
+                }
+                if ($inRoster) {
+                    $out[$key] = ['name' => $inRoster['name'], 'user_id' => $uid];
+                    continue;
+                }
+                $u = User::find($uid);
+                if ($u && $u->activo) {
+                    $out[$key] = ['name' => User::displayName($u), 'user_id' => $uid];
+                    continue;
+                }
+                // Fijado pero dado de baja → cae al automático (no imprime a un desactivado).
+            }
+
             foreach ($people as $pp) {
                 foreach ($r['m'] as $needle) {
                     if (str_contains($pp['cargo'], $needle)) { $found = ['name' => $pp['name'], 'user_id' => $pp['user_id']]; break 2; }
                 }
             }
             $out[$key] = $found;
+        }
+
+        return $out;
+    }
+
+    /** Nombre que saldría en AUTOMÁTICO por puesto hoy (para explicarlo en Formato del back). */
+    private function autoSignerNames(): array
+    {
+        $pid = CurrentProduction::id();
+        $out = array_fill_keys(array_keys(self::SIGNER_ROLES), '');
+        if ($pid === null || ! auth()->check()) {
+            return $out;
+        }
+
+        $engine = CallSheetEngine::forDay(auth()->user(), Carbon::today(), true);
+        $people = [];
+        foreach ($engine['groups'] as $g) {
+            foreach ($g['people'] as $p) {
+                if ($p['state'] !== PayeeContract::ROSTER_OUT) {
+                    $people[] = ['cargo' => mb_strtolower((string) $p['cargo']), 'name' => $p['name']];
+                }
+            }
+        }
+        foreach (self::SIGNER_ROLES as $key => $r) {
+            foreach ($people as $pp) {
+                foreach ($r['m'] as $needle) {
+                    if (str_contains($pp['cargo'], $needle)) { $out[$key] = $pp['name']; break 2; }
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Gente ELEGIBLE como firmante: usuarios ACTIVOS ligados a esta producción (production_user),
+     * tengan o no contrato de crew — el aprobador puede ser oficina de producción sin llamado.
+     * Devuelve [['id'=>, 'name'=>, 'cargo'=>], ...] ordenado por nombre.
+     */
+    private function productionPeople(): array
+    {
+        $pid = CurrentProduction::id();
+        if ($pid === null) {
+            return [];
+        }
+
+        $posNameById = DB::table('positions')->pluck('name', 'id')->all();
+
+        $rows = DB::table('production_user as pu')
+            ->join('users', 'users.id', '=', 'pu.user_id')
+            ->where('pu.production_id', $pid)
+            ->where('users.activo', 1)
+            ->orderBy('users.name')
+            ->get(['users.id', 'users.name', 'users.lname', 'users.lname2', 'users.ncreditos', 'users.puestodepartamento', 'pu.position_id']);
+
+        $out = [];
+        foreach ($rows as $r) {
+            $cargo = ($r->position_id && isset($posNameById[$r->position_id]))
+                ? $posNameById[$r->position_id]
+                : (string) $r->puestodepartamento;
+            $out[] = ['id' => (int) $r->id, 'name' => User::displayName($r), 'cargo' => $cargo];
         }
 
         return $out;

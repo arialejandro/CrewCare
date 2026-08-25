@@ -67,6 +67,16 @@
     .fmt-band { display:inline-block; width:17px; height:12px; border:1px solid #999; border-radius:2px; }
     .fmt-band--gray { background:#c2c2c2; }
     .fmt-band--black { background:#111; }
+
+    /* Figuras de aprobación: una fila por rol (rol fijo + persona elegible). */
+    .fmt-signers { display:grid; grid-template-columns:1fr; gap:.85rem; }
+    .fmt-signers__head { margin-bottom:-.2rem; }
+    .fmt-signers__sub { margin:.35rem 0 0; font-size:.82rem; color:var(--text-muted); max-width:62ch; }
+    .fmt-signer { display:grid; grid-template-columns:minmax(150px, 210px) 1fr; align-items:center; gap:.75rem; }
+    .fmt-signer__role { margin:0; font-weight:700; font-size:.9rem; color:var(--text); }
+    @media (max-width: 575.98px) {
+        .fmt-signer { grid-template-columns:1fr; gap:.3rem; }
+    }
 </style>
 
 <div class="container py-4 cs-wrap" style="max-width:920px">
@@ -174,12 +184,33 @@
             </div>
         </div>
 
+        {{-- Quién aprueba: las 3 figuras que firman el paquete y salen al pie del back. --}}
+        <div class="fmt-global fmt-signers">
+            <div class="fmt-signers__head">
+                <div class="fmt-global__label">Figuras que aprueban el back</div>
+                <p class="fmt-signers__sub">Firman el paquete del llamado y salen al pie del PDF. Déjalo en automático para que tome a quien tenga el puesto en el llamado del día.</p>
+            </div>
+            @foreach($signerRoles as $key => $role)
+                <div class="fmt-signer">
+                    <label class="fmt-signer__role" for="sg-{{ $key }}">{{ $role['es'] }}</label>
+                    <select id="sg-{{ $key }}" name="signers[{{ $key }}]" class="form-select js-typeahead">
+                        <option value="">Automático{{ ($signerAuto[$key] ?? '') !== '' ? ' — hoy: ' . $signerAuto[$key] : ' — hoy no hay nadie con ese puesto' }}</option>
+                        @foreach($crew as $p)
+                            <option value="{{ $p['id'] }}" @selected((int) ($signerPicks[$key] ?? 0) === $p['id'])>{{ $p['name'] }}{{ $p['cargo'] !== '' ? ' · ' . $p['cargo'] : '' }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endforeach
+        </div>
+
         <div class="d-flex justify-content-end my-4">
             <button type="submit" class="btn btn-primary">
                 @include('componentes._icon', ['name' => 'save', 'class' => 'cc-ico me-1', 'label' => null]) Guardar formato
             </button>
         </div>
     </form>
+
+    @include('componentes._typeahead')
 
     <p class="cs-note">El formato define las columnas de logística, el estilo de comidas y los bloques de notas del pie — sobre el mismo esqueleto tipo CASPER. Aplica a todos los backs de la producción.</p>
 </div>
