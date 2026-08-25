@@ -1,7 +1,7 @@
 {
   "_meta": {
     "modulo": "Transportación / verificación de vehículos — Bloque 1",
-    "nota": "SALEN DE OFICIO (norm_id null, verified_at null). class = critical|major|minor (graduado). applies_when = expresión sobre atributos; null = aplica siempre; soporta && (AND) y || (OR). Los DOCUMENTOS (tarjeta/póliza/verificación) van en document_types; la LICENCIA vive en el paquete del driver (payees). Atributos: tows = jala algo; is_towed = ES remolcado (no se conduce)."
+    "nota": "SALEN DE OFICIO (norm_id null, verified_at null). class = critical|major|minor (graduado). applies_when = expresión sobre atributos; null = aplica siempre; soporta && (AND) y || (OR). sustituye = code del punto que ÉSTE reemplaza cuando ambos aplican (mismo mecanismo que tool_check_points.supersedes); p. ej. REM-005 sustituye a CAR-004 en un has_cargo_box+is_towed. Los DOCUMENTOS (tarjeta/póliza/verificación) van en document_types; la LICENCIA vive en el paquete del driver (payees). Atributos: tows = jala algo; is_towed = ES remolcado (no se conduce)."
   },
   "tipos": [
     { "code": "auto",              "name_es": "Auto",                 "name_en": "Car",                    "is_special": false, "attr_profile": { "powertrain": "combustion", "seats": 5 } },
@@ -72,7 +72,7 @@
     { "code": "REM-002", "grupo": "remolque",    "module": "remolque",   "class": "critical", "requires_photo": false, "applies_when": "tows || is_towed",            "text_es": "Cadenas de seguridad.", "text_en": "Safety chains." },
     { "code": "REM-003", "grupo": "remolque",    "module": "remolque",   "class": "major",    "requires_photo": false, "applies_when": "tows || is_towed",            "text_es": "Luces del remolque (freno, direccionales y gálibo).", "text_en": "Trailer lights (brake, turn and clearance)." },
     { "code": "REM-004", "grupo": "remolque",    "module": "remolque",   "class": "critical", "requires_photo": false, "applies_when": "is_towed",                    "text_es": "Frenos de la unidad remolcada sin fuga y responden.", "text_en": "Towed-unit brakes leak-free and responsive." },
-    { "code": "REM-005", "grupo": "remolque",    "module": "remolque",   "class": "critical", "requires_photo": false, "applies_when": "is_towed",                    "text_es": "Calzas o cuñas colocadas en la unidad remolcada al estacionar.", "text_en": "Wheel chocks in place on the towed unit when parked." },
+    { "code": "REM-005", "grupo": "remolque",    "module": "remolque",   "class": "critical", "requires_photo": false, "applies_when": "is_towed",                    "sustituye": "CAR-004", "text_es": "Calzas o cuñas colocadas en la unidad remolcada al estacionar.", "text_en": "Wheel chocks in place on the towed unit when parked." },
 
     { "code": "ELE-001", "grupo": "electrica",   "module": "electrica",  "class": "major",    "requires_photo": false, "applies_when": "powertrain != combustion",    "text_es": "Cable y puerto de carga sin daño.", "text_en": "Charging cable and port undamaged." },
     { "code": "ELE-002", "grupo": "electrica",   "module": "electrica",  "class": "critical", "requires_photo": false, "applies_when": "powertrain != combustion",    "text_es": "Cableado de alta tensión (naranja) sin daño ni conector suelto.", "text_en": "High-voltage wiring (orange) undamaged with no loose connector." },

@@ -55,23 +55,29 @@ class VehicleCatalogSeeder extends Seeder
             $types++;
         }
 
+        // `supersedes` (sustitución, mismo mecanismo que herramientas) puede no existir aún si el
+        // owner no aplicó 2026-08-24-transport-supersedes.sql: se incluye sólo si la columna está.
+        $hasSupersedes = Schema::hasColumn('vehicle_check_points', 'supersedes');
+
         $points = 0;
         foreach ($data['puntos'] as $i => $p) {
-            VehicleCheckPoint::updateOrCreate(
-                ['code' => $p['code']],
-                [
-                    'grupo'          => $p['grupo'] ?? null,
-                    'module'         => $p['module'] ?? 'nucleo',
-                    'text_es'        => $p['text_es'] ?? '',
-                    'text_en'        => $p['text_en'] ?? null,
-                    'class'          => in_array(($p['class'] ?? 'minor'), VehicleCheckPoint::CLASSES, true) ? $p['class'] : 'minor',
-                    'requires_photo' => ! empty($p['requires_photo']),
-                    'applies_when'   => (isset($p['applies_when']) && trim((string) $p['applies_when']) !== '') ? $p['applies_when'] : null,
-                    'norm_id'        => null, // de oficio: nunca una norma
-                    'sort_order'     => $i,
-                    // is_active / verified_at NO se tocan.
-                ]
-            );
+            $attrs = [
+                'grupo'          => $p['grupo'] ?? null,
+                'module'         => $p['module'] ?? 'nucleo',
+                'text_es'        => $p['text_es'] ?? '',
+                'text_en'        => $p['text_en'] ?? null,
+                'class'          => in_array(($p['class'] ?? 'minor'), VehicleCheckPoint::CLASSES, true) ? $p['class'] : 'minor',
+                'requires_photo' => ! empty($p['requires_photo']),
+                'applies_when'   => (isset($p['applies_when']) && trim((string) $p['applies_when']) !== '') ? $p['applies_when'] : null,
+                'norm_id'        => null, // de oficio: nunca una norma
+                'sort_order'     => $i,
+                // is_active / verified_at NO se tocan.
+            ];
+            if ($hasSupersedes) {
+                $attrs['supersedes'] = (isset($p['sustituye']) && trim((string) $p['sustituye']) !== '') ? $p['sustituye'] : null;
+            }
+
+            VehicleCheckPoint::updateOrCreate(['code' => $p['code']], $attrs);
             $points++;
         }
 

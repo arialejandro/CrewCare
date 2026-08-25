@@ -144,7 +144,7 @@ class VehicleChecklist
     {
         $attrs = self::normalizeAttributes($attrs);
 
-        return VehicleCheckPoint::query()
+        $applicable = VehicleCheckPoint::query()
             ->where('is_active', 1)
             ->orderBy('sort_order')
             ->orderBy('code')
@@ -152,6 +152,38 @@ class VehicleChecklist
             ->filter(function (VehicleCheckPoint $p) use ($attrs) {
                 return self::applies($p->applies_when, $attrs);
             })
+            ->values();
+
+        return self::applySupersession($applicable);
+    }
+
+    /**
+     * SUSTITUCIÓN — mismo mecanismo que el catálogo de herramientas (`tool_check_points.supersedes`):
+     * un punto APLICABLE que sustituye a otro DESPLAZA al sustituido cuando ambos aplican (dice lo
+     * mismo con más precisión; evita inflar el checklist). Sólo cuentan los `supersedes` de puntos
+     * que YA pasaron applies(). Ejemplo: REM-005 (calzas del remolcado, is_towed) sustituye a
+     * CAR-004 (cuñas de la caja, has_cargo_box) en un camper de vestuario (ambos true).
+     *
+     * DEFENSIVO: si la columna `supersedes` aún no existe, `$p->supersedes` es null → no-op.
+     *
+     * @param  Collection<int,VehicleCheckPoint> $applicable
+     * @return Collection<int,VehicleCheckPoint>
+     */
+    private static function applySupersession(Collection $applicable): Collection
+    {
+        $superseded = $applicable
+            ->pluck('supersedes')
+            ->map(fn ($c) => trim((string) $c))
+            ->filter(fn ($c) => $c !== '')
+            ->unique()
+            ->all();
+
+        if (empty($superseded)) {
+            return $applicable;
+        }
+
+        return $applicable
+            ->reject(fn (VehicleCheckPoint $p) => in_array($p->code, $superseded, true))
             ->values();
     }
 }

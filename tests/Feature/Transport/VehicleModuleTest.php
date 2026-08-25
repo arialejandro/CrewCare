@@ -70,6 +70,24 @@ class VehicleModuleTest extends VehicleVerticalTestCase
         $this->assertContains('VEH-011', $this->applicableCodes($self), 'Una unidad autopropulsada sí recibe luces principales.');
     }
 
+    public function test_rem005_sustituye_a_car004_cuando_hay_caja_y_remolque(): void
+    {
+        // Camper de vestuario = ÚNICO tipo has_cargo_box + is_towed → las calzas NO se piden dos veces.
+        $vestuario = $this->applicableCodes($this->makeVehicle('camper_vestuario'));
+        $this->assertContains('REM-005', $vestuario, 'El remolcado recibe las calzas del remolque (critical).');
+        $this->assertNotContains('CAR-004', $vestuario, 'REM-005 SUSTITUYE a CAR-004 cuando ambos aplican.');
+
+        // Pickup con caja SIN remolque → conserva CAR-004; no hay REM-005.
+        $pickup = $this->applicableCodes($this->makeVehicle('pickup'));
+        $this->assertContains('CAR-004', $pickup, 'Un pickup con caja sin remolque conserva CAR-004.');
+        $this->assertNotContains('REM-005', $pickup, 'Sin remolque no hay calzas del remolcado.');
+
+        // Camper de baños remolcado SIN caja → recibe REM-005; CAR-004 nunca aplicó.
+        $banos = $this->applicableCodes($this->makeVehicle('camper_banos'));
+        $this->assertContains('REM-005', $banos, 'Un remolcado sin caja recibe REM-005.');
+        $this->assertNotContains('CAR-004', $banos, 'Sin caja, CAR-004 no aplica.');
+    }
+
     // ── Acta APTA (camino feliz) ─────────────────────────────────────────────
     public function test_checklist_completo_ok_da_apto_excelente_y_nace_sellada(): void
     {
