@@ -96,6 +96,12 @@
         }
         .cc-kpi__spark { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 28px; opacity: .8; pointer-events: none; }
 
+        /* ===== "Te toca a ti": pendientes accionables (firma / autorización) ===== */
+        .cc-todo { background: var(--surface-3); border: 1px solid var(--stroke); color: var(--text); text-decoration: none; }
+        .cc-todo:hover { border-color: color-mix(in srgb, var(--brand-primary) 45%, var(--stroke)); transform: translateY(-1px); }
+        .cc-todo__ico { color: var(--brand-primary); display: inline-flex; }
+        .cc-todo__hint { color: var(--text-muted); }
+
         /* ===== Empty state honesto (actividad reciente) ===== */
         .cc-empty { color: var(--text-muted); }
         .cc-empty__ico { color: var(--text-muted); opacity: .7; }
@@ -149,6 +155,44 @@
             @endunless
         </div>
     </div>
+
+    {{-- ===== LO QUE TE TOCA A TI (2026-08-25) =====
+         El sidebar ya llevaba badge, pero vive plegado y se pierde: un Infosheet esperando la
+         autorización del Line Producer podía quedarse días sin que nadie se enterara. Aquí sale a
+         la cara, con el mismo criterio de las bandejas (solo lo que ESTE usuario puede accionar).
+         Si no hay nada pendiente, el bloque no existe — no se pinta un cero. --}}
+    @php
+        $__uPend    = auth()->user();
+        $__pendSign = \App\Support\PendingSignatures::countForUser((int) $__uPend->id);
+        $__pendAuth = \App\Support\InfosheetSigning::countForUser($__uPend);
+        $__todo = [];
+        if ($__pendAuth > 0) {
+            $__todo[] = ['icon' => 'clipboard-list', 'n' => $__pendAuth, 'route' => route('infosheet.pending'),
+                'label' => trans_choice('Hoja de información por autorizar|Hojas de información por autorizar', $__pendAuth),
+                'hint'  => __('Al autorizarla se emite el contrato y se manda a firma.')];
+        }
+        if ($__pendSign > 0) {
+            $__todo[] = ['icon' => 'pencil', 'n' => $__pendSign, 'route' => route('contracts.pending.index'),
+                'label' => trans_choice('Contrato por firmar|Contratos por firmar', $__pendSign),
+                'hint'  => __('Documentos esperando tu firma.')];
+        }
+    @endphp
+    @if(count($__todo))
+        <div class="cc-panel p-4 sm:p-5 mb-6">
+            <h2 class="cc-panel__title font-poster text-base sm:text-lg mb-3">{{ __('Te toca a ti') }}</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                @foreach($__todo as $t)
+                    <a href="{{ $t['route'] }}" class="cc-todo flex items-center gap-3 rounded-xl p-3 transition">
+                        <span class="cc-todo__ico shrink-0">@include('componentes._icon', ['name' => $t['icon'], 'class' => 'cc-ico-20', 'label' => null])</span>
+                        <span class="min-w-0">
+                            <span class="cc-todo__label block font-bold text-sm">{{ $t['n'] }} {{ $t['label'] }}</span>
+                            <span class="cc-todo__hint block text-xs">{{ $t['hint'] }}</span>
+                        </span>
+                    </a>
+                @endforeach
+            </div>
+        </div>
+    @endif
 
     {{-- ===== Grid de KPIs (2 → 3 → 6) — DATA-DRIVEN =====
          Cada widget: icono (_icon), etiqueta i18n, valor, ruta (hover con sentido) y

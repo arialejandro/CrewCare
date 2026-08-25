@@ -160,10 +160,59 @@ class InfosheetSigning
         return null;
     }
 
+    /**
+     * CANDADO DE COMPLETITUD (2026-08-25). Lo que le FALTA al trato para poder autorizarse, en
+     * lenguaje llano y listo para pintar. Un Infosheet en blanco NO debe poder firmarse: la firma
+     * emite el contrato y lo CONGELA, así que autorizar un stub produce un contrato vacío e
+     * inmutable (fue justo lo que pasó). El mínimo acordado con el owner: puesto, departamento,
+     * total de honorarios > 0 y fecha de inicio. Las fechas de trabajo quedan opcionales.
+     *
+     * @return array<int,string> vacío = listo para autorizar
+     */
+    public static function missingToAuthorize(PayeeContract $contract): array
+    {
+        $missing = [];
+        if (trim((string) $contract->title) === '') {
+            $missing[] = __('el puesto');
+        }
+        if (! $contract->department_id) {
+            $missing[] = __('el departamento');
+        }
+        if ((float) $contract->fee_amount <= 0) {
+            $missing[] = __('el total de honorarios');
+        }
+        if (! $contract->effective_date) {
+            $missing[] = __('la fecha de inicio');
+        }
+
+        return $missing;
+    }
+
+    /** ¿El trato tiene lo mínimo capturado para poder autorizarse? */
+    public static function isReadyToAuthorize(PayeeContract $contract): bool
+    {
+        return count(self::missingToAuthorize($contract)) === 0;
+    }
+
+    /** Frase para la UI: "Falta capturar el puesto, el departamento y el total de honorarios." */
+    public static function missingLabel(PayeeContract $contract): string
+    {
+        $m = self::missingToAuthorize($contract);
+        if (empty($m)) {
+            return '';
+        }
+        $last = array_pop($m);
+        $list = $m ? implode(', ', $m) . ' ' . __('y') . ' ' . $last : $last;
+
+        return __('Falta capturar :lista.', ['lista' => $list]);
+    }
+
     /** ¿Este usuario tiene algo pendiente por autorizar en este contrato? */
     public static function canAuthorize(User $user, PayeeContract $contract): bool
     {
-        return $contract->isCrewWork() && self::slotForUser($user, $contract) !== null;
+        return $contract->isCrewWork()
+            && self::isReadyToAuthorize($contract)
+            && self::slotForUser($user, $contract) !== null;
     }
 
     /**
@@ -174,6 +223,11 @@ class InfosheetSigning
      */
     public static function authorize(PayeeContract $contract, User $user, ?string $imageData, ?Request $request): array
     {
+        // Candado: nunca se firma un trato incompleto (la firma emite y CONGELA).
+        if (! self::isReadyToAuthorize($contract)) {
+            return ['ok' => false, 'message' => self::missingLabel($contract) . ' ' . __('Complétalo en la hoja de información antes de autorizar.')];
+        }
+
         $slot = self::slotForUser($user, $contract);
         if (! $slot) {
             return ['ok' => false, 'message' => __('No tienes un puesto pendiente por autorizar en este contrato.')];
@@ -215,6 +269,15 @@ class InfosheetSigning
         if (! $template && ! $clause) {
             return ['fired' => false, 'error' => true,
                 'message' => __('Autorizado, pero falta una plantilla de contrato activa para este tipo de contrato (Producción → Plantillas).')];
+        }
+
+        // PRE-VUELO: si la ruta de firma no se puede armar (puesto vacante, auto-firma), se corta
+        // ANTES de emitir. Emitir y fallar después dejaba el contrato congelado sin sobre.
+        try {
+            ContractEnvelopeBuilder::preflight($contract);
+        } catch (\Throwable $e) {
+            return ['fired' => false, 'error' => true,
+                'message' => __('Autorizado, pero la ruta de firma no está lista, así que el contrato NO se emitió:') . ' ' . $e->getMessage()];
         }
 
         try {

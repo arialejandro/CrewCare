@@ -37,11 +37,21 @@
     @unless($contract->isEmitted())
         <form method="POST" action="{{ route('infosheet.submit', $payee->id) }}" class="mb-3">
             @csrf
-            <button type="submit" class="btn btn-crew cc-cta d-inline-flex align-items-center gap-1">
+            <button type="submit" class="btn btn-crew cc-cta d-inline-flex align-items-center gap-1" @disabled(! empty($missing))>
                 @include('componentes._icon', ['name' => 'check-circle', 'class' => 'cc-ico-18', 'label' => null])
                 {{ __('Enviar a autorización') }}
             </button>
-            <span class="cc-help d-block mt-1">{{ __('Captura el puesto y los importes; luego esto avisa al autorizador (Line Producer) y el trato aparece en su bandeja "Por autorizar".') }}</span>
+            @if(! empty($missing))
+                {{-- El autorizador firma esta hoja y con esa firma se EMITE el contrato: si va en
+                     blanco, se emite en blanco y queda congelado. Por eso el envío espera. --}}
+                <span class="cc-help d-block mt-1">
+                    @include('componentes._icon', ['name' => 'alert-triangle', 'class' => 'cc-ico-14', 'label' => null])
+                    {{ \App\Support\InfosheetSigning::missingLabel($contract) }}
+                    {{ __('Al autorizar se emite el contrato y ya no se puede editar.') }}
+                </span>
+            @else
+                <span class="cc-help d-block mt-1">{{ __('Esto avisa al autorizador (Line Producer) y el trato aparece en su bandeja "Por autorizar".') }}</span>
+            @endif
         </form>
     @endunless
 
@@ -194,24 +204,44 @@
                         </div>
                     </div>
 
-                    <div class="text-uppercase text-muted small fw-semibold mt-3 mb-2" style="letter-spacing:.06em">{{ __('Desglose fiscal') }}</div>
-                    <div class="row g-3">
+                    {{-- DESGLOSE FISCAL — sale del RÉGIMEN de la persona (ya capturado en su registro):
+                         los tres importes llegan calculados sobre el total y se recalculan al cambiar
+                         los honorarios o el comprobante. Si el trato pide otra cosa, se escribe encima
+                         y ese importe manda. --}}
+                    @php
+                        $taxSeed = \App\Support\TaxDefaults::amountsFor($contract, (float) $contract->fee_amount);
+                        $taxVal  = fn ($f) => old($f, $contract->$f ?? ($taxSeed[$f] > 0 ? $taxSeed[$f] : null));
+                    @endphp
+                    <div class="d-flex flex-wrap align-items-baseline gap-2 mt-3 mb-2">
+                        <span class="text-uppercase text-muted small fw-semibold" style="letter-spacing:.06em">{{ __('Desglose fiscal') }}</span>
+                        @if($taxRates['regime'])
+                            <span class="cc-chip">{{ $taxRates['regime'] }} · {{ \App\Support\TaxDefaults::label($taxRates) }}</span>
+                        @endif
+                    </div>
+                    @if($taxRates['note'])
+                        <div class="cc-help mb-2">@include('componentes._icon', ['name' => 'info', 'class' => 'cc-ico-14', 'label' => null]) {{ $taxRates['note'] }}</div>
+                    @endif
+                    <div class="row g-3"
+                         id="taxBlock"
+                         data-iva="{{ $taxRates['iva'] }}"
+                         data-isr="{{ $taxRates['isr_ret'] }}"
+                         data-ivaret="{{ $taxRates['iva_ret'] }}">
                         <div class="col-md-4">
                             <div class="cc-field">
                                 <label class="cc-label" for="tax_iva">{{ __('IVA') }}</label>
-                                <input type="number" step="0.01" min="0" name="tax_iva" id="tax_iva" class="form-control cc-control" value="{{ $val('tax_iva') }}">
+                                <input type="number" step="0.01" min="0" name="tax_iva" id="tax_iva" class="form-control cc-control js-tax" data-rate="iva" value="{{ $taxVal('tax_iva') }}">
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="cc-field">
                                 <label class="cc-label" for="tax_isr_retention">{{ __('Retención ISR') }}</label>
-                                <input type="number" step="0.01" min="0" name="tax_isr_retention" id="tax_isr_retention" class="form-control cc-control" value="{{ $val('tax_isr_retention') }}">
+                                <input type="number" step="0.01" min="0" name="tax_isr_retention" id="tax_isr_retention" class="form-control cc-control js-tax" data-rate="isr" value="{{ $taxVal('tax_isr_retention') }}">
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="cc-field">
                                 <label class="cc-label" for="tax_iva_retention">{{ __('Retención IVA') }}</label>
-                                <input type="number" step="0.01" min="0" name="tax_iva_retention" id="tax_iva_retention" class="form-control cc-control" value="{{ $val('tax_iva_retention') }}">
+                                <input type="number" step="0.01" min="0" name="tax_iva_retention" id="tax_iva_retention" class="form-control cc-control js-tax" data-rate="ivaret" value="{{ $taxVal('tax_iva_retention') }}">
                             </div>
                         </div>
                         <div class="col-12">
@@ -306,7 +336,8 @@
 (function () {
     // ── 1 · PUESTO: puestos filtrados por departamento (mismo patrón que el alta) ──
     var POSITIONS = @json($positions ?? []);
-    var CURRENT_POS = @json((int) old('position_id', 0));
+    // El puesto ya elegido: el del formulario si se reintenta, si no el del ALTA de la persona.
+    var CURRENT_POS = @json((int) old('position_id', $positionId ?? 0));
     var deptSel = document.getElementById('department_id');
     var posSel  = document.getElementById('position_id');
     function fillPositions(deptId, keep) {
@@ -341,6 +372,7 @@
         });
         var t = document.getElementById('feeTotal');
         if (t) { t.textContent = total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+        retax(total);
     }
     function cascade(field, fromPhase) {
         var i = PHASES.indexOf(fromPhase);
@@ -359,6 +391,33 @@
         var a = q('fee_' + p + '_amount');
         if (a) { a.addEventListener('input', function () { a.dataset.dirty = '1'; recompute(); }); }
     });
+
+    // ── 2b · DESGLOSE FISCAL: los importes salen de las tasas del régimen sobre el total. Se
+    //    recalculan mientras nadie los escriba a mano; en cuanto se escribe uno, ese queda fijo. ──
+    var taxBlock = document.getElementById('taxBlock');
+    var BASE_RATES = taxBlock ? {
+        iva:    parseFloat(taxBlock.dataset.iva) || 0,
+        isr:    parseFloat(taxBlock.dataset.isr) || 0,
+        ivaret: parseFloat(taxBlock.dataset.ivaret) || 0
+    } : null;
+    function retax(total) {
+        if (!taxBlock) return;
+        // Un recibo (asimilado) no traslada IVA ni genera retención: mismo criterio que el servidor.
+        var recibo = (document.getElementById('payment_document_type') || {}).value === 'recibo';
+        taxBlock.querySelectorAll('.js-tax').forEach(function (el) {
+            if (el.dataset.dirty) return;
+            var r = recibo ? 0 : (BASE_RATES[el.dataset.rate] || 0);
+            el.value = r > 0 && total > 0 ? (total * r).toFixed(2) : '';
+        });
+    }
+    if (taxBlock) {
+        taxBlock.querySelectorAll('.js-tax').forEach(function (el) {
+            el.addEventListener('input', function () { el.dataset.dirty = '1'; });
+        });
+        var docSel = document.getElementById('payment_document_type');
+        if (docSel) { docSel.addEventListener('change', function () { recompute(); }); }
+    }
+
     if (q('fee_soft_prep_weeks')) { recompute(); }
 
     // ── 3 · FECHAS: rango → días (removibles) + día suelto ──

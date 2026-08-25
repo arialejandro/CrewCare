@@ -11,6 +11,7 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Support\Branding;
 use App\Support\CurrentProduction;
+use App\Support\InfosheetSigning;
 use App\Support\SignaturePositions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -29,6 +30,7 @@ class InfosheetAuthorizationTest extends QaTestCase
     private $prodId;
     private $prepPos;
     private $bindPos;
+    private $deptId;
 
     protected function setUp(): void
     {
@@ -38,6 +40,7 @@ class InfosheetAuthorizationTest extends QaTestCase
         CurrentProduction::forget();
 
         [$this->prepPos, $this->bindPos] = Position::orderBy('id')->take(2)->pluck('id')->all();
+        $this->deptId = DB::table('departments')->min('id');
         Setting::updateOrCreate(['key' => SignaturePositions::KEY_PREPARER], ['value' => $this->prepPos]);
         Setting::updateOrCreate(['key' => SignaturePositions::KEY_BINDER],   ['value' => $this->bindPos]);
         foreach ([
@@ -81,8 +84,12 @@ class InfosheetAuthorizationTest extends QaTestCase
     {
         $u = $this->makeUser('crew');
         $payee = Payee::create(['legal_nature' => 'fisica', 'name' => 'Juan Crew', 'user_id' => $u->id]);
+        // Trato COMPLETO: autorizar emite y congela, así que el candado
+        // (InfosheetSigning::missingToAuthorize) exige puesto, depto, importe y fecha de inicio.
         return $payee->contracts()->create([
             'concept' => 'crew_work', 'is_active' => 1, 'production_id' => $this->prodId, 'crew_activity' => 'Gaffer',
+            'title' => 'Gaffer', 'department_id' => $this->deptId, 'fee_amount' => 100000,
+            'effective_date' => now()->toDateString(),
         ]);
     }
 
@@ -119,6 +126,48 @@ class InfosheetAuthorizationTest extends QaTestCase
             ->assertSessionHasErrors('signature_image');
 
         $this->assertFalse($contract->fresh()->isEmitted(), 'sin firma no se dispara nada');
+    }
+
+    /**
+     * CANDADO DE COMPLETITUD — una hoja en blanco NO se puede autorizar. Autorizar EMITE el contrato
+     * y lo congela: firmar un stub producía un contrato vacío e inmutable (pasó en dev el 2026-08-25).
+     */
+    public function test_incomplete_infosheet_cannot_be_authorized(): void
+    {
+        Storage::fake('local');
+        $this->makeClause();
+        $this->seatInternals();
+
+        $contract = $this->crewContract();
+        $contract->update(['title' => null, 'department_id' => null, 'fee_amount' => null, 'effective_date' => null]);
+
+        $lp = $this->makeUser('line-producer');
+        $this->assertNotEmpty(InfosheetSigning::missingToAuthorize($contract->fresh()));
+        $this->assertFalse(InfosheetSigning::canAuthorize($lp, $contract->fresh()));
+
+        // Ni por la ruta directa: el servidor manda, no la UI.
+        $this->actingAs($lp);
+        $this->post(route('infosheet.authorize', $contract->payee_id), ['signature_image' => $this->image()])
+            ->assertForbidden();
+
+        $contract->refresh();
+        $this->assertFalse($contract->isEmitted(), 'no se emitió un contrato vacío');
+        $this->assertSame(0, $contract->authorizations()->count(), 'no quedó una autorización huérfana');
+
+        // Y tampoco se manda a autorización a medias.
+        $this->post(route('infosheet.submit', $contract->payee_id))
+            ->assertRedirect()->assertSessionHas('error');
+    }
+
+    /** El envío a autorización SÍ pasa cuando el trato está completo. */
+    public function test_complete_infosheet_can_be_authorized(): void
+    {
+        Storage::fake('local');
+        $this->seatInternals();
+        $contract = $this->crewContract();   // ya nace completo
+
+        $this->assertSame([], InfosheetSigning::missingToAuthorize($contract));
+        $this->assertTrue(InfosheetSigning::canAuthorize($this->makeUser('line-producer'), $contract));
     }
 
     public function test_non_authorizer_cannot_authorize(): void

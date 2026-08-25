@@ -68,6 +68,10 @@
             $authStatus   = $dealContract ? \App\Support\InfosheetSigning::statusFor($dealContract) : [];
             $canAuthDeal  = $dealContract && $authUser && \App\Support\InfosheetSigning::canAuthorize($authUser, $dealContract);
             $mySlot       = $canAuthDeal ? \App\Support\InfosheetSigning::slotForUser($authUser, $dealContract) : null;
+            // Candado: si al trato le falta lo mínimo, NO se ofrece firmar (firmar emite y congela).
+            $dealMissing  = $dealContract ? \App\Support\InfosheetSigning::missingLabel($dealContract) : '';
+            $wouldAuth    = $dealContract && $authUser && ! $dealEnvelope && ! $dealContract->isEmitted()
+                            && \App\Support\InfosheetSigning::slotForUser($authUser, $dealContract) !== null;
         @endphp
         @if($dealContract && (!empty($authStatus) || $dealEnvelope))
             <div class="card mb-4" id="autorizar-infosheet">
@@ -85,6 +89,20 @@
                                 {{ __('El contrato se generó y está en firma.') }}
                             </span>
                             <a href="{{ route('contracts.envelope.show', $dealEnvelope->id) }}" class="btn btn-sm btn-crew-soft">{{ __('Ver sobre de firma') }}</a>
+                        </div>
+                    @endif
+
+                    @if($wouldAuth && $dealMissing !== '')
+                        {{-- Te toca autorizar, pero la hoja va incompleta: firmarla emitiría un contrato
+                             en blanco y ya no se podría editar. Primero se completa. --}}
+                        <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                            <span class="d-inline-flex align-items-center gap-2">
+                                @include('componentes._icon', ['name' => 'alert-triangle', 'label' => null])
+                                {{ $dealMissing }} {{ __('No se puede autorizar hasta completarla.') }}
+                            </span>
+                            @can('capture', $payee)
+                                <a href="{{ route('infosheet.edit', ['payee' => $payee->id]) }}" class="btn btn-sm btn-crew-soft">{{ __('Completar hoja') }}</a>
+                            @endcan
                         </div>
                     @endif
 

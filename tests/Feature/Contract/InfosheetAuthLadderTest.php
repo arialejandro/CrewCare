@@ -46,8 +46,11 @@ class InfosheetAuthLadderTest extends QaTestCase
         $this->seatPos($this->userB, $this->pos2);
 
         $payee = Payee::create(['legal_nature' => 'fisica', 'name' => 'Juan Crew']);
+        // Trato COMPLETO: el candado de completitud es previo a la escalera (autorizar emite).
         $this->contract = $payee->contracts()->create([
             'concept' => PayeeContract::CONCEPT_CREW, 'is_active' => 1, 'production_id' => $this->prodId, 'crew_activity' => 'x',
+            'title' => 'Gaffer', 'department_id' => DB::table('departments')->min('id'), 'fee_amount' => 50000,
+            'effective_date' => now()->toDateString(),
         ]);
     }
 

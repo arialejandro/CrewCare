@@ -9,6 +9,8 @@ use App\Models\PayeeContractWorkDate;
 use App\Models\Position;
 use App\Support\CurrentProduction;
 use App\Support\InfosheetSigning;
+use App\Support\ProductionCalendar;
+use App\Support\TaxDefaults;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -37,10 +39,93 @@ class InfosheetController extends Controller
     /** El contrato crew_work de esta persona en la producción vigente (único por firstOrCreate). */
     private function resolveContract(Payee $payee): PayeeContract
     {
-        return $payee->contracts()->firstOrCreate(
+        $contract = $payee->contracts()->firstOrCreate(
             ['concept' => PayeeContract::CONCEPT_CREW, 'production_id' => CurrentProduction::id()],
             ['is_active' => 1, 'contracted_by_user_id' => auth()->id(), 'created_by_id' => auth()->id()]
         );
+
+        $this->seedFromIntake($contract, $payee);
+
+        return $contract;
+    }
+
+    /**
+     * PRELLENADO desde el ALTA (2026-08-25). El Infosheet salía EN BLANCO aunque el departamento y
+     * el puesto ya se hubieran capturado al dar de alta a la persona: quien autoriza abría un
+     * formulario vacío en vez de una hoja que dijera qué puesto es y cuánto dura.
+     *
+     * Siembra SOLO lo que está vacío (nunca pisa lo capturado) y solo antes de emitir:
+     *  · departamento y puesto ← el pivote de la producción (`production_user`, lo del alta);
+     *    si no hay pivote, el puesto en texto de `users.puestodepartamento`.
+     *  · vigencia ← el calendario de la producción (arranque y wrap planeado), como estimado.
+     * Los IMPORTES no se siembran: no existen en ningún lado previo, los captura producción.
+     */
+    private function seedFromIntake(PayeeContract $contract, Payee $payee): void
+    {
+        if ($contract->isEmitted()) {
+            return;
+        }
+
+        $dirty = false;
+        $user  = $payee->user;
+
+        if ($user) {
+            $pivot = DB::table('production_user')
+                ->where('production_id', $contract->production_id)
+                ->where('user_id', $user->id)
+                ->first(['department_id', 'position_id']);
+
+            if (! $contract->department_id && $pivot && $pivot->department_id) {
+                $contract->department_id = (int) $pivot->department_id;
+                $dirty = true;
+            }
+            if (trim((string) $contract->title) === '') {
+                $name = ($pivot && $pivot->position_id)
+                    ? optional(Position::find($pivot->position_id))->name
+                    : null;
+                $name = $name ?: trim((string) $user->puestodepartamento);
+                if ($name !== '' && $name !== null) {
+                    $contract->title = $name;
+                    $dirty = true;
+                }
+            }
+        }
+
+        // Vigencia estimada = la de la producción. Es un punto de partida editable, no un dato duro.
+        if (! $contract->effective_date && ($start = ProductionCalendar::anchorDate())) {
+            $contract->effective_date = $start;
+            $dirty = true;
+        }
+        if (! $contract->estimated_end_date && ($end = ProductionCalendar::plannedWrapDate() ?: ProductionCalendar::wrapDate())) {
+            $contract->estimated_end_date = $end;
+            $dirty = true;
+        }
+
+        if ($dirty) {
+            $contract->save();
+        }
+    }
+
+    /** El id del PUESTO del catálogo que corresponde al `title` del contrato (para preseleccionar). */
+    private function positionIdFor(PayeeContract $contract, Payee $payee): ?int
+    {
+        if (trim((string) $contract->title) !== '') {
+            $pos = Position::whereNull('production_id')->where('name', $contract->title)->first(['id']);
+            if ($pos) {
+                return (int) $pos->id;
+            }
+        }
+        if ($payee->user) {
+            $pivot = DB::table('production_user')
+                ->where('production_id', $contract->production_id)
+                ->where('user_id', $payee->user->id)
+                ->first(['position_id']);
+            if ($pivot && $pivot->position_id) {
+                return (int) $pivot->position_id;
+            }
+        }
+
+        return null;
     }
 
     /** La puerta: solo quien tiene alcance sobre el payee captura su trato (mismo criterio que ver). */
@@ -65,6 +150,12 @@ class InfosheetController extends Controller
             'departments' => Department::where('active', 1)->orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
             'positions'   => Position::whereNull('production_id')->where('active', 1)->orderBy('name')->get(['id', 'name', 'department_id']),
             'phaseLabels' => PayeeContractWorkDate::phases(),
+            // Puesto del alta, para que el select llegue elegido y no en blanco.
+            'positionId'  => $this->positionIdFor($contract, $payee),
+            // Desglose fiscal que toca por régimen (se prellena; se puede ajustar).
+            'taxRates'    => TaxDefaults::forContract($contract),
+            // Lo que falta para poder mandarlo a autorizar (candado del pipeline).
+            'missing'     => InfosheetSigning::missingToAuthorize($contract),
         ]);
     }
 
@@ -141,7 +232,67 @@ class InfosheetController extends Controller
     {
         return view('infosheet.pending', [
             'contracts' => InfosheetSigning::pendingForUser($request->user()),
+            'adopted'   => $request->user()->adopted_signature,
+            'batchMax'  => self::BATCH_MAX,
         ]);
+    }
+
+    /**
+     * Cuántos tratos se autorizan por tanda. Cada autorización que COMPLETA los casilleros emite el
+     * contrato (carátula por Chrome) + arma el sobre + lo manda: son segundos por pieza, así que una
+     * tanda grande tumbaría la petición. Se procesa de a poco y la pantalla dice cuántos quedan.
+     */
+    private const BATCH_MAX = 25;
+
+    /**
+     * AUTORIZAR EN LOTE — una producción tiene cientos de tratos y el autorizador es UNA persona:
+     * dibujar la firma trato por trato no escala. Aquí se aplica la firma ADOPTADA (la misma que ya
+     * usó, guardada con "Guardar para reúso") a los tratos seleccionados.
+     *
+     * Cada pieza pasa por {@see InfosheetSigning::authorize}, o sea por los MISMOS candados que la
+     * firma individual: trato completo, casillero que le toca, sello con la autógrafa dentro del
+     * hash. Lo que no cumple se omite y se cuenta; nada se firma "a la fuerza".
+     */
+    public function batch(Request $request)
+    {
+        $user  = $request->user();
+        $image = $user->adopted_signature;
+        if (! $image) {
+            return back()->with('error', __('Primero autoriza una hoja de forma individual marcando "Guardar para reúso"; después podrás autorizar en lote con esa firma.'));
+        }
+
+        $ids = array_slice(array_filter(array_map('intval', (array) $request->input('contract_ids', []))), 0, self::BATCH_MAX);
+        if (empty($ids)) {
+            return back()->with('error', __('Selecciona al menos una hoja.'));
+        }
+
+        $done = 0;
+        $skipped = [];
+        foreach ($ids as $id) {
+            $contract = PayeeContract::find($id);
+            if (! $contract || ! InfosheetSigning::canAuthorize($user, $contract)) {
+                $skipped[] = $contract && $contract->payee ? $contract->payee->name : ('#' . $id);
+                continue;
+            }
+            try {
+                $result = InfosheetSigning::authorize($contract, $user, $image, $request);
+                if ($result['ok'] ?? false) {
+                    $done++;
+                } else {
+                    $skipped[] = optional($contract->payee)->name . ': ' . ($result['message'] ?? '');
+                }
+            } catch (\Throwable $e) {
+                $skipped[] = optional($contract->payee)->name . ': ' . $e->getMessage();
+            }
+        }
+
+        $msg = trans_choice(':n hoja autorizada.|:n hojas autorizadas.', $done, ['n' => $done]);
+        if ($skipped) {
+            $msg .= ' ' . trans_choice(':n quedó fuera:|:n quedaron fuera:', count($skipped), ['n' => count($skipped)])
+                 . ' ' . implode(' · ', array_slice($skipped, 0, 5));
+        }
+
+        return back()->with($done ? 'status' : 'error', $msg);
     }
 
     /**
@@ -157,8 +308,10 @@ class InfosheetController extends Controller
         if ($contract->isEmitted()) {
             return back()->with('error', __('Este contrato ya fue emitido.'));
         }
-        if (trim((string) $contract->title) === '' && trim((string) $contract->crew_activity) === '') {
-            return back()->with('error', __('Captura al menos el puesto o la actividad antes de enviar a autorización.'));
+        // Candado: se manda a autorizar lo que está listo para firmarse. Autorizar EMITE el contrato
+        // y lo congela; un trato a medias produciría un contrato vacío e inmutable.
+        if (! InfosheetSigning::isReadyToAuthorize($contract)) {
+            return back()->with('error', InfosheetSigning::missingLabel($contract) . ' ' . __('Complétalo antes de enviarlo a autorización.'));
         }
 
         $recipients = InfosheetSigning::authorizerRecipients($contract);
@@ -255,6 +408,16 @@ class InfosheetController extends Controller
                 }
                 if ($sum > 0) {
                     $contract->fee_amount = round($sum, 2);
+                }
+                // DESGLOSE FISCAL: lo que no se capturó se deriva del RÉGIMEN (el mismo cálculo que
+                // muestra el formulario). Un importe escrito a mano manda —incluido el 0 explícito—;
+                // esto solo cubre los que llegan en blanco. Sin régimen conocido, las tasas son 0 y
+                // no se inventa nada.
+                $suggested = TaxDefaults::amountsFor($contract, (float) $contract->fee_amount);
+                foreach ($suggested as $field => $amount) {
+                    if (! $request->filled($field) && $amount > 0) {
+                        $contract->$field = $amount;
+                    }
                 }
                 $contract->save();
                 break;

@@ -21,6 +21,64 @@ use Illuminate\Support\Facades\Storage;
  */
 class ContractEnvelopeBuilder
 {
+    /**
+     * PRE-VUELO de la ruta de firma (2026-08-25) — comprueba que la ruta se pueda armar SIN emitir
+     * ni escribir nada: que cada puesto firmante tenga a UNA persona en la producción y que el
+     * contratado no acabe firmando de los dos lados.
+     *
+     * Existe por el medio-estado: {@see \App\Support\InfosheetSigning::fire()} EMITE el contrato y
+     * DESPUÉS arma el sobre; si el sobre truena (puesto vacante), el contrato queda emitido —y por
+     * tanto congelado— sin sobre y sin salida. Validando antes, o sale todo o no sale nada.
+     *
+     * @throws ContractEnvelopeException mismo mensaje que daría build()
+     */
+    public static function preflight(PayeeContract $contract): void
+    {
+        $prod  = (int) $contract->production_id;
+        $payee = $contract->payee;
+        if (! $payee) {
+            throw new ContractEnvelopeException('El contrato no tiene una identidad de pago asociada.');
+        }
+
+        // Los mismos resolvedores que usa build(): truenan con "vacante"/"duplicado" si no cuadran.
+        $signers = [];
+        if (SignaturePositions::hasSignerList()) {
+            $entries = SignaturePositions::signerEntries();
+        } else {
+            $signers[] = SignaturePositions::soleUserForPosition($prod, SignaturePositions::preparerPositionId(), 'Preparador');
+            $signers[] = SignaturePositions::soleUserForPosition($prod, SignaturePositions::binderPositionId(), 'Obliga');
+            $entries = [];
+        }
+        foreach (array_merge($entries, SignaturePositions::conditionalSignerEntries((float) $contract->fee_amount)) as $entry) {
+            $label = SignaturePositions::entryLabel($entry);
+            $signers[] = $entry === SignaturePositions::DEPT_HOD
+                ? SignaturePositions::departmentHodUser($prod, $contract->department_id, $label)
+                : SignaturePositions::soleUserForPosition($prod, (int) $entry, $label);
+        }
+
+        // Nadie firma su propio contrato de los dos lados (mismo cotejo que build: id o correo).
+        $contractedUser = $payee->user;
+        $contractedUid  = (int) optional($contractedUser)->id;
+        $emails = array_values(array_unique(array_filter(array_map(
+            fn ($e) => mb_strtolower(trim((string) $e)),
+            [
+                optional($contractedUser)->email,
+                method_exists($payee, 'contactEmail') ? $payee->contactEmail() : null,
+                $payee->email ?? null,
+            ]
+        ))));
+        foreach ($signers as $s) {
+            $sameUser  = $contractedUid > 0 && (int) $s->id === $contractedUid;
+            $sameEmail = trim((string) $s->email) !== '' && in_array(mb_strtolower(trim((string) $s->email)), $emails, true);
+            if ($sameUser || $sameEmail) {
+                throw new ContractEnvelopeException(
+                    'La misma persona no puede firmar como contratado y como firmante de la productora:'
+                    . ' sería aprobar su propio contrato. Asigna a otra persona en ese rol y reintenta.'
+                );
+            }
+        }
+    }
+
     public static function build(PayeeContract $contract, ?User $actor = null, ?string $contractedEmail = null): ContractEnvelope
     {
         if (! $contract->isEmitted()) {
