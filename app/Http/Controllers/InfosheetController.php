@@ -206,11 +206,14 @@ class InfosheetController extends Controller
         $user = $request->user();
         abort_unless($user && InfosheetSigning::canAuthorize($user, $contract), 403);
 
-        // La autógrafa es OBLIGATORIA: cada paso requiere la firma (no basta el sello).
+        // La autógrafa es OBLIGATORIA: cada paso requiere la firma (no basta el sello). Se firma
+        // DENTRO de la Hoja, después de revisarla — el pad llega ya con la firma adoptada del
+        // usuario si la tiene ({@see componentes._signature-pad}), pero la firma viaja igual.
         $request->validate(['signature_image' => 'required|string|min:100']);
         $image = (string) $request->input('signature_image');
 
-        // Adopción de firma para reúso (DocuSign): guarda la plantilla en el usuario.
+        // Adopción de firma para reúso (DocuSign): UNA firma por persona, la misma en contrato,
+        // llamado e Infosheet (users.adopted_signature). No hay firma por módulo.
         if ($request->boolean('save_signature')) {
             $user->adopted_signature = $image;
             $user->save();
@@ -221,6 +224,7 @@ class InfosheetController extends Controller
         if (! ($result['ok'] ?? false) || ($result['error'] ?? false)) {
             return back()->with('error', $result['message'] ?? __('No se pudo autorizar.'));
         }
+
         return back()->with('success', $result['message'] ?? __('Autorización registrada.'));
     }
 
@@ -232,67 +236,7 @@ class InfosheetController extends Controller
     {
         return view('infosheet.pending', [
             'contracts' => InfosheetSigning::pendingForUser($request->user()),
-            'adopted'   => $request->user()->adopted_signature,
-            'batchMax'  => self::BATCH_MAX,
         ]);
-    }
-
-    /**
-     * Cuántos tratos se autorizan por tanda. Cada autorización que COMPLETA los casilleros emite el
-     * contrato (carátula por Chrome) + arma el sobre + lo manda: son segundos por pieza, así que una
-     * tanda grande tumbaría la petición. Se procesa de a poco y la pantalla dice cuántos quedan.
-     */
-    private const BATCH_MAX = 25;
-
-    /**
-     * AUTORIZAR EN LOTE — una producción tiene cientos de tratos y el autorizador es UNA persona:
-     * dibujar la firma trato por trato no escala. Aquí se aplica la firma ADOPTADA (la misma que ya
-     * usó, guardada con "Guardar para reúso") a los tratos seleccionados.
-     *
-     * Cada pieza pasa por {@see InfosheetSigning::authorize}, o sea por los MISMOS candados que la
-     * firma individual: trato completo, casillero que le toca, sello con la autógrafa dentro del
-     * hash. Lo que no cumple se omite y se cuenta; nada se firma "a la fuerza".
-     */
-    public function batch(Request $request)
-    {
-        $user  = $request->user();
-        $image = $user->adopted_signature;
-        if (! $image) {
-            return back()->with('error', __('Primero autoriza una hoja de forma individual marcando "Guardar para reúso"; después podrás autorizar en lote con esa firma.'));
-        }
-
-        $ids = array_slice(array_filter(array_map('intval', (array) $request->input('contract_ids', []))), 0, self::BATCH_MAX);
-        if (empty($ids)) {
-            return back()->with('error', __('Selecciona al menos una hoja.'));
-        }
-
-        $done = 0;
-        $skipped = [];
-        foreach ($ids as $id) {
-            $contract = PayeeContract::find($id);
-            if (! $contract || ! InfosheetSigning::canAuthorize($user, $contract)) {
-                $skipped[] = $contract && $contract->payee ? $contract->payee->name : ('#' . $id);
-                continue;
-            }
-            try {
-                $result = InfosheetSigning::authorize($contract, $user, $image, $request);
-                if ($result['ok'] ?? false) {
-                    $done++;
-                } else {
-                    $skipped[] = optional($contract->payee)->name . ': ' . ($result['message'] ?? '');
-                }
-            } catch (\Throwable $e) {
-                $skipped[] = optional($contract->payee)->name . ': ' . $e->getMessage();
-            }
-        }
-
-        $msg = trans_choice(':n hoja autorizada.|:n hojas autorizadas.', $done, ['n' => $done]);
-        if ($skipped) {
-            $msg .= ' ' . trans_choice(':n quedó fuera:|:n quedaron fuera:', count($skipped), ['n' => count($skipped)])
-                 . ' ' . implode(' · ', array_slice($skipped, 0, 5));
-        }
-
-        return back()->with($done ? 'status' : 'error', $msg);
     }
 
     /**

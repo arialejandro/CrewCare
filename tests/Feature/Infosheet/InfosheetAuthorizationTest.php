@@ -170,6 +170,42 @@ class InfosheetAuthorizationTest extends QaTestCase
         $this->assertTrue(InfosheetSigning::canAuthorize($this->makeUser('line-producer'), $contract));
     }
 
+    /**
+     * FIRMA REUSABLE — marcar "Guardar para reúso" al autorizar deja la firma en el USUARIO
+     * (`users.adopted_signature`), y a partir de ahí la Hoja la trae puesta: se revisa y se firma
+     * dentro del documento, sin volver a dibujarla.
+     *
+     * Es UNA firma por persona, no una por módulo: la misma columna que adopta la firma del
+     * contrato ({@see \App\Http\Controllers\ContractSignController::sign}) y la del llamado. Si ya
+     * existe, se llama — venga del módulo que venga.
+     */
+    public function test_signature_is_saved_for_reuse_and_shared_across_modules(): void
+    {
+        Storage::fake('local');
+        $this->makeClause();
+        $this->seatInternals();
+
+        $lp = $this->makeUser('line-producer');
+        $this->assertNull($lp->adopted_signature, 'de entrada no hay firma guardada');
+
+        $contract = $this->crewContract();
+        $image    = $this->image();
+
+        $this->actingAs($lp)
+            ->post(route('infosheet.authorize', $contract->payee_id), [
+                'signature_image' => $image, 'save_signature' => '1',
+            ])->assertRedirect();
+
+        // Quedó guardada en el usuario, no en el módulo.
+        $this->assertSame($image, $lp->fresh()->adopted_signature, 'la firma quedó guardada para reúso');
+
+        // Y la siguiente Hoja la recibe ya puesta (el pad la aplica solo).
+        $otro = $this->crewContract();
+        $this->get(route('payees.show', $otro->payee_id))
+            ->assertOk()
+            ->assertSee('data-adopted', false);
+    }
+
     public function test_non_authorizer_cannot_authorize(): void
     {
         Storage::fake('local');
