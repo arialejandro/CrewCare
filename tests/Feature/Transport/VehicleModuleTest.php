@@ -26,7 +26,7 @@ class VehicleModuleTest extends VehicleVerticalTestCase
     public function test_catalogo_de_fabrica_sembrado(): void
     {
         $this->assertSame(13, VehicleType::count(), '13 tipos de fábrica.');
-        $this->assertSame(51, VehicleCheckPoint::count(), '51 puntos de fábrica.');
+        $this->assertSame(52, VehicleCheckPoint::count(), '52 puntos de fábrica (51 Bloque 1 + REM-005 calzas).');
     }
 
     public function test_applies_when_enciende_modulos_por_atributos(): void
@@ -59,6 +59,7 @@ class VehicleModuleTest extends VehicleVerticalTestCase
         $this->assertContains('VEH-022', $codes, 'El extintor sigue aplicando.');
         $this->assertContains('ENE-001', $codes, 'La energía (genset) sigue aplicando.');
         $this->assertContains('REM-004', $codes, 'Los frenos del remolque se revisan por REMOLQUE.');
+        $this->assertContains('REM-005', $codes, 'Las calzas de la unidad remolcada (§0 Bloque 2) aplican por is_towed.');
 
         // Un camper AUTOPROPULSADO (is_towed=false) SÍ recibe los puntos de conducción.
         $self = $this->makeVehicle('planta_luz', [

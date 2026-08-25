@@ -79,6 +79,7 @@ class DatabaseSeeder extends Seeder
             IndicatorTermSeeder::class,                // terminos indicadores
             AmbulanceCatalogSeeder::class,             // tipos + puntos de ambulancia
             VehicleCatalogSeeder::class,               // tipos + puntos de vehículo (Transportación · Bloque 1)
+            TransportEquipmentSeeder::class,           // catálogo de equipamiento de corridas (Transportación · Bloque 2)
             DocumentTypeSeeder::class,                 // catalogo de tipos de documento (quien cobra)
             DocumentRequirementSeeder::class,          // paquete + settings de la produccion (Paso 2)
         ]);

@@ -12,7 +12,7 @@ use Tests\QaTestCase;
 
 /**
  * Base del vertical TRANSPORTACIÓN (Bloque 1). Se apoya en el CATÁLOGO REAL sembrado de fábrica
- * (VehicleCatalogSeeder → 13 tipos + 47 puntos). No es una clase de prueba (no termina en Test.php).
+ * (VehicleCatalogSeeder → 13 tipos + 52 puntos). No es una clase de prueba (no termina en Test.php).
  *
  * Fotos: Storage::fake('public') para no ensuciar el disco real (las fotos por punto son obligatorias
  * en requires_photo o punto reprobado).

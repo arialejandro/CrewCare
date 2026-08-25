@@ -8,7 +8,8 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * VehicleCatalogSeeder — importa el catálogo de Transportación (Bloque 1): 13 tipos + 51 puntos.
+ * VehicleCatalogSeeder — importa el catálogo de Transportación: 13 tipos + 52 puntos
+ * (Bloque 1 = 51; +REM-005 calzas del remolcado, Bloque 2 §0).
  * Idempotente (updateOrCreate por `code`). Requiere el esquema de
  * 2026-08-24-transport-catalog.sql (o las migraciones create_vehicle_types / _check_points).
  *

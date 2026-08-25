@@ -193,6 +193,7 @@ el porqué del cambio y su **reversión** (el `DROP` correspondiente, comentado)
 | 106 | `2026-08-24-transport-catalog` | Transportación · Bloque 1 — catálogo `vehicle_types` + `vehicle_check_points` (2 tablas NUEVAS). Sin dependencias. |
 | 107 | `2026-08-24-transport-vehicles` | Transportación · Bloque 1 — `vehicles` + `vehicle_inspections` (2 tablas NUEVAS) + puente `payee_contracts.vehicle_id` (ALTER idempotente). **Requiere `payee_contracts`.** |
 | 108 | `2026-08-24-transport-drafts` | Transportación · Bloque 1 §1 — `vehicle_inspection_drafts` (1 tabla NUEVA, borrador del checklist del autor). Sin dependencias. El ajuste §3 (is_towed/REM-004 → 51 puntos) NO es SQL: re-correr `VehicleCatalogSeeder`. |
+| 109 | `2026-08-24-transport-order` | Transportación · Bloque 2 — **ORDEN de transportación**: 7 tablas NUEVAS (`transport_parties`/`transport_equipment`/`transport_addresses`/`transport_address_viewers`/`transport_orders`/`transport_order_runs`/`transport_run_occupants`). NO se sella. Luego `db:seed --class=TransportEquipmentSeeder` (12 íconos). §0 CALZAS (REM-005 → 52 puntos) NO es SQL: re-correr `VehicleCatalogSeeder`. Sin dependencias. |
 
 > **Nota (2026-08-24):** entre el #105 y el #106 existen también los deltas `2026-08-23-*` (calendario/departamentos/
 > call-sheet/back/hotel) y `2026-08-24-call-packages`/`-file-deliveries` del bloque Llamado/Distribución, no numerados
@@ -285,8 +286,9 @@ php artisan db:seed --class=EnrichedCatalogSeeder         # categorías finas + 
 php artisan db:seed --class=SpfxCatalogSeeder             # 25 tipos de efecto SFX
 php artisan db:seed --class=HazardEventPpeSeeder          # EPP por familia de riesgo
 php artisan db:seed --class=ToolPermitCatalogSeeder       # 73 herramientas + 15 permisos (requiere las 83 normas)
-php artisan db:seed --class=VehicleCatalogSeeder          # Transportación: 13 tipos + 50 puntos (requiere #106)
+php artisan db:seed --class=VehicleCatalogSeeder          # Transportación: 13 tipos + 52 puntos (requiere #106)
 php artisan db:seed --class=TransportPermissionsSeeder    # transport.manage/view (aditivo; luego cache:clear)
+php artisan db:seed --class=TransportEquipmentSeeder      # Transportación Bloque 2: 12 equipamientos (requiere #109)
 php artisan db:seed --class=DocumentTypeSeeder            # +4 tipos VEH_* (idempotente)
 ```
 

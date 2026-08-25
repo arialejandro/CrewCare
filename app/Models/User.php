@@ -106,6 +106,17 @@ class User extends Authenticatable
     }
 
     /**
+     * Vehículos donde este usuario (crew) es el conductor asignado (Transportación, aditivo).
+     * Cierra el lado INVERSO de Vehicle::driver() para que la corrida pueda "proponer el otro"
+     * al elegir uno de los dos (§2 Bloque 2). Referencia BLANDA (sin FK dura).
+     */
+    public function drivenVehicles()
+    {
+        return $this->hasMany(Vehicle::class, 'driver_user_id', 'id')
+            ->where('vehicles.is_active', 1);
+    }
+
+    /**
      * IDs de departamento a los que pertenece este usuario (vía el pivote production_user).
      * Es la FUENTE DE VERDAD de "su departamento" para el scope del HOD. La etiqueta
      * desnormalizada users.puestodepartamento NO es una llave estable; el pivote sí.
