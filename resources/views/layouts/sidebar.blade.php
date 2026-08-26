@@ -533,7 +533,12 @@
             @endcanany
 
             {{-- ===== TRANSPORTACIÓN (departamento PROPIO, distinto de Seguridad — aun el checklist) ===== --}}
-            @if(\App\Support\TransportAccess::canLite(auth()->user()))
+            @php
+                $ccFull = \App\Support\TransportAccess::canFull(auth()->user());
+                $ccLite = \App\Support\TransportAccess::canLite(auth()->user());
+                $ccDrv  = \App\Support\TransportAccess::isAssignedDriver(auth()->user());
+            @endphp
+            @if($ccLite || $ccDrv)
                 <div class="cc-sec" data-open="false">
                     <button type="button" class="cc-sec-head" aria-expanded="false">
                         @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-sec-head__ico', 'label' => null])
@@ -542,14 +547,32 @@
                         @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
                     </button>
                     <div class="cc-sec-body"><div class="cc-sec-body__inner">
-                        <a href="{{ \App\Support\TransportAccess::canFull(auth()->user()) ? route('transport.index') : route('transport.lite') }}" class="cc-item">
-                            @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-item__ico', 'label' => null])
-                            <span>{{ \App\Support\TransportAccess::canFull(auth()->user()) ? __('Verificación de vehículos') : __('Flota') }}</span>
-                        </a>
-                        <a href="{{ route('transport.order.index') }}" class="cc-item">
-                            @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
-                            <span>{{ __('Orden de transportación') }}</span>
-                        </a>
+                        @if($ccLite)
+                            <a href="{{ $ccFull ? route('transport.index') : route('transport.lite') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ $ccFull ? __('Verificación de vehículos') : __('Flota') }}</span>
+                            </a>
+                            <a href="{{ route('transport.order.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Orden de transportación') }}</span>
+                            </a>
+                            @if($ccFull)
+                                <a href="{{ route('transport.address.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Direcciones privadas') }}</span>
+                                </a>
+                                <a href="{{ route('transport.type.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Tipos de vehículo') }}</span>
+                                </a>
+                            @endif
+                        @endif
+                        @if($ccDrv)
+                            <a href="{{ route('transport.driver.runs') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Mis corridas') }}</span>
+                            </a>
+                        @endif
                     </div></div>
                 </div>
             @endif
@@ -987,7 +1010,12 @@
                 @endcanany
 
                 {{-- ===== TRANSPORTACIÓN (departamento PROPIO, distinto de Seguridad — aun el checklist) ===== --}}
-                @if(\App\Support\TransportAccess::canLite(auth()->user()))
+                @php
+                    $ccFull = \App\Support\TransportAccess::canFull(auth()->user());
+                    $ccLite = \App\Support\TransportAccess::canLite(auth()->user());
+                    $ccDrv  = \App\Support\TransportAccess::isAssignedDriver(auth()->user());
+                @endphp
+                @if($ccLite || $ccDrv)
                     <div class="cc-sec" data-open="false">
                         <button type="button" class="cc-sec-head" aria-expanded="false">
                             @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-sec-head__ico', 'label' => null])
@@ -996,14 +1024,32 @@
                             @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
                         </button>
                         <div class="cc-sec-body"><div class="cc-sec-body__inner">
-                            <a href="{{ \App\Support\TransportAccess::canFull(auth()->user()) ? route('transport.index') : route('transport.lite') }}" class="cc-item">
-                                @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ \App\Support\TransportAccess::canFull(auth()->user()) ? __('Verificación de vehículos') : __('Flota') }}</span>
-                            </a>
-                            <a href="{{ route('transport.order.index') }}" class="cc-item">
-                                @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ __('Orden de transportación') }}</span>
-                            </a>
+                            @if($ccLite)
+                                <a href="{{ $ccFull ? route('transport.index') : route('transport.lite') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ $ccFull ? __('Verificación de vehículos') : __('Flota') }}</span>
+                                </a>
+                                <a href="{{ route('transport.order.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Orden de transportación') }}</span>
+                                </a>
+                                @if($ccFull)
+                                    <a href="{{ route('transport.address.index') }}" class="cc-item">
+                                        @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-item__ico', 'label' => null])
+                                        <span>{{ __('Direcciones privadas') }}</span>
+                                    </a>
+                                    <a href="{{ route('transport.type.index') }}" class="cc-item">
+                                        @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-item__ico', 'label' => null])
+                                        <span>{{ __('Tipos de vehículo') }}</span>
+                                    </a>
+                                @endif
+                            @endif
+                            @if($ccDrv)
+                                <a href="{{ route('transport.driver.runs') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Mis corridas') }}</span>
+                                </a>
+                            @endif
                         </div></div>
                     </div>
                 @endif

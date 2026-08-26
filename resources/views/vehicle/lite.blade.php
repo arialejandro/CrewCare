@@ -10,10 +10,14 @@
             <span class="crew-header-icon d-inline-flex align-items-center justify-content-center rounded-3">
                 @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-ico', 'label' => null])
             </span>
-            <div>
+            <div class="flex-grow-1">
                 <h1 class="crew-title mb-0">{{ __('Transportación') }}</h1>
                 <p class="text-muted mb-0 small">{{ __('Flota: placas, documentos y conductor.') }}</p>
             </div>
+            {{-- §4: producción entra a la orden del día (y sus versiones) desde aquí. Sin direcciones ni actas. --}}
+            <a href="{{ route('transport.order.index') }}" class="btn btn-outline-primary">
+                @include('componentes._icon', ['name' => 'clipboard-list', 'label' => null]) {{ __('Orden de transportación') }}
+            </a>
         </div>
 
         @if ($vehicles->count())

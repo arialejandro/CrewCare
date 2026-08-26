@@ -526,6 +526,26 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/transportacion/orden/{order}/ocupante/{occupant}/eliminar', [App\Http\Controllers\TransportOrderController::class, 'destroyOccupant'])->name('transport.order.occupant.destroy')->whereNumber('order')->whereNumber('occupant');
     Route::post('/transportacion/orden/{order}/notas', [App\Http\Controllers\TransportOrderController::class, 'updateOrder'])->name('transport.order.update')->whereNumber('order');
     Route::post('/transportacion/orden/{order}/congelar', [App\Http\Controllers\TransportOrderController::class, 'freeze'])->name('transport.order.freeze')->whereNumber('order');
+    // PDF congelado (§1 Capa 4): sólo una versión congelada; UUID al pie de todas las páginas; privadas → 'CASA'.
+    Route::get('/transportacion/orden/{order}/pdf', [App\Http\Controllers\TransportOrderController::class, 'pdf'])->name('transport.order.pdf')->whereNumber('order');
+
+    // Pantalla del DRIVER (§2 Capa 4): "mis corridas" del día — SIN gate de transpo (cualquiera ve las suyas).
+    Route::get('/transportacion/mis-corridas', [App\Http\Controllers\TransportOrderController::class, 'driverRuns'])->name('transport.driver.runs');
+
+    // Direcciones privadas (§3 Capa 4): CRUD + allowlist. canFull (transpo decide quién ve la calle).
+    Route::get('/transportacion/direcciones', [App\Http\Controllers\TransportAddressController::class, 'index'])->name('transport.address.index');
+    Route::post('/transportacion/direcciones', [App\Http\Controllers\TransportAddressController::class, 'store'])->name('transport.address.store');
+    Route::post('/transportacion/direccion/{address}', [App\Http\Controllers\TransportAddressController::class, 'update'])->name('transport.address.update')->whereNumber('address');
+    Route::post('/transportacion/direccion/{address}/baja', [App\Http\Controllers\TransportAddressController::class, 'destroy'])->name('transport.address.destroy')->whereNumber('address');
+    Route::post('/transportacion/direccion/{address}/viewer', [App\Http\Controllers\TransportAddressController::class, 'addViewer'])->name('transport.address.viewer.add')->whereNumber('address');
+    Route::post('/transportacion/direccion/{address}/viewer/{user}/quitar', [App\Http\Controllers\TransportAddressController::class, 'removeViewer'])->name('transport.address.viewer.remove')->whereNumber('address')->whereNumber('user');
+
+    // Editor del catálogo de TIPOS (§5 Capa 4): alta/edición/baja. canFull. Baja = desactivar (no borra).
+    Route::get('/transportacion/tipos', [App\Http\Controllers\VehicleTypeController::class, 'index'])->name('transport.type.index');
+    Route::post('/transportacion/tipos', [App\Http\Controllers\VehicleTypeController::class, 'store'])->name('transport.type.store');
+    Route::post('/transportacion/tipo/{type}', [App\Http\Controllers\VehicleTypeController::class, 'update'])->name('transport.type.update')->whereNumber('type');
+    Route::post('/transportacion/tipo/{type}/baja', [App\Http\Controllers\VehicleTypeController::class, 'destroy'])->name('transport.type.destroy')->whereNumber('type');
+    Route::post('/transportacion/tipo/{type}/reactivar', [App\Http\Controllers\VehicleTypeController::class, 'restore'])->name('transport.type.restore')->whereNumber('type');
 });
 
 // ---- VIGILANCIA EPIDEMIOLÓGICA: panel silencioso + estudio de brote (2026-07-31 · delta #45) ----

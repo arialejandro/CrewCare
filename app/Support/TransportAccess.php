@@ -70,4 +70,29 @@ class TransportAccess
         }
         return $user->can('transport.view') || self::canFull($user);
     }
+
+    /**
+     * ¿El usuario tiene corridas asignadas como driver? Gatea el enlace "Mis corridas" del sidebar
+     * para el crew que SÓLO maneja (sin permiso de transpo). Caché por petición (el sidebar se
+     * pinta en cada vista). No decide acceso a datos: la pantalla filtra por driver_user_id.
+     */
+    public static function isAssignedDriver(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+        static $cache = [];
+        if (array_key_exists($user->id, $cache)) {
+            return $cache[$user->id];
+        }
+        try {
+            if (! Schema::hasTable('transport_order_runs')) {
+                return $cache[$user->id] = false;
+            }
+            return $cache[$user->id] = \App\Models\TransportOrderRun::where('driver_user_id', $user->id)
+                ->where('is_active', 1)->exists();
+        } catch (\Throwable $e) {
+            return $cache[$user->id] = false;
+        }
+    }
 }

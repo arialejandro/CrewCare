@@ -60,6 +60,16 @@ class TransportOrderSnapshot
             return '';
         };
 
+        // Rótulo PÚBLICO: las direcciones privadas caen a 'CASA' (publicLabel). Es lo que ve el PDF
+        // (sin excepción) y producción. Lo materializamos en el snapshot (pickup_public/dest_public)
+        // para que el enmascarado sobreviva al congelado sin depender del catálogo vivo.
+        $placeLabelPublic = function ($kind, $id, $text) use ($callById, $privById) {
+            if ($kind === 'text')    return (string) $text;
+            if ($kind === 'call')    return (string) ($callById[$id] ?? '');
+            if ($kind === 'private') { $a = $privById->get($id); return $a ? $a->publicLabel() : 'CASA'; }
+            return '';
+        };
+
         $rows = [];
         $usedEquipment = [];
         $usedTypes = [];
@@ -72,6 +82,7 @@ class TransportOrderSnapshot
             $usedTypes[$run->run_type] = $typeLabels[$run->run_type] ?? $run->run_type;
 
             $pickup = trim(($run->pickup_literal ?: '') . ' ' . $placeLabel($run->pickup_place_kind, $run->pickup_place_id, $run->pickup_place_text));
+            $pickupPublic = trim(($run->pickup_literal ?: '') . ' ' . $placeLabelPublic($run->pickup_place_kind, $run->pickup_place_id, $run->pickup_place_text));
 
             $occ = [];
             foreach ($run->occupants as $o) {
@@ -88,7 +99,9 @@ class TransportOrderSnapshot
                 'vehicle_label'   => $vehLabel,
                 'driver_label'    => $run->driver_user_id ? (User::displayName(User::find($run->driver_user_id)) ?? '') : '',
                 'pickup'          => trim($pickup),
+                'pickup_public'   => trim($pickupPublic),
                 'dest'            => $placeLabel($run->dest_place_kind, $run->dest_place_id, $run->dest_text),
+                'dest_public'     => $placeLabelPublic($run->dest_place_kind, $run->dest_place_id, $run->dest_text),
                 'equipment'       => $eqCodes,
                 'equipment_label' => implode(', ', array_map(fn ($c) => (string) ($equipByCode[$c] ?? $c), $eqCodes)),
                 'notes'           => (string) ($run->notes ?? ''),
@@ -162,5 +175,38 @@ class TransportOrderSnapshot
         }
 
         return ['summary' => ['has_prev' => true, 'prev_version' => $prev['version'] ?? null, 'counts' => $counts, 'dropped' => $dropped], 'byKey' => $byKey];
+    }
+
+    /**
+     * Vista PÚBLICA de un snapshot: sustituye pickup/dest por su versión enmascarada
+     * (direcciones privadas → 'CASA'). La usa el PDF (sin excepción) y producción. El diff se
+     * calcula sobre ESTA vista para el PDF, así un cambio de privada→privada no marca "CASA" como
+     * cambio fantasma; un cambio público→privada sí se ve.
+     */
+    public static function publicView(array $snapshot): array
+    {
+        if (empty($snapshot['runs'])) {
+            return $snapshot;
+        }
+        foreach ($snapshot['runs'] as $i => $run) {
+            $snapshot['runs'][$i]['pickup'] = $run['pickup_public'] ?? ($run['pickup'] ?? '');
+            $snapshot['runs'][$i]['dest']   = $run['dest_public']   ?? ($run['dest']   ?? '');
+        }
+        return $snapshot;
+    }
+
+    /**
+     * Snapshot resuelto de una orden: el `frozen_snapshot` congelado si ya trae el enmascarado
+     * (pickup_public), o uno reconstruido en vivo si es viejo o la orden aún es borrador. Como una
+     * orden congelada es inmutable, reconstruir es fiel (misma data, sólo re-resuelve rótulos).
+     */
+    public static function resolvedFor(TransportOrder $order): array
+    {
+        $snap = (is_array($order->frozen_snapshot) && ! empty($order->frozen_snapshot)) ? $order->frozen_snapshot : null;
+        $needsRebuild = ! $snap;
+        if ($snap && ! empty($snap['runs']) && ! array_key_exists('pickup_public', $snap['runs'][0])) {
+            $needsRebuild = true; // snapshot anterior a Capa 4: sin las claves públicas.
+        }
+        return $needsRebuild ? self::build($order) : $snap;
     }
 }

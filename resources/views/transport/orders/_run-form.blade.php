@@ -1,15 +1,26 @@
 {{-- Formulario de corrida (Bloque 2 §2), reutilizable para AGREGAR y EDITAR EN EL LUGAR.
-     Espera del scope padre: $vehicles, $crew, $callPlaces, $privateAddresses, $equipment.
+     Espera del scope padre: $vehicles, $crew, $callPlaces, $pickAddresses (privadas FILTRADAS por
+     allowlist), $privById (mapa completo para enmascarar), $equipment.
      Recibe: $action (URL), $submitLabel, y $run (opcional, para prefill; null = alta). --}}
 @php
     $run = $run ?? null;
     $eqSel = collect($run->equipment ?? []);
+    // Fallbacks defensivos (sólo se incluye desde el editor, que sí los pasa).
+    $pickAddresses = $pickAddresses ?? ($privateAddresses ?? collect());
+    $privById = $privById ?? collect();
     $pickupRef = $run && $run->pickup_place_kind
         ? ($run->pickup_place_kind === 'text' ? 'text' : $run->pickup_place_kind . ':' . $run->pickup_place_id)
         : '';
     $destRef = $run && $run->dest_place_kind
         ? ($run->dest_place_kind === 'text' ? 'text' : $run->dest_place_kind . ':' . $run->dest_place_id)
         : '';
+    // Si la corrida ya apunta a una privada que ESTE capturista no puede ver, se preserva como opción
+    // ENMASCARADA ('CASA · asignada'): no se pierde al guardar y no revela de quién es la casa.
+    $hiddenPickup = $run && $run->pickup_place_kind === 'private'
+        && ! $pickAddresses->contains(fn ($a) => (int) $a->id === (int) $run->pickup_place_id);
+    $hiddenDest = $run && $run->dest_place_kind === 'private'
+        && ! $pickAddresses->contains(fn ($a) => (int) $a->id === (int) $run->dest_place_id);
+    $maskLabel = fn ($id) => (optional($privById->get($id))->publicLabel() ?? __('CASA')) . ' · ' . __('asignada');
 @endphp
 <form method="POST" action="{{ $action }}" class="row g-2 cc-run-form">
     @csrf
@@ -51,8 +62,9 @@
             <optgroup label="{{ __('Lugares del llamado') }}">
                 @foreach ($callPlaces as $pl)<option value="call:{{ $pl->id }}" @selected($pickupRef === 'call:' . $pl->id)>{{ $pl->name }}</option>@endforeach
             </optgroup>
-            <optgroup label="{{ __('Direcciones privadas') }}">
-                @foreach ($privateAddresses as $ad)<option value="private:{{ $ad->id }}" @selected($pickupRef === 'private:' . $ad->id)>{{ $ad->label }}</option>@endforeach
+            <optgroup label="{{ __('Direcciones') }}">
+                @foreach ($pickAddresses as $ad)<option value="private:{{ $ad->id }}" @selected($pickupRef === 'private:' . $ad->id)>{{ $ad->label }}</option>@endforeach
+                @if ($hiddenPickup)<option value="private:{{ $run->pickup_place_id }}" selected>{{ $maskLabel($run->pickup_place_id) }}</option>@endif
             </optgroup>
             <option value="text" @selected($pickupRef === 'text')>{{ __('Otro (escribir)…') }}</option>
         </select>
@@ -65,8 +77,9 @@
             <optgroup label="{{ __('Lugares del llamado') }}">
                 @foreach ($callPlaces as $pl)<option value="call:{{ $pl->id }}" @selected($destRef === 'call:' . $pl->id)>{{ $pl->name }}</option>@endforeach
             </optgroup>
-            <optgroup label="{{ __('Direcciones privadas') }}">
-                @foreach ($privateAddresses as $ad)<option value="private:{{ $ad->id }}" @selected($destRef === 'private:' . $ad->id)>{{ $ad->label }}</option>@endforeach
+            <optgroup label="{{ __('Direcciones') }}">
+                @foreach ($pickAddresses as $ad)<option value="private:{{ $ad->id }}" @selected($destRef === 'private:' . $ad->id)>{{ $ad->label }}</option>@endforeach
+                @if ($hiddenDest)<option value="private:{{ $run->dest_place_id }}" selected>{{ $maskLabel($run->dest_place_id) }}</option>@endif
             </optgroup>
             <option value="text" @selected($destRef === 'text')>{{ __('Otro (escribir)…') }}</option>
         </select>

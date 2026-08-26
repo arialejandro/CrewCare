@@ -12,10 +12,16 @@
     $dsum  = $diff['summary'] ?? ['has_prev' => false, 'counts' => ['nueva' => 0, 'modificada' => 0, 'baja' => 0], 'dropped' => []];
     $totalChanges = ($dsum['counts']['nueva'] ?? 0) + ($dsum['counts']['modificada'] ?? 0) + ($dsum['counts']['baja'] ?? 0);
 
-    $placeLabel = function ($kind, $id, $text) use ($callById, $privById) {
+    // §3/§4: las privadas se enmascaran a 'CASA' salvo que el viewer esté en la allowlist ($realAddrIds).
+    $realAddrIds = $realAddrIds ?? [];
+    $placeLabel = function ($kind, $id, $text) use ($callById, $privById, $realAddrIds) {
         if ($kind === 'text')    return $text ?: '—';
         if ($kind === 'call')    return optional($callById->get($id))->name ?? '—';
-        if ($kind === 'private') return optional($privById->get($id))->label ?? '—';
+        if ($kind === 'private') {
+            $a = $privById->get($id);
+            if (! $a) return '—';
+            return in_array((int) $id, $realAddrIds, true) ? $a->label : $a->publicLabel();
+        }
         return '—';
     };
     // Marca de cambio (doble señal): color+peso+▸, sobrevive B/N. $chg('campo') para una corrida.
@@ -29,11 +35,16 @@
             <a href="{{ route('transport.order.index') }}" class="btn btn-sm btn-outline-secondary">
                 @include('componentes._icon', ['name' => 'chevron-right', 'label' => null]) {{ __('Órdenes') }}
             </a>
-            @if ($order->isFrozen())
-                <span class="badge bg-secondary">{{ __('Congelada') }} · v{{ $order->version }}</span>
-            @else
-                <span class="badge bg-warning text-dark">{{ __('Borrador') }} · v{{ $order->version }}</span>
-            @endif
+            <div class="d-flex align-items-center gap-2">
+                @if ($order->isFrozen())
+                    <a href="{{ route('transport.order.pdf', $order) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
+                        @include('componentes._icon', ['name' => 'file-text', 'label' => null]) {{ __('PDF') }}
+                    </a>
+                    <span class="badge bg-secondary">{{ __('Congelada') }} · v{{ $order->version }}</span>
+                @else
+                    <span class="badge bg-warning text-dark">{{ __('Borrador') }} · v{{ $order->version }}</span>
+                @endif
+            </div>
         </div>
 
         <div class="crew-header d-flex align-items-center gap-3 mb-3">
