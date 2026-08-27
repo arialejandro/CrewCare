@@ -546,6 +546,13 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/transportacion/tipo/{type}', [App\Http\Controllers\VehicleTypeController::class, 'update'])->name('transport.type.update')->whereNumber('type');
     Route::post('/transportacion/tipo/{type}/baja', [App\Http\Controllers\VehicleTypeController::class, 'destroy'])->name('transport.type.destroy')->whereNumber('type');
     Route::post('/transportacion/tipo/{type}/reactivar', [App\Http\Controllers\VehicleTypeController::class, 'restore'])->name('transport.type.restore')->whereNumber('type');
+
+    // Pick up derivado · FASE 1 — puntos de pickup + matriz de traslado (canFull). OSRM propone, transpo corrige.
+    Route::get('/transportacion/traslados', [App\Http\Controllers\TransportMatrixController::class, 'index'])->name('transport.matrix.index');
+    Route::post('/transportacion/punto', [App\Http\Controllers\TransportMatrixController::class, 'storePoint'])->name('transport.point.store');
+    Route::post('/transportacion/punto/{point}', [App\Http\Controllers\TransportMatrixController::class, 'updatePoint'])->name('transport.point.update')->whereNumber('point');
+    Route::post('/transportacion/punto/{point}/baja', [App\Http\Controllers\TransportMatrixController::class, 'destroyPoint'])->name('transport.point.destroy')->whereNumber('point');
+    Route::post('/transportacion/traslado', [App\Http\Controllers\TransportMatrixController::class, 'saveTime'])->name('transport.time.save');
 });
 
 // ---- VIGILANCIA EPIDEMIOLÓGICA: panel silencioso + estudio de brote (2026-07-31 · delta #45) ----

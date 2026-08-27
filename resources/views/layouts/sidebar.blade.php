@@ -565,6 +565,10 @@
                                     @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-item__ico', 'label' => null])
                                     <span>{{ __('Tipos de vehículo') }}</span>
                                 </a>
+                                <a href="{{ route('transport.matrix.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Puntos y traslados') }}</span>
+                                </a>
                             @endif
                         @endif
                         @if($ccDrv)
@@ -1041,6 +1045,10 @@
                                     <a href="{{ route('transport.type.index') }}" class="cc-item">
                                         @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-item__ico', 'label' => null])
                                         <span>{{ __('Tipos de vehículo') }}</span>
+                                    </a>
+                                    <a href="{{ route('transport.matrix.index') }}" class="cc-item">
+                                        @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-item__ico', 'label' => null])
+                                        <span>{{ __('Puntos y traslados') }}</span>
                                     </a>
                                 @endif
                             @endif
