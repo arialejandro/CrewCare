@@ -24,10 +24,20 @@ class TransportOrderRun extends Model
     protected $casts = [
         'sort_order'            => 'integer',
         'pickup_offset_minutes' => 'integer',
+        'travel_minutes'        => 'integer',
+        'travel_adjust_minutes' => 'integer',
+        'pickup_point_id'       => 'integer',
+        'dest_location_ref'     => 'integer',
+        'is_discreet'           => 'boolean',
         'equipment'             => 'array',
         'is_active'             => 'boolean',
     ];
 
+    // EJE 1 · ¿deriva el pick up?  set = calculado · fuera = a mano (default para filas legadas).
+    public const CLASS_SET   = 'set';
+    public const CLASS_FUERA = 'fuera';
+
+    // EJE 2 · qué movimiento es (INDEPENDIENTE de la clase). aplicacion = único SIN vehículo.
     public const TYPE_NORMAL     = 'normal';
     public const TYPE_AEROPUERTO = 'aeropuerto';
     public const TYPE_APLICACION = 'aplicacion';
@@ -76,8 +86,20 @@ class TransportOrderRun extends Model
             ->orderBy('id');
     }
 
+    /** Origen del catálogo (Fase 1) para las corridas de SET. */
+    public function point(): BelongsTo
+    {
+        return $this->belongsTo(TransportPickupPoint::class, 'pickup_point_id');
+    }
+
     // ── Reglas ───────────────────────────────────────────────────────────────
-    /** Sólo el transporte de aplicación puede ir sin vehículo registrado. */
+    /** ¿El pick up se deriva? (EJE 1) */
+    public function isSet(): bool
+    {
+        return $this->run_class === self::CLASS_SET;
+    }
+
+    /** Sólo el transporte de aplicación puede ir sin vehículo registrado (EJE 2, aplica en ambas clases). */
     public function requiresVehicle(): bool
     {
         return $this->run_type !== self::TYPE_APLICACION;

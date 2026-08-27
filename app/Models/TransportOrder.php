@@ -37,6 +37,15 @@ class TransportOrder extends Model
     public const STATUS_DRAFT  = 'draft';
     public const STATUS_FROZEN = 'frozen';
 
+    // Modo de la orden: LIGERO = sólo puestos marcados llevan pick up; MASIVO = la mayoría del crew.
+    public const MODE_LIGERO = 'ligero';
+    public const MODE_MASIVO = 'masivo';
+
+    public function isLigero(): bool
+    {
+        return $this->pickup_mode === self::MODE_LIGERO;
+    }
+
     // ── Relaciones ───────────────────────────────────────────────────────────
     public function runs(): HasMany
     {

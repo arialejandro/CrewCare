@@ -42,6 +42,9 @@ class TransportOrderSnapshot
     {
         $order->loadMissing(['runs.occupants']);
 
+        // Contexto para derivar el pick up de las corridas de SET (llamado − traslado ± ajuste).
+        $ctx = TransportPickupDeriver::context($order);
+
         $callById  = CallPlace::where('production_id', $order->production_id)->pluck('name', 'id');
         $privById  = TransportAddress::where('production_id', $order->production_id)->get()->keyBy('id');
         $equipByCode = TransportEquipment::pluck('name_es', 'code');
@@ -81,8 +84,20 @@ class TransportOrderSnapshot
             foreach ($eqCodes as $c) { $usedEquipment[$c] = (string) ($equipByCode[$c] ?? $c); }
             $usedTypes[$run->run_type] = $typeLabels[$run->run_type] ?? $run->run_type;
 
-            $pickup = trim(($run->pickup_literal ?: '') . ' ' . $placeLabel($run->pickup_place_kind, $run->pickup_place_id, $run->pickup_place_text));
-            $pickupPublic = trim(($run->pickup_literal ?: '') . ' ' . $placeLabelPublic($run->pickup_place_kind, $run->pickup_place_id, $run->pickup_place_text));
+            // Pick up por CLASE: SET deriva (llamado − traslado ± ajuste); FUERA va a mano.
+            if ($run->run_class === TransportOrderRun::CLASS_SET) {
+                $d       = TransportPickupDeriver::derive($run, $ctx);
+                $ptStr   = (string) ($d['point'] ?? '');
+                $pickup  = trim(($d['ok'] ? (string) $d['time'] : '') . ' ' . $ptStr);
+                $pickupPublic = $pickup;                       // SET: origen y destino son públicos
+                $dest         = (string) ($d['dest'] ?? '');
+                $destPublic   = $dest;
+            } else {
+                $pickup       = trim(($run->pickup_literal ?: '') . ' ' . $placeLabel($run->pickup_place_kind, $run->pickup_place_id, $run->pickup_place_text));
+                $pickupPublic = trim(($run->pickup_literal ?: '') . ' ' . $placeLabelPublic($run->pickup_place_kind, $run->pickup_place_id, $run->pickup_place_text));
+                $dest         = $placeLabel($run->dest_place_kind, $run->dest_place_id, $run->dest_text);
+                $destPublic   = $placeLabelPublic($run->dest_place_kind, $run->dest_place_id, $run->dest_text);
+            }
 
             $occ = [];
             foreach ($run->occupants as $o) {
@@ -94,14 +109,16 @@ class TransportOrderSnapshot
 
             $rows[] = [
                 'run_key'         => (string) $run->run_key,
+                'run_class'       => $run->run_class,
                 'run_type'        => $run->run_type,
+                'is_discreet'     => (bool) $run->is_discreet,
                 'type_label'      => $typeLabels[$run->run_type] ?? $run->run_type,
                 'vehicle_label'   => $vehLabel,
                 'driver_label'    => $run->driver_user_id ? (User::displayName(User::find($run->driver_user_id)) ?? '') : '',
                 'pickup'          => trim($pickup),
                 'pickup_public'   => trim($pickupPublic),
-                'dest'            => $placeLabel($run->dest_place_kind, $run->dest_place_id, $run->dest_text),
-                'dest_public'     => $placeLabelPublic($run->dest_place_kind, $run->dest_place_id, $run->dest_text),
+                'dest'            => $dest,
+                'dest_public'     => $destPublic,
                 'equipment'       => $eqCodes,
                 'equipment_label' => implode(', ', array_map(fn ($c) => (string) ($equipByCode[$c] ?? $c), $eqCodes)),
                 'notes'           => (string) ($run->notes ?? ''),
@@ -188,10 +205,18 @@ class TransportOrderSnapshot
         if (empty($snapshot['runs'])) {
             return $snapshot;
         }
-        foreach ($snapshot['runs'] as $i => $run) {
-            $snapshot['runs'][$i]['pickup'] = $run['pickup_public'] ?? ($run['pickup'] ?? '');
-            $snapshot['runs'][$i]['dest']   = $run['dest_public']   ?? ($run['dest']   ?? '');
+        $out = [];
+        foreach ($snapshot['runs'] as $run) {
+            // Corrida DISCRETA: no aparece en la orden ni en el PDF (el back sí la publica, Fase 5).
+            if (! empty($run['is_discreet'])) {
+                continue;
+            }
+            $run['pickup'] = $run['pickup_public'] ?? ($run['pickup'] ?? '');
+            $run['dest']   = $run['dest_public']   ?? ($run['dest']   ?? '');
+            $out[] = $run;
         }
+        $snapshot['runs'] = array_values($out);
+
         return $snapshot;
     }
 

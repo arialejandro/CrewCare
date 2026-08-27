@@ -26,6 +26,11 @@
     };
     // Marca de cambio (doble señal): color+peso+▸, sobrevive B/N. $chg('campo') para una corrida.
     $mark = function (bool $on) { return $on ? 'cc-chg' : ''; };
+    // Fase 2: pick up DERIVADO por corrida (SET) + elegibilidad discreta + si el viewer es transpo.
+    $derived      = $derived ?? [];
+    $discreetElig = $discreetElig ?? [];
+    $viewerIsFull = $viewerIsFull ?? true;
+    $snapByKey    = $snapByKey ?? [];
 @endphp
 
 <div class="crew-page insp-page">
@@ -58,6 +63,7 @@
         </div>
 
         @if (session('ok'))<div class="alert alert-success py-2">{{ session('ok') }}</div>@endif
+        @if (session('warn'))<div class="alert alert-warning py-2">@include('componentes._icon', ['name' => 'map-pin', 'label' => null]) {{ session('warn') }}</div>@endif
         @if ($errors->any())
             <div class="alert alert-danger py-2">@foreach ($errors->all() as $e)<div>{{ $e }}</div>@endforeach</div>
         @endif
@@ -97,14 +103,18 @@
                 $veh = $run->vehicle_id ? $vehById->get($run->vehicle_id) : null;
                 $d = $byKey[$run->run_key] ?? ['status' => 'sin_cambio', 'changed' => []];
                 $chg = fn ($f) => $mark(in_array($f, $d['changed'] ?? [], true));
+                $dv = $derived[$run->id] ?? null;   // derivado (SET); null si es FUERA
             @endphp
-            <div class="border rounded-3 p-3 mb-3 {{ ($d['status'] ?? '') === 'nueva' ? 'border-success' : '' }}">
+            @if ($viewerIsFull || ! $run->is_discreet)
+            <div class="border rounded-3 p-3 mb-3 {{ ($d['status'] ?? '') === 'nueva' ? 'border-success' : '' }} {{ $run->is_discreet ? 'border-warning' : '' }}">
                 <div class="d-flex align-items-start justify-content-between">
                     <div>
+                        <span class="badge {{ $run->isSet() ? 'bg-primary-subtle' : 'bg-secondary-subtle' }} text-dark border">{{ $run->isSet() ? __('SET') : __('Fuera') }}</span>
                         <span class="badge bg-light text-dark border {{ $chg('type_label') }}">
                             @if ($run->run_type === 'aeropuerto')@include('componentes._icon', ['name' => 'map-pin', 'label' => null]) @endif
                             {{ $typeLabels[$run->run_type] ?? $run->run_type }}
                         </span>
+                        @if ($run->is_discreet)<span class="badge bg-warning text-dark ms-1">@include('componentes._icon', ['name' => 'lock', 'label' => null]) {{ __('Discreta') }}</span>@endif
                         <span class="fw-semibold ms-2 {{ $chg('vehicle_label') }}">
                             @if ($veh){{ $veh['label'] }}@if($veh['plate']) <span class="text-muted font-monospace small">{{ $veh['plate'] }}</span>@endif
                             @elseif ($run->run_type === 'aplicacion')<span class="text-muted">{{ __('Sin vehículo (aplicación)') }}</span>
@@ -113,16 +123,35 @@
                         @if (($d['status'] ?? '') === 'nueva')<span class="badge bg-success ms-2">{{ __('NUEVA') }}</span>@endif
                     </div>
                     @if ($canEdit)
-                        <form method="POST" action="{{ route('transport.order.run.destroy', [$order, $run]) }}" onsubmit="return confirm('¿Eliminar la corrida?')">
-                            @csrf<button class="btn btn-sm btn-outline-danger">{{ __('Eliminar') }}</button>
-                        </form>
+                        <div class="d-flex gap-2">
+                            @if (! empty($discreetElig[$run->id]))
+                                <form method="POST" action="{{ route('transport.order.run.discreet', [$order, $run]) }}">
+                                    @csrf<button class="btn btn-sm {{ $run->is_discreet ? 'btn-warning' : 'btn-outline-secondary' }}" title="{{ __('Discreta: no aparece en la orden ni el PDF; el back sí publica su hora') }}">
+                                        @include('componentes._icon', ['name' => 'lock', 'label' => null]) {{ $run->is_discreet ? __('Mostrar') : __('Discreta') }}
+                                    </button>
+                                </form>
+                            @endif
+                            <form method="POST" action="{{ route('transport.order.run.destroy', [$order, $run]) }}" onsubmit="return confirm('¿Eliminar la corrida?')">
+                                @csrf<button class="btn btn-sm btn-outline-danger">{{ __('Eliminar') }}</button>
+                            </form>
+                        </div>
                     @endif
                 </div>
 
                 <div class="row g-2 mt-1 small">
                     <div class="col-md-3"><span class="text-muted">{{ __('Conductor') }}:</span> <span class="{{ $chg('driver_label') }}">{{ $run->driver_user_id ? (optional($crewById->get($run->driver_user_id))['name'] ?? ('#'.$run->driver_user_id)) : '—' }}</span></div>
-                    <div class="col-md-3"><span class="text-muted">{{ __('Pick up') }}:</span> <span class="{{ $chg('pickup') }}">{{ $run->pickup_literal ?: '—' }}@if($run->pickup_place_kind) · {{ $placeLabel($run->pickup_place_kind, $run->pickup_place_id, $run->pickup_place_text) }}@endif</span></div>
-                    <div class="col-md-3"><span class="text-muted">{{ __('Destino') }}:</span> <span class="{{ $chg('dest') }}">{{ $placeLabel($run->dest_place_kind, $run->dest_place_id, $run->dest_text) }}</span></div>
+                    @if ($run->isSet())
+                        @php $sr = $snapByKey[$run->run_key] ?? []; @endphp
+                        <div class="col-md-3">
+                            <span class="text-muted">{{ __('Pick up') }}:</span>
+                            <span class="{{ $chg('pickup') }}">@if (trim($sr['pickup'] ?? '') !== '')<strong>{{ $sr['pickup'] }}</strong>@else<span class="text-warning">{{ __('sin ancla') }}</span>@endif</span>
+                            @if ($dv && $dv['ok'])<div class="text-muted" style="font-size:.7rem">{{ __('traslado') }} {{ $dv['travel'] ?? '?' }}m · {{ __('ajuste') }} {{ (int) $run->travel_adjust_minutes }}m</div>@endif
+                        </div>
+                        <div class="col-md-3"><span class="text-muted">{{ __('Destino') }}:</span> <span class="{{ $chg('dest') }}">{{ ($sr['dest'] ?? '') ?: '—' }}</span></div>
+                    @else
+                        <div class="col-md-3"><span class="text-muted">{{ __('Pick up') }}:</span> <span class="{{ $chg('pickup') }}">{{ $run->pickup_literal ?: '—' }}@if($run->pickup_place_kind) · {{ $placeLabel($run->pickup_place_kind, $run->pickup_place_id, $run->pickup_place_text) }}@endif</span></div>
+                        <div class="col-md-3"><span class="text-muted">{{ __('Destino') }}:</span> <span class="{{ $chg('dest') }}">{{ $placeLabel($run->dest_place_kind, $run->dest_place_id, $run->dest_text) }}</span></div>
+                    @endif
                     <div class="col-md-3">
                         <span class="text-muted">{{ __('Equipo') }}:</span>
                         <span class="{{ $chg('equipment_label') }}">
@@ -192,6 +221,7 @@
                     </details>
                 @endif
             </div>
+            @endif {{-- fin envoltura: discretas ocultas a producción --}}
         @empty
             <p class="text-muted">{{ __('Sin corridas todavía.') }}</p>
         @endforelse
@@ -213,13 +243,22 @@
         @if ($canEdit)
             <form method="POST" action="{{ route('transport.order.update', $order) }}" class="mb-3">
                 @csrf
+                <div class="mb-2">
+                    <label class="form-label small mb-0">{{ __('Modo de pick up') }}</label>
+                    <select name="pickup_mode" class="form-select form-select-sm" style="max-width:320px">
+                        <option value="masivo" @selected(! $order->isLigero())>{{ __('Masivo — la mayoría del crew') }}</option>
+                        <option value="ligero" @selected($order->isLigero())>{{ __('Ligero — solo puestos marcados') }}</option>
+                    </select>
+                    <div class="form-text small">{{ __('Le dice al back qué esperar: en ligero, el crew no marcado queda en blanco (no “falta capturarlo”).') }}</div>
+                </div>
                 <textarea name="notes_general" class="form-control form-control-sm" rows="3" placeholder="{{ __('Hitos sin vehículo, avisos del día…') }}">{{ $order->notes_general }}</textarea>
-                <button class="btn btn-sm btn-outline-secondary mt-1">{{ __('Guardar notas') }}</button>
+                <button class="btn btn-sm btn-outline-secondary mt-1">{{ __('Guardar') }}</button>
             </form>
-        @elseif ($order->notes_general)
-            <div class="border rounded p-2 mb-3 small">{{ $order->notes_general }}</div>
         @else
-            <p class="text-muted small">—</p>
+            <div class="mb-2"><span class="badge bg-light text-dark border">{{ __('Modo') }}: {{ $order->isLigero() ? __('ligero') : __('masivo') }}</span></div>
+            @if ($order->notes_general)
+                <div class="border rounded p-2 mb-3 small">{{ $order->notes_general }}</div>
+            @endif
         @endif
 
         {{-- ===== LEYENDA (solo las claves usadas ese día) ===== --}}
@@ -302,6 +341,18 @@
             var sync = function () { if (target) target.classList.toggle('d-none', sel.value !== 'text'); };
             sel.addEventListener('change', sync); sync();
         });
+        // Clase de corrida: SET (derivado) vs FUERA (a mano) alternan sus bloques.
+        var rc = form.querySelector('.cc-runclass'),
+            setB = form.querySelector('.cc-set-block'),
+            fueraB = form.querySelector('.cc-fuera-block');
+        if (rc) {
+            var syncClass = function () {
+                var isSet = rc.value === 'set';
+                if (setB) setB.classList.toggle('d-none', !isSet);
+                if (fueraB) fueraB.classList.toggle('d-none', isSet);
+            };
+            rc.addEventListener('change', syncClass); syncClass();
+        }
     });
 
     // Ocupante: la fuente decide crew (select) vs nombre libre (texto + padrón).

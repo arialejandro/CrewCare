@@ -3,17 +3,21 @@
 namespace App\Http\Controllers;
 
 use App\Models\CallPlace;
+use App\Models\ScoutingReport;
 use App\Models\TransportAddress;
 use App\Models\TransportEquipment;
 use App\Models\TransportOrder;
 use App\Models\TransportOrderRun;
 use App\Models\TransportParty;
+use App\Models\TransportPickupPoint;
 use App\Models\TransportRunOccupant;
 use App\Models\Vehicle;
 use App\Support\CurrentProduction;
 use App\Support\DayRosterBuilder;
 use App\Support\TransportAccess;
+use App\Support\TransportCrew;
 use App\Support\TransportOrderSnapshot;
+use App\Support\TransportPickupDeriver;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -181,6 +185,9 @@ class TransportOrderController extends Controller
         $privById = TransportAddress::where('production_id', $pid)->get()->keyBy('id');
         $vehById  = Vehicle::whereIn('id', $runs->pluck('vehicle_id')->filter()->all())->get()->keyBy('id');
         $deptById = \App\Models\Department::pluck('name', 'id');
+        // Fase 2: para las corridas de SET el pick up es DERIVADO (no está en pickup_literal).
+        $ctx       = $order ? TransportPickupDeriver::context($order) : [];
+        $pointById = TransportPickupPoint::where('production_id', $pid)->get(['id', 'name', 'address'])->keyBy('id');
 
         // Devuelve [rótulo, calle-real|null]. La calle sólo existe para privadas y aquí el driver
         // SIEMPRE la ve (son sus corridas → asignación).
@@ -191,10 +198,23 @@ class TransportOrderController extends Controller
             return ['—', null];
         };
 
-        $cards = $runs->map(function (TransportOrderRun $run) use ($place, $vehById, $deptById) {
-            [$pl, $pStreet] = $place($run->pickup_place_kind, $run->pickup_place_id, $run->pickup_place_text);
-            [$dl, $dStreet] = $place($run->dest_place_kind, $run->dest_place_id, $run->dest_text);
+        $cards = $runs->map(function (TransportOrderRun $run) use ($place, $vehById, $deptById, $ctx, $pointById) {
             $veh = $run->vehicle_id ? $vehById->get($run->vehicle_id) : null;
+
+            if ($run->isSet()) {
+                // Derivado: hora calculada + el PUNTO como origen (público) + la locación como destino.
+                $d  = TransportPickupDeriver::derive($run, $ctx);
+                $pt = $run->pickup_point_id ? $pointById->get($run->pickup_point_id) : null;
+                $pickupTime   = ! empty($d['ok']) ? $d['time'] : null;
+                $pickupPlace  = $pt ? $pt->name : ($d['point'] ?? '—');
+                $pickupStreet = $pt ? $pt->address : null;
+                $destPlace    = $d['dest'] ?? '—';
+                $destStreet   = null;
+            } else {
+                [$pickupPlace, $pickupStreet] = $place($run->pickup_place_kind, $run->pickup_place_id, $run->pickup_place_text);
+                [$destPlace, $destStreet]     = $place($run->dest_place_kind, $run->dest_place_id, $run->dest_text);
+                $pickupTime = $run->pickup_literal;
+            }
 
             $occ = $run->occupants->map(function (TransportRunOccupant $o) use ($deptById) {
                 $line = $o->displayName();
@@ -205,11 +225,11 @@ class TransportOrderController extends Controller
 
             return [
                 'type'          => $run->typeLabel(),
-                'pickup_time'   => $run->pickup_literal,
-                'pickup_place'  => $pl,
-                'pickup_street' => $pStreet,
-                'dest_place'    => $dl,
-                'dest_street'   => $dStreet,
+                'pickup_time'   => $pickupTime,
+                'pickup_place'  => $pickupPlace,
+                'pickup_street' => $pickupStreet,
+                'dest_place'    => $destPlace,
+                'dest_street'   => $destStreet,
                 'vehicle'       => $veh ? (trim(($veh->make ?: '') . ' ' . ($veh->model ?: '')) ?: ('#' . $veh->id)) : null,
                 'plate'         => $veh->plate ?? null,
                 'occupants'     => $occ,
@@ -259,11 +279,17 @@ class TransportOrderController extends Controller
     public function updateOrder(Request $request, TransportOrder $order)
     {
         $this->authorizeEdit($request, $order);
-        $data = $request->validate(['notes_general' => 'nullable|string']);
+        $data = $request->validate([
+            'notes_general' => 'nullable|string',
+            'pickup_mode'   => 'nullable|in:ligero,masivo',
+        ]);
         $order->notes_general = $data['notes_general'] ?? null;
+        if (! empty($data['pickup_mode'])) {
+            $order->pickup_mode = $data['pickup_mode'];
+        }
         $order->save();
 
-        return back()->with('ok', 'Notas generales guardadas.');
+        return back()->with('ok', 'Orden actualizada.');
     }
 
     // ── Editor / consulta de una orden ───────────────────────────────────────
@@ -272,10 +298,12 @@ class TransportOrderController extends Controller
         abort_unless(TransportAccess::canLite($request->user()), 403);
 
         $order->load(['runs.occupants']);
-        $canEdit = TransportAccess::canFull($request->user()) && $order->isDraft();
+        $canEdit  = TransportAccess::canFull($request->user()) && $order->isDraft();
+        $isFrozen = $order->isFrozen();
 
         // Diff contra la versión inmediata anterior (§4), emparejado por run_key.
-        $current = TransportOrderSnapshot::build($order);
+        // CONGELADA: se lee el snapshot MATERIALIZADO (no recalcula). BORRADOR: se deriva en vivo.
+        $current = $isFrozen ? TransportOrderSnapshot::resolvedFor($order) : TransportOrderSnapshot::build($order);
         $prev = null;
         if ($order->prev_version_id) {
             $prevOrder = TransportOrder::find($order->prev_version_id);
@@ -303,8 +331,31 @@ class TransportOrderController extends Controller
             fn ($a) => ! $a->is_private || in_array((int) $a->id, $realAddrIds, true)
         )->values();
 
+        // Fase 2: el pick up mostrado sale del snapshot ($current) por run_key → así una CONGELADA
+        // muestra lo MATERIALIZADO y un BORRADOR lo derivado en vivo, con la misma pieza.
+        $snapByKey = [];
+        foreach (($current['runs'] ?? []) as $r) {
+            $snapByKey[$r['run_key'] ?? ''] = $r;
+        }
+
+        // Ayuda de captura (traslado/ajuste, "sin ancla") SÓLO en borrador; en congelada no se recalcula.
+        $ctx = $isFrozen ? [] : TransportPickupDeriver::context($order);
+        $derived = [];
+        $discreetElig = [];
+        foreach ($order->runs as $run) {
+            if (! $isFrozen && $run->isSet()) {
+                $derived[$run->id] = TransportPickupDeriver::derive($run, $ctx);
+            }
+            $discreetElig[$run->id] = TransportCrew::discreetEligible($run, (int) $order->production_id);
+        }
+
         return view('transport.orders.edit', array_merge(
-            ['order' => $order, 'canEdit' => $canEdit, 'diff' => $diff, 'legend' => $current['legend'], 'realAddrIds' => $realAddrIds, 'pickAddresses' => $pickAddresses],
+            [
+                'order' => $order, 'canEdit' => $canEdit, 'diff' => $diff, 'legend' => $current['legend'],
+                'realAddrIds' => $realAddrIds, 'pickAddresses' => $pickAddresses,
+                'derived' => $derived, 'discreetElig' => $discreetElig, 'snapByKey' => $snapByKey,
+                'viewerIsFull' => TransportAccess::canFull($request->user()),
+            ],
             $editor
         ));
     }
@@ -357,6 +408,27 @@ class TransportOrderController extends Controller
         return back()->with('ok', 'Corrida eliminada.');
     }
 
+    /**
+     * Marca/desmarca DISCRETA una corrida (capa de privacidad). Sólo es elegible para jefatura, cast
+     * o transporte por aplicación ({@see TransportCrew::discreetEligible}); si no, se rechaza (la UI
+     * ni siquiera ofrece el toggle, y el server lo blinda). Discreta = no aparece en la orden/PDF.
+     */
+    public function toggleDiscreet(Request $request, TransportOrder $order, TransportOrderRun $run)
+    {
+        $this->authorizeEdit($request, $order);
+        abort_unless($run->transport_order_id === $order->id, 404);
+
+        $run->loadMissing('occupants');
+        if (! TransportCrew::discreetEligible($run, (int) $order->production_id)) {
+            return back()->withErrors(['discreet' => __('Sólo jefatura, cast o transporte por aplicación pueden marcarse discretos.')]);
+        }
+
+        $run->is_discreet = ! $run->is_discreet;
+        $run->save();
+
+        return back()->with('ok', $run->is_discreet ? __('Corrida marcada como discreta.') : __('Corrida visible de nuevo.'));
+    }
+
     // ── Ocupantes ────────────────────────────────────────────────────────────
     public function storeOccupant(Request $request, TransportOrder $order, TransportOrderRun $run)
     {
@@ -406,6 +478,17 @@ class TransportOrderController extends Controller
 
         $occ->save();
 
+        // (SET) si este ocupante entra MÁS TEMPRANO que el resto, ADELANTA el pick up → avisa en pantalla.
+        if ($run->run_class === TransportOrderRun::CLASS_SET && $occ->source === TransportRunOccupant::SOURCE_CREW && $occ->user_id) {
+            $run->load('occupants');
+            if ($run->occupants->count() > 1) {
+                $d = TransportPickupDeriver::derive($run, TransportPickupDeriver::context($order));
+                if (! empty($d['ok']) && (int) $d['anchor_user_id'] === (int) $occ->user_id) {
+                    return back()->with('warn', __('El pick up se adelantó a :t por :n.', ['t' => $d['time'], 'n' => $occ->displayName()]));
+                }
+            }
+        }
+
         return back()->with('ok', 'Ocupante agregado.');
     }
 
@@ -426,21 +509,28 @@ class TransportOrderController extends Controller
         abort_unless($order->isDraft(), 403, 'Una orden congelada no se edita.');
     }
 
-    /** Reglas comunes de una corrida. El lugar viaja como ref combinado ("call:5"|"private:3"|"text"). */
+    /** Reglas comunes de una corrida. Dos EJES: run_class (set|fuera) y run_type. */
     private function validateRun(Request $request): array
     {
         return $request->validate([
-            'run_type'          => 'required|in:normal,aeropuerto,aplicacion',
-            'vehicle_id'        => 'nullable|integer',
-            'driver_user_id'    => 'nullable|integer',
-            'pickup_literal'    => 'nullable|string|max:16',
-            'pickup_ref'        => 'nullable|string|max:24',
-            'pickup_place_text' => 'nullable|string|max:255',
-            'dest_ref'          => 'nullable|string|max:24',
-            'dest_text'         => 'nullable|string|max:255',
-            'equipment'         => 'nullable|array',
-            'equipment.*'       => 'string|max:40',
-            'notes'             => 'nullable|string',
+            'run_class'             => 'nullable|in:set,fuera',   // default 'fuera' (lo legado convive)
+            'run_type'              => 'required|in:normal,aeropuerto,aplicacion',
+            'vehicle_id'            => 'nullable|integer',
+            'driver_user_id'        => 'nullable|integer',
+            // SET (derivado): origen del catálogo + destino (scouting) + traslado tecleado (fallback) + ajuste.
+            'pickup_point_id'       => 'nullable|integer',
+            'dest_location_ref'     => 'nullable|integer',
+            'travel_minutes'        => 'nullable|integer|min:0|max:1440',
+            'travel_adjust_minutes' => 'nullable|integer|min:-600|max:600',
+            // FUERA (a mano): hora literal + lugar de inicio + lugar de fin (ref combinado).
+            'pickup_literal'        => 'nullable|string|max:16',
+            'pickup_ref'            => 'nullable|string|max:24',
+            'pickup_place_text'     => 'nullable|string|max:255',
+            'dest_ref'              => 'nullable|string|max:24',
+            'dest_text'             => 'nullable|string|max:255',
+            'equipment'             => 'nullable|array',
+            'equipment.*'           => 'string|max:40',
+            'notes'                 => 'nullable|string',
         ]);
     }
 
@@ -463,25 +553,49 @@ class TransportOrderController extends Controller
         return [null, null];
     }
 
-    /** Normaliza los campos de una corrida desde el request validado. */
+    /** Normaliza los campos de una corrida desde el request validado, SEGÚN LA CLASE. */
     private function runAttributes(array $data): array
     {
+        $isSet = ($data['run_class'] ?? 'fuera') === TransportOrderRun::CLASS_SET;
+
+        $common = [
+            'run_class'      => $data['run_class'] ?? TransportOrderRun::CLASS_FUERA,
+            'run_type'       => $data['run_type'],
+            'vehicle_id'     => $data['vehicle_id'] ?? null,
+            'driver_user_id' => $data['driver_user_id'] ?? null,
+            'equipment'      => array_values($data['equipment'] ?? []),
+            'notes'          => $data['notes'] ?? null,
+        ];
+
+        if ($isSet) {
+            // El pick up se DERIVA: no se guarda literal ni lugar libre. Sí el origen/destino/traslado.
+            return $common + [
+                'pickup_point_id'       => $data['pickup_point_id'] ?? null,
+                'dest_location_ref'     => $data['dest_location_ref'] ?? null,
+                'travel_minutes'        => $data['travel_minutes'] ?? null,   // fallback si el par no está en la matriz
+                'travel_adjust_minutes' => (int) ($data['travel_adjust_minutes'] ?? 0),
+                'pickup_literal'        => null,
+                'pickup_place_kind'     => null, 'pickup_place_id' => null, 'pickup_place_text' => null,
+                'dest_place_kind'       => null, 'dest_place_id' => null, 'dest_text' => null,
+            ];
+        }
+
+        // FUERA: a mano (hora literal + lugar inicio + lugar fin).
         [$pk, $pid] = $this->parseRef($data['pickup_ref'] ?? null);
         [$dk, $did] = $this->parseRef($data['dest_ref'] ?? null);
 
-        return [
-            'run_type'          => $data['run_type'],
-            'vehicle_id'        => $data['run_type'] === TransportOrderRun::TYPE_APLICACION ? ($data['vehicle_id'] ?? null) : $data['vehicle_id'],
-            'driver_user_id'    => $data['driver_user_id'] ?? null,
-            'pickup_literal'    => $data['pickup_literal'] ?? null,
-            'pickup_place_kind' => $pk,
-            'pickup_place_id'   => $pk === 'text' ? null : $pid,
-            'pickup_place_text' => $pk === 'text' ? ($data['pickup_place_text'] ?? null) : null,
-            'dest_place_kind'   => $dk,
-            'dest_place_id'     => $dk === 'text' ? null : $did,
-            'dest_text'         => $dk === 'text' ? ($data['dest_text'] ?? null) : null,
-            'equipment'         => array_values($data['equipment'] ?? []),
-            'notes'             => $data['notes'] ?? null,
+        return $common + [
+            'pickup_point_id'       => null,
+            'dest_location_ref'     => null,
+            'travel_minutes'        => null,
+            'travel_adjust_minutes' => 0,
+            'pickup_literal'        => $data['pickup_literal'] ?? null,
+            'pickup_place_kind'     => $pk,
+            'pickup_place_id'       => $pk === 'text' ? null : $pid,
+            'pickup_place_text'     => $pk === 'text' ? ($data['pickup_place_text'] ?? null) : null,
+            'dest_place_kind'       => $dk,
+            'dest_place_id'         => $dk === 'text' ? null : $did,
+            'dest_text'             => $dk === 'text' ? ($data['dest_text'] ?? null) : null,
         ];
     }
 
@@ -521,6 +635,17 @@ class TransportOrderController extends Controller
             ->orderBy('sort_order')->orderBy('name_es')
             ->get(['code', 'name_es', 'name_en', 'icon']);
 
+        // SET: orígenes del catálogo (Fase 1) + destinos = locaciones del día (scouting con coords).
+        $pickupPoints = TransportPickupPoint::where('production_id', $pid)
+            ->where('is_active', 1)
+            ->orderBy('sort_order')->orderBy('name')
+            ->get(['id', 'name']);
+
+        $dayLocations = ScoutingReport::where('production_id', $pid)
+            ->whereNotNull('latitude')->whereNotNull('longitude')
+            ->orderBy('location_name')
+            ->get(['id', 'location_name']);
+
         // Encabezado por puesto (§1) + opciones de crew para ocupantes/driver — dinámico.
         $roster = DayRosterBuilder::build($user, $order->order_date);
         $crew = [];
@@ -551,6 +676,8 @@ class TransportOrderController extends Controller
             'callPlaces'       => $callPlaces,
             'privateAddresses' => $privateAddresses,
             'equipment'        => $equipment,
+            'pickupPoints'     => $pickupPoints,
+            'dayLocations'     => $dayLocations,
             'roster'           => $roster,
             'crew'             => $crew,
             'parties'          => $parties,

@@ -522,6 +522,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/transportacion/orden/{order}/corrida', [App\Http\Controllers\TransportOrderController::class, 'storeRun'])->name('transport.order.run.store')->whereNumber('order');
     Route::post('/transportacion/orden/{order}/corrida/{run}', [App\Http\Controllers\TransportOrderController::class, 'updateRun'])->name('transport.order.run.update')->whereNumber('order')->whereNumber('run');
     Route::post('/transportacion/orden/{order}/corrida/{run}/eliminar', [App\Http\Controllers\TransportOrderController::class, 'destroyRun'])->name('transport.order.run.destroy')->whereNumber('order')->whereNumber('run');
+    Route::post('/transportacion/orden/{order}/corrida/{run}/discreto', [App\Http\Controllers\TransportOrderController::class, 'toggleDiscreet'])->name('transport.order.run.discreet')->whereNumber('order')->whereNumber('run');
     Route::post('/transportacion/orden/{order}/corrida/{run}/ocupante', [App\Http\Controllers\TransportOrderController::class, 'storeOccupant'])->name('transport.order.occupant.store')->whereNumber('order')->whereNumber('run');
     Route::post('/transportacion/orden/{order}/ocupante/{occupant}/eliminar', [App\Http\Controllers\TransportOrderController::class, 'destroyOccupant'])->name('transport.order.occupant.destroy')->whereNumber('order')->whereNumber('occupant');
     Route::post('/transportacion/orden/{order}/notas', [App\Http\Controllers\TransportOrderController::class, 'updateOrder'])->name('transport.order.update')->whereNumber('order');
@@ -553,6 +554,12 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/transportacion/punto/{point}', [App\Http\Controllers\TransportMatrixController::class, 'updatePoint'])->name('transport.point.update')->whereNumber('point');
     Route::post('/transportacion/punto/{point}/baja', [App\Http\Controllers\TransportMatrixController::class, 'destroyPoint'])->name('transport.point.destroy')->whereNumber('point');
     Route::post('/transportacion/traslado', [App\Http\Controllers\TransportMatrixController::class, 'saveTime'])->name('transport.time.save');
+
+    // Config de transpo · FASE 2 — jefatura/pickup-siempre por puesto + asignación fija de vehículos (canFull).
+    Route::get('/transportacion/config', [App\Http\Controllers\TransportConfigController::class, 'index'])->name('transport.config.index');
+    Route::post('/transportacion/config/puestos', [App\Http\Controllers\TransportConfigController::class, 'savePositions'])->name('transport.config.positions');
+    Route::post('/transportacion/config/asignacion', [App\Http\Controllers\TransportConfigController::class, 'storeAssignment'])->name('transport.config.assign.store');
+    Route::post('/transportacion/config/asignacion/{assignment}/baja', [App\Http\Controllers\TransportConfigController::class, 'destroyAssignment'])->name('transport.config.assign.destroy')->whereNumber('assignment');
 });
 
 // ---- VIGILANCIA EPIDEMIOLÓGICA: panel silencioso + estudio de brote (2026-07-31 · delta #45) ----
