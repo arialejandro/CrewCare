@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * VISTA DE ADMINISTRACIÓN DEL CATÁLOGO ORGANIZACIONAL (fusión semilla+vivo).
@@ -41,6 +42,7 @@ class CatalogAdminController extends Controller
             'positionsByDept' => $positionsByDept,
             'assignByPos'     => $assignByPos,
             'assignByDept'    => $assignByDept,
+            'similar'         => $this->similarByPosition($positionsByDept),
             'bindings'        => self::BINDINGS,
             'grades'          => self::GRADES,
         ]);
@@ -196,6 +198,61 @@ class CatalogAdminController extends Controller
     }
 
     // ───────────────────────────── utilidades ──────────────────────────
+    /**
+     * Señala (NO fusiona) puestos con nombre muy parecido DENTRO de un mismo departamento:
+     * mismo "esqueleto" de nombre (abreviaturas: "Coordinador de Arte" ≈ "Coord. de Arte") o el
+     * mismo `catalog_key` (misma función canónica). Devuelve [position_id => [nombres hermanos]].
+     */
+    private function similarByPosition($positionsByDept): array
+    {
+        $similar = [];
+        foreach ($positionsByDept as $rows) {
+            $groups = [];   // esqueleto de nombre => [filas]
+            foreach ($rows as $p) {
+                if (! $p->active) {
+                    continue;
+                }
+                $sk = $this->skeleton($p->name);
+                if ($sk !== '') {
+                    $groups[$sk][] = $p;
+                }
+            }
+            foreach ($groups as $group) {
+                if (count($group) < 2) {
+                    continue;
+                }
+                foreach ($group as $p) {
+                    foreach ($group as $q) {
+                        if ($q->id !== $p->id) {
+                            $similar[$p->id][$q->id] = $q->name;   // dedup por id
+                        }
+                    }
+                }
+            }
+        }
+        foreach ($similar as $id => $names) {
+            $similar[$id] = array_values(array_unique($names));
+        }
+
+        return $similar;
+    }
+
+    /** Esqueleto de nombre: sin acentos/puntuación, sin stopwords, 4 primeras letras por palabra, ordenado. */
+    private function skeleton(string $name): string
+    {
+        $words = preg_split('/[^a-z0-9]+/', Str::lower(Str::ascii($name)), -1, PREG_SPLIT_NO_EMPTY);
+        $stop = ['de', 'del', 'la', 'el', 'los', 'las', 'y', 'en', 'a', 'para'];
+        $sig = [];
+        foreach ($words as $w) {
+            if (! in_array($w, $stop, true)) {
+                $sig[] = substr($w, 0, 4);
+            }
+        }
+        sort($sig);
+
+        return implode('|', $sig);
+    }
+
     private function validatePosition(Request $request): array
     {
         return $request->validate([

@@ -79,6 +79,21 @@ class CatalogAdminTest extends QaTestCase
         $this->assertDatabaseHas('positions', ['id' => $pos->id, 'name_en' => 'Edited EN', 'rank' => 15, 'binding' => 'production']);
     }
 
+    public function test_senala_nombres_parecidos_en_el_mismo_depto(): void
+    {
+        $this->actingAsRole('super-admin');
+        $dept = DB::table('departments')->where('active', 1)->first();
+        $base = ['department_id' => $dept->id, 'rank' => 30, 'binding' => 'unit', 'existence' => 'core',
+                 'active' => 1, 'production_id' => null, 'is_hod' => 0, 'hod_capable' => 0];
+        DB::table('positions')->insert([
+            $base + ['name' => 'Coordinador de Pruebas QA', 'sort_order' => 1],
+            $base + ['name' => 'Coord. de Pruebas QA',      'sort_order' => 2],   // abreviatura → mismo esqueleto
+        ]);
+
+        $this->get(route('catalogo.index'))->assertOk()
+            ->assertSee('Nombre parecido a: Coord. de Pruebas QA', false);
+    }
+
     public function test_baja_por_desactivacion_no_borra(): void
     {
         $this->actingAsRole('super-admin');

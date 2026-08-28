@@ -86,7 +86,8 @@
             category: o.dataset.category || '',
             desc:     o.dataset.desc || '',
             l:        o.dataset.l || '',
-            c:        o.dataset.c || ''
+            c:        o.dataset.c || '',
+            extra:    o.dataset.search || ''   // texto extra buscable (name_en + alias), opt-in data-ta-extra
         };
     }
 
@@ -109,6 +110,9 @@
         if (!sel || sel.getAttribute('data-ta') === '1') { return; }
         sel.setAttribute('data-ta', '1');
         var rich = sel.getAttribute('data-ta-rich') === '1';
+        // Opt-in: además de la etiqueta, busca en data-search de cada <option> (name_en + alias
+        // normalizados). Sin el flag, el filtrado es BIT A BIT el de hoy (los demás usos no cambian).
+        var extraSearch = sel.getAttribute('data-ta-extra') === '1';
 
         // Extrae las opciones reales (ignora el placeholder value="").
         var groups = [], flat = [];
@@ -182,7 +186,9 @@
             var nq = norm(q), any = false;
             groups.forEach(function (g) {
                 var matched = g.items.filter(function (it) {
-                    if (!(nq === '' || norm(it.label).indexOf(nq) !== -1)) { return false; }
+                    var hit = nq === '' || norm(it.label).indexOf(nq) !== -1
+                              || (extraSearch && it.extra && norm(it.extra).indexOf(nq) !== -1);
+                    if (!hit) { return false; }
                     return facetOk(it); // INTERSECCIÓN texto ∩ marco
                 });
                 if (!matched.length) { return; }

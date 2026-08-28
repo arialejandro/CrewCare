@@ -31,6 +31,7 @@
     .cc-chip--cond  { color: #8a5a00; background: rgba(240,170,0,.14); border: 1px solid rgba(240,170,0,.35); }
     .cc-chip--juris { color: #5a3aa0; background: rgba(120,80,220,.12); border: 1px solid rgba(120,80,220,.32); }
     .cc-chip--rank  { color: var(--text); background: var(--surface-2); border: 1px solid var(--stroke-2, var(--border)); font-variant-numeric: tabular-nums; }
+    .cc-chip--dup   { color: #8a5a00; background: rgba(240,170,0,.14); border: 1px solid rgba(240,170,0,.35); cursor: help; margin-left: .35rem; }
 
     .cc-hod { border: 1px solid var(--stroke-2, var(--border)); background: var(--surface-2); color: var(--text-muted);
               font-weight: 700; font-size: .72rem; border-radius: 999px; padding: .18rem .55rem; cursor: pointer; min-width: 3.2rem; }
@@ -155,7 +156,7 @@
                         <tr class="{{ $p->active ? '' : 'cc-pos--off' }}">
                             <td><span class="cc-chip cc-chip--rank">{{ $p->rank }}</span></td>
                             <td>
-                                <div class="cc-pos-name">{{ $p->name }}</div>
+                                <div class="cc-pos-name">{{ $p->name }}@if (! empty($similar[$p->id]))<span class="cc-chip cc-chip--dup" title="{{ __('Nombre parecido a') }}: {{ implode(' · ', $similar[$p->id]) }}">≈</span>@endif</div>
                                 @if ($p->name_en)<div class="cc-pos-en">{{ $p->name_en }}</div>@endif
                             </td>
                             <td style="font-size:.82rem;color:var(--text-muted);">{{ $p->binding }}</td>
