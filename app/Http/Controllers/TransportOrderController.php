@@ -84,7 +84,8 @@ class TransportOrderController extends Controller
                 ->with('ok', 'Nueva versión en borrador a partir de v' . $latestFrozen->version . '.');
         }
 
-        // 3) Primera orden del día.
+        // 3) Primera orden del día → se PRECARGA desde el conjunto efectivo (base + marcados),
+        //    agrupado por vehículo (Fase 3). Snapshot: sin vínculo a la asignación. Propone, no obliga.
         $draft = TransportOrder::create([
             'production_id' => $pid,
             'order_date'    => $date,
@@ -93,7 +94,10 @@ class TransportOrderController extends Controller
             'created_by_id' => $request->user()->id,
         ]);
 
-        return redirect()->route('transport.order.show', $draft);
+        $made = \App\Support\TransportPreload::into($draft);
+
+        return redirect()->route('transport.order.show', $draft)
+            ->with('ok', $made > 0 ? ($made . ' corrida(s) precargada(s) desde el marcado — edítalas o bórralas.') : null);
     }
 
     // ── Congelar / emitir versión ────────────────────────────────────────────
