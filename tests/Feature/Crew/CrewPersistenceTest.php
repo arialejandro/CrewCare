@@ -31,7 +31,6 @@ class CrewPersistenceTest extends QaTestCase
             'ncreditos'     => 'Nuevo Miembro',
             'borndate'      => '1990-01-01',
             'sex'           => 'M',
-            'labn'          => '0', // labn es int(30) en la BD (STRICT mode); ver BUG reportado.
             'phone'         => '5550001111',
             'email'         => $email,
             'password'      => 'secret1234',
@@ -206,22 +205,25 @@ class CrewPersistenceTest extends QaTestCase
     // =====================================================================================
 
     /**
-     * BUG #1 — CrewController::newuser valida `labn => required|string|max:255` (linea 89) pero
-     * la columna users.labn es int(30) y MySQL corre en STRICT_TRANS_TABLES. El input del form
-     * (admin/newuser.blade.php:209) es <input type="text"> "Jerarquia" — un usuario PUEDE teclear
-     * letras. Resultado: PDOException 1366 no atrapada -> HTTP 500 (CrewController.php:158) en vez
-     * de un error de validacion amable.
-     * ESPERADO tras el fix (p.ej. regla `integer`): assertSessionHasErrors('labn') y sin 500.
+     * `labn` ("Jerarquía") se RETIRÓ del alta y la edición (2026-08-27, owner): ya no se captura,
+     * ni se valida, ni se escribe. La jerarquía se DERIVA del puesto/rol, no se teclea. La columna
+     * users.labn queda DURMIENTE con sus valores viejos. Antes un labn no numérico daba error de
+     * validación (BUG-02); ahora el campo no existe → el alta debe proceder sin él, y un valor
+     * basura enviado por un cliente viejo se IGNORA (no bloquea, no se escribe, sin 500).
      */
-    public function test_labn_no_numerico_debe_dar_error_de_validacion_no_500(): void
+    public function test_labn_retirado_del_alta_no_es_requerido_y_se_ignora(): void
     {
-        // BUG-02 CORREGIDO (labn ahora `integer` en CrewController): una letra da error de
-        // validación, no 500. Esta guarda queda ACTIVA contra regresión.
         $this->actingAsRole('super-admin');
-        $payload = $this->newUserPayload(['labn' => 'ABC']); // no numerico
 
-        $this->post(route('newuser'), $payload)->assertSessionHasErrors('labn');
-        $this->assertDatabaseMissing('users', ['email' => $payload['email']]);
+        // El form real ya no manda labn → el alta procede sin él.
+        $sinLabn = $this->newUserPayload();
+        $this->post(route('newuser'), $sinLabn)->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('users', ['email' => $sinLabn['email']]);
+
+        // Un cliente viejo que aún mande labn (incluso no numérico) no rompe: se ignora.
+        $conBasura = $this->newUserPayload(['labn' => 'ABC']);
+        $this->post(route('newuser'), $conBasura)->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('users', ['email' => $conBasura['email']]);
     }
 
     /**

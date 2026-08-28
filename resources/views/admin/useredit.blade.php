@@ -192,12 +192,6 @@
                             </div>
                         </div>
                     @endif
-                    <div class="col-12 col-md-6">
-                        <div class="cc-field">
-                            <label for="labn" class="cc-label">{{ __('Jerarquía') }} <span class="cc-req" aria-hidden="true">*</span></label>
-                            <input id="labn" type="text" class="form-control validate cc-control" name="labn" required autocomplete="labn" value="{{ old('labn', $users->labn) }}">
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

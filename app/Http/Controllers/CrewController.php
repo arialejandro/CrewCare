@@ -86,7 +86,6 @@ class CrewController extends Controller
             'ncreditos'     => 'required|string|max:255',
             'borndate'      => 'required|date|before:today',
             'sex'           => 'nullable|in:M,F',
-            'labn'          => 'required|integer', // labn es orden numerico (col int) → validar entero evita el 500 con texto (BUG-02)
             'phone'         => 'required|string|max:50',
             'email'         => 'required|email|max:255|unique:users,email',
             'password'      => 'required|string|min:8|confirmed',
@@ -146,7 +145,6 @@ class CrewController extends Controller
             'email' => $request->email,
             'phone' => $request->phone,
             'sex' => $request->sex,
-            'labn' => $request->labn,
             'zone' => $deptName,
             'ncreditos' => $request->ncreditos,
             'borndate' => $request->borndate,
@@ -347,7 +345,6 @@ class CrewController extends Controller
             'ncreditos'          => 'nullable',
             'phone'              => 'nullable|string|max:50',
             'borndate'           => 'nullable|date',
-            'labn'               => 'nullable|integer', // col int → evita 500 con texto (BUG-02)
             'email'              => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'sex'                => 'nullable|string|max:10',
             // PASO A (2026-07-19): `zone` y `puestodepartamento` SALEN de la whitelist. Dejan de

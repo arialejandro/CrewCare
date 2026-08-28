@@ -202,16 +202,6 @@
                     </div>
                     @endif
 
-                    {{-- Jerarquía --}}
-                    <div class="col-12 col-md-6">
-                        <div class="cc-field">
-                            <label for="labn" class="cc-label">{{ __('Jerarquía') }} <span class="cc-req" aria-hidden="true">*</span></label>
-                            <input id="labn" type="text" class="form-control cc-control @error('labn') is-invalid @enderror" name="labn" value="{{ old('labn') }}" required autocomplete="off" placeholder="{{ __('Jerarquía') }}">
-                            @error('labn')
-                                <div class="invalid-feedback"><strong>{{ $message }}</strong></div>
-                            @enderror
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
