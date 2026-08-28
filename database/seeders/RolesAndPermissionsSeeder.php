@@ -52,6 +52,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'callsheet.manage',
             // Catalogs (departments / positions / notifications)
             'catalogs.view', 'catalogs.manage',
+            'catalogs.manage.own-department', // crear/editar puestos SOLO del depto propio (HOD/coordinador)
             // H&S — Injuries
             'injury.view', 'injury.create', 'injury.manage',
             // H&S — Hazards / unsafe conditions
@@ -171,7 +172,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'crew.register', 'crew.view',
             'crew.view.contact', 'crew.view.all-departments',
             'callsheet.manage', // arma el back del día (oficina de producción)
-            'catalogs.view',
+            'catalogs.view', 'catalogs.manage.own-department', // crea puestos de SU depto en el alta
             'injury.view', 'hazards.view',
             'locations.view', 'locations.create', // Scoutings / crear scouting (matriz de menú, owner 2026-06-24)
             'dsr.view',
@@ -188,7 +189,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'productions.view',
             'users.view', 'users.create', 'crew.view', // + alta de crew de su área (matriz de menú, owner 2026-06-24)
             'crew.view.contact', // HOD restringido a su propio departamento (sin all-departments)
-            'catalogs.view',
+            'catalogs.view', 'catalogs.manage.own-department', // crea puestos de SU depto en el alta
             'injury.view', 'hazards.view',
             'dsr.view',
             'reports.view',

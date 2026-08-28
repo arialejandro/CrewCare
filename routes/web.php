@@ -724,6 +724,11 @@ Route::middleware(['auth','permission:catalogs.manage'])->group(function () {
     Route::post('/catalogo/departamento/{id}/baja',   [App\Http\Controllers\CatalogAdminController::class, 'deactivateDepartment'])->name('catalogo.dept.deactivate')->whereNumber('id');
     Route::post('/catalogo/departamento/{id}/alta',   [App\Http\Controllers\CatalogAdminController::class, 'activateDepartment'])->name('catalogo.dept.activate')->whereNumber('id');
 });
+// Creación rápida de puesto desde el alta de crew (Opción B). Gate abierto a `.own-department`;
+// el alcance por departamento se resuelve en el controlador (canManageDept).
+Route::middleware(['auth', 'permission:catalogs.manage|catalogs.manage.own-department'])->group(function () {
+    Route::post('/catalogo/puesto-rapido', [App\Http\Controllers\CatalogAdminController::class, 'quickStorePosition'])->name('catalogo.position.quick');
+});
 Route::middleware(['auth','permission:catalogs.manage'])->group(function () {
     // Departamentos
     Route::post('/creardepartamento',[App\Http\Controllers\DepartmentController::class,'creardepartamento'])->name('creardepartamento');

@@ -87,6 +87,64 @@ class CatalogAdminController extends Controller
         return back()->with('success', 'Puesto “' . $data['name'] . '” creado.');
     }
 
+    /**
+     * Creación RÁPIDA de puesto desde el alta de crew (Opción B, acto explícito). Devuelve JSON.
+     * Alcance: `catalogs.manage` (global) crea en cualquier depto; `catalogs.manage.own-department`
+     * crea en su(s) depto(s) — o en todos si es consolidador (crew.view.all-departments). El puesto
+     * entra como cualquier otro (sin marca de pendiente).
+     */
+    public function quickStorePosition(Request $request)
+    {
+        $data = $request->validate([
+            'name'          => 'required|string|max:150',
+            'department_id' => 'required|integer|exists:departments,id',
+            'rank'          => 'nullable|integer|min:1|max:99',
+            'binding'       => 'nullable|in:' . implode(',', self::BINDINGS),
+            'grade'         => 'nullable|in:' . implode(',', self::GRADES),
+        ]);
+        $deptId = (int) $data['department_id'];
+
+        if (! $this->canManageDept($request->user(), $deptId)) {
+            return response()->json(['error' => 'No puedes crear puestos en ese departamento.'], 403);
+        }
+
+        $dept = DB::table('departments')->where('id', $deptId)->first();
+        $rank = (int) ($data['rank'] ?? 60);
+        $id = DB::table('positions')->insertGetId([
+            'department_id' => $deptId,
+            'production_id' => null,
+            'name'          => $data['name'],
+            'rank'          => $rank,
+            'binding'       => $data['binding'] ?? 'unit',
+            'hod_capable'   => 0,
+            'grade'         => $data['grade'] ?? null,
+            'existence'     => 'core',
+            'is_hod'        => 0,
+            'active'        => 1,
+            'sort_order'    => (int) ($dept->sort_order ?? 0) * 100 + $rank,
+            'created_at'    => Carbon::now(),
+            'updated_at'    => Carbon::now(),
+        ]);
+
+        return response()->json(['id' => $id, 'name' => $data['name'], 'department_id' => $deptId]);
+    }
+
+    /** ¿Puede $user crear/editar puestos del departamento $deptId? (mismo alcance que el crew). */
+    private function canManageDept($user, int $deptId): bool
+    {
+        if ($user->can('catalogs.manage')) {
+            return true;   // global: super-admin, line-producer
+        }
+        if (! $user->can('catalogs.manage.own-department')) {
+            return false;
+        }
+        if ($user->can('crew.view.all-departments')) {
+            return true;   // consolidador (Coord. de Producción): en todos
+        }
+
+        return $user->ownDepartmentIds()->map(fn ($x) => (int) $x)->contains($deptId);   // HOD: solo su depto
+    }
+
     public function updatePosition(Request $request, $id)
     {
         $pos = DB::table('positions')->where('id', $id)->first();

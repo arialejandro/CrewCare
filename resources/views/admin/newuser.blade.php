@@ -161,7 +161,7 @@
                                 {{ __('Departamento fijo asignado a tu rol.') }}
                             </span>
                             @else
-                            <select name="department_id" id="departmentSelect" class="form-select cc-select" required>
+                            <select name="department_id" id="departmentSelect" class="form-select cc-select js-typeahead" required>
                                 <option value="" disabled @selected(old('department_id') === null)>{{ __('Departamento') }}</option>
                                 @foreach($departments as $d)
                                     <option value="{{ $d->id }}" @selected((string) old('department_id') === (string) $d->id)>{{ $d->name }}</option>
@@ -175,9 +175,11 @@
                     <div class="col-12 col-md-6">
                         <div class="cc-field">
                             <label for="positionSelect" class="cc-label">{{ __('Puesto') }} <span class="cc-optional">({{ __('opcional') }})</span></label>
-                            <select name="position_id" id="positionSelect" class="form-select cc-select">
+                            <select name="position_id" id="positionSelect"
+                                    class="form-select cc-select js-typeahead" data-ta-extra="1"
+                                    @if($canCreatePos ?? false) data-ta-create="1" data-ta-create-url="{{ route('catalogo.position.quick') }}" data-ta-create-dept="[name=department_id]" @endif>
                                 <option value="">{{ __('— Puesto (opcional) —') }}</option>
-                                {{-- Lo llena el JS con los puestos del catálogo del departamento elegido. --}}
+                                {{-- Lo llena el JS con los puestos del depto elegido (+ data-search = name_en + alias). --}}
                             </select>
                         </div>
                     </div>
@@ -305,6 +307,8 @@
 </style>
 @endpush
 
+@include('componentes._typeahead')
+
 @push('scripts')
 <script>
 (function () {
@@ -313,7 +317,8 @@
     var deptSel = document.getElementById('departmentSelect');
     var lockedDeptId = @json($lockedDeptId ?? null);
 
-    // Llena el select de Puesto con los puestos del catálogo que pertenecen al depto elegido.
+    // Llena el select de Puesto con los puestos del catálogo del depto elegido y RECONSTRUYE el
+    // typeahead (las opciones cambian por depto). data-search = name_en + alias (búsqueda es/en/alias).
     function fillPositions(deptId) {
         if (!posSel) return;
         posSel.innerHTML = '<option value="">— Puesto (opcional) —</option>';
@@ -322,17 +327,23 @@
                      var o = document.createElement('option');
                      o.value = p.id;
                      o.textContent = p.name;
+                     if (p.search) { o.setAttribute('data-search', p.search); }
                      posSel.appendChild(o);
                  });
+        if (window.CCTypeahead) { window.CCTypeahead.rebuild(posSel); }
     }
 
-    if (deptSel) {
-        deptSel.addEventListener('change', function () { fillPositions(this.value); });
-        if (deptSel.value) { fillPositions(deptSel.value); }
-    } else if (lockedDeptId) {
-        // HOD: depto fijo → carga directamente sus puestos.
-        fillPositions(lockedDeptId);
+    function init() {
+        if (deptSel) {
+            deptSel.addEventListener('change', function () { fillPositions(this.value); });
+            if (deptSel.value) { fillPositions(deptSel.value); }
+        } else if (lockedDeptId) {
+            // HOD: depto fijo → carga directamente sus puestos.
+            fillPositions(lockedDeptId);
+        }
     }
+    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
+    else { init(); }
 })();
 </script>
 @endpush

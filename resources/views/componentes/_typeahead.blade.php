@@ -39,6 +39,8 @@
     .cc-ta-opt { padding:.42rem .75rem; font-size:.9rem; color:#1f2937; cursor:pointer; }
     .cc-ta-opt:hover, .cc-ta-opt.active { background:#eef2ff; }
     .cc-ta-empty { padding:.5rem .75rem; font-size:.85rem; color:#9aa3af; }
+    .cc-ta-create { color:#4f46e5; font-weight:600; border-top:1px dashed #e5e7eb; }
+    @media (prefers-color-scheme: dark) { .cc-ta-create { color:#a5b4fc; border-top-color:#374151; } }
     /* Modo rico (data-ta-rich): etiqueta recortada por CSS (line-clamp) + fila de chips
        de marco. Los colores .badge-XXX los aporta _badge-tokens (lo incluye el picker);
        aquí solo maquetamos. El <li> sigue siendo un tap-target ≥44px. */
@@ -113,6 +115,12 @@
         // Opt-in: además de la etiqueta, busca en data-search de cada <option> (name_en + alias
         // normalizados). Sin el flag, el filtrado es BIT A BIT el de hoy (los demás usos no cambian).
         var extraSearch = sel.getAttribute('data-ta-extra') === '1';
+        // Opt-in "crear" (Opción B): si lo tecleado no empata con ningún puesto, ofrece crear uno
+        // nuevo en el departamento en contexto. data-ta-create-url = endpoint; data-ta-create-dept =
+        // selector del campo con el department_id vigente. Sin el flag no se activa (demás usos intactos).
+        var createMode    = sel.getAttribute('data-ta-create') === '1';
+        var createUrl     = sel.getAttribute('data-ta-create-url') || '';
+        var createDeptSel = sel.getAttribute('data-ta-create-dept') || '';
 
         // Extrae las opciones reales (ignora el placeholder value="").
         var groups = [], flat = [];
@@ -218,7 +226,28 @@
                     list.appendChild(li); visible.push(li);
                 });
             });
-            if (!any) {
+            // Modo crear: los cercanos ya se pintaron arriba; ABAJO va, y solo si no hay empate exacto,
+            // "Crear «X»" — o, si aún no hay departamento, el aviso de que lo elija primero.
+            var hasCreateRow = false;
+            if (createMode) {
+                var typedRaw = (q || '').trim(), typedNorm = norm(q), exact = false;
+                for (var fi = 0; fi < flat.length; fi++) { if (norm(flat[fi].label) === typedNorm) { exact = true; break; } }
+                if (typedRaw && !exact) {
+                    var deptEl = createDeptSel ? document.querySelector(createDeptSel) : null;
+                    var deptVal = deptEl ? (deptEl.value || '') : '';
+                    if (!deptVal) {
+                        var pe = document.createElement('li'); pe.className = 'cc-ta-empty';
+                        pe.textContent = 'Elige primero el departamento'; list.appendChild(pe); hasCreateRow = true;
+                    } else {
+                        var deptName = (deptEl && deptEl.selectedOptions && deptEl.selectedOptions[0]) ? deptEl.selectedOptions[0].textContent.trim() : '';
+                        var cli = document.createElement('li'); cli.className = 'cc-ta-opt cc-ta-create';
+                        cli.textContent = 'Crear «' + typedRaw + '»' + (deptName ? ' en ' + deptName : '');
+                        cli.addEventListener('mousedown', function (e) { e.preventDefault(); doCreate(typedRaw, deptVal); });
+                        list.appendChild(cli); hasCreateRow = true;
+                    }
+                }
+            }
+            if (!any && !hasCreateRow) {
                 var em = document.createElement('li'); em.className = 'cc-ta-empty'; em.textContent = 'Sin coincidencias'; list.appendChild(em);
             }
         }
@@ -228,6 +257,35 @@
         function highlight(i) {
             visible.forEach(function (li) { li.classList.remove('active'); });
             if (i >= 0 && i < visible.length) { visible[i].classList.add('active'); visible[i].scrollIntoView({ block: 'nearest' }); }
+        }
+
+        // Crear un puesto nuevo (acto DELIBERADO con confirmación). Al éxito, agrega la opción,
+        // la selecciona y reconstruye el typeahead. 403 = fuera del alcance del departamento.
+        function doCreate(name, deptId) {
+            if (!createUrl) { return; }
+            if (!window.confirm('¿Crear el puesto «' + name + '» en este departamento? Entrará al catálogo como cualquier otro.')) { return; }
+            var token = '';
+            var form = sel.closest ? sel.closest('form') : null;
+            var ti = form ? form.querySelector('input[name="_token"]') : null;
+            if (ti) { token = ti.value; }
+            else { var m = document.querySelector('meta[name="csrf-token"]'); if (m) { token = m.getAttribute('content'); } }
+            fetch(createUrl, {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+                body: 'name=' + encodeURIComponent(name) + '&department_id=' + encodeURIComponent(deptId) + '&_token=' + encodeURIComponent(token)
+            }).then(function (r) { if (!r.ok) { throw r; } return r.json(); })
+              .then(function (d) {
+                  var o = document.createElement('option');
+                  o.value = d.id; o.textContent = d.name;
+                  if (extraSearch) { o.setAttribute('data-search', ''); }
+                  sel.appendChild(o);
+                  sel.value = String(d.id);
+                  window.CCTypeahead.rebuild(sel);   // re-lee opciones; el input refleja la seleccionada
+              })
+              .catch(function (err) {
+                  if (err && err.status === 403) { window.alert('No puedes crear puestos en ese departamento.'); }
+                  else { window.alert('No se pudo crear el puesto. Intenta de nuevo.'); }
+              });
         }
 
         input.addEventListener('focus', function () { open(); });
@@ -261,6 +319,17 @@
 
     window.CCTypeahead = {
         enhance: function (sel) { build(sel); },
+        // Reconstruye un typeahead cuyas <option> cambiaron (p. ej. el puesto se rellena por depto):
+        // tira el wrapper viejo y vuelve a construir leyendo las opciones actuales.
+        rebuild: function (sel) {
+            if (!sel) { return; }
+            var prev = sel.previousElementSibling;
+            if (prev && prev.classList && prev.classList.contains('cc-ta')) { prev.parentNode.removeChild(prev); }
+            sel.removeAttribute('data-ta');
+            sel.style.display = '';
+            sel.removeAttribute('aria-hidden');
+            build(sel);
+        },
         enhanceAll: function (root) {
             (root || document).querySelectorAll('select.js-typeahead').forEach(build);
         },

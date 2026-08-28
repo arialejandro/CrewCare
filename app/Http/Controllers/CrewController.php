@@ -62,15 +62,34 @@ class CrewController extends Controller
             ->when($lockedDeptId, function ($q) use ($lockedDeptId) { $q->where('id', $lockedDeptId); })
             ->orderBy('name')->get(['id', 'name']);
 
-        $positions = \App\Models\Position::whereNull('production_id')->where('active', 1)
+        $posRows = \App\Models\Position::whereNull('production_id')->where('active', 1)
             ->when($lockedDeptId, function ($q) use ($lockedDeptId) { $q->where('department_id', $lockedDeptId); })
-            ->orderBy('name')->get(['id', 'name', 'department_id']);
+            ->orderBy('rank')->orderBy('name')->get(['id', 'name', 'name_en', 'department_id']);
+
+        // Alias es/en por puesto → texto extra buscable (data-search del typeahead). Consulta única.
+        $aliasByPos = [];
+        foreach (\Illuminate\Support\Facades\DB::table('catalog_aliases')
+                     ->where('entity_type', 'position')->whereIn('entity_id', $posRows->pluck('id'))
+                     ->get(['entity_id', 'alias']) as $a) {
+            $aliasByPos[$a->entity_id][] = $a->alias;
+        }
+        $positions = $posRows->map(function ($p) use ($aliasByPos) {
+            return [
+                'id'            => $p->id,
+                'name'          => $p->name,
+                'department_id' => $p->department_id,
+                'search'        => trim(($p->name_en ?? '') . ' ' . implode(' ', $aliasByPos[$p->id] ?? [])),
+            ];
+        })->values();
+
+        // ¿Puede crear puestos desde el alta (Opción B)? Global o acotado por depto.
+        $canCreatePos = $viewer->can('catalogs.manage') || $viewer->can('catalogs.manage.own-department');
 
         // (2026-07-24) Selector de rol: sólo se pinta a quien pueda asignar roles. Quien no,
         // no ve el campo Y aunque lo mande por POST el store lo ignora (ver newuser()).
         $assignableRoles = auth()->user()->can('users.assign-role') ? self::ASSIGNABLE_ROLES : [];
 
-        return view('admin.newuser', compact('lockedDept', 'lockedDeptId', 'restricted', 'departments', 'positions', 'assignableRoles'));
+        return view('admin.newuser', compact('lockedDept', 'lockedDeptId', 'restricted', 'departments', 'positions', 'assignableRoles', 'canCreatePos'));
     }
 
     public function newuser(Request $request)

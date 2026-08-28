@@ -185,7 +185,11 @@ Si alguna vez estuvo rastreado, rota `APP_KEY`, `DB_PASSWORD`, `MAIL_PASSWORD` e
 - **Para BD ya poblada (§9):** gemelo owner-apply del esquema + `php artisan db:seed --class=CatalogFusionSeeder --force`.
 - **Reemplaza** la derivación de jefatura por regex y absorbe el `owner-apply/2026-07-18-catalog-sort-order` (el
   orden/rango los trae la fusión; ese delta ya **no** se aplica). Regla ESQUEMA-vs-DATOS escrita en §3.
-- **Suite: 856 verde.**
+- **F4 · vista admin + typeahead + permiso acotado:** vista `/catalogo` (gate `catalogs.view`/`catalogs.manage`),
+  typeahead del alta busca por es/en/**alias** y crea puestos en línea (Opción B). Permiso nuevo
+  **`catalogs.manage.own-department`** (crear puestos solo del depto propio) → sembrado a **hod** y **coordinator**;
+  en fresh lo trae `RolesAndPermissionsSeeder`, en **BD poblada**: `php artisan db:seed --class=CatalogOwnDeptPermissionSeeder --force` (§9) + `permission:cache-reset`. Consolidadores (`crew.view.all-departments`) crean en todos; `catalogs.manage` global (super-admin/line-producer) sigue igual.
+- **Suite: 868 verde.**
 
 ### Racha 2026-08-24 · Transportación · Bloque 1 · AJUSTES (borrador, licencia, is_towed, HEIC global)
 - **§1 Borrador del checklist:** 1 tabla nueva `vehicle_inspection_drafts` (guardado parcial en servidor, del
