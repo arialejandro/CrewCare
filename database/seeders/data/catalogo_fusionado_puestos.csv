@@ -1,0 +1,256 @@
+﻿origen,id_vivo,catalog_key,depto,dept_key,name_es,name_en,rank,binding,hod_capable,grade,existence,is_hod_vivo,usos,conflicto
+solo vivo,191,,ANDA,compliance,Delegada del A.N.D.A.,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo semilla,,catering.coordinator,Alimentación,catering,Coordinador de Alimentación,Catering Coordinator,10,unit,1,coordinator,core,,0,NUEVO desde semilla
+solo semilla,,catering.chef,Alimentación,catering,Chef,Head Chef,20,unit,0,key,core,,0,NUEVO desde semilla
+ambos,174,catering.craft_service,Alimentación,catering,Coordinador de Craft,Craft Service,30,unit,1,coordinator,core,1,1,
+solo vivo,177,,Alimentación,catering,Crew de Cocina,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,176,catering.crew,Alimentación,catering,Asst. Cafetero,Catering Crew,60,unit,0,operator,core,0,0,
+ambos,175,catering.crew,Alimentación,catering,Cafetero,Catering Crew,60,unit,0,operator,core,0,3,
+solo semilla,,set_dec.buyer,Ambientación,set_dec,Comprador de Ambientación,Set Dec Buyer,40,production,0,key,core,,0,NUEVO desde semilla
+ambos,182,medical.paramedic,Ambulancia,,Ambulancia,Paramedic,50,unit,0,operator,core,0,0,
+ambos,123,animals.head_trainer,Animales,animals,Animalero,Head Animal Trainer,10,unit,1,key,conditional,0,0,HOD difiere
+solo semilla,,animals.assistant,Animales,animals,Asistente Animalero,Animal Handler,50,unit,0,assistant,conditional,,0,NUEVO desde semilla
+solo vivo,86,,Arte,art,Asst. de Diseñador Gráfico,FALTA,10,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,78,,Arte,art,Director de Arte en Set,FALTA,10,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,85,,Arte,art,Diseñador Gráfico,FALTA,10,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,76,art.production_designer,Arte,art,Diseñador de Producción,Production Designer,10,production,1,manager,core,1,1,
+solo vivo,84,,Arte,art,Diseñador de Sets,FALTA,10,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo semilla,,art.supervising_art_director,Arte,art,Director de Arte Supervisor,Supervising Art Director,15,production,0,manager,conditional,,0,NUEVO desde semilla
+ambos,77,art.art_director,Arte,art,Director de Arte,Art Director,20,unit,1,manager,core,0,4,HOD difiere
+ambos,81,art.art_coordinator,Arte,art,Coordinador de Arte,Art Coordinator,30,production,1,coordinator,core,0,0,HOD difiere
+ambos,79,art.assistant_art_director,Arte,art,Asst. de Dirección de Arte,Assistant Art Director,40,unit,0,assistant,core,0,0,
+solo semilla,,art.set_designer,Arte,art,Dibujante de Arte,Set Designer,40,production,0,key,conditional,,0,NUEVO desde semilla
+solo semilla,,art.concept_artist,Arte,art,Ilustrador,Concept Artist,40,production,0,key,conditional,,0,NUEVO desde semilla
+solo vivo,87,,Arte,art,Artista Conceptual,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,82,,Arte,art,Asistente de Coord. de Arte,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,83,,Arte,art,Asistente de Oficina de Arte,FALTA,50,production,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,80,,Arte,art,Asst. de Diseño de Producción,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo semilla,,art.art_assistant,Arte,art,Asistente de Arte,Art PA,60,unit,0,assistant,core,,0,NUEVO desde semilla
+ambos,5,direction.first_ad,Asistentes de Dirección,direction,1er AD,First AD,20,unit,1,manager,core,1,1,
+ambos,6,direction.key_second_ad,Asistentes de Dirección,direction,Key 2nd AD,Key 2nd AD,30,unit,0,key,core,0,0,
+ambos,7,direction.second_ad,Asistentes de Dirección,direction,2nd AD,Second AD,40,unit,0,assistant,core,0,0,
+ambos,8,direction.third_ad,Asistentes de Dirección,direction,2nd 2nd AD,Second Second AD,50,unit,0,assistant,core,0,0,
+ambos,11,direction.set_pa,Asistentes de Dirección,direction,Cast PA,Set PA,60,unit,0,assistant,core,0,0,
+ambos,9,direction.set_pa,Asistentes de Dirección,direction,Key Set PA,Set PA,60,unit,0,assistant,core,0,0,
+ambos,10,direction.set_pa,Asistentes de Dirección,direction,Set PA,Set PA,60,unit,0,assistant,core,0,5,
+solo semilla,,welfare.studio_teacher,Bienestar de Menores,welfare,Maestro Tutor,Studio Teacher,10,unit,1,key,conditional,,0,NUEVO desde semilla
+solo semilla,,welfare.chaperone,Bienestar de Menores,welfare,Acompañante de Menores,Chaperone,50,unit,0,assistant,conditional,,0,NUEVO desde semilla
+ambos,153,casting.casting_director,Casting,casting,Director de Casting,Casting Director,10,production,1,manager,core,1,0,
+ambos,155,casting.casting_coordinator,Casting,casting,Coordinador de Casting,Casting Coordinator,30,production,1,coordinator,core,0,0,HOD difiere
+ambos,157,casting.cast_supervisor,Casting,casting,Supervisora de Elenco,Cast Supervisor,30,production,0,coordinator,core,0,0,
+solo vivo,156,,Casting,casting,Asistente de Casting,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,154,,Casting,casting,Asociado de Casting,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo semilla,,casting.extras_wrangler,Casting,casting,Wrangler de Extras,Background Wrangler,50,unit,0,assistant,core,,0,NUEVO desde semilla
+ambos,100,construction.coordinator,Construcción,construction,Constructor,Construction Coordinator,10,production,1,coordinator,core,1,1,
+ambos,101,construction.coordinator,Construcción,construction,Coordinador de Construcción,Construction Coordinator,10,production,1,coordinator,core,0,0,HOD difiere
+solo vivo,115,,Construcción,construction,Head Welder,FALTA,10,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,105,,Construcción,construction,Jefe de Carpintería,FALTA,10,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,107,,Construcción,construction,Jefe de Pintura Escénica,FALTA,10,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo semilla,,construction.paint_foreman,Construcción,construction,Jefe de Pintura,Paint Foreman,30,unit,0,key,core,,0,NUEVO desde semilla
+ambos,103,construction.foreman,Construcción,construction,Foreman,Construction Foreman,40,unit,0,key,core,0,0,
+solo vivo,111,,Construcción,construction,Apoyo Eventual de Construcción,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,109,,Construcción,construction,Asistente de Pintor Escénico,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,102,,Construcción,construction,Asst. Coord. Construcción,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,112,set_dec.warehouse,Construcción,construction,Bodeguero,Warehouse Manager,50,production,0,operator,core,0,0,
+solo vivo,110,,Construcción,construction,Compras de Construcción,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,114,,Construcción,construction,Gang Boss Welder,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,106,,Construcción,construction,Herrero,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,113,,Construcción,construction,Welder,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,104,construction.carpenter,Construcción,construction,Carpintero,Carpenter,60,unit,0,operator,core,0,5,
+ambos,108,construction.painter,Construcción,construction,Pintor,Painter,60,unit,0,operator,core,0,0,
+ambos,169,accounting.accountant,Contabilidad,accounting,Contador de Producción,Production Accountant,10,production,1,manager,core,1,1,
+solo vivo,171,,Contabilidad,accounting,Contador Fiscal,FALTA,20,production,0,,core,0,1,PROPUESTO: rank/binding/name_en
+solo semilla,,accounting.first_assistant,Contabilidad,accounting,1er Asistente Contable,First Assistant Accountant,40,production,0,key,core,,0,NUEVO desde semilla
+ambos,173,accounting.assistant,Contabilidad,accounting,Asistente de Contabilidad,Assistant Accountant,50,production,0,assistant,core,0,0,
+ambos,170,accounting.assistant,Contabilidad,accounting,Asst. Contable,Assistant Accountant,50,production,0,assistant,core,0,0,
+solo vivo,172,,Contabilidad,accounting,Auxiliar de Contabilidad,FALTA,50,production,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo semilla,,accounting.payroll,Contabilidad,accounting,Nómina,Payroll Accountant,50,production,0,assistant,core,,0,NUEVO desde semilla
+ambos,37,video.dit,Cámara,camera,DIT,DIT,10,unit,1,key,core,0,0,HOD difiere
+ambos,32,camera.dop,Cámara,camera,Director de Fotografía,Director of Photography,10,unit,1,manager,core,1,1,
+solo vivo,39,,Cámara,camera,Asistente de DoP,FALTA,20,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,33,camera.operator,Cámara,camera,Operador de Cámara,Camera Operator,30,unit,0,key,core,0,6,
+solo semilla,,camera.steadicam,Cámara,camera,Operador de Steadicam,Steadicam Operator,30,unit,0,key,conditional,,0,NUEVO desde semilla
+ambos,34,camera.first_ac,Cámara,camera,1er AC,First AC,40,unit,0,key,core,0,0,
+ambos,38,video.data_manager,Cámara,camera,Data Manager,Data Manager,40,unit,0,operator,core,0,0,
+solo semilla,,camera.second_ac,Cámara,camera,2do Asistente de Cámara,Second AC,50,unit,0,assistant,core,,0,NUEVO desde semilla
+solo vivo,35,,Cámara,camera,2ndo AC,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo semilla,,camera.drone_operator,Cámara,camera,Operador de Drone,Drone Operator,50,unit,0,operator,conditional,,0,NUEVO desde semilla
+solo semilla,,camera.loader,Cámara,camera,Cargador,Loader,60,unit,0,assistant,conditional,,0,NUEVO desde semilla
+solo vivo,36,,Cámara,camera,Cámara PA,FALTA,60,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo semilla,,video.video_assist,DIT / Video,video,Video Assist,Video Assist,40,unit,0,operator,core,,0,NUEVO desde semilla
+ambos,88,set_dec.set_decorator,Decoración,set_dec,Decorador,Set Decorator,10,production,1,manager,core,1,1,
+solo vivo,94,,Decoración,set_dec,Apoyo Decorador en Set,FALTA,20,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,93,,Decoración,set_dec,Asistente Decorador en Set,FALTA,20,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,89,,Decoración,set_dec,Decorador en Set,FALTA,20,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,90,,Decoración,set_dec,Coordinador de Decoración,FALTA,30,production,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,96,set_dec.leadman,Decoración,set_dec,Leadman,Leadman,30,unit,0,key,core,0,0,
+solo vivo,98,,Decoración,set_dec,Asistente de Decoración,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,91,,Decoración,set_dec,Asst. Coord. de Decoración,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,99,set_dec.warehouse,Decoración,set_dec,Bodeguero,Warehouse Manager,50,production,0,operator,core,0,0,
+solo vivo,95,,Decoración,set_dec,Compras de Decoración,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,92,set_dec.on_set_dresser,Decoración,set_dec,Set Dresser,On-Set Dresser,50,unit,0,assistant,core,0,5,
+ambos,97,set_dec.swing_gang,Decoración,set_dec,Swing Gang,Swing Gang,60,unit,0,operator,core,0,0,
+ambos,1,direction.director,Dirección,direction,Director,Director,10,block,1,manager,core,1,1,
+ambos,3,direction.script_supervisor,Dirección,direction,Continuista,Script Supervisor,40,unit,0,key,core,0,0,
+solo vivo,2,,Dirección,direction,Asistente de Director,FALTA,50,unit,0,,core,0,2,PROPUESTO: rank/binding/name_en
+solo vivo,4,,Dirección,direction,Asst. Continuista,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,150,sfx.supervisor,Efectos Especiales,sfx,Supervisor de Efectos Especiales,SFX Supervisor,10,unit,1,supervisor,conditional,1,1,
+solo semilla,,sfx.coordinator,Efectos Especiales,sfx,Coordinador de Efectos Especiales,SFX Coordinator,30,unit,1,coordinator,conditional,,0,NUEVO desde semilla
+solo vivo,152,,Efectos Especiales,sfx,Efectos Especiales Oficina,FALTA,50,production,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,151,sfx.technician,Efectos Especiales,sfx,Efectos Especiales,SFX Technician,60,unit,0,operator,conditional,0,2,
+ambos,164,vfx.supervisor,Efectos Visuales,vfx,Supervisor de VFX,VFX Supervisor,10,production,1,supervisor,conditional,1,0,
+ambos,163,vfx.producer,Efectos Visuales,vfx,Productor de VFX,VFX Producer,20,production,0,manager,conditional,1,0,HOD difiere
+solo vivo,165,,Efectos Visuales,vfx,Supervisor de VFX en Set,FALTA,20,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo semilla,,vfx.coordinator,Efectos Visuales,vfx,Coordinador de VFX,VFX Coordinator,30,production,1,coordinator,conditional,,0,NUEVO desde semilla
+solo semilla,,vfx.on_set_data,Efectos Visuales,vfx,Data Wrangler de VFX,VFX Data Wrangler,50,unit,0,assistant,conditional,,0,NUEVO desde semilla
+ambos,40,electric.gaffer,Eléctricos,electric,Gaffer,Gaffer,10,unit,1,manager,core,1,1,
+solo vivo,41,,Eléctricos,electric,Supervisor de Eléctricos,FALTA,20,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo semilla,,electric.best_boy,Eléctricos,electric,Best Boy Electric,Best Boy Electric,30,unit,0,key,core,,0,NUEVO desde semilla
+ambos,43,electric.board_op,Eléctricos,electric,Operador de Consola,Board Operator,50,unit,0,operator,core,0,0,
+ambos,42,electric.technician,Eléctricos,electric,Eléctrico,Set Lighting Technician,60,unit,0,operator,core,0,5,
+solo semilla,,electric.genny_operator,Eléctricos,electric,Operador de Planta,Genny Operator,60,unit,0,operator,core,,0,NUEVO desde semilla
+ambos,200,grip.dolly_grip,Equipo,,Dolly,Dolly Grip,40,unit,0,key,core,0,0,
+solo vivo,198,,Equipo,,Asistente/Luces,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,201,,Equipo,,Cabeza Remota,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,197,,Equipo,,Móvil Alpha,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,199,,Equipo,,Planta Set,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,28,executive.showrunner,Escritores,writers,Creador/Escritor,Showrunner,5,production,1,manager,core,1,0,
+ambos,29,writers.writer,Escritores,writers,Escritor,Writer,30,block,0,,core,0,0,
+ambos,30,writers.script_coordinator,Escritores,writers,Coordinador de Guiones,Script Coordinator,40,production,0,coordinator,core,0,0,
+solo vivo,31,,Escritores,writers,Storyboardista,FALTA,50,production,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,158,,Extras,casting,Director de Casting de Extras,FALTA,10,unit,1,,core,1,0,PROPUESTO: rank/binding/name_en
+ambos,159,casting.extras_coordinator,Extras,casting,Coordinador de Extras,Extras Casting,30,unit,1,coordinator,core,0,0,HOD difiere
+ambos,44,grip.key_grip,Grips,grip,Key Grip,Key Grip,10,unit,1,manager,core,1,1,
+ambos,47,grip.dolly_grip,Grips,grip,Dolly Grip,Dolly Grip,40,unit,0,key,core,0,0,
+solo vivo,46,,Grips,grip,Grip Asst.,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,45,grip.grip,Grips,grip,Grip,Grip,60,unit,0,operator,core,0,5,
+solo semilla,,writers.head_writer,Guion,writers,Jefe de Guion,Head Writer,10,production,1,manager,core,,0,NUEVO desde semilla
+solo semilla,,greens.greensman,Jardinería de Escena,greens,Jardinero de Escena,Greensman,10,unit,1,key,conditional,,0,NUEVO desde semilla
+solo semilla,,greens.greens_assistant,Jardinería de Escena,greens,Asistente de Jardinería,Greens Assistant,50,unit,0,assistant,conditional,,0,NUEVO desde semilla
+solo vivo,126,,Locaciones,locations,Gerente Asst. de Locaciones,FALTA,10,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,125,locations.manager,Locaciones,locations,Gerente de Locaciones,Location Manager,10,unit,1,manager,core,1,1,
+solo vivo,132,,Locaciones,locations,Gerente de Soporte de Locaciones,FALTA,10,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo semilla,,locations.key_assistant,Locaciones,locations,Asistente Clave de Locaciones,Key Assistant Location Manager,30,unit,0,key,core,,0,NUEVO desde semilla
+solo vivo,128,,Locaciones,locations,Asst. Coordinador de Locaciones,FALTA,30,production,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,127,locations.coordinator,Locaciones,locations,Coordinador de Locaciones,Locations Coordinator,30,production,1,coordinator,core,0,0,HOD difiere
+ambos,137,locations.scout,Locaciones,locations,Scouter,Location Scout,40,production,0,key,core,0,0,
+solo vivo,134,,Locaciones,locations,Apoyo de Limpieza,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,129,locations.assistant,Locaciones,locations,Asst. de Locaciones,Assistant Location Manager,50,unit,0,assistant,core,0,6,
+solo vivo,130,,Locaciones,locations,P.A. de Locaciones,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,136,,Locaciones,locations,Personal de Loc.,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,131,locations.support,Locaciones,locations,Apoyo de Locaciones,Locations Support,60,unit,0,operator,core,0,0,
+ambos,135,locations.support,Locaciones,locations,Encargado de Basecamp,Locations Support,60,unit,0,operator,core,0,0,
+ambos,133,locations.support,Locaciones,locations,Soporte de Locaciones,Locations Support,60,unit,0,operator,core,0,0,
+solo vivo,57,,Maquillaje y Peinados,hmu,Diseñador de M&P,FALTA,10,unit,1,,core,1,1,PROPUESTO: rank/binding/name_en
+solo semilla,,hmu.makeup_designer,Maquillaje y Peinados,hmu,Diseñador de Maquillaje,Makeup Department Head,10,production,1,manager,core,,0,NUEVO desde semilla
+solo semilla,,hmu.hair_designer,Maquillaje y Peinados,hmu,Jefe de Peinados,Hair Department Head,10,production,1,manager,core,,0,NUEVO desde semilla
+solo vivo,58,,Maquillaje y Peinados,hmu,Coordinador MU&H,FALTA,30,production,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo semilla,,hmu.coordinator,Maquillaje y Peinados,hmu,Coordinador de M&P,HMU Coordinator,30,production,1,coordinator,core,,0,NUEVO desde semilla
+solo semilla,,hmu.key_makeup,Maquillaje y Peinados,hmu,Key de Maquillaje,Key Makeup Artist,40,unit,0,key,core,,0,NUEVO desde semilla
+solo semilla,,hmu.key_hair,Maquillaje y Peinados,hmu,Key de Peinados,Key Hair Stylist,40,unit,0,key,core,,0,NUEVO desde semilla
+solo semilla,,hmu.sfx_makeup,Maquillaje y Peinados,hmu,Maquillaje de Efectos,SFX Makeup Artist,40,unit,0,key,conditional,,0,NUEVO desde semilla
+solo vivo,61,,Maquillaje y Peinados,hmu,Apoyo M&P,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,59,hmu.makeup_artist,Maquillaje y Peinados,hmu,Asst. Maquillaje,Makeup Artist,50,unit,0,assistant,core,0,4,
+ambos,60,hmu.hair_stylist,Maquillaje y Peinados,hmu,Asst. Peinados,Hair Stylist,50,unit,0,assistant,core,0,0,
+solo vivo,162,,Música,,Supervisora de Música,FALTA,20,unit,1,,core,1,0,PROPUESTO: rank/binding/name_en
+solo vivo,19,,Oficina de Producción,production,Asst. de Coordinador de Viajes,FALTA,30,production,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,16,production.coordinator,Oficina de Producción,production,Coordinador de Producción,Production Coordinator,30,production,1,coordinator,core,1,1,
+ambos,17,production.apoc,Oficina de Producción,production,APOC,APOC,40,production,0,assistant,core,0,3,
+ambos,18,production.travel_coordinator,Oficina de Producción,production,Coordinador de Viajes,Travel Coordinator,40,production,0,coordinator,core,0,0,
+solo vivo,21,,Oficina de Producción,production,Recepción de Oficina,FALTA,50,production,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,20,production.office_pa,Oficina de Producción,production,Asst. de Oficina de Producción,Office PA,60,production,0,assistant,core,0,0,
+solo vivo,194,,Otros,,Coordinadora de Intimidad,FALTA,30,production,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,193,,Otros,,Coach de Dialecto,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,196,camera.stills,Otros,,Foto Fija,Stills Photographer,50,unit,0,key,core,0,0,
+solo vivo,195,,Otros,,Intérprete de Señas,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,192,stunts.performer,Otros,,Doble,Stunt Performer,60,unit,0,operator,conditional,0,0,
+ambos,148,picture_cars.coordinator,Picture Cars,picture_cars,Coordinador de Picture Cars,Picture Car Coordinator,10,unit,1,coordinator,conditional,0,0,HOD difiere
+ambos,147,picture_cars.coordinator,Picture Cars,picture_cars,Jefa de Picture Cars,Picture Car Coordinator,10,unit,1,coordinator,conditional,1,0,
+ambos,149,picture_cars.assistant,Picture Cars,picture_cars,Asst. de Picture Cars,Picture Car Assistant,50,unit,0,assistant,conditional,0,0,
+solo semilla,,picture_cars.driver,Picture Cars,picture_cars,Conductor de Action Cars,Action Car Driver,60,unit,0,operator,conditional,,0,NUEVO desde semilla
+ambos,166,post.supervisor,Post Producción,post,Supervisor de Postproducción,Post Supervisor,10,production,1,supervisor,core,1,0,
+ambos,167,post.coordinator,Post Producción,post,Coordinador de Postproducción,Post Coordinator,30,production,1,coordinator,core,0,0,HOD difiere
+ambos,168,post.assistant_editor,Post Producción,post,Asistente de Postproducción,Assistant Editor,50,production,0,assistant,core,0,0,
+solo semilla,,post.editor,Postproducción,post,Editor,Editor,20,production,0,key,core,,0,NUEVO desde semilla
+solo semilla,,publicity.unit_publicist,Prensa / EPK,publicity,Prensa de Unidad,Unit Publicist,10,production,1,manager,conditional,,0,NUEVO desde semilla
+solo semilla,,publicity.epk,Prensa / EPK,publicity,EPK,EPK Crew,40,unit,0,key,conditional,,0,NUEVO desde semilla
+solo vivo,15,,Producción,production,Asst. Gerente de Unidad,FALTA,10,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,13,production.upm,Producción,production,Gerente de Producción,Unit Production Manager,10,unit,1,manager,core,0,1,HOD difiere
+ambos,14,production.unit_manager,Producción,production,Gerente de Unidad,Unit Manager,20,unit,1,manager,core,0,3,HOD difiere
+ambos,12,executive.line_producer,Producción,production,Productor en Línea,Line Producer,25,production,0,manager,core,1,1,HOD difiere
+solo semilla,,production.production_assistant,Producción,production,Asistente de Producción,Production Assistant,60,unit,0,assistant,core,,0,NUEVO desde semilla
+solo semilla,,executive.producer,Producción Ejecutiva,executive,Productor,Producer,20,production,0,manager,core,,0,NUEVO desde semilla
+solo semilla,,executive.co_producer,Producción Ejecutiva,executive,Coproductor,Co-Producer,30,production,0,,core,,0,NUEVO desde semilla
+solo vivo,24,,Productores,executive,Jefa de Equipo,FALTA,10,production,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,22,executive.executive_producer,Productores,executive,Productor Ejecutivo,Executive Producer,10,production,1,manager,core,1,0,
+solo vivo,27,,Productores,executive,Coordinador Ejecutivo,FALTA,30,production,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,26,executive.exec_assistant,Productores,executive,Asistente Ejecutivo,Executive Assistant,50,production,0,assistant,core,0,0,
+solo vivo,23,,Productores,executive,Coord. Ejecutivo,FALTA,50,production,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,25,,Productores,executive,Ejecutivo Creativo,FALTA,50,production,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,202,,Productores,executive,Representante Legal,FALTA,50,production,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo semilla,,props.prop_master,Props / Utilería,props,Jefe de Props,Property Master,10,unit,1,manager,core,,0,NUEVO desde semilla
+solo semilla,,props.armorer,Props / Utilería,props,Armero,Armorer,40,unit,0,key,conditional,,0,NUEVO desde semilla
+solo semilla,,props.assistant_props,Props / Utilería,props,Asistente de Props,Assistant Props,50,unit,0,assistant,core,,0,NUEVO desde semilla
+ambos,48,electric.rigging_gaffer,Rigging,,Rigging Gaffer,Rigging Gaffer,20,unit,0,manager,conditional,1,0,HOD difiere
+ambos,49,grip.rigging_key,Rigging,,Rigging Key Grip,Rigging Key Grip,20,unit,0,manager,conditional,1,0,HOD difiere
+solo vivo,50,,Rigging,,Electric (rigging),FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,51,,Rigging,,Grip (rigging),FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,178,medical.department_lead,Salud y Seguridad,medical,Supervisor de Salud y Seguridad,Health & Safety Lead,10,unit,1,,core,1,2,
+ambos,180,medical.set_medic,Salud y Seguridad,medical,Doctor en Set,Set Medic,30,unit,0,key,core,0,0,
+solo semilla,,medical.covid_officer,Salud y Seguridad,medical,Oficial de Protocolos,Compliance Officer,40,unit,0,key,conditional,,0,NUEVO desde semilla
+ambos,179,medical.assistant,Salud y Seguridad,medical,Asistente de S&S,H&S Assistant,50,unit,0,assistant,core,0,2,
+solo vivo,181,,Salud y Seguridad,medical,Doctor de Construcción,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,188,security.coordinator,Seguridad,security,Coordinador de Seguridad,Security Coordinator,10,unit,1,coordinator,core,1,0,
+solo vivo,189,,Seguridad,security,Coordinador HG,FALTA,30,production,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,190,,Seguridad,security,Elemento de Seguridad HG,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo semilla,,security.guard,Seguridad,security,Elemento de Seguridad,Security Guard,60,unit,0,operator,core,,0,NUEVO desde semilla
+solo semilla,,compliance.crew_union_rep,Sindicatos y Cumplimiento,compliance,Delegado Sindical,Crew Union Rep,10,unit,1,key,jurisdictional,,0,NUEVO desde semilla
+solo semilla,,compliance.talent_union_rep,Sindicatos y Cumplimiento,compliance,Delegado del ANDA,Talent Union Rep,10,unit,1,key,jurisdictional,,0,NUEVO desde semilla
+solo semilla,,compliance.localizer,Sindicatos y Cumplimiento,compliance,Tropicalizador,Localization Advisor,30,production,0,coordinator,jurisdictional,,0,NUEVO desde semilla
+ambos,52,sound.mixer,Sonido,sound,Sonido Directo,Production Sound Mixer,10,unit,1,manager,core,1,1,
+ambos,53,sound.boom_operator,Sonido,sound,Operador de Boom,Boom Operator,40,unit,0,key,core,0,2,
+ambos,54,sound.utility,Sonido,sound,Utility,Sound Utility,50,unit,0,assistant,core,0,0,
+ambos,160,stunts.coordinator,Stunts,stunts,Coordinador de Stunts,Stunt Coordinator,10,unit,1,coordinator,conditional,1,1,
+solo semilla,,stunts.rigger,Stunts,stunts,Rigger de Stunts,Stunt Rigger,40,unit,0,key,conditional,,0,NUEVO desde semilla
+ambos,161,stunts.performer,Stunts,stunts,Stunt,Stunt Performer,60,unit,0,operator,conditional,0,3,
+ambos,184,sustainability.lead,Sustentabilidad,sustainability,Coordinador de Sustentabilidad,Sustainability Lead,10,production,1,,conditional,0,0,HOD difiere
+ambos,183,sustainability.lead,Sustentabilidad,sustainability,Jefa de Sustentabilidad,Sustainability Lead,10,production,1,,conditional,1,0,
+solo vivo,187,,Sustentabilidad,sustainability,Greener Adicional en Set,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,185,sustainability.eco_pa,Sustentabilidad,sustainability,Encargado de Logística Greener,Eco PA,60,unit,0,assistant,conditional,0,0,
+ambos,186,sustainability.eco_pa,Sustentabilidad,sustainability,Greener en Set,Eco PA,60,unit,0,assistant,conditional,0,0,
+solo semilla,,grip.best_boy,Tramoya / Grip,grip,Best Boy Grip,Best Boy Grip,30,unit,0,key,core,,0,NUEVO desde semilla
+solo semilla,,grip.crane_operator,Tramoya / Grip,grip,Operador de Grúa,Crane Operator,50,unit,0,operator,conditional,,0,NUEVO desde semilla
+ambos,138,transport.coordinator,Transportación,transport,Coordinador de Transporte,Transportation Coordinator,10,unit,1,coordinator,core,1,1,
+solo vivo,143,,Transportación,transport,Contador de Transporte,FALTA,20,production,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,139,transport.captain,Transportación,transport,Capitán de Transporte,Transportation Captain,30,unit,0,key,core,0,0,
+ambos,140,transport.captain,Transportación,transport,Co Capitán de Transporte,Transportation Captain,30,unit,0,key,core,0,0,
+ambos,141,transport.dispatcher,Transportación,transport,Dispatcher,Dispatcher,40,unit,0,operator,core,0,0,
+solo vivo,142,,Transportación,transport,Asistente de Coord. de Transporte,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,144,,Transportación,transport,Asistente de Transportación,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,146,transport.driver,Transportación,transport,Chofer,Driver,60,unit,0,operator,core,0,8,
+solo vivo,145,,Transportación,transport,Trainee de Transportación,FALTA,60,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,116,,Utilería,props,Jefe de Utilería,FALTA,10,unit,1,,core,1,1,PROPUESTO: rank/binding/name_en
+solo vivo,124,,Utilería,props,Coordinador de Utilería,FALTA,30,production,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,122,,Utilería,props,Apoyo Eventual de Utilería,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,118,,Utilería,props,Asistente de Utilería,FALTA,50,unit,0,,core,0,3,PROPUESTO: rank/binding/name_en
+solo vivo,119,,Utilería,props,Asistente de Utilería en Set,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,121,,Utilería,props,Bodeguero Props,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,120,,Utilería,props,Compras de Utilería en Set,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,117,,Utilería,props,Utilería en Set,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,63,,Vestuario,costume,Asst. Diseñador,FALTA,10,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,73,,Vestuario,costume,Diseñador Gráfico de Vestuario,FALTA,10,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,62,costume.costume_designer,Vestuario,costume,Diseñador de Vestuario,Costume Designer,10,production,1,manager,core,1,1,
+solo vivo,71,,Vestuario,costume,Jefa de Taller de Costura,FALTA,10,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,64,costume.supervisor,Vestuario,costume,Supervisor de Vestuario,Costume Supervisor,20,production,1,supervisor,core,0,0,HOD difiere
+solo vivo,66,,Vestuario,costume,Asst. Coordinador de Vestuario,FALTA,30,production,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,65,costume.coordinator,Vestuario,costume,Coordinador de Vestuario,Costume Coordinator,30,production,1,coordinator,core,0,0,HOD difiere
+ambos,68,costume.key_costumer,Vestuario,costume,Vestuarista,Key Costumer,40,unit,0,key,core,0,5,
+ambos,69,costume.assistant,Vestuario,costume,Asistente de Vestuario,Costume Assistant,50,unit,0,assistant,core,0,0,
+solo vivo,74,,Vestuario,costume,Asst. de Compras de Vestuario,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+ambos,67,costume.buyer,Vestuario,costume,Comprador de Vestuario,Costume Buyer,50,production,0,key,core,0,0,
+ambos,72,costume.tailor,Vestuario,costume,Costurero,Tailor,60,production,0,operator,core,0,0,
+solo semilla,,costume.ager_dyer,Vestuario,costume,Envejecedor,Ager/Dyer,60,production,0,operator,conditional,,0,NUEVO desde semilla
+ambos,70,costume.tailor,Vestuario,costume,Jefa de Sastrería,Tailor,60,production,0,operator,core,0,0,
+ambos,75,costume.tailor,Vestuario,costume,Sastre,Tailor,60,production,0,operator,core,0,0,
+solo vivo,56,,"Video Assist, DIT y Data",,Asistente de Video,FALTA,50,unit,0,,core,0,0,PROPUESTO: rank/binding/name_en
+solo vivo,55,,"Video Assist, DIT y Data",,Operador de VTR,FALTA,50,unit,1,,core,1,0,PROPUESTO: rank/binding/name_en

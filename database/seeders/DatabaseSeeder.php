@@ -55,6 +55,7 @@ class DatabaseSeeder extends Seeder
 
             // ── Estructura organizacional + produccion + primer super-admin ──
             OrgCatalogSeeder::class,                   // departments/positions globales (production_id NULL)
+            CatalogFusionSeeder::class,                // FUSIÓN semilla+vivo: catalog_key/rank/binding/hod_capable/grade + alias (delta #114)
             ProductionDemoSeeder::class,               // la fila de produccion de la instancia (nombre por env)
             InstallAdminSeeder::class,                 // 1er super-admin idempotente (creds por env)
 

@@ -87,6 +87,15 @@ php artisan db:seed --force
 herramientas/permisos, medicamentos, ambulancias, **vehículos** (13 tipos/50 puntos), tipos de documento), la **fila de producción** y el **primer
 super-admin**. **No** encadena los seeders de demo (ver §6).
 
+> **📐 Regla ESQUEMA vs DATOS (obligatoria):**
+> - **Esquema** (ALTER / CREATE TABLE) → **migración + gemelo owner-apply**. Un ALTER hay que poder aplicarlo a
+>   una base **ya viva** (por eso el gemelo, ver §9).
+> - **Datos de catálogo** (departamentos, puestos, normas, herramientas…) → **seeder idempotente** con el **CSV
+>   como fuente de verdad**. Nunca INSERT a mano: 255 líneas escritas a pulso se **desincronizan del CSV** a la
+>   primera corrección. Precedente: `ToolPermitCatalogSeeder`, `ResolveParkedStandardsSeeder`, `CatalogFusionSeeder`.
+>   Los CSV viven **versionados** en `database/seeders/data/`; si el catálogo se corrige, se corrige el **CSV** y
+>   se **re-siembra** (`db:seed --class=… --force`).
+
 > ⚠️ **No corras `migrate` en tu LOCAL** (`crewcare`): ahí aplicaste los deltas a mano, la tabla `migrations`
 > está atrasada y `migrate` intentaría re-crear columnas existentes. Esto de arriba es **solo para el servidor
 > nuevo con BD vacía**.
@@ -157,11 +166,26 @@ Si alguna vez estuvo rastreado, rota `APP_KEY`, `DB_PASSWORD`, `MAIL_PASSWORD` e
   Nunca `migrate` en local.
 - **Producción (BD nueva):** `migrate --force` + `db:seed --force`. Nunca a mano SQL-por-SQL.
 - **Producción ya poblada que parchas en sitio** (caso raro): aplicas solo los owner-apply que esa BD aún no
-  tiene, en el orden de dependencia de `database/README.md`, + `permission:cache-reset`.
+  tiene, en el orden de dependencia de `database/README.md`, + `permission:cache-reset`, + los **seeders de
+  catálogo idempotentes** que la racha indique (p. ej. `php artisan db:seed --class=CatalogFusionSeeder --force`).
 
 ---
 
 ## 10 · Cambios por racha (más reciente arriba)
+
+### Racha 2026-08-27 · Catálogo organizacional FUSIONADO (semilla declarada + vivo) · delta #114
+- **Esquema (migración `2026_08_27_000001` + gemelo `owner-apply/2026-08-27-catalog-fusion-schema.sql`):**
+  `positions` +6 columnas (`catalog_key`, `rank`, `binding`, `hod_capable`, `grade`, `existence`) y `departments`
+  +3 (`catalog_key`, `existence`, `account_hint`), + 2 tablas nuevas (`catalog_aliases`, `catalog_ambiguous_aliases`).
+  Deploy fresco: entran solas con `migrate`. BD ya poblada: aplica el gemelo owner-apply (§9).
+- **Datos por SEEDER (no SQL a mano):** `CatalogFusionSeeder` **ya encadenado** en `DatabaseSeeder` → corre con
+  `db:seed`. Fusiona semilla+vivo: **48 departamentos / 255 puestos** (los 202 vivos conservan su **id numérico y
+  sus asignaciones**; 53 puestos y 4 departamentos nuevos), + 1154 alias es/en + 2 alias ambiguos con su regla.
+  Fuente de verdad = CSV versionados en `database/seeders/data/`. **Idempotente** (2× no duplica).
+- **Para BD ya poblada (§9):** gemelo owner-apply del esquema + `php artisan db:seed --class=CatalogFusionSeeder --force`.
+- **Reemplaza** la derivación de jefatura por regex y absorbe el `owner-apply/2026-07-18-catalog-sort-order` (el
+  orden/rango los trae la fusión; ese delta ya **no** se aplica). Regla ESQUEMA-vs-DATOS escrita en §3.
+- **Suite: 856 verde.**
 
 ### Racha 2026-08-24 · Transportación · Bloque 1 · AJUSTES (borrador, licencia, is_towed, HEIC global)
 - **§1 Borrador del checklist:** 1 tabla nueva `vehicle_inspection_drafts` (guardado parcial en servidor, del
