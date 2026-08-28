@@ -97,4 +97,49 @@ class TransportPreloadTest extends QaTestCase
 
         $this->assertSame(0, TransportPreload::into($order));   // ningún vehículo con nadie → sin corrida vacía
     }
+
+    public function test_base_desmarcada_sale_del_efectivo(): void
+    {
+        $pid    = (int) DB::table('productions')->value('id');
+        $deptId = (int) DB::table('departments')->where('active', 1)->value('id');
+        $basePos = $this->pos($deptId, 'QA Base2');
+        DB::table('transport_position_config')->insert([
+            'production_id' => $pid, 'position_id' => $basePos, 'is_leadership' => 0,
+            'always_pickup' => 1, 'is_active' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $u = $this->crewIn($pid, $deptId, $basePos);
+
+        // Sin fila de marca → la base entra por default.
+        $this->assertContains($u, TransportPreload::effectiveUserIds($pid));
+
+        // Desmarcada (is_marked=0) → sale, aunque sea base ("el director maneja su coche").
+        DB::table('transport_pickup_marks')->insert([
+            'production_id' => $pid, 'user_id' => $u, 'is_marked' => 0, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->assertNotContains($u, TransportPreload::effectiveUserIds($pid));
+    }
+
+    public function test_savepeople_guarda_la_marca_sparse(): void
+    {
+        $this->actingAsRole('super-admin');
+        $pid  = (int) DB::table('productions')->value('id');
+        $u    = $this->makeUser('crew')->id;
+        $date = now()->toDateString();
+
+        // No-base marcado → is_marked=1.
+        $this->post(route('callsheet.people.save', ['date' => $date]), ['person' => [$u => ['pickup_mark' => '1']]])->assertRedirect();
+        $this->assertDatabaseHas('transport_pickup_marks', ['production_id' => $pid, 'user_id' => $u, 'is_marked' => 1]);
+
+        // No-base desmarcado → default fuera → sin fila. (El form real siempre manda los campos de
+        // horario presentes; el checkbox sin marcar simplemente no llega.)
+        $this->post(route('callsheet.people.save', ['date' => $date]), ['person' => [$u => ['sched_literal' => '']]])->assertRedirect();
+        $this->assertDatabaseMissing('transport_pickup_marks', ['production_id' => $pid, 'user_id' => $u]);
+    }
+
+    public function test_people_compila_con_la_columna(): void
+    {
+        $this->actingAsRole('super-admin');
+        $this->get(route('callsheet.people', ['date' => now()->toDateString()]))
+            ->assertOk()->assertSee('cs-pick-all', false);
+    }
 }

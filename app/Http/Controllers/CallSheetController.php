@@ -1053,14 +1053,23 @@ class CallSheetController extends Controller
         $prod = CurrentProduction::get();
         $ps   = ($prod && is_array($prod->settings)) ? $prod->settings : [];
 
+        $data = CallSheetEngine::forDay($request->user(), $day, false);
+        $rosterUids = collect($data['groups'] ?? [])
+            ->flatMap(fn ($g) => collect($g['people'] ?? [])->pluck('user_id'))
+            ->map(fn ($x) => (int) $x)->all();
+
         return view('admin.callsheet.people', [
             'day'        => $day,
             'dayLabel'   => ProductionCalendar::dayLabelWithTotal($day),
-            'data'       => CallSheetEngine::forDay($request->user(), $day, false),
+            'data'       => $data,
             'places'     => $this->activePlaces($pid),
             'hotelCodes' => $this->parseHotelCodes($ps['callsheet_hotels'] ?? ''),
             'dayPlayers' => $this->suggestedDayPlayers($pid, $day),
             'nav'        => $this->nav($day),
+            // Fase 3 · marcado "lleva pick up hoy": base (piso), efectivo (pre-check) y grupos de van.
+            'pickupBase'      => array_flip(\App\Support\TransportPreload::baseUserIds($pid)),
+            'pickupEffective' => array_flip(\App\Support\TransportPreload::effectiveUserIds($pid)),
+            'pickupGroups'    => \App\Support\TransportPreload::groupMap($pid, $rosterUids),
         ]);
     }
 
@@ -1092,10 +1101,18 @@ class CallSheetController extends Controller
             'person.*.pickup_place_id'  => ['nullable', 'integer'],
             'person.*.hotel'            => ['nullable', 'string', 'max:24'],
             'person.*.meal'             => ['nullable', 'boolean'],
+            'person.*.pickup_mark'      => ['nullable', 'boolean'],
         ]);
+
+        // Fase 3 · la BASE (always_pickup) entra por default; guardamos SOLO las excepciones.
+        $baseSet = array_flip(\App\Support\TransportPreload::baseUserIds($pid));
 
         foreach ($data['person'] ?? [] as $userId => $row) {
             $userId        = (int) $userId;
+
+            // Marca de pick up (independiente del horario): guarda solo la EXCEPCIÓN al default.
+            $this->savePickupMark($pid, $userId, (bool) ($row['pickup_mark'] ?? false), isset($baseSet[$userId]), $request->user()->id);
+
             $schedLiteral  = trim((string) ($row['sched_literal'] ?? ''));
             $schedTime     = $row['sched_time'] ?? null;
             $pickupLiteral = trim((string) ($row['pickup_literal'] ?? ''));
@@ -1130,6 +1147,24 @@ class CallSheetController extends Controller
 
         return redirect()->route('callsheet.people', ['date' => $day->toDateString()])
             ->with('success', 'Horarios por persona guardados.');
+    }
+
+    /**
+     * Guarda SOLO la excepción de la marca de pick up (Fase 3): la BASE entra por default, así que
+     * una base marcada o un no-base desmarcado NO dejan fila; la base desmarcada guarda is_marked=0 y
+     * el no-base marcado guarda is_marked=1. La tabla queda dispersa, como la de horarios.
+     */
+    private function savePickupMark(int $pid, int $userId, bool $checked, bool $isBase, ?int $by): void
+    {
+        if ($isBase === $checked) {                       // coincide con el default → sin fila
+            \App\Models\TransportPickupMark::where('production_id', $pid)->where('user_id', $userId)->delete();
+
+            return;
+        }
+        \App\Models\TransportPickupMark::updateOrCreate(
+            ['production_id' => $pid, 'user_id' => $userId],
+            ['is_marked' => $checked, 'marked_by_id' => $by]
+        );
     }
 
     // ============================ PARTE F · EL BACK EXPORTABLE (PDF) ============================

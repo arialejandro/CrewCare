@@ -20,25 +20,74 @@ use Illuminate\Support\Facades\DB;
  */
 class TransportPreload
 {
-    /** user_id (únicos) del conjunto efectivo: base (always_pickup) ∪ marcados. */
+    /** user_ids en puestos `always_pickup` (la BASE, el piso). */
+    public static function baseUserIds(?int $pid): array
+    {
+        if (! $pid) {
+            return [];
+        }
+        $basePos = TransportCrew::alwaysPickupPositionIds($pid);
+        if (! $basePos) {
+            return [];
+        }
+
+        return DB::table('production_user')->where('production_id', $pid)->whereIn('position_id', $basePos)
+            ->pluck('user_id')->map(fn ($x) => (int) $x)->unique()->values()->all();
+    }
+
+    /** Marcas EXPLÍCITAS: [user_id => bool]. Ausencia de fila = default (base dentro, resto fuera). */
+    public static function markRows(?int $pid): array
+    {
+        $out = [];
+        if ($pid) {
+            foreach (DB::table('transport_pickup_marks')->where('production_id', $pid)->get(['user_id', 'is_marked']) as $m) {
+                $out[(int) $m->user_id] = (bool) $m->is_marked;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Conjunto EFECTIVO: la BASE entra por default salvo que se haya DESMARCADO (is_marked=0), más
+     * cualquiera con marca explícita is_marked=1. La base es un piso fuerte, pero desmarcable
+     * (el día que el director maneje su coche, el sistema no pelea).
+     */
     public static function effectiveUserIds(?int $pid): array
     {
         if (! $pid) {
             return [];
         }
+        $marks = self::markRows($pid);
         $ids = [];
-
-        $basePos = TransportCrew::alwaysPickupPositionIds($pid);
-        if ($basePos) {
-            foreach (DB::table('production_user')->where('production_id', $pid)->whereIn('position_id', $basePos)->pluck('user_id') as $u) {
-                $ids[(int) $u] = true;
+        foreach (self::baseUserIds($pid) as $u) {
+            if (! array_key_exists($u, $marks) || $marks[$u]) {   // base: dentro salvo desmarcada
+                $ids[$u] = true;
             }
         }
-        foreach (DB::table('transport_pickup_marks')->where('production_id', $pid)->where('is_marked', 1)->pluck('user_id') as $u) {
-            $ids[(int) $u] = true;
+        foreach ($marks as $u => $on) {                            // marcada explícita: dentro
+            if ($on) {
+                $ids[$u] = true;
+            }
         }
 
         return array_keys($ids);
+    }
+
+    /** Mapa uid => [uids del mismo vehículo] para el marcado en GRUPO (marcar 1 → marca su van). */
+    public static function groupMap(?int $pid, array $userIds): array
+    {
+        $map = [];
+        foreach (self::groupByVehicle($pid, $userIds)['byVehicle'] as $uids) {
+            if (count($uids) < 2) {
+                continue;
+            }
+            foreach ($uids as $u) {
+                $map[$u] = array_values(array_diff($uids, [$u]));
+            }
+        }
+
+        return $map;
     }
 
     /**

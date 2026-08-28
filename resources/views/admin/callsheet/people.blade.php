@@ -42,6 +42,12 @@
     <form action="{{ route('callsheet.people.save', ['date' => $nav['dateStr']]) }}" method="POST">
         @csrf
         <datalist id="cs-hotel-codes">@foreach($hotelCodes as $hc)<option value="{{ $hc }}">@endforeach</datalist>
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+            <span class="small text-muted">Lleva pick up hoy:</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="cs-pick-base">Solo base</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="cs-pick-all">Marcar todos</button>
+            <span class="small text-muted">La base va resaltada; marcar a uno marca su van; desmarcar es por persona. Sugiere, no obliga.</span>
+        </div>
         <div class="cs-scroll">
             <table class="cs-ptable">
                 <thead>
@@ -49,12 +55,13 @@
                         <th>Puesto</th><th>Nombre</th><th>Estado</th>
                         <th>Llamado</th><th>Pick up</th><th>Lugar</th><th>Hotel</th>
                         <th title="Tenedor encendido = entra al conteo de comida" class="text-center">@include('componentes._icon', ['name' => 'utensils', 'class' => 'cc-ico', 'label' => 'Come'])</th>
+                        <th class="text-center" title="Lleva pick up hoy — marca (sugiere, no obliga). La base va resaltada.">Lleva</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($data['groups'] as $g)
                         @if(count($g['people']))
-                            <tr class="cs-deptband"><td colspan="8">{{ $g['label'] }}</td></tr>
+                            <tr class="cs-deptband"><td colspan="9">{{ $g['label'] }}</td></tr>
                             @foreach($g['people'] as $p)
                                 @php
                                     $sched = $p['schedule']; $pickup = $p['pickup'];
@@ -92,11 +99,17 @@
                                             @include('componentes._icon', ['name' => 'utensils', 'class' => 'cc-ico', 'label' => 'Come'])
                                         </label>
                                     </td>
+                                    <td class="text-center cs-pickcell {{ isset($pickupBase[$uid]) ? 'cs-pick-base' : '' }}">
+                                        <input type="checkbox" class="cs-pickmark" name="person[{{ $uid }}][pickup_mark]" value="1"
+                                               @checked(isset($pickupEffective[$uid])) data-uid="{{ $uid }}"
+                                               @if(!empty($pickupGroups[$uid])) data-group="{{ implode(',', $pickupGroups[$uid]) }}" @endif
+                                               title="{{ isset($pickupBase[$uid]) ? 'Base (piso). Desmárcala si hoy no lleva.' : 'Marca si lleva pick up hoy.' }}">
+                                    </td>
                                 </tr>
                             @endforeach
                         @endif
                     @empty
-                        <tr><td colspan="8" class="text-center text-muted py-4">Nadie en el roster de este día.</td></tr>
+                        <tr><td colspan="9" class="text-center text-muted py-4">Nadie en el roster de este día.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -154,6 +167,32 @@
             if (inp && !inp.disabled) inp.value = massTime.value;
         });
     });
+})();
+</script>
+@endpush
+
+@push('scripts')
+<style>
+    .cs-pick-base { background: rgba(79,70,229,.07); }
+    .cs-pick-base .cs-pickmark { outline: 2px solid rgba(79,70,229,.4); outline-offset: 1px; }
+</style>
+<script>
+(function () {
+    // Marcar a UNA persona marca su GRUPO de van (data-group). Desmarcar es POR PERSONA (no toca al grupo).
+    document.querySelectorAll('.cs-pickmark').forEach(function (cb) {
+        cb.addEventListener('change', function () {
+            if (!cb.checked) { return; }
+            (cb.dataset.group || '').split(',').filter(Boolean).forEach(function (uid) {
+                var other = document.querySelector('.cs-pickmark[data-uid="' + uid + '"]');
+                if (other) { other.checked = true; }
+            });
+        });
+    });
+    // Atajos de marcado: "solo base" y "marcar todos". La fuente sigue siendo la marca al guardar.
+    function setAll(pred) { document.querySelectorAll('.cs-pickmark').forEach(function (cb) { cb.checked = pred(cb); }); }
+    var b = document.getElementById('cs-pick-base'), a = document.getElementById('cs-pick-all');
+    b && b.addEventListener('click', function () { setAll(function (cb) { return cb.closest('.cs-pickcell').classList.contains('cs-pick-base'); }); });
+    a && a.addEventListener('click', function () { setAll(function () { return true; }); });
 })();
 </script>
 @endpush
