@@ -629,6 +629,10 @@
                         @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
                     </button>
                     <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                        <a href="{{ route('catalogo.index') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'building-2', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Catálogo organizacional') }}</span>
+                        </a>
                         <a href="{{ route('departamentocrud') }}" class="cc-item">
                             @include('componentes._icon', ['name' => 'building-2', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('nav.cat_departments') }}</span>
@@ -1112,6 +1116,10 @@
                             @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
                         </button>
                         <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                            <a href="{{ route('catalogo.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'building-2', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Catálogo organizacional') }}</span>
+                            </a>
                             <a href="{{ route('departamentocrud') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'building-2', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.cat_departments') }}</span>

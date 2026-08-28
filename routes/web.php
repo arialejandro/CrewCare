@@ -704,6 +704,26 @@ Route::middleware(['auth','permission:catalogs.view'])->group(function () {
     Route::get('/positionscrud',[App\Http\Controllers\PositionController::class,'positionscrud'])->name('positionscrud');
     Route::get('/notificacioncrud',[App\Http\Controllers\NotificationController::class,'notificacioncrud'])->name('notificacioncrud');
 });
+
+// ---- CATÁLOGO ORGANIZACIONAL · vista de administración FUSIONADA (delta #114) ----
+// Corrige el catálogo sin tocar la base: lista por depto (puestos por rango), toggle is_hod inline
+// (marca operativa, varias por depto), alta/edición de puesto y departamento, baja por desactivación.
+Route::middleware(['auth','permission:catalogs.view'])->group(function () {
+    Route::get('/catalogo', [App\Http\Controllers\CatalogAdminController::class, 'index'])->name('catalogo.index');
+});
+Route::middleware(['auth','permission:catalogs.manage'])->group(function () {
+    Route::post('/catalogo/puesto',               [App\Http\Controllers\CatalogAdminController::class, 'storePosition'])->name('catalogo.position.store');
+    Route::get ('/catalogo/puesto/{id}/editar',   [App\Http\Controllers\CatalogAdminController::class, 'editPosition'])->name('catalogo.position.edit')->whereNumber('id');
+    Route::post('/catalogo/puesto/{id}',          [App\Http\Controllers\CatalogAdminController::class, 'updatePosition'])->name('catalogo.position.update')->whereNumber('id');
+    Route::post('/catalogo/puesto/{id}/hod',      [App\Http\Controllers\CatalogAdminController::class, 'toggleHod'])->name('catalogo.position.hod')->whereNumber('id');
+    Route::post('/catalogo/puesto/{id}/baja',     [App\Http\Controllers\CatalogAdminController::class, 'deactivatePosition'])->name('catalogo.position.deactivate')->whereNumber('id');
+    Route::post('/catalogo/puesto/{id}/alta',     [App\Http\Controllers\CatalogAdminController::class, 'activatePosition'])->name('catalogo.position.activate')->whereNumber('id');
+    Route::post('/catalogo/departamento',             [App\Http\Controllers\CatalogAdminController::class, 'storeDepartment'])->name('catalogo.dept.store');
+    Route::get ('/catalogo/departamento/{id}/editar', [App\Http\Controllers\CatalogAdminController::class, 'editDepartment'])->name('catalogo.dept.edit')->whereNumber('id');
+    Route::post('/catalogo/departamento/{id}',        [App\Http\Controllers\CatalogAdminController::class, 'updateDepartment'])->name('catalogo.dept.update')->whereNumber('id');
+    Route::post('/catalogo/departamento/{id}/baja',   [App\Http\Controllers\CatalogAdminController::class, 'deactivateDepartment'])->name('catalogo.dept.deactivate')->whereNumber('id');
+    Route::post('/catalogo/departamento/{id}/alta',   [App\Http\Controllers\CatalogAdminController::class, 'activateDepartment'])->name('catalogo.dept.activate')->whereNumber('id');
+});
 Route::middleware(['auth','permission:catalogs.manage'])->group(function () {
     // Departamentos
     Route::post('/creardepartamento',[App\Http\Controllers\DepartmentController::class,'creardepartamento'])->name('creardepartamento');
