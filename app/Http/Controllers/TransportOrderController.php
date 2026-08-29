@@ -882,6 +882,8 @@ class TransportOrderController extends Controller
             'dayLocations'     => $dayLocations,
             'roster'           => $roster,
             'crew'             => $crew,
+            // Driver de la CORRIDA: TODO el depto de Transportación (sin filtrar por puesto), no los 150.
+            'corridaDrivers'   => \App\Support\TransportDrivers::departmentPicker($pid),
             'parties'          => $parties,
             'departments'      => $departments,
         ];

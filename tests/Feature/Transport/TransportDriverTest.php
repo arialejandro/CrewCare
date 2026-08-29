@@ -27,6 +27,32 @@ class TransportDriverTest extends VehicleVerticalTestCase
         return (int) $u->id;
     }
 
+    /** Alta de un miembro de transpo con un puesto ARBITRARIO (p. ej. capitán, no chofer). */
+    private function makeTransportMember(string $posCatalogKey): int
+    {
+        $u = $this->makeUser('crew');
+        $deptId = DB::table('departments')->where('catalog_key', 'transport')->value('id');
+        $posId  = DB::table('positions')->where('catalog_key', $posCatalogKey)->where('active', 1)->value('id');
+        DB::table('production_user')->insert([
+            'production_id' => CurrentProduction::id(), 'user_id' => $u->id,
+            'department_id' => $deptId, 'position_id' => $posId, 'role' => 'crew', 'is_lead' => 0,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        return (int) $u->id;
+    }
+
+    public function test_driver_de_corrida_es_todo_transpo_no_solo_choferes(): void
+    {
+        $captain = $this->makeTransportMember('transport.captain'); // capitán: NO chofer
+        $chofer  = $this->makeDriver();
+        $other   = $this->makeUser('crew')->id;                     // fuera de transpo
+
+        $ids = collect(TransportDrivers::departmentPicker(CurrentProduction::id()))->pluck('user_id')->all();
+        $this->assertContains($captain, $ids, 'el capitán de transpo SÍ puede ser driver de corrida');
+        $this->assertContains($chofer, $ids);
+        $this->assertNotContains($other, $ids, 'no salen los 150 del crew');
+    }
+
     public function test_solo_choferes_de_transpo_son_candidatos(): void
     {
         $driver = $this->makeDriver();

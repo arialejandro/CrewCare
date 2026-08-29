@@ -67,6 +67,37 @@ class TransportDrivers
         return $out;
     }
 
+    /**
+     * Para el driver de la CORRIDA (no del vehículo): TODO el depto de Transportación, SIN filtrar por
+     * puesto — puede ser un capitán, no sólo un chofer, pero igual es de transpo (lo que no debe pasar
+     * es que salgan los 150 del crew). @return array<int,array{user_id:int,name:string,cargo:?string}>
+     */
+    public static function departmentPicker(?int $pid): array
+    {
+        if (! $pid) {
+            return [];
+        }
+        $rows = DB::table('production_user as pu')
+            ->join('departments as d', 'd.id', '=', 'pu.department_id')
+            ->leftJoin('positions as p', 'p.id', '=', 'pu.position_id')
+            ->where('pu.production_id', $pid)
+            ->where('d.catalog_key', self::DEPT_KEY)
+            ->get(['pu.user_id', 'p.name as cargo']);
+        if ($rows->isEmpty()) {
+            return [];
+        }
+        $cargoBy = [];
+        foreach ($rows as $r) {
+            $cargoBy[(int) $r->user_id] = $r->cargo;
+        }
+        $out = [];
+        foreach (User::whereIn('id', array_keys($cargoBy))->orderBy('name')->get() as $u) {
+            $out[] = ['user_id' => (int) $u->id, 'name' => User::displayName($u), 'cargo' => $cargoBy[(int) $u->id] ?? null];
+        }
+
+        return $out;
+    }
+
     /** Si $driverId ya conduce OTRA unidad activa, devuelve ese Vehicle (para liberar + avisar). */
     public static function otherVehicleOf(?int $driverId, ?int $exceptVehicleId): ?Vehicle
     {

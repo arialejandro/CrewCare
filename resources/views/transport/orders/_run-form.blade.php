@@ -55,11 +55,14 @@
             @endforeach
         </select>
     </div>
+    {{-- Driver de la corrida: acotado a TODO el depto de Transportación (capitán o chofer), no a los 150.
+         Distinto del driver del VEHÍCULO, que sí filtra a puesto `driver`. --}}
     <div class="col-md-6">
         <label class="form-label small mb-0">{{ __('Conductor') }}</label>
+        @php $corridaDrivers = $corridaDrivers ?? []; @endphp
         <select name="driver_user_id" class="form-select form-select-sm cc-driver js-typeahead">
             <option value="">{{ __('Conductor…') }}</option>
-            @foreach ($crew as $c)
+            @foreach ($corridaDrivers as $c)
                 <option value="{{ $c['user_id'] }}" @selected($run && (int) $run->driver_user_id === (int) $c['user_id'])>{{ $c['name'] }}@if($c['cargo']) — {{ $c['cargo'] }}@endif</option>
             @endforeach
         </select>
