@@ -103,7 +103,7 @@ el porqué del cambio y su **reversión** (el `DROP` correspondiente, comentado)
 | 16 | `2026-07-16-sfx-effect-types` | **Crea `sfx_effect_types` y `consumable_sfx_effect_type`** (FK dura →`consumables` y →`sfx_effect_types`). |
 | 17 | `2026-07-17-consumables-sds16` | `consumables` +13 col HDS-16/GHS + UNIQUE `code`. |
 | 18 | `2026-07-17-consumables-soft-delete` | `consumables` +`deleted_at` (soft delete). |
-| 19 | `2026-07-18-catalog-sort-order` | UPDATE `departments`/`positions.sort_order` (orden del call sheet). |
+| 19 | `2026-07-18-catalog-sort-order` | ⛔ **SUPERSEDED por #114 + `CatalogFusionSeeder` (2026-08-28) — NO CORRER.** El bloque de PUESTOS pisaría el `sort_order` de la fusión (volverían los ceros); el de DEPARTAMENTOS ya se aplicó. No se borra por su historia. |
 | 20 | `2026-07-18-departments-animalero-equipo` | INSERT deptos/puestos + reasigna `sort_order`. **Correr tras #19.** |
 | 21 | `2026-07-18-effect-standard-bridge` | **Crea `effect_standard`** (FK dura →`sfx_effect_types` y →`safety_standards`). |
 | 22 | `2026-07-18-normas-eventos-verification` | `safety_standards`/`hazard_events` +`verified_at`/`verified_by_id` + sellado. **Antes del seeder de eventos nuevos.** |

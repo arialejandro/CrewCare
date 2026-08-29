@@ -185,6 +185,10 @@ Si alguna vez estuvo rastreado, rota `APP_KEY`, `DB_PASSWORD`, `MAIL_PASSWORD` e
 - **Para BD ya poblada (§9):** gemelo owner-apply del esquema + `php artisan db:seed --class=CatalogFusionSeeder --force`.
 - **Reemplaza** la derivación de jefatura por regex y absorbe el `owner-apply/2026-07-18-catalog-sort-order` (el
   orden/rango los trae la fusión; ese delta ya **no** se aplica). Regla ESQUEMA-vs-DATOS escrita en §3.
+- 🪤 **`owner-apply/2026-07-18-catalog-sort-order.sql` quedó ⛔ SUPERSEDED (2026-08-28), con nota en su cabecera
+  y en `database/README.md` (#19). NO CORRERLO:** su bloque de PUESTOS pisaría el `sort_order` que el seeder ya
+  pobló (volverían los ceros). El bloque de DEPARTAMENTOS ya se aplicó (por eso no se borra). El estado correcto
+  lo dejan #114 + `CatalogFusionSeeder`.
 - **F4 · vista admin + typeahead + permiso acotado:** vista `/catalogo` (gate `catalogs.view`/`catalogs.manage`),
   typeahead del alta busca por es/en/**alias** y crea puestos en línea (Opción B). Permiso nuevo
   **`catalogs.manage.own-department`** (crear puestos solo del depto propio) → sembrado a **hod** y **coordinator**;
