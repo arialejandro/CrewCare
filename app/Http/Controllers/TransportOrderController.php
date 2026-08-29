@@ -164,8 +164,57 @@ class TransportOrderController extends Controller
         $order->frozen_by_id    = $request->user()->id;
         $order->save();
 
+        // Fase 5: al CERRAR, el pick up refinado vuelve al back (y N/A a quien no lleva).
+        $this->syncCloseToBack($order);
+
         return redirect()->route('transport.order.show', $order)
             ->with('ok', 'Orden emitida: v' . $order->version . ' congelada.');
+    }
+
+    // ── Fase 5 · la vuelta al back + propuesta + contador ─────────────────────
+    /** Siembra el pick up de una corrida en el back. Best-effort: no bloquea la edición si algo falla. */
+    private function syncRunToBack(TransportOrder $order, TransportOrderRun $run): void
+    {
+        try {
+            \App\Support\TransportBackSync::seedRun($order, $run);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    /** Siembra todas las corridas + N/A al cerrar. Best-effort. */
+    private function syncCloseToBack(TransportOrder $order): void
+    {
+        try {
+            \App\Support\TransportBackSync::seedClose($order);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    /**
+     * PROPUESTA (§2): transpo ACEPTA a los efectivos marcados que aún no estaban en la orden. Crea sus
+     * corridas agrupadas por vehículo (reusa la precarga). No se agregan corridas solas: es un acto
+     * explícito de transpo.
+     */
+    public function acceptProposal(Request $request, TransportOrder $order)
+    {
+        $this->authorizeEdit($request, $order);
+
+        $pending = \App\Support\TransportPreload::proposal($order)['pending_ids'];
+        $made    = \App\Support\TransportPreload::intoUsers($order, $pending);
+
+        return back()->with('ok', $made > 0
+            ? ($made . ' corrida(s) agregada(s) desde la propuesta — edítalas o bórralas.')
+            : 'No hay marcados nuevos que agregar.');
+    }
+
+    /** Conteo de atención de transportación (JSON) para el poll del topbar. */
+    public function attentionCount(Request $request)
+    {
+        return response()->json([
+            'count' => \App\Support\TransportAttention::countForUser((int) $request->user()->id),
+        ]);
     }
 
     // ── PDF congelado (§1 · Capa 4) ──────────────────────────────────────────
@@ -426,12 +475,17 @@ class TransportOrderController extends Controller
             $discreetElig[$run->id] = TransportCrew::discreetEligible($run, (int) $order->production_id);
         }
 
+        // Fase 5: propuesta (marcados que faltan) + traslapes driver/vehículo — sólo tiene sentido en borrador.
+        $proposal = $order->isDraft() ? \App\Support\TransportPreload::proposal($order) : ['count' => 0, 'groups' => [], 'loose' => []];
+        $overlaps = $order->isDraft() ? \App\Support\TransportBackSync::overlaps($order) : [];
+
         return view('transport.orders.edit', array_merge(
             [
                 'order' => $order, 'canEdit' => $canEdit, 'diff' => $diff, 'legend' => $current['legend'],
                 'realAddrIds' => $realAddrIds, 'pickAddresses' => $pickAddresses,
                 'derived' => $derived, 'discreetElig' => $discreetElig, 'snapByKey' => $snapByKey,
                 'viewerIsFull' => TransportAccess::canFull($request->user()),
+                'proposal' => $proposal, 'overlaps' => $overlaps,
             ],
             $editor
         ));
@@ -453,6 +507,8 @@ class TransportOrderController extends Controller
         $run->sort_order = (int) $order->runs()->max('sort_order') + 1;
         $run->save();
 
+        $this->syncRunToBack($order, $run);   // Fase 5: la orden devuelve el pick up al back
+
         return back()->with('ok', 'Corrida agregada.');
     }
 
@@ -470,6 +526,8 @@ class TransportOrderController extends Controller
         $oldVehicleId = (int) $run->vehicle_id;
         $run->fill($this->runAttributes($data));
         $run->save();
+
+        $this->syncRunToBack($order, $run);   // Fase 5: al ajustar, el pick up refinado vuelve al back
 
         // Fase 4: mover una corrida INFORMA qué podría adelantarse en su(s) unidad(es). No mueve nada.
         $hint = $this->advanceHint($order, array_filter([$oldVehicleId, (int) $run->vehicle_id]));
@@ -578,6 +636,8 @@ class TransportOrderController extends Controller
         }
 
         $occ->save();
+
+        $this->syncRunToBack($order, $run);   // Fase 5: nuevo ocupante → siembra su pick up en el back
 
         // (SET) si este ocupante entra MÁS TEMPRANO que el resto, ADELANTA el pick up → avisa en pantalla.
         if ($run->run_class === TransportOrderRun::CLASS_SET && $occ->source === TransportRunOccupant::SOURCE_CREW && $occ->user_id) {

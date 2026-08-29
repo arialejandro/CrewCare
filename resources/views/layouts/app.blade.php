@@ -117,6 +117,9 @@
              sidebar ya esté renderizado cuando su JS recolecte los enlaces (RBAC). --}}
         @include('componentes._command-palette')
 
+        {{-- Transportación (Fase 5): poll liviano + toast del contador de atención (self-guarded). --}}
+        @auth @include('layouts._transport-notify') @endauth
+
         {{-- Per-page scripts (additive): views push their JS here, after the layout's
              own JS (Bootstrap 5 bundle, jQuery, Chart.js, app.js) so dependencies exist. --}}
         @stack('scripts')

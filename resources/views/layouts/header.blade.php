@@ -69,6 +69,16 @@
                 </span>
             </button>
 
+            {{-- Transportación (Fase 5): contador de atención (propuestas + traslapes). Sólo transpo/producción.
+                 El badge sube en vivo por poll (layouts._transport-notify); a 0 queda oculto. --}}
+            @if (($__truckShow ?? false))
+                <a class="cc-appbar__btn cc-appbar__btn--icon position-relative" href="{{ route('transport.order.index') }}"
+                   aria-label="{{ __('Transportación') }}" title="{{ __('Novedades de transportación') }}">
+                    @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-appbar__ico', 'label' => null])
+                    <span class="cc-appbar__badge" id="cc-truck-badge" style="{{ ($__truckCount ?? 0) > 0 ? '' : 'display:none' }}">{{ $__truckCount ?? 0 }}</span>
+                </a>
+            @endif
+
             {{-- Selector de idioma (ES/EN) — componente compartido. --}}
             <span class="cc-appbar__lang">@include('layouts._lang-switch')</span>
         </nav>
@@ -111,6 +121,13 @@
     .cc-appbar__mark { height: 36px; width: auto; display: block; }  /* solo móvil: marca cuadrada, legible */
     .cc-appbar__logo--client { height: 26px; opacity: .95; }
     .cc-appbar__sep { width: 1px; height: 26px; background: rgba(255, 255, 255, .25); display: inline-block; }
+    /* Badge del contador de transportación (Fase 5). */
+    .cc-appbar__badge {
+        position: absolute; top: 2px; right: 0;
+        min-width: 16px; height: 16px; padding: 0 4px;
+        border-radius: 999px; background: #ef4444; color: #fff;
+        font-size: 10px; line-height: 16px; font-weight: 700; text-align: center;
+    }
 
     .cc-appbar__actions { display: flex; align-items: center; gap: .3rem; flex-wrap: nowrap; }
 

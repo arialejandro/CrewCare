@@ -533,6 +533,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/transportacion/orden/{order}/pdf', [App\Http\Controllers\TransportOrderController::class, 'pdf'])->name('transport.order.pdf')->whereNumber('order');
     // Agenda por vehículo (Fase 4): timeline por unidad + qué podría adelantarse (informa, no mueve). canLite.
     Route::get('/transportacion/orden/{order}/agenda', [App\Http\Controllers\TransportOrderController::class, 'agenda'])->name('transport.order.agenda')->whereNumber('order');
+    // Fase 5: aceptar la PROPUESTA (marcados en el back que faltan → corridas por vehículo). canFull.
+    Route::post('/transportacion/orden/{order}/propuesta', [App\Http\Controllers\TransportOrderController::class, 'acceptProposal'])->name('transport.order.proposal.accept')->whereNumber('order');
+    // Fase 5: conteo de atención (JSON) para el contador del topbar + poll del toast.
+    Route::get('/transportacion/atencion', [App\Http\Controllers\TransportOrderController::class, 'attentionCount'])->name('transport.attention.count');
 
     // Pantalla del DRIVER (§2 Capa 4): "mis corridas" del día — SIN gate de transpo (cualquiera ve las suyas).
     Route::get('/transportacion/mis-corridas', [App\Http\Controllers\TransportOrderController::class, 'driverRuns'])->name('transport.driver.runs');

@@ -99,6 +99,39 @@
             </div>
         </details>
 
+        {{-- ===== PROPUESTA (§2): marcados en el back que faltan en la orden ===== --}}
+        @if ($canEdit && ($proposal['count'] ?? 0) > 0)
+            <div class="alert alert-primary d-flex flex-wrap align-items-center gap-2 py-2">
+                <div class="flex-grow-1">
+                    <strong>{{ __('Propuesta del back') }}:</strong>
+                    {{ __(':n persona(s) marcada(s) que aún no están en la orden.', ['n' => $proposal['count']]) }}
+                    <span class="small d-block text-muted">
+                        @foreach ($proposal['groups'] as $g)
+                            {{ optional($vehById->get($g['vehicle_id']))['label'] ?? __('Vehículo') }}: {{ collect($g['users'])->pluck('name')->implode(', ') }}@if(! $loop->last); @endif
+                        @endforeach
+                        @if (! empty($proposal['loose'])) · {{ __('Sin vehículo') }}: {{ collect($proposal['loose'])->pluck('name')->implode(', ') }}@endif
+                    </span>
+                </div>
+                <form method="POST" action="{{ route('transport.order.proposal.accept', $order) }}">
+                    @csrf<button class="btn btn-sm btn-primary">{{ __('Agregar a la orden') }}</button>
+                </form>
+            </div>
+        @endif
+
+        {{-- ===== TRASLAPE (§3): fuera-de-llamado comparte unidad con set → confirmación bilateral ===== --}}
+        @if ($canEdit && ! empty($overlaps))
+            <div class="alert alert-warning py-2">
+                @include('componentes._icon', ['name' => 'shield-alert', 'label' => null])
+                <strong>{{ __('Traslape de unidad') }}:</strong>
+                {{ __('una corrida fuera de llamado comparte driver o vehículo con una de set — confírmalo con producción.') }}
+                <ul class="mb-0 small mt-1">
+                    @foreach ($overlaps as $ov)
+                        <li>{{ optional($vehById->get($ov['fuera']->vehicle_id))['label'] ?? __('unidad') }} · {{ $ov['by'] === 'vehicle' ? __('mismo vehículo') : __('mismo conductor') }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         {{-- ===== CORRIDAS ===== --}}
         <h2 class="h6 text-uppercase text-muted mb-2">{{ __('Corridas') }}</h2>
 

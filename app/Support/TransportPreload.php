@@ -131,11 +131,55 @@ class TransportPreload
         return ['byVehicle' => $byVehicle, 'loose' => $loose];
     }
 
-    /** Crea las corridas precargadas en el borrador. Devuelve cuántas creó. */
+    /** Crea las corridas precargadas en el borrador desde el conjunto EFECTIVO. Devuelve cuántas creó. */
     public static function into(TransportOrder $order): int
     {
+        return self::intoUsers($order, self::effectiveUserIds((int) $order->production_id));
+    }
+
+    /** user_ids CREW ya presentes en corridas ACTIVAS de la orden (para no re-proponerlos). */
+    public static function usersInOrder(TransportOrder $order): array
+    {
+        return DB::table('transport_run_occupants as o')
+            ->join('transport_order_runs as r', 'r.id', '=', 'o.transport_order_run_id')
+            ->where('r.transport_order_id', $order->id)
+            ->where('r.is_active', 1)
+            ->where('o.source', 'crew')
+            ->whereNotNull('o.user_id')
+            ->pluck('o.user_id')->map(fn ($x) => (int) $x)->unique()->values()->all();
+    }
+
+    /**
+     * PROPUESTA (Fase 5): efectivos (base ∪ marcados) que AÚN NO están en ninguna corrida de la orden,
+     * agrupados por el vehículo que ya usan. NO crea nada; transpo la acepta o no. Lee la marca, no el back.
+     * @return array{count:int, groups: array<int,array>, loose: array, pending_ids: int[]}
+     */
+    public static function proposal(TransportOrder $order): array
+    {
+        $pid     = (int) $order->production_id;
+        $inOrder = array_flip(self::usersInOrder($order));
+        $pending = array_values(array_filter(self::effectiveUserIds($pid), fn ($u) => ! isset($inOrder[$u])));
+        if (! $pending) {
+            return ['count' => 0, 'groups' => [], 'loose' => [], 'pending_ids' => []];
+        }
+
+        $grp   = self::groupByVehicle($pid, $pending);
+        $names = User::whereIn('id', $pending)->get()->keyBy('id');
+        $mk    = fn ($uid) => ['id' => (int) $uid, 'name' => isset($names[$uid]) ? User::displayName($names[$uid]) : ('#' . $uid)];
+
+        $groups = [];
+        foreach ($grp['byVehicle'] as $vid => $uids) {
+            $groups[] = ['vehicle_id' => (int) $vid, 'users' => array_map($mk, $uids)];
+        }
+
+        return ['count' => count($pending), 'groups' => $groups, 'loose' => array_map($mk, $grp['loose']), 'pending_ids' => $pending];
+    }
+
+    /** Crea las corridas para un conjunto DADO de usuarios, agrupadas por vehículo. Devuelve cuántas creó. */
+    public static function intoUsers(TransportOrder $order, array $userIds): int
+    {
         $pid = (int) $order->production_id;
-        $eff = self::effectiveUserIds($pid);
+        $eff = array_values(array_unique(array_map('intval', $userIds)));
         if (! $eff) {
             return 0;
         }

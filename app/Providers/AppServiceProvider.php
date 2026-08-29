@@ -83,5 +83,18 @@ class AppServiceProvider extends ServiceProvider
             $view->with('currentLocale', app()->getLocale());
             $view->with('locales', config('app.locales', ['es']));
         });
+
+        // Transportación · Fase 5: contador de atención del topbar (propuestas + traslapes de la orden
+        // abierta). Sólo para quien tiene acceso lite (transpo + producción). Cacheado por-request.
+        \Illuminate\Support\Facades\View::composer(['layouts.header', 'layouts._transport-notify'], function ($view) {
+            $show = false;
+            $count = 0;
+            $u = \Illuminate\Support\Facades\Auth::user();
+            if ($u && \App\Support\TransportAccess::canLite($u)) {
+                $show  = true;
+                $count = \App\Support\TransportAttention::countForUser((int) $u->id);
+            }
+            $view->with('__truckShow', $show)->with('__truckCount', $count);
+        });
     }
 }
