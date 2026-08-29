@@ -120,7 +120,13 @@
         // selector del campo con el department_id vigente. Sin el flag no se activa (demás usos intactos).
         var createMode    = sel.getAttribute('data-ta-create') === '1';
         var createUrl     = sel.getAttribute('data-ta-create-url') || '';
+        // dept OPCIONAL: si el select lo trae (puestos) se exige y se envía department_id; si no
+        // (p. ej. vehículos por placa), el create es de un solo campo. createKey = nombre del campo
+        // que lleva lo tecleado (default 'name'; 'plate' para vehículos). createNoun = sustantivo del
+        // confirm ('puesto' por default). Sin estos atributos, el comportamiento es el de hoy.
         var createDeptSel = sel.getAttribute('data-ta-create-dept') || '';
+        var createKey     = sel.getAttribute('data-ta-create-key') || 'name';
+        var createNoun    = sel.getAttribute('data-ta-create-noun') || 'puesto';
 
         // Extrae las opciones reales (ignora el placeholder value="").
         var groups = [], flat = [];
@@ -235,11 +241,11 @@
                 if (typedRaw && !exact) {
                     var deptEl = createDeptSel ? document.querySelector(createDeptSel) : null;
                     var deptVal = deptEl ? (deptEl.value || '') : '';
-                    if (!deptVal) {
+                    if (createDeptSel && !deptVal) {   // sólo cuando el create EXIGE departamento (puestos)
                         var pe = document.createElement('li'); pe.className = 'cc-ta-empty';
                         pe.textContent = 'Elige primero el departamento'; list.appendChild(pe); hasCreateRow = true;
                     } else {
-                        var deptName = (deptEl && deptEl.selectedOptions && deptEl.selectedOptions[0]) ? deptEl.selectedOptions[0].textContent.trim() : '';
+                        var deptName = (createDeptSel && deptEl && deptEl.selectedOptions && deptEl.selectedOptions[0]) ? deptEl.selectedOptions[0].textContent.trim() : '';
                         var cli = document.createElement('li'); cli.className = 'cc-ta-opt cc-ta-create';
                         cli.textContent = 'Crear «' + typedRaw + '»' + (deptName ? ' en ' + deptName : '');
                         cli.addEventListener('mousedown', function (e) { e.preventDefault(); doCreate(typedRaw, deptVal); });
@@ -261,30 +267,39 @@
 
         // Crear un puesto nuevo (acto DELIBERADO con confirmación). Al éxito, agrega la opción,
         // la selecciona y reconstruye el typeahead. 403 = fuera del alcance del departamento.
-        function doCreate(name, deptId) {
+        function doCreate(text, deptId) {
             if (!createUrl) { return; }
-            if (!window.confirm('¿Crear el puesto «' + name + '» en este departamento? Entrará al catálogo como cualquier otro.')) { return; }
+            var deptClause = createDeptSel ? ' en este departamento' : '';
+            if (!window.confirm('¿Crear ' + createNoun + ' «' + text + '»' + deptClause + '? Entrará al catálogo como cualquier otro.')) { return; }
             var token = '';
             var form = sel.closest ? sel.closest('form') : null;
             var ti = form ? form.querySelector('input[name="_token"]') : null;
             if (ti) { token = ti.value; }
             else { var m = document.querySelector('meta[name="csrf-token"]'); if (m) { token = m.getAttribute('content'); } }
+            // Lo tecleado va bajo la llave configurada (name | plate | …); department_id sólo si aplica.
+            var body = encodeURIComponent(createKey) + '=' + encodeURIComponent(text) + '&_token=' + encodeURIComponent(token);
+            if (createDeptSel) { body += '&department_id=' + encodeURIComponent(deptId); }
             fetch(createUrl, {
                 method: 'POST', credentials: 'same-origin',
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
-                body: 'name=' + encodeURIComponent(name) + '&department_id=' + encodeURIComponent(deptId) + '&_token=' + encodeURIComponent(token)
+                body: body
             }).then(function (r) { if (!r.ok) { throw r; } return r.json(); })
               .then(function (d) {
-                  var o = document.createElement('option');
-                  o.value = d.id; o.textContent = d.name;
-                  if (extraSearch) { o.setAttribute('data-search', ''); }
-                  sel.appendChild(o);
+                  // Dedup del server: si devolvió uno EXISTENTE (mismo, p. ej. misma placa), reúsalo sin duplicar.
+                  var existing = sel.querySelector('option[value="' + d.id + '"]');
+                  if (!existing) {
+                      var o = document.createElement('option');
+                      o.value = d.id; o.textContent = d.name;
+                      if (extraSearch) { o.setAttribute('data-search', d.search || ''); }
+                      if (d.driver) { o.setAttribute('data-driver', d.driver); }
+                      sel.appendChild(o);
+                  }
                   sel.value = String(d.id);
                   window.CCTypeahead.rebuild(sel);   // re-lee opciones; el input refleja la seleccionada
               })
               .catch(function (err) {
-                  if (err && err.status === 403) { window.alert('No puedes crear puestos en ese departamento.'); }
-                  else { window.alert('No se pudo crear el puesto. Intenta de nuevo.'); }
+                  if (err && err.status === 403) { window.alert('No tienes permiso para crear ' + createNoun + '.'); }
+                  else { window.alert('No se pudo crear. Intenta de nuevo.'); }
               });
         }
 

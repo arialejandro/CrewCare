@@ -104,16 +104,21 @@
                 $d = $byKey[$run->run_key] ?? ['status' => 'sin_cambio', 'changed' => []];
                 $chg = fn ($f) => $mark(in_array($f, $d['changed'] ?? [], true));
                 $dv = $derived[$run->id] ?? null;   // derivado (SET); null si es FUERA
+                $isEvento = $run->isEvento();
             @endphp
             @if ($viewerIsFull || ! $run->is_discreet)
             <div class="border rounded-3 p-3 mb-3 {{ ($d['status'] ?? '') === 'nueva' ? 'border-success' : '' }} {{ $run->is_discreet ? 'border-warning' : '' }}">
                 <div class="d-flex align-items-start justify-content-between">
                     <div>
+                        @if ($isEvento)
+                            <span class="badge bg-info-subtle text-dark border {{ $chg('type_label') }}">@include('componentes._icon', ['name' => 'calendar', 'label' => null]) {{ __('Evento') }}</span>
+                        @else
                         <span class="badge {{ $run->isSet() ? 'bg-primary-subtle' : 'bg-secondary-subtle' }} text-dark border">{{ $run->isSet() ? __('SET') : __('Fuera') }}</span>
                         <span class="badge bg-light text-dark border {{ $chg('type_label') }}">
                             @if ($run->run_type === 'aeropuerto')@include('componentes._icon', ['name' => 'map-pin', 'label' => null]) @endif
                             {{ $typeLabels[$run->run_type] ?? $run->run_type }}
                         </span>
+                        @endif
                         @if ($run->is_discreet)<span class="badge bg-warning text-dark ms-1">@include('componentes._icon', ['name' => 'lock', 'label' => null]) {{ __('Discreta') }}</span>@endif
                         <span class="fw-semibold ms-2 {{ $chg('vehicle_label') }}">
                             @if ($veh){{ $veh['label'] }}@if($veh['plate']) <span class="text-muted font-monospace small">{{ $veh['plate'] }}</span>@endif
@@ -140,7 +145,10 @@
 
                 <div class="row g-2 mt-1 small">
                     <div class="col-md-3"><span class="text-muted">{{ __('Conductor') }}:</span> <span class="{{ $chg('driver_label') }}">{{ $run->driver_user_id ? (optional($crewById->get($run->driver_user_id))['name'] ?? ('#'.$run->driver_user_id)) : '—' }}</span></div>
-                    @if ($run->isSet())
+                    @if ($isEvento)
+                        <div class="col-md-3"><span class="text-muted">{{ __('Horario') }}:</span> <span class="{{ $chg('pickup') }}">{{ $run->pickup_literal ?: '—' }}@if($run->end_literal) – {{ $run->end_literal }}@endif</span></div>
+                        <div class="col-md-6"><span class="text-muted">{{ __('Descripción') }}:</span> <span class="{{ $chg('dest') }}">{{ $run->dest_text ?: '—' }}</span></div>
+                    @elseif ($run->isSet())
                         @php $sr = $snapByKey[$run->run_key] ?? []; @endphp
                         <div class="col-md-3">
                             <span class="text-muted">{{ __('Pick up') }}:</span>
@@ -152,6 +160,7 @@
                         <div class="col-md-3"><span class="text-muted">{{ __('Pick up') }}:</span> <span class="{{ $chg('pickup') }}">{{ $run->pickup_literal ?: '—' }}@if($run->pickup_place_kind) · {{ $placeLabel($run->pickup_place_kind, $run->pickup_place_id, $run->pickup_place_text) }}@endif</span></div>
                         <div class="col-md-3"><span class="text-muted">{{ __('Destino') }}:</span> <span class="{{ $chg('dest') }}">{{ $placeLabel($run->dest_place_kind, $run->dest_place_id, $run->dest_text) }}</span></div>
                     @endif
+                    @unless ($isEvento)
                     <div class="col-md-3">
                         <span class="text-muted">{{ __('Equipo') }}:</span>
                         <span class="{{ $chg('equipment_label') }}">
@@ -160,10 +169,12 @@
                         @empty — @endforelse
                         </span>
                     </div>
+                    @endunless
                 </div>
                 @if ($run->notes)<div class="small mt-1 {{ $chg('notes') }}">{{ $run->notes }}</div>@endif
 
-                {{-- Ocupantes --}}
+                {{-- Ocupantes (un evento de vehículo no lleva). --}}
+                @unless ($isEvento)
                 <div class="mt-2 pt-2 border-top">
                     <div class="small text-muted text-uppercase mb-1 {{ $chg('occupants_label') }}">{{ __('Ocupantes') }}</div>
                     @foreach ($run->occupants as $occ)
@@ -210,6 +221,7 @@
                         </form>
                     @endif
                 </div>
+                @endunless
 
                 {{-- Editar la corrida EN EL LUGAR (conserva su identidad run_key). --}}
                 @if ($canEdit)
@@ -341,15 +353,17 @@
             var sync = function () { if (target) target.classList.toggle('d-none', sel.value !== 'text'); };
             sel.addEventListener('change', sync); sync();
         });
-        // Clase de corrida: SET (derivado) vs FUERA (a mano) alternan sus bloques.
+        // Clase de corrida: SET (derivado) · FUERA (a mano) · EVENTO (agenda del vehículo) alternan bloques.
         var rc = form.querySelector('.cc-runclass'),
             setB = form.querySelector('.cc-set-block'),
-            fueraB = form.querySelector('.cc-fuera-block');
+            fueraB = form.querySelector('.cc-fuera-block'),
+            eventoB = form.querySelector('.cc-evento-block');
         if (rc) {
             var syncClass = function () {
-                var isSet = rc.value === 'set';
-                if (setB) setB.classList.toggle('d-none', !isSet);
-                if (fueraB) fueraB.classList.toggle('d-none', isSet);
+                var v = rc.value;
+                if (setB) setB.classList.toggle('d-none', v !== 'set');
+                if (fueraB) fueraB.classList.toggle('d-none', v !== 'fuera');
+                if (eventoB) eventoB.classList.toggle('d-none', v !== 'evento');
             };
             rc.addEventListener('change', syncClass); syncClass();
         }

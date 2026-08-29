@@ -84,8 +84,16 @@ class TransportOrderSnapshot
             foreach ($eqCodes as $c) { $usedEquipment[$c] = (string) ($equipByCode[$c] ?? $c); }
             $usedTypes[$run->run_type] = $typeLabels[$run->run_type] ?? $run->run_type;
 
-            // Pick up por CLASE: SET deriva (llamado − traslado ± ajuste); FUERA va a mano.
-            if ($run->run_class === TransportOrderRun::CLASS_SET) {
+            // Pick up por CLASE: EVENTO = ventana inicio–fin + descripción; SET deriva; FUERA a mano.
+            if ($run->run_class === TransportOrderRun::CLASS_EVENTO) {
+                // Mapeo forzado (delta #116): inicio→pickup_literal, fin→end_literal, descripción→dest_text.
+                $start  = trim((string) $run->pickup_literal);
+                $end    = trim((string) $run->end_literal);
+                $pickup = trim($start . ($end !== '' ? ' – ' . $end : ''));   // ventana; el diff la vigila
+                $pickupPublic = $pickup;
+                $dest         = (string) ($run->dest_text ?? '');            // la DESCRIPCIÓN del evento
+                $destPublic   = $dest;
+            } elseif ($run->run_class === TransportOrderRun::CLASS_SET) {
                 $d       = TransportPickupDeriver::derive($run, $ctx);
                 $ptStr   = (string) ($d['point'] ?? '');
                 $pickup  = trim(($d['ok'] ? (string) $d['time'] : '') . ' ' . $ptStr);
@@ -107,12 +115,14 @@ class TransportOrderSnapshot
                 $occ[] = $line;
             }
 
+            $isEvento = $run->run_class === TransportOrderRun::CLASS_EVENTO;
             $rows[] = [
                 'run_key'         => (string) $run->run_key,
                 'run_class'       => $run->run_class,
                 'run_type'        => $run->run_type,
                 'is_discreet'     => (bool) $run->is_discreet,
-                'type_label'      => $typeLabels[$run->run_type] ?? $run->run_type,
+                'is_evento'       => $isEvento,
+                'type_label'      => $isEvento ? 'Evento' : ($typeLabels[$run->run_type] ?? $run->run_type),
                 'vehicle_label'   => $vehLabel,
                 'driver_label'    => $run->driver_user_id ? (User::displayName(User::find($run->driver_user_id)) ?? '') : '',
                 'pickup'          => trim($pickup),

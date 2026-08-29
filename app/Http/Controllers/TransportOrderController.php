@@ -100,6 +100,52 @@ class TransportOrderController extends Controller
             ->with('ok', $made > 0 ? ($made . ' corrida(s) precargada(s) desde el marcado — edítalas o bórralas.') : null);
     }
 
+    // ── Alta INLINE de vehículo (day player que llega con su van) ─────────────
+    /**
+     * Crea (o REÚSA) un vehículo sin salir del editor de la orden. Busca por PLACA primero —llave
+     * natural, dedup FUERTE—: si ya existe una unidad con esa placa, la devuelve sin duplicar. Si no,
+     * nace mínima y ACTIVA: sin tipo, sin verificación, sin asignación fija, como ya lo permite
+     * {@see VehicleController::storeVehicle}. La verificación es acto SEPARADO y no bloquea. Gateado
+     * por canFull. Responde JSON {id, name, search, driver, reused} para el typeahead.
+     */
+    public function quickStoreVehicle(Request $request)
+    {
+        abort_unless(TransportAccess::canFull($request->user()), 403);
+
+        $data  = $request->validate(['plate' => 'required|string|max:40']);
+        $plate = trim($data['plate']);
+        $norm  = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $plate));
+
+        // Dedup por placa normalizada (ignora espacios/guiones/puntos): la placa es la llave natural.
+        $existing = $norm === '' ? null : Vehicle::whereRaw(
+            "UPPER(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(plate,''),' ',''),'-',''),'.',''),'_','')) = ?",
+            [$norm]
+        )->orderByDesc('is_active')->orderBy('id')->first();
+
+        $vehicle = $existing ?: Vehicle::create([
+            'plate'         => $plate,
+            'owner_kind'    => Vehicle::OWNER_OTHER,   // sin exigir proveedor/persona
+            'attr_values'   => \App\Support\VehicleChecklist::normalizeAttributes([]),
+            'is_active'     => 1,
+            'created_by_id' => $request->user()->id,
+        ]);
+
+        return response()->json([
+            'id'     => $vehicle->id,
+            'name'   => $this->vehicleQuickLabel($vehicle),
+            'search' => (string) $vehicle->plate,
+            'driver' => $vehicle->driver_user_id,
+            'reused' => (bool) $existing,
+        ]);
+    }
+
+    /** Rótulo del vehículo para el typeahead: "Marca Modelo — PLACA" (o "Vehículo #id"). */
+    private function vehicleQuickLabel(Vehicle $v): string
+    {
+        $base = trim(($v->make ?: '') . ' ' . ($v->model ?: '')) ?: ('Vehículo #' . $v->id);
+        return $v->plate ? ($base . ' — ' . $v->plate) : $base;
+    }
+
     // ── Congelar / emitir versión ────────────────────────────────────────────
     public function freeze(Request $request, TransportOrder $order)
     {
@@ -205,7 +251,14 @@ class TransportOrderController extends Controller
         $cards = $runs->map(function (TransportOrderRun $run) use ($place, $vehById, $deptById, $ctx, $pointById) {
             $veh = $run->vehicle_id ? $vehById->get($run->vehicle_id) : null;
 
-            if ($run->isSet()) {
+            if ($run->isEvento()) {
+                // Evento: ventana de horario + descripción; ocupa la unidad, sin ocupantes ni lugares.
+                $pickupTime   = $run->pickup_literal;
+                $pickupPlace  = '—';
+                $pickupStreet = null;
+                $destPlace    = (string) ($run->dest_text ?? '—');
+                $destStreet   = null;
+            } elseif ($run->isSet()) {
                 // Derivado: hora calculada + el PUNTO como origen (público) + la locación como destino.
                 $d  = TransportPickupDeriver::derive($run, $ctx);
                 $pt = $run->pickup_point_id ? $pointById->get($run->pickup_point_id) : null;
@@ -228,7 +281,9 @@ class TransportOrderController extends Controller
             })->all();
 
             return [
-                'type'          => $run->typeLabel(),
+                'type'          => $run->isEvento() ? __('Evento') : $run->typeLabel(),
+                'is_evento'     => $run->isEvento(),
+                'event_end'     => $run->end_literal,
                 'pickup_time'   => $pickupTime,
                 'pickup_place'  => $pickupPlace,
                 'pickup_street' => $pickupStreet,
@@ -371,9 +426,8 @@ class TransportOrderController extends Controller
 
         $data = $this->validateRun($request);
 
-        // Sólo el transporte de aplicación puede ir sin vehículo registrado (§2).
-        if ($data['run_type'] !== TransportOrderRun::TYPE_APLICACION && empty($data['vehicle_id'])) {
-            return back()->withErrors(['vehicle_id' => 'El vehículo es obligatorio salvo transporte de aplicación.'])->withInput();
+        if ($e = $this->runVehicleError($data)) {
+            return back()->withErrors(['vehicle_id' => $e])->withInput();
         }
 
         $run = new TransportOrderRun($this->runAttributes($data));
@@ -391,8 +445,8 @@ class TransportOrderController extends Controller
 
         $data = $this->validateRun($request);
 
-        if ($data['run_type'] !== TransportOrderRun::TYPE_APLICACION && empty($data['vehicle_id'])) {
-            return back()->withErrors(['vehicle_id' => 'El vehículo es obligatorio salvo transporte de aplicación.'])->withInput();
+        if ($e = $this->runVehicleError($data)) {
+            return back()->withErrors(['vehicle_id' => $e])->withInput();
         }
 
         $run->fill($this->runAttributes($data));
@@ -438,6 +492,10 @@ class TransportOrderController extends Controller
     {
         $this->authorizeEdit($request, $order);
         abort_unless($run->transport_order_id === $order->id, 404);
+
+        if ($run->isEvento()) {
+            return back()->withErrors(['source' => __('Un evento de vehículo no lleva ocupantes.')]);
+        }
 
         $data = $request->validate([
             'source'        => 'required|in:crew,cast,agency,client,free',
@@ -517,7 +575,7 @@ class TransportOrderController extends Controller
     private function validateRun(Request $request): array
     {
         return $request->validate([
-            'run_class'             => 'nullable|in:set,fuera',   // default 'fuera' (lo legado convive)
+            'run_class'             => 'nullable|in:set,fuera,evento', // default 'fuera' (lo legado convive)
             'run_type'              => 'required|in:normal,aeropuerto,aplicacion',
             'vehicle_id'            => 'nullable|integer',
             'driver_user_id'        => 'nullable|integer',
@@ -532,10 +590,31 @@ class TransportOrderController extends Controller
             'pickup_place_text'     => 'nullable|string|max:255',
             'dest_ref'              => 'nullable|string|max:24',
             'dest_text'             => 'nullable|string|max:255',
+            // EVENTO de vehículo: descripción + inicio + fin (nombres propios para no chocar con FUERA).
+            'event_desc'            => 'nullable|string|max:255',
+            'event_start'           => 'nullable|string|max:16',
+            'event_end'             => 'nullable|string|max:16',
             'equipment'             => 'nullable|array',
             'equipment.*'           => 'string|max:40',
             'notes'                 => 'nullable|string',
         ]);
+    }
+
+    /**
+     * Regla de vehículo por corrida. El EVENTO SIEMPRE exige vehículo (ocupa su agenda); las demás,
+     * salvo transporte de aplicación (§2). Devuelve el mensaje de error o null si está bien.
+     */
+    private function runVehicleError(array $data): ?string
+    {
+        $class = $data['run_class'] ?? TransportOrderRun::CLASS_FUERA;
+        if ($class === TransportOrderRun::CLASS_EVENTO && empty($data['vehicle_id'])) {
+            return __('El evento de vehículo requiere un vehículo: ocupa su agenda.');
+        }
+        if ($class !== TransportOrderRun::CLASS_EVENTO
+            && $data['run_type'] !== TransportOrderRun::TYPE_APLICACION && empty($data['vehicle_id'])) {
+            return __('El vehículo es obligatorio salvo transporte de aplicación.');
+        }
+        return null;
     }
 
     /** Traduce un ref combinado del formulario a [kind, id]. "" → nada; "text" → libre. */
@@ -560,16 +639,32 @@ class TransportOrderController extends Controller
     /** Normaliza los campos de una corrida desde el request validado, SEGÚN LA CLASE. */
     private function runAttributes(array $data): array
     {
-        $isSet = ($data['run_class'] ?? 'fuera') === TransportOrderRun::CLASS_SET;
+        $class = $data['run_class'] ?? TransportOrderRun::CLASS_FUERA;
+        $isSet = $class === TransportOrderRun::CLASS_SET;
 
         $common = [
-            'run_class'      => $data['run_class'] ?? TransportOrderRun::CLASS_FUERA,
+            'run_class'      => $class,
             'run_type'       => $data['run_type'],
             'vehicle_id'     => $data['vehicle_id'] ?? null,
             'driver_user_id' => $data['driver_user_id'] ?? null,
             'equipment'      => array_values($data['equipment'] ?? []),
             'notes'          => $data['notes'] ?? null,
         ];
+
+        // EVENTO de vehículo: mapeo FORZADO documentado — descripción→dest_text, inicio→pickup_literal,
+        // fin→end_literal. Sin ocupantes, sin lugares del catálogo; el vehículo es obligatorio (storeRun).
+        if ($class === TransportOrderRun::CLASS_EVENTO) {
+            return $common + [
+                'pickup_point_id'       => null,
+                'dest_location_ref'     => null,
+                'travel_minutes'        => null,
+                'travel_adjust_minutes' => 0,
+                'pickup_literal'        => $data['event_start'] ?? null,
+                'end_literal'           => $data['event_end'] ?? null,
+                'pickup_place_kind'     => null, 'pickup_place_id' => null, 'pickup_place_text' => null,
+                'dest_place_kind'       => 'text', 'dest_place_id' => null, 'dest_text' => $data['event_desc'] ?? null,
+            ];
+        }
 
         if ($isSet) {
             // El pick up se DERIVA: no se guarda literal ni lugar libre. Sí el origen/destino/traslado.
@@ -579,6 +674,7 @@ class TransportOrderController extends Controller
                 'travel_minutes'        => $data['travel_minutes'] ?? null,   // fallback si el par no está en la matriz
                 'travel_adjust_minutes' => (int) ($data['travel_adjust_minutes'] ?? 0),
                 'pickup_literal'        => null,
+                'end_literal'           => null,
                 'pickup_place_kind'     => null, 'pickup_place_id' => null, 'pickup_place_text' => null,
                 'dest_place_kind'       => null, 'dest_place_id' => null, 'dest_text' => null,
             ];
@@ -594,6 +690,7 @@ class TransportOrderController extends Controller
             'travel_minutes'        => null,
             'travel_adjust_minutes' => 0,
             'pickup_literal'        => $data['pickup_literal'] ?? null,
+            'end_literal'           => null,
             'pickup_place_kind'     => $pk,
             'pickup_place_id'       => $pk === 'text' ? null : $pid,
             'pickup_place_text'     => $pk === 'text' ? ($data['pickup_place_text'] ?? null) : null,

@@ -34,8 +34,10 @@ class TransportOrderRun extends Model
     ];
 
     // EJE 1 · ¿deriva el pick up?  set = calculado · fuera = a mano (default para filas legadas).
-    public const CLASS_SET   = 'set';
-    public const CLASS_FUERA = 'fuera';
+    // evento = ESCOTILLA: bloque de agenda de un vehículo (sin ocupantes) — descripción + inicio + fin.
+    public const CLASS_SET    = 'set';
+    public const CLASS_FUERA  = 'fuera';
+    public const CLASS_EVENTO = 'evento';
 
     // EJE 2 · qué movimiento es (INDEPENDIENTE de la clase). aplicacion = único SIN vehículo.
     public const TYPE_NORMAL     = 'normal';
@@ -97,6 +99,16 @@ class TransportOrderRun extends Model
     public function isSet(): bool
     {
         return $this->run_class === self::CLASS_SET;
+    }
+
+    /**
+     * ¿Es un EVENTO de vehículo? Bloque de agenda (mudanza, mantenimiento, traslado sin crew…):
+     * ocupa la unidad, sin ocupantes. Mapeo forzado de columnas — descripción→`dest_text`,
+     * inicio→`pickup_literal`, fin→`end_literal` (documentado en el delta #116).
+     */
+    public function isEvento(): bool
+    {
+        return $this->run_class === self::CLASS_EVENTO;
     }
 
     /** Sólo el transporte de aplicación puede ir sin vehículo registrado (EJE 2, aplica en ambas clases). */

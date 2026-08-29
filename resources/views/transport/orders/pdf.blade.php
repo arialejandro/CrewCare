@@ -150,12 +150,21 @@
             </span>
             @if ($isNew) <span class="pill pill-new">{{ __('NUEVA') }}</span>@endif
         </div>
-        <table class="grid"><tr>
-            <td><span class="k">{{ __('Conductor') }}</span><br><span class="{{ $chg($key, 'driver_label') }}">{{ $r['driver_label'] ?: '—' }}</span></td>
-            <td><span class="k">{{ __('Pick up') }}</span><br><span class="{{ $chg($key, 'pickup') }} {{ $chg($key, 'pickup') ? 'chg-pre' : '' }}">{{ $r['pickup'] ?: '—' }}</span></td>
-            <td><span class="k">{{ __('Destino') }}</span><br><span class="{{ $chg($key, 'dest') }} {{ $chg($key, 'dest') ? 'chg-pre' : '' }}">{{ $r['dest'] ?: '—' }}</span></td>
-            <td><span class="k">{{ __('Equipo') }}</span><br><span class="{{ $chg($key, 'equipment_label') }}">{{ $r['equipment_label'] ?: '—' }}</span></td>
-        </tr></table>
+        @if (! empty($r['is_evento']))
+            {{-- Evento de vehículo: ventana de horario + descripción, sin ocupantes. --}}
+            <table class="grid"><tr>
+                <td><span class="k">{{ __('Conductor') }}</span><br><span class="{{ $chg($key, 'driver_label') }}">{{ $r['driver_label'] ?: '—' }}</span></td>
+                <td><span class="k">{{ __('Horario') }}</span><br><span class="{{ $chg($key, 'pickup') }} {{ $chg($key, 'pickup') ? 'chg-pre' : '' }}">{{ $r['pickup'] ?: '—' }}</span></td>
+                <td colspan="2"><span class="k">{{ __('Descripción') }}</span><br><span class="{{ $chg($key, 'dest') }} {{ $chg($key, 'dest') ? 'chg-pre' : '' }}">{{ $r['dest'] ?: '—' }}</span></td>
+            </tr></table>
+        @else
+            <table class="grid"><tr>
+                <td><span class="k">{{ __('Conductor') }}</span><br><span class="{{ $chg($key, 'driver_label') }}">{{ $r['driver_label'] ?: '—' }}</span></td>
+                <td><span class="k">{{ __('Pick up') }}</span><br><span class="{{ $chg($key, 'pickup') }} {{ $chg($key, 'pickup') ? 'chg-pre' : '' }}">{{ $r['pickup'] ?: '—' }}</span></td>
+                <td><span class="k">{{ __('Destino') }}</span><br><span class="{{ $chg($key, 'dest') }} {{ $chg($key, 'dest') ? 'chg-pre' : '' }}">{{ $r['dest'] ?: '—' }}</span></td>
+                <td><span class="k">{{ __('Equipo') }}</span><br><span class="{{ $chg($key, 'equipment_label') }}">{{ $r['equipment_label'] ?: '—' }}</span></td>
+            </tr></table>
+        @endif
         @if (! empty($r['notes']))<div class="notes {{ $chg($key, 'notes') }}">{{ $r['notes'] }}</div>@endif
         @if (! empty($r['occupants']))
             <div class="occ">

@@ -518,6 +518,8 @@ Route::middleware(['auth'])->group(function () {
     // canLite (producción) consulta; canFull construye/edita. La orden congelada es inmutable.
     Route::get('/transportacion/ordenes', [App\Http\Controllers\TransportOrderController::class, 'index'])->name('transport.order.index');
     Route::post('/transportacion/ordenes', [App\Http\Controllers\TransportOrderController::class, 'create'])->name('transport.order.create');
+    // Alta INLINE de vehículo desde el editor (day player): busca por PLACA y reúsa antes de crear. canFull.
+    Route::post('/transportacion/ordenes/vehiculo-rapido', [App\Http\Controllers\TransportOrderController::class, 'quickStoreVehicle'])->name('transport.order.vehicle.quick');
     Route::get('/transportacion/orden/{order}', [App\Http\Controllers\TransportOrderController::class, 'show'])->name('transport.order.show')->whereNumber('order');
     Route::post('/transportacion/orden/{order}/corrida', [App\Http\Controllers\TransportOrderController::class, 'storeRun'])->name('transport.order.run.store')->whereNumber('order');
     Route::post('/transportacion/orden/{order}/corrida/{run}', [App\Http\Controllers\TransportOrderController::class, 'updateRun'])->name('transport.order.run.update')->whereNumber('order')->whereNumber('run');

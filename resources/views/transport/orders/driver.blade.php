@@ -31,7 +31,7 @@
                 <div class="border rounded-4 shadow-sm p-3 mb-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                         @if ($c['pickup_time'])
-                            <span class="fw-bold" style="font-size:1.6rem;line-height:1">{{ $c['pickup_time'] }}</span>
+                            <span class="fw-bold" style="font-size:1.6rem;line-height:1">{{ $c['pickup_time'] }}@if (! empty($c['is_evento']) && $c['event_end'])<span class="text-muted" style="font-size:1.1rem"> – {{ $c['event_end'] }}</span>@endif</span>
                         @else
                             <span class="text-muted">—</span>
                         @endif
@@ -46,29 +46,37 @@
                         </div>
                     @endif
 
-                    {{-- Recoger --}}
-                    <div class="mb-2">
-                        <div class="text-uppercase text-muted small">{{ __('Recoger en') }}</div>
-                        <div class="fw-semibold">{{ $c['pickup_place'] }}</div>
-                        @if ($c['pickup_street'])
-                            <div class="d-flex align-items-start gap-1 mt-1">
-                                @include('componentes._icon', ['name' => 'map-pin', 'label' => null])
-                                <span>{{ $c['pickup_street'] }}</span>
-                            </div>
-                        @endif
-                    </div>
+                    @if (! empty($c['is_evento']))
+                        {{-- Evento de vehículo: sólo descripción; no hay recoger/llevar ni ocupantes. --}}
+                        <div class="mb-2">
+                            <div class="text-uppercase text-muted small">{{ __('Evento') }}</div>
+                            <div class="fw-semibold">{{ $c['dest_place'] ?: '—' }}</div>
+                        </div>
+                    @else
+                        {{-- Recoger --}}
+                        <div class="mb-2">
+                            <div class="text-uppercase text-muted small">{{ __('Recoger en') }}</div>
+                            <div class="fw-semibold">{{ $c['pickup_place'] }}</div>
+                            @if ($c['pickup_street'])
+                                <div class="d-flex align-items-start gap-1 mt-1">
+                                    @include('componentes._icon', ['name' => 'map-pin', 'label' => null])
+                                    <span>{{ $c['pickup_street'] }}</span>
+                                </div>
+                            @endif
+                        </div>
 
-                    {{-- Llevar --}}
-                    <div class="mb-2">
-                        <div class="text-uppercase text-muted small">{{ __('Llevar a') }}</div>
-                        <div class="fw-semibold">{{ $c['dest_place'] ?: '—' }}</div>
-                        @if ($c['dest_street'])
-                            <div class="d-flex align-items-start gap-1 mt-1">
-                                @include('componentes._icon', ['name' => 'map-pin', 'label' => null])
-                                <span>{{ $c['dest_street'] }}</span>
-                            </div>
-                        @endif
-                    </div>
+                        {{-- Llevar --}}
+                        <div class="mb-2">
+                            <div class="text-uppercase text-muted small">{{ __('Llevar a') }}</div>
+                            <div class="fw-semibold">{{ $c['dest_place'] ?: '—' }}</div>
+                            @if ($c['dest_street'])
+                                <div class="d-flex align-items-start gap-1 mt-1">
+                                    @include('componentes._icon', ['name' => 'map-pin', 'label' => null])
+                                    <span>{{ $c['dest_street'] }}</span>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
 
                     @if (! empty($c['occupants']))
                         <div class="mb-1">

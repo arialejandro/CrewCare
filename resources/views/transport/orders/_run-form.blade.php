@@ -29,7 +29,8 @@
         <label class="form-label small mb-0">{{ __('Clase') }}</label>
         <select name="run_class" class="form-select form-select-sm cc-runclass">
             <option value="set" @selected($runClass === 'set')>{{ __('De set (deriva)') }}</option>
-            <option value="fuera" @selected($runClass !== 'set')>{{ __('Fuera de llamado') }}</option>
+            <option value="fuera" @selected(! in_array($runClass, ['set', 'evento'], true))>{{ __('Fuera de llamado') }}</option>
+            <option value="evento" @selected($runClass === 'evento')>{{ __('Evento de vehículo') }}</option>
         </select>
     </div>
     <div class="col-md-3">
@@ -42,10 +43,15 @@
     </div>
     <div class="col-md-6">
         <label class="form-label small mb-0">{{ __('Vehículo') }} <span class="text-muted cc-veh-hint"></span></label>
-        <select name="vehicle_id" class="form-select form-select-sm cc-veh js-typeahead">
+        {{-- Alta INLINE del day player: se busca por PLACA (llave natural, dedup fuerte en el server);
+             si no hay coincidencia, "Crear" es un paso deliberado con confirmación. Reusa el patrón de
+             crear del typeahead. Gateado por canFull (esta pieza sólo se rinde a quien puede editar). --}}
+        <select name="vehicle_id" class="form-select form-select-sm cc-veh js-typeahead"
+                data-ta-extra="1" data-ta-create="1" data-ta-create-url="{{ route('transport.order.vehicle.quick') }}"
+                data-ta-create-key="plate" data-ta-create-noun="{{ __('vehículo') }}">
             <option value="">{{ __('Sin vehículo…') }}</option>
             @foreach ($vehicles as $v)
-                <option value="{{ $v['id'] }}" data-driver="{{ $v['driver_id'] }}" @selected($run && (int) $run->vehicle_id === (int) $v['id'])>{{ $v['label'] }}@if($v['plate']) — {{ $v['plate'] }}@endif</option>
+                <option value="{{ $v['id'] }}" data-driver="{{ $v['driver_id'] }}" data-search="{{ $v['plate'] }}" @selected($run && (int) $run->vehicle_id === (int) $v['id'])>{{ $v['label'] }}@if($v['plate']) — {{ $v['plate'] }}@endif</option>
             @endforeach
         </select>
     </div>
@@ -126,6 +132,26 @@
                 </select>
                 <input type="text" name="dest_text" value="{{ $run->dest_text ?? '' }}" class="form-control form-control-sm mt-1 cc-dest-text {{ $destRef === 'text' ? '' : 'd-none' }}" placeholder="{{ __('Escribe el destino') }}" maxlength="255">
             </div>
+        </div>
+    </div>
+
+    {{-- ===== EVENTO de vehículo (escotilla) ===== --}}
+    <div class="col-12 cc-evento-block">
+        <div class="row g-2 border rounded p-2 bg-body-tertiary">
+            <div class="col-12"><span class="small text-uppercase text-muted">{{ __('Evento de vehículo — ocupa su agenda, sin ocupantes') }}</span></div>
+            <div class="col-md-6">
+                <label class="form-label small mb-0">{{ __('Descripción') }}</label>
+                <input type="text" name="event_desc" value="{{ $run && $run->isEvento() ? $run->dest_text : '' }}" class="form-control form-control-sm" placeholder="{{ __('Mudanza de utilería, mantenimiento…') }}" maxlength="255">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-0">{{ __('Inicio') }}</label>
+                <input type="text" name="event_start" value="{{ $run && $run->isEvento() ? $run->pickup_literal : '' }}" class="form-control form-control-sm" placeholder="07:00" maxlength="16">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-0">{{ __('Fin') }}</label>
+                <input type="text" name="event_end" value="{{ $run && $run->isEvento() ? $run->end_literal : '' }}" class="form-control form-control-sm" placeholder="12:00" maxlength="16">
+            </div>
+            <div class="col-12"><span class="small text-muted">{{ __('El vehículo es obligatorio: el evento reserva su unidad en esa ventana.') }}</span></div>
         </div>
     </div>
 
