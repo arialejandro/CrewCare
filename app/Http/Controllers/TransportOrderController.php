@@ -208,6 +208,24 @@ class TransportOrderController extends Controller
         return $pdf->stream($name);
     }
 
+    // ── Agenda por vehículo (Fase 4) ─────────────────────────────────────────
+    /**
+     * La orden vista como AGENDA por unidad: cada vehículo con su día en orden de hora (corridas de
+     * set, fuera y eventos), y qué podría ADELANTARSE en la misma unidad (cálculo híbrido traslado/hueco,
+     * {@see TransportAgenda}). SÓLO informa, nunca mueve. Producción (canLite) NO ve las discretas.
+     */
+    public function agenda(Request $request, TransportOrder $order)
+    {
+        abort_unless(TransportAccess::canLite($request->user()), 403);
+        $isFull = TransportAccess::canFull($request->user());
+
+        return view('transport.orders.agenda', [
+            'order'   => $order,
+            'agenda'  => \App\Support\TransportAgenda::build($order, $isFull),
+            'canFull' => $isFull,
+        ]);
+    }
+
     // ── Pantalla del DRIVER (§2 · Capa 4) ────────────────────────────────────
     /**
      * "Mis corridas" del día para el driver. NO exige permiso de transpo: cualquiera autenticado
@@ -449,10 +467,14 @@ class TransportOrderController extends Controller
             return back()->withErrors(['vehicle_id' => $e])->withInput();
         }
 
+        $oldVehicleId = (int) $run->vehicle_id;
         $run->fill($this->runAttributes($data));
         $run->save();
 
-        return back()->with('ok', 'Corrida actualizada.');
+        // Fase 4: mover una corrida INFORMA qué podría adelantarse en su(s) unidad(es). No mueve nada.
+        $hint = $this->advanceHint($order, array_filter([$oldVehicleId, (int) $run->vehicle_id]));
+
+        return back()->with('ok', 'Corrida actualizada.')->with('info', $hint);
     }
 
     public function destroyRun(Request $request, TransportOrder $order, TransportOrderRun $run)
@@ -460,10 +482,27 @@ class TransportOrderController extends Controller
         $this->authorizeEdit($request, $order);
         abort_unless($run->transport_order_id === $order->id, 404);
 
+        $vehicleId = (int) $run->vehicle_id;
         $run->is_active = 0;
         $run->save();
 
-        return back()->with('ok', 'Corrida eliminada.');
+        // Fase 4: al cancelar, informa qué podría adelantarse en esa unidad (sin mover nada).
+        $hint = $this->advanceHint($order, array_filter([$vehicleId]));
+
+        return back()->with('ok', 'Corrida eliminada.')->with('info', $hint);
+    }
+
+    /** Aviso combinado "podría adelantarse" para una o más unidades (null si nada). */
+    private function advanceHint(TransportOrder $order, array $vehicleIds): ?string
+    {
+        $order = $order->fresh();
+        $lines = [];
+        foreach (array_unique(array_map('intval', $vehicleIds)) as $vid) {
+            if ($vid && ($h = \App\Support\TransportAgenda::vehicleHint($order, $vid))) {
+                $lines[] = $h;
+            }
+        }
+        return $lines ? implode(' ', $lines) : null;
     }
 
     /**
@@ -594,6 +633,8 @@ class TransportOrderController extends Controller
             'event_desc'            => 'nullable|string|max:255',
             'event_start'           => 'nullable|string|max:16',
             'event_end'             => 'nullable|string|max:16',
+            // Fin de corrida (opcional, set/fuera): wrap de la unidad → insumo del cálculo Fase 4.
+            'run_end_literal'       => 'nullable|string|max:16',
             'equipment'             => 'nullable|array',
             'equipment.*'           => 'string|max:40',
             'notes'                 => 'nullable|string',
@@ -674,7 +715,7 @@ class TransportOrderController extends Controller
                 'travel_minutes'        => $data['travel_minutes'] ?? null,   // fallback si el par no está en la matriz
                 'travel_adjust_minutes' => (int) ($data['travel_adjust_minutes'] ?? 0),
                 'pickup_literal'        => null,
-                'end_literal'           => null,
+                'end_literal'           => $data['run_end_literal'] ?? null,   // wrap opcional (Fase 4)
                 'pickup_place_kind'     => null, 'pickup_place_id' => null, 'pickup_place_text' => null,
                 'dest_place_kind'       => null, 'dest_place_id' => null, 'dest_text' => null,
             ];
@@ -690,7 +731,7 @@ class TransportOrderController extends Controller
             'travel_minutes'        => null,
             'travel_adjust_minutes' => 0,
             'pickup_literal'        => $data['pickup_literal'] ?? null,
-            'end_literal'           => null,
+            'end_literal'           => $data['run_end_literal'] ?? null,   // wrap opcional (Fase 4)
             'pickup_place_kind'     => $pk,
             'pickup_place_id'       => $pk === 'text' ? null : $pid,
             'pickup_place_text'     => $pk === 'text' ? ($data['pickup_place_text'] ?? null) : null,

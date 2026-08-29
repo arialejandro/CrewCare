@@ -135,6 +135,14 @@
         </div>
     </div>
 
+    {{-- Fin de corrida (opcional) — wrap de la unidad; alimenta el cálculo "podría adelantarse" (Fase 4).
+         Aplica a set y fuera; el evento lleva su propio Fin. --}}
+    <div class="col-md-4 cc-corrida-end">
+        <label class="form-label small mb-0">{{ __('Fin de corrida (opcional)') }}</label>
+        <input type="text" name="run_end_literal" value="{{ $run && ! $run->isEvento() ? $run->end_literal : '' }}" class="form-control form-control-sm" placeholder="09:00" maxlength="16">
+        <span class="small text-muted">{{ __('Cuándo se libera la unidad; sirve para avisar qué podría adelantarse.') }}</span>
+    </div>
+
     {{-- ===== EVENTO de vehículo (escotilla) ===== --}}
     <div class="col-12 cc-evento-block">
         <div class="row g-2 border rounded p-2 bg-body-tertiary">

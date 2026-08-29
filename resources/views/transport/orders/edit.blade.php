@@ -41,6 +41,9 @@
                 @include('componentes._icon', ['name' => 'chevron-right', 'label' => null]) {{ __('Órdenes') }}
             </a>
             <div class="d-flex align-items-center gap-2">
+                <a href="{{ route('transport.order.agenda', $order) }}" class="btn btn-sm btn-outline-secondary">
+                    @include('componentes._icon', ['name' => 'truck', 'label' => null]) {{ __('Agenda') }}
+                </a>
                 @if ($order->isFrozen())
                     <a href="{{ route('transport.order.pdf', $order) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
                         @include('componentes._icon', ['name' => 'file-text', 'label' => null]) {{ __('PDF') }}
@@ -64,6 +67,7 @@
 
         @if (session('ok'))<div class="alert alert-success py-2">{{ session('ok') }}</div>@endif
         @if (session('warn'))<div class="alert alert-warning py-2">@include('componentes._icon', ['name' => 'map-pin', 'label' => null]) {{ session('warn') }}</div>@endif
+        @if (session('info'))<div class="alert alert-info py-2">@include('componentes._icon', ['name' => 'chevron-up', 'label' => null]) {{ session('info') }}</div>@endif
         @if ($errors->any())
             <div class="alert alert-danger py-2">@foreach ($errors->all() as $e)<div>{{ $e }}</div>@endforeach</div>
         @endif
@@ -357,13 +361,15 @@
         var rc = form.querySelector('.cc-runclass'),
             setB = form.querySelector('.cc-set-block'),
             fueraB = form.querySelector('.cc-fuera-block'),
-            eventoB = form.querySelector('.cc-evento-block');
+            eventoB = form.querySelector('.cc-evento-block'),
+            endB = form.querySelector('.cc-corrida-end');
         if (rc) {
             var syncClass = function () {
                 var v = rc.value;
                 if (setB) setB.classList.toggle('d-none', v !== 'set');
                 if (fueraB) fueraB.classList.toggle('d-none', v !== 'fuera');
                 if (eventoB) eventoB.classList.toggle('d-none', v !== 'evento');
+                if (endB) endB.classList.toggle('d-none', v === 'evento'); // el evento tiene su propio Fin
             };
             rc.addEventListener('change', syncClass); syncClass();
         }
