@@ -15,6 +15,7 @@ use App\Support\CurrentProduction;
 use App\Support\ImageCompressor;
 use App\Support\ProductionCalendar;
 use App\Support\TransportAccess;
+use App\Support\TransportDrivers;
 use App\Support\VehicleChecklist;
 use App\Support\VehicleVerdict;
 use Illuminate\Http\Request;
@@ -65,8 +66,9 @@ class VehicleController extends Controller
             ->orderBy('make')->orderBy('model')->get();
 
         [$types, $crew, $payees] = $this->pickers();
+        $drivers = TransportDrivers::forVehicleForm(CurrentProduction::id(), null);
 
-        return view('vehicle.vehicles', compact('vehicles', 'types', 'crew', 'payees'));
+        return view('vehicle.vehicles', compact('vehicles', 'types', 'crew', 'payees', 'drivers'));
     }
 
     /** Alta de vehículo. El tipo PROPONE el perfil; los atributos se guardan ya resueltos/ajustados. */
@@ -79,13 +81,16 @@ class VehicleController extends Controller
         $author = $request->user();
         $type   = ! empty($data['vehicle_type_id']) ? VehicleType::find($data['vehicle_type_id']) : null;
 
+        // Un driver, una unidad (FILTRO, no candado): si ya conducía otra, la libera y AVISA.
+        $freed = $this->freePreviousDriver($data['driver_user_id'] ?? null, null);
+
         $vehicle = Vehicle::create($this->vehiclePayload($request, $data, $type) + [
             'created_by_id' => $author ? $author->id : null,
             'is_active'     => 1,
         ]);
 
         return redirect()->route('transport.vehicle.show', $vehicle)
-            ->with('success', 'Vehículo registrado.');
+            ->with('success', 'Vehículo registrado.')->with('warn', $freed);
     }
 
     /** Ficha del vehículo: atributos, documentos (con vigencia), actas y su cadena. */
@@ -109,8 +114,9 @@ class VehicleController extends Controller
 
         [$types, $crew, $payees] = $this->pickers();
         $attrs = $vehicle->resolvedAttributes();
+        $drivers = TransportDrivers::forVehicleForm(CurrentProduction::id(), $vehicle->id);
 
-        return view('vehicle.vehicle-edit', compact('vehicle', 'types', 'crew', 'payees', 'attrs'));
+        return view('vehicle.vehicle-edit', compact('vehicle', 'types', 'crew', 'payees', 'attrs', 'drivers'));
     }
 
     public function updateVehicle(Request $request, Vehicle $vehicle)
@@ -120,10 +126,31 @@ class VehicleController extends Controller
         $data = $this->validateVehicle($request);
         $type = ! empty($data['vehicle_type_id']) ? VehicleType::find($data['vehicle_type_id']) : null;
 
+        // Un driver, una unidad (FILTRO, no candado): si ya conducía otra, la libera y AVISA. No la libera solo.
+        $freed = $this->freePreviousDriver($data['driver_user_id'] ?? null, $vehicle->id);
+
         $vehicle->update($this->vehiclePayload($request, $data, $type));
 
         return redirect()->route('transport.vehicle.show', $vehicle)
-            ->with('success', 'Vehículo actualizado.');
+            ->with('success', 'Vehículo actualizado.')->with('warn', $freed);
+    }
+
+    /**
+     * Un DRIVER en una sola unidad: si $driverId ya conducía OTRA unidad activa, la deja SIN conductor
+     * y devuelve el aviso (para no liberarla en silencio). Reasignar es deliberado y con la info a la
+     * vista; el traslape a nivel corrida lo cubre la Fase 5, esto es la asignación misma.
+     */
+    private function freePreviousDriver(?int $driverId, ?int $exceptVehicleId): ?string
+    {
+        $other = TransportDrivers::otherVehicleOf($driverId ? (int) $driverId : null, $exceptVehicleId);
+        if (! $other) {
+            return null;
+        }
+        $label = TransportDrivers::vehLabel($other);
+        $other->driver_user_id = null;
+        $other->save();
+
+        return __(':veh quedó sin conductor: moviste a ese chofer a esta unidad.', ['veh' => $label]);
     }
 
     /* ===================== DOCUMENTOS (§4) ===================== */

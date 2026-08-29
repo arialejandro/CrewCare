@@ -33,6 +33,7 @@
         </div>
 
         @if (session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
+        @if (session('warn'))<div class="alert alert-warning">{{ session('warn') }}</div>@endif
         @if (session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
 
         <div class="mb-4">@include('vehicle._marks', ['vehicle' => $vehicle])</div>
