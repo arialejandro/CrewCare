@@ -21,9 +21,12 @@ use Illuminate\Support\Facades\DB;
  *  - catalog_key NO es único: varias filas vivas comparten clave (agrupación semántica, no llave).
  *  - `binding` se siembra aunque la entidad UNIDAD no exista todavía (queda inerte).
  *
- * IDEMPOTENTE: correr dos veces no duplica. Vivos por id (respaldo depto+nombre = misma llave natural
- * que OrgCatalogSeeder), deptos nuevos por nombre (único), puestos nuevos por catalog_key (único),
- * alias con insertOrIgnore.
+ * IDEMPOTENTE: correr dos veces no duplica. Resolución por LLAVE NATURAL, nunca por id: los id de
+ * departments/positions NO son reproducibles entre una base incremental y una recién sembrada, así que
+ * `WHERE id = id_vivo` caería en el puesto EQUIVOCADO en un seed fresco (y el 1er deploy siembra desde
+ * cero). Deptos por nombre (único); puestos vivos/ambos por (departamento, nombre) = misma llave natural
+ * que OrgCatalogSeeder → UPDATE en su lugar preserva id + asignaciones; puestos nuevos-semilla por
+ * catalog_key (único para solo-semilla); alias con insertOrIgnore. El id_vivo del CSV ya NO se usa.
  */
 class CatalogFusionSeeder extends Seeder
 {
@@ -78,16 +81,14 @@ class CatalogFusionSeeder extends Seeder
                 'updated_at'   => $now,
             ];
 
-            if ($r['origen'] === 'vivo' && $r['id_vivo'] !== ''
-                && DB::table('departments')->where('id', (int) $r['id_vivo'])->exists()) {
-                // Vivo: UPDATE por id exacto. NO tocar `name` (se preserva el vivo).
-                DB::table('departments')->where('id', (int) $r['id_vivo'])->update($vals);
+            // SIEMPRE por NOMBRE (único en departments): en una base incremental cae en la misma
+            // fila viva (id + asignaciones intactos); en una base FRESCA cae en la correcta. Resolver
+            // por id_vivo corrompía el catálogo en un seed desde cero. El UPDATE NO toca `name` ni
+            // `active` (se preservan); `active`/`created_at` solo entran en el INSERT.
+            if (DB::table('departments')->where('name', $r['name_es'])->exists()) {
+                DB::table('departments')->where('name', $r['name_es'])->update($vals);
             } else {
-                // Nuevo (semilla) o fresco sin ese id: por nombre, que es UNIQUE en departments.
-                DB::table('departments')->updateOrInsert(
-                    ['name' => $r['name_es']],
-                    $vals + ['active' => 1, 'created_at' => $now]
-                );
+                DB::table('departments')->insert($vals + ['name' => $r['name_es'], 'active' => 1, 'created_at' => $now]);
             }
         }
     }
@@ -121,21 +122,16 @@ class CatalogFusionSeeder extends Seeder
                 ? (int) $r['is_hod_vivo']
                 : (int) $r['hod_capable'];
 
-            if ($r['origen'] !== 'solo semilla' && $r['id_vivo'] !== ''
-                && DB::table('positions')->where('id', (int) $r['id_vivo'])->exists()) {
-                // Vivo por id exacto: UPDATE en su lugar (id + asignaciones intactos). NO tocar name/department_id.
-                DB::table('positions')->where('id', (int) $r['id_vivo'])->update($vals);
-                continue;
-            }
-
             if ($deptId === null) {
                 $unresolved[] = ($r['catalog_key'] ?: $r['name_es']) . " ({$r['depto']}/{$r['dept_key']})";
                 continue;
             }
 
             if ($r['origen'] !== 'solo semilla') {
-                // Vivo que en ESTA base no existe por id (p.ej. base fresca): respaldo por depto+nombre
-                // (misma llave natural que OrgCatalogSeeder). Si tampoco existe, se inserta.
+                // Vivo/ambos: resolver por (departamento, nombre) — llave natural ESTABLE entre bases
+                // (los id de positions no son reproducibles). UPDATE en su lugar preserva id +
+                // asignaciones y NO toca name/department_id/active. Si no existe (base fresca sin ese
+                // puesto), se inserta.
                 $q = DB::table('positions')->where('department_id', $deptId)->where('name', $r['name_es'])->whereNull('production_id');
                 if ($q->exists()) {
                     $q->update($vals);
