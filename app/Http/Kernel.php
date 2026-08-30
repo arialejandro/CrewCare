@@ -74,6 +74,12 @@ class Kernel extends HttpKernel
         // personales sensibles sin haber leído bajo qué términos.
         'privacidad' => \App\Http\Middleware\EnsurePrivacyConsent::class,
 
+        // (2026-08-29) Envío diferido offline (Camino A). Como 'privacidad', NO va en
+        // ningún grupo global: se cuelga SÓLO de las rutas store() de los reportes que
+        // se capturan sin red. Es inerte salvo que la petición traiga X-Idempotency-Key,
+        // así que el envío interactivo en línea ni lo nota. Ver App\Http\Middleware\IdempotentReplay.
+        'idempotent' => \App\Http\Middleware\IdempotentReplay::class,
+
         // Spatie RBAC aliases. (2026-08-11 · upgrade L10) spatie/laravel-permission v6 movió
         // el namespace de `Middlewares` (plural, v5) a `Middleware` (singular).
         'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,

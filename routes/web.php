@@ -327,7 +327,7 @@ Route::middleware(['auth','permission:medical.create'])->group(function () {
 // `/scoutings/{id}`. Requiere tabla `scouting_reports` (el owner aplica el CREATE TABLE).
 Route::middleware(['auth','permission:locations.create'])->group(function () {
     Route::get('/scoutings/create', [App\Http\Controllers\ScoutingReportController::class, 'create'])->name('scoutings.create');
-    Route::post('/scoutings', [App\Http\Controllers\ScoutingReportController::class, 'store'])->name('scoutings.store');
+    Route::post('/scoutings', [App\Http\Controllers\ScoutingReportController::class, 'store'])->middleware('idempotent')->name('scoutings.store');
     // Edición: mismo nivel de permiso que crear (no existe locations.edit y NO se
     // crean permisos nuevos). Se declara ANTES del show `/scoutings/{id}` de abajo
     // para que `{id}/edit` nunca sea capturado por el patrón del show.
@@ -382,9 +382,9 @@ Route::middleware(['auth'])->get('/geo/scoutings-nearby', [App\Http\Controllers\
 // ---- HAZARDS (Actos inseguros + Condiciones inseguras) ----
 Route::middleware(['auth','permission:hazards.create'])->group(function () {
     Route::get('/hazardnotification', [App\Http\Controllers\HazardNotificationController::class, 'create'])->name('hazard_notifications.create');
-    Route::post('/hazard-notifications', [App\Http\Controllers\HazardNotificationController::class, 'store'])->name('hazard_notifications.store');
+    Route::post('/hazard-notifications', [App\Http\Controllers\HazardNotificationController::class, 'store'])->middleware('idempotent')->name('hazard_notifications.store');
     Route::get('/unsafenotifications/create', [App\Http\Controllers\unsafecondNotificationController::class, 'create'])->name('unsafenotifications.create');
-    Route::post('/unsafenotifications/store', [App\Http\Controllers\unsafecondNotificationController::class, 'store'])->name('unsafenotifications.store');
+    Route::post('/unsafenotifications/store', [App\Http\Controllers\unsafecondNotificationController::class, 'store'])->middleware('idempotent')->name('unsafenotifications.store');
 });
 Route::middleware(['auth','permission:hazards.view'])->group(function () {
     Route::get('/unsafeacts', [App\Http\Controllers\HazardNotificationController::class, 'index'])->name('hazard_notifications.index');
@@ -407,7 +407,7 @@ Route::post('/action-items/{id}/reopen', [App\Http\Controllers\ActionItemControl
 // OJO orden: `/dsr-reports/create` (fijo) va ANTES que `/dsr-reports/{id}`.
 Route::middleware(['auth','permission:dsr.create'])->group(function () {
     Route::get('/dsr-reports/create', [App\Http\Controllers\DailyReportController::class, 'create'])->name('daily_reports.create');
-    Route::post('/dsr-reports', [App\Http\Controllers\DailyReportController::class, 'store'])->name('daily_reports.store');
+    Route::post('/dsr-reports', [App\Http\Controllers\DailyReportController::class, 'store'])->middleware('idempotent')->name('daily_reports.store');
     Route::post('/dsr-reports/{id}/log', [App\Http\Controllers\DailyReportController::class, 'storeLog'])->name('daily_logs.store');
 });
 Route::middleware(['auth','permission:dsr.update'])->group(function () {
@@ -646,7 +646,7 @@ Route::middleware(['auth', 'permission:dsr.view'])->group(function () {
 // ---- INJURIES (Accidentes) ----
 Route::middleware(['auth','permission:injury.create'])->group(function () {
     Route::get('/accident', [App\Http\Controllers\InjuryReportController::class, 'create'])->name('injury_reports.create');
-    Route::post('/accidentCreate', [App\Http\Controllers\InjuryReportController::class, 'store'])->name('injury_reports.store');
+    Route::post('/accidentCreate', [App\Http\Controllers\InjuryReportController::class, 'store'])->middleware('idempotent')->name('injury_reports.store');
 });
 Route::middleware(['auth','permission:injury.view'])->group(function () {
     Route::get('/accidents', [App\Http\Controllers\InjuryReportController::class, 'inicial'])->name('injury_reports.index');
@@ -839,16 +839,14 @@ Route::middleware(['auth'])->group(function () {
 // SEGURIDAD/LIMPIEZA (2026-07-06): `GET /crop-image` ELIMINADO (renderizaba una vista inexistente
 // y su método index() se retiró); `POST /crop-image-upload` movido al grupo `auth` de arriba.
 
-// ---- SYNC / API (Módulo 12 — offline-first, UPSERT idempotente por uuid) ----
-// El PWA/Service Worker envía un LOTE de reportes creados offline (cada uno con su
-// uuid generado en el cliente); SyncController@up hace UPSERT por uuid, así que un
-// reintento del SW ACTUALIZA en vez de DUPLICAR. Va en routes/WEB (no en api.php) a
-// propósito: usa el middleware 'auth' de SESIÓN (mismo origen, cookie ya presente),
-// evitando el guard `auth:sanctum` que aún NO está configurado en este proyecto.
-// CSRF: al vivir en 'web', el POST exige token CSRF → el PWA mismo-origen debe mandar
-// el X-CSRF-TOKEN (meta) en el fetch. PRODUCCIÓN: endurecer a token Bearer (Sanctum)
-// para clientes que sincronicen sin sesión web viva (ver comentario del controlador).
-Route::post('/api/sync/up', [\App\Http\Controllers\Api\SyncController::class, 'up'])->middleware('auth')->name('api.sync.up');
+// ---- SYNC / API (Módulo 12) — RETIRADO (2026-08-29) ----
+// El endpoint POST /api/sync/up (SyncController@up) SE RETIRÓ. Hacía un upsert directo a
+// $fillable que se SALTABA el Form Request, el ensamblado y signDocument → producía
+// documentos SIN VALIDAR y SIN SELLAR. No tenía llamadores en runtime (solo docs y un
+// comentario viejo en cc-drafts.js). Lo reemplaza el ENVÍO DIFERIDO (Camino A): el
+// borrador offline se reproduce por la MISMA ruta store() del formulario (valida + sella
+// una sola vez), con idempotencia vía el middleware 'idempotent' (App\Http\Middleware\
+// IdempotentReplay) y la cabecera X-Idempotency-Key. El controlador quedó como stub 410.
 
 // ============================================================================
 // (2026-07-13) PILARES 3 / 4 / 1b / 5 — módulos nuevos. Controladores/vistas

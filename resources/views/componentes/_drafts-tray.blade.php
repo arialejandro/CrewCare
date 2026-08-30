@@ -72,6 +72,7 @@
 
         var handle = window.CCDrafts.attach(form, {
             formType: type,
+            deferOffline: true,   // (2026-08-29) enviar al reconectar por la ruta normal (Camino A).
             title: function (f) {
                 var t = f.querySelector('[data-draft-title]');
                 return (t && t.value) ? t.value : '';
@@ -83,8 +84,26 @@
         function showStatus(st) {
             if (!elStatus) { return; }
             if (st && st.state === 'device') { elStatus.textContent = 'Guardado en este dispositivo · ' + fmt(st.at); }
+            else if (st && st.state === 'queued') {
+                elStatus.textContent = st.hasFiles
+                    ? 'Sin conexión: se enviará al reconectar (las fotos NO van en el envío diferido; agrégalas con red).'
+                    : 'Sin conexión: se enviará al reconectar.';
+            }
             else if (st && st.state === 'error') { elStatus.textContent = 'No se pudo guardar en el dispositivo'; }
         }
+
+        // La cola (cc-drafts.js) avisa cuando un pendiente se envía o rebota en validación.
+        window.addEventListener('cc-drafts:sent', function () {
+            if (elStatus) { elStatus.textContent = 'Reporte enviado.'; }
+            refreshList();
+        });
+        window.addEventListener('cc-drafts:error', function (e) {
+            if (elStatus) { elStatus.textContent = 'Un reporte necesita corrección — ábrelo, corrige y reenvía.'; }
+            refreshList();
+        });
+        window.addEventListener('cc-drafts:auth', function () {
+            if (elStatus) { elStatus.textContent = 'Inicia sesión para enviar los reportes pendientes.'; }
+        });
 
         function isBlank(f) {
             var blank = true;
@@ -120,7 +139,10 @@
 
                     var open = document.createElement('button');
                     open.type = 'button'; open.className = 'cc-draft-open';
-                    open.textContent = d.title ? d.title : 'Borrador sin título';
+                    var label = d.title ? d.title : 'Borrador sin título';
+                    if (d.status === 'queued') { label += '  · pendiente de envío'; }
+                    else if (d.status === 'error') { label += '  · necesita corrección'; }
+                    open.textContent = label;
 
                     var when = document.createElement('span');
                     when.className = 'cc-draft-when'; when.textContent = fmt(d.updatedAt);
