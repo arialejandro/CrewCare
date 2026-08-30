@@ -44,7 +44,7 @@ class PeriodBoard
             });
         }
 
-        $contracts = $q->with(['payee.documents', 'documents', 'contractedBy'])
+        $contracts = $q->with(['payee.documents', 'documents', 'contractedBy', 'fiscalRegime'])
             ->orderBy('payee_id')->get();
 
         $columns = collect();   // tipos-columna (unión de todos los requisitos del periodo)
@@ -95,6 +95,21 @@ class PeriodBoard
             $total     = $scope->count();
             $delivered = ($total > 0 && $missing === 0) || $total === 0;
 
+            // FECHA DE RECEPCIÓN (para el export): la más reciente de los docs RECIBIDOS del alcance.
+            // Es la de CAPTURA (created_at) = cuándo se recibió, NO validated_at (recibir no es validar).
+            $receivedAt = null;
+            foreach ($scope as $type) {
+                if (($cells[$type->id] ?? null) === PayeePackage::ST_RECEIVED) {
+                    $d = $docs->where('document_type_id', $type->id)->where('is_active', true)->sortByDesc('id')->first();
+                    $when = ($d && $d->created_at)
+                        ? ($d->created_at instanceof \Carbon\Carbon ? $d->created_at : \Carbon\Carbon::parse($d->created_at))
+                        : null;
+                    if ($when && (! $receivedAt || $when->greaterThan($receivedAt))) {
+                        $receivedAt = $when;
+                    }
+                }
+            }
+
             $rows[] = [
                 'contract'      => $contract,
                 'payee'         => $contract->payee,
@@ -104,6 +119,7 @@ class PeriodBoard
                 'total'         => $total,
                 'out_of_window' => $outOfWindow,
                 'no_reqs'       => $total === 0,
+                'received_at'   => $receivedAt,   // aditivo: sólo lo consume el export CSV
             ];
         }
 

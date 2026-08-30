@@ -1074,6 +1074,7 @@ Route::middleware(['auth','permission:payees.view'])->group(function () {
 Route::middleware(['auth','permission:periods.view'])->group(function () {
     Route::get('/periodos',           [\App\Http\Controllers\PaymentPeriodController::class, 'index'])->name('periods.index');
     Route::get('/periodos/{period}',  [\App\Http\Controllers\PaymentPeriodController::class, 'show'])->name('periods.show')->whereNumber('period');
+    Route::get('/periodos/{period}/export', [\App\Http\Controllers\PaymentPeriodController::class, 'export'])->name('periods.export')->whereNumber('period');
 });
 Route::middleware(['auth','permission:periods.manage'])->group(function () {
     // Recordatorio manual a quienes faltan (contabilidad; un clic por persona, WhatsApp).

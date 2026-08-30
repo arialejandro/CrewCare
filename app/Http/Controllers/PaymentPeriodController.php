@@ -64,6 +64,90 @@ class PaymentPeriodController extends Controller
     }
 
     /**
+     * EXPORT CSV del tablero de "quién falta" (contabilidad). Reusa el patrón de export de CrewList
+     * ({@see ExportController}: response()->stream + fputcsv). Respeta el periodo y los filtros
+     * dept+tipo. Segmentado por TIPO (crew/proveedor/renta/day player) + por periodo.
+     *
+     * 🔑 RECIBIR NO ES VALIDAR: la columna estado dice RECIBIDO o FALTA, nunca "vigente"/"aprobado";
+     * la fecha es la de CAPTURA (recepción), no la de validación.
+     */
+    public function export(Request $request, PaymentPeriod $period)
+    {
+        $filters = [
+            'department_id'    => $request->integer('department') ?: null,
+            'document_type_id' => $request->integer('document_type') ?: null,
+        ];
+
+        $board    = PeriodBoard::build($period, $request->user(), $filters);
+        $typeById = collect($board['columns'])->keyBy('id');
+        $tname    = fn ($t) => $t ? ($t->name_es ?? $t->name ?? $t->code ?? ('#' . $t->id)) : '';
+
+        $rows = collect($board['rows'])->map(function ($r) use ($period, $typeById, $tname) {
+            $c        = $r['contract'];
+            $faltan   = [];
+            $recibido = [];
+            foreach ($r['cells'] as $typeId => $status) {
+                $nm = $tname($typeById->get($typeId));
+                if ($nm === '') {
+                    continue;
+                }
+                if ($status === \App\Support\PayeePackage::ST_RECEIVED) {
+                    $recibido[] = $nm;
+                } else {
+                    $faltan[] = $nm;   // missing / not_positive / expired → NO recibido
+                }
+            }
+
+            return [
+                'nombre'   => $r['payee']->name,
+                'tipo'     => $this->periodRowType($c, $period),
+                'regimen'  => optional($c->fiscalRegime)->name
+                              ?? optional($c->fiscalRegime)->description
+                              ?? optional($c->fiscalRegime)->code ?? '',
+                'estado'   => $r['delivered'] ? 'RECIBIDO' : 'FALTA',
+                'faltan'   => implode('; ', $faltan),
+                'recibido' => implode('; ', $recibido),
+                'fecha'    => $r['received_at'] ? $r['received_at']->format('d/m/Y') : '',
+                'marca'    => $r['out_of_window'] ? 'fuera de ventana' : '',
+            ];
+        })->sortBy([['tipo', 'asc'], ['nombre', 'asc']])->values();
+
+        $label    = $period->label ?: ('periodo-' . $period->id);
+        $fileName = 'quien-falta-' . \Illuminate\Support\Str::slug($label) . '.csv';
+        $headers  = [
+            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=$fileName",
+            'Cache-Control'       => 'no-cache, must-revalidate',
+        ];
+        $cols = ['PERSONA / RAZÓN SOCIAL', 'TIPO', 'RÉGIMEN', 'ESTADO', 'DOCUMENTOS FALTANTES', 'DOCUMENTOS RECIBIDOS', 'FECHA DE RECEPCIÓN', 'MARCA'];
+
+        $callback = function () use ($rows, $cols) {
+            $file = fopen('php://output', 'w');
+            fwrite($file, "\xEF\xBB\xBF");   // BOM: Excel abre los acentos (RÉGIMEN, RAZÓN) bien
+            fputcsv($file, $cols);
+            foreach ($rows as $r) {
+                fputcsv($file, [$r['nombre'], $r['tipo'], $r['regimen'], $r['estado'], $r['faltan'], $r['recibido'], $r['fecha'], $r['marca']]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /** TIPO del renglón para la segmentación: day player gana sobre el concepto del contrato. */
+    private function periodRowType(PayeeContract $c, PaymentPeriod $period): string
+    {
+        if ($period->frequency === PayeeContract::FREQ_DAY_PLAYER || $c->payment_frequency === PayeeContract::FREQ_DAY_PLAYER) {
+            return 'Day player';
+        }
+        return match ($c->concept) {
+            PayeeContract::CONCEPT_CREW   => 'Crew',
+            PayeeContract::CONCEPT_RENTAL => 'Renta',
+            default                       => 'Proveedor',
+        };
+    }
+
+    /**
      * RECORDATORIO MANUAL a quienes faltan (§a). Contabilidad revisa la lista y manda UNO POR UNO
      * por WhatsApp (sabe quién está de vacaciones / dijo que lo manda mañana). Nunca a quien ya
      * entregó. El mensaje nombra la producción y dice qué le falta a cada quien.

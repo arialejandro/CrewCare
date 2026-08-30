@@ -116,6 +116,11 @@
                 @if($filters['department_id'] || $filters['document_type_id'])
                     <a href="{{ route('periods.show', $period) }}" class="btn btn-sm btn-crew-soft">{{ __('Limpiar') }}</a>
                 @endif
+                {{-- Export CSV del tablero (recibido/falta, nunca "vigente"), conservando los filtros. --}}
+                <a href="{{ route('periods.export', ['period' => $period, 'department' => $filters['department_id'], 'document_type' => $filters['document_type_id']]) }}"
+                   class="btn btn-sm btn-outline-secondary ms-auto d-inline-flex align-items-center gap-1">
+                    @include('componentes._icon', ['name' => 'download', 'label' => null]) {{ __('Exportar CSV') }}
+                </a>
             </div>
         </form>
 

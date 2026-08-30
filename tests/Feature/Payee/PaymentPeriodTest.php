@@ -394,6 +394,39 @@ class PaymentPeriodTest extends QaTestCase
         $this->assertNull(PaymentPeriod::find($period->id), 'un periodo vacío sí se borra');
     }
 
+    // ── Export CSV del tablero (contabilidad) ─────────────────────────────────
+    public function test_export_csv_dice_recibido_o_falta_nunca_vigente(): void
+    {
+        $lp    = $this->makeUser('line-producer');
+        $payee = Payee::create(['legal_nature' => 'moral', 'name' => 'Proveedora SA']);
+        $this->contract($payee, $lp, PayeeContract::FREQ_WEEKLY);   // concept=service → "Proveedor"
+
+        $dt = DocumentType::where('code', 'CSF')->firstOrFail();
+        $payee->documents()->create([
+            'level' => 'persona', 'document_type' => $dt->name, 'document_type_id' => $dt->id,
+            'issued_at' => now()->toDateString(), 'origen' => 'contractual', 'status' => 'presentado', 'is_active' => 1,
+        ]);
+        $period = $this->period(PayeeContract::FREQ_WEEKLY, '2026-08-10', '2026-08-16', ['label' => 'Semana 5']);
+
+        $this->actingAs($lp);
+        $res = $this->get(route('periods.export', $period));
+        $res->assertOk();
+        $csv = $res->streamedContent();
+
+        $this->assertStringContainsString('Proveedora SA', $csv);
+        $this->assertStringContainsString('Proveedor', $csv, 'segmenta por TIPO');
+        $this->assertMatchesRegularExpression('/RECIBIDO|FALTA/', $csv, 'estado explícito');
+        $this->assertStringNotContainsStringIgnoringCase('vigente', $csv, 'recibir no es validar: nunca "vigente"');
+        $this->assertStringNotContainsStringIgnoringCase('aprobado', $csv);
+    }
+
+    public function test_export_is_gated_to_view(): void
+    {
+        $period = $this->period(PayeeContract::FREQ_WEEKLY, '2026-08-10', '2026-08-16');
+        $this->actingAs($this->makeUser('crew'));
+        $this->get(route('periods.export', $period))->assertForbidden();
+    }
+
     public function test_delete_is_refused_when_the_period_has_documents(): void
     {
         $lp = $this->makeUser('line-producer');
