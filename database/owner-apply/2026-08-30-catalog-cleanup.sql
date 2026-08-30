@@ -105,7 +105,7 @@ UPDATE `positions` p JOIN `departments` d ON p.`department_id` = d.`id`
   WHERE p.`name` IN ('Asst. de Diseñador Gráfico','Gerente Asst. de Locaciones','Asst. Gerente de Unidad','Asst. Diseñador');
 UPDATE `positions` p JOIN `departments` d ON p.`department_id` = d.`id`
   SET p.`rank` = 20, p.`sort_order` = d.`sort_order` * 100 + 20
-  WHERE p.`name` IN ('Diseñador de Sets','Diseñador Gráfico','Diseñador Gráfico de Vestuario');
+  WHERE p.`name` IN ('Diseñador de Sets','Diseñador Gráfico','Diseñador Gráfico de Vestuario','Director de Arte en Set','Gerente de Soporte de Locaciones');
 
 -- ── 3) Equipo: desactiva EQUIPO FÍSICO = todo en 'Equipo' salvo Dolly (puesto real) y
 --    Asistente/Luces (198, GATEADO). Por NOMBRE (el catalog_key puede quedar revuelto en un
@@ -115,6 +115,11 @@ UPDATE `positions` SET `name` = 'Móvil Alpha'
   WHERE `department_id` = @equipo AND `name` LIKE 'M%' AND `name` <> 'Móvil Alpha';  -- limpia mojibake
 UPDATE `positions` SET `active` = 0
   WHERE `department_id` = @equipo AND `name` NOT IN ('Dolly','Asistente/Luces');
+
+-- ── 3b) Ajustes (2026-08-30): Asistente/Luces ES puesto (encargado de las luces) → name_en;
+--    Jefa de Equipo se desactiva (no se borra). ──
+UPDATE `positions` SET `name_en` = 'Lighting Assistant' WHERE `name` = 'Asistente/Luces';
+UPDATE `positions` SET `active` = 0 WHERE `name` = 'Jefa de Equipo';
 
 -- ── 4) Unifica 3 duplicados: alias del retirado → sobreviviente, luego desactiva el retirado ──
 -- A) Coordinador Ejecutivo ← Coord. Ejecutivo (por nombre)

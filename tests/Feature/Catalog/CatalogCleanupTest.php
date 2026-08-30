@@ -53,8 +53,10 @@ class CatalogCleanupTest extends QaTestCase
         foreach (['Móvil Alpha', 'Planta Set', 'Cabeza Remota'] as $name) {
             $this->assertSame(0, (int) $this->pos($name)->active, "{$name} (equipo) desactivado");
         }
-        // Gateado + puesto real: se quedan activos.
-        $this->assertSame(1, (int) $this->pos('Asistente/Luces')->active, 'Asistente/Luces NO se toca (gateado)');
+        // Puestos reales del depto Equipo: se quedan activos.
+        $al = $this->pos('Asistente/Luces');
+        $this->assertSame(1, (int) $al->active, 'Asistente/Luces es puesto (encargado de las luces)');
+        $this->assertSame('Lighting Assistant', $al->name_en, 'Asistente/Luces recibe name_en');
         $this->assertSame(1, (int) $this->pos('Dolly')->active, 'Dolly es puesto real');
         // Mojibake corregido.
         $this->assertSame('Móvil Alpha', $this->pos('Móvil Alpha')->name);
@@ -82,6 +84,25 @@ class CatalogCleanupTest extends QaTestCase
 
         // El retirado ya no tiene alias (no resuelve a un inactivo).
         $this->assertSame(0, DB::table('catalog_aliases')->where('entity_type', 'position')->where('entity_id', $jefeProps->id)->count());
+    }
+
+    public function test_ajustes_frente2_rangos_y_jefa_de_equipo(): void
+    {
+        // Bajan a 20 (van bajo su jefe): Director de Arte en Set y Gerente de Soporte de Locaciones.
+        foreach (['Director de Arte en Set', 'Gerente de Soporte de Locaciones'] as $name) {
+            $p = $this->pos($name);
+            $this->assertSame(20, (int) $p->rank, "{$name} baja a rango 20");
+            $dept = (int) DB::table('departments')->where('id', $p->department_id)->value('sort_order');
+            $this->assertSame($dept * 100 + 20, (int) $p->sort_order, "{$name} recalcula sort_order");
+        }
+        // Los demás rango-10 SE QUEDAN en 10 (son cabeza de su taller/depto).
+        foreach (['Head Welder', 'Jefe de Carpintería', 'Jefe de Pintura Escénica', 'Jefa de Taller de Costura', 'Diseñador de M&P'] as $name) {
+            $this->assertSame(10, (int) $this->pos($name)->rank, "{$name} sigue en rango 10");
+        }
+        // Jefa de Equipo desactivada (no borrada).
+        $je = $this->pos('Jefa de Equipo');
+        $this->assertNotNull($je);
+        $this->assertSame(0, (int) $je->active, 'Jefa de Equipo desactivada');
     }
 
     public function test_paeorgchart_sigue_apuntando_a_la_posicion_15(): void

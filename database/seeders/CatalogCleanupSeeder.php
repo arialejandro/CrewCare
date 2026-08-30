@@ -119,12 +119,22 @@ class CatalogCleanupSeeder extends Seeder
         'Asst. de Compras de Vestuario' => 'Assistant Costume Buyer',
         'Asistente de Video' => 'Video Assist Assistant',
         'Operador de VTR' => 'Video Assist Operator',
+        // (2026-08-30, ajuste 2) Asistente/Luces SÍ es puesto (la persona encargada de las luces),
+        // no unidad → se queda activo (cleanEquipo lo respeta) y recibe su name_en.
+        'Asistente/Luces' => 'Lighting Assistant',
     ];
 
     /** Asistentes atrapados en rango 10 → 50. */
     private const RANK_50 = ['Asst. de Diseñador Gráfico', 'Gerente Asst. de Locaciones', 'Asst. Gerente de Unidad', 'Asst. Diseñador'];
-    /** Diseñadores mid atrapados en rango 10 → 20. */
-    private const RANK_20 = ['Diseñador de Sets', 'Diseñador Gráfico', 'Diseñador Gráfico de Vestuario'];
+    /**
+     * Diseñadores mid + sub-jefaturas atrapados en rango 10 → 20. Director de Arte en Set va bajo
+     * el Diseñador de Producción y Gerente de Soporte de Locaciones bajo el Gerente de Locaciones:
+     * con rango 10 se imprimían al mismo nivel que su jefe (ajuste 2, 2026-08-30).
+     */
+    private const RANK_20 = ['Diseñador de Sets', 'Diseñador Gráfico', 'Diseñador Gráfico de Vestuario', 'Director de Arte en Set', 'Gerente de Soporte de Locaciones'];
+
+    /** Se desactivan por nombre (no se borran). */
+    private const DEACTIVATE = ['Jefa de Equipo'];
 
     /**
      * Duplicados: nombre del sobreviviente => nombre del retirado. Todo por NOMBRE:
@@ -150,7 +160,14 @@ class CatalogCleanupSeeder extends Seeder
         $this->fixRanks(self::RANK_50, 50);
         $this->fixRanks(self::RANK_20, 20);
         $this->cleanEquipo();
+        $this->deactivateByName();
         $this->unifyDuplicates();
+    }
+
+    private function deactivateByName(): void
+    {
+        $n = DB::table('positions')->whereIn('name', self::DEACTIVATE)->update(['active' => 0]);
+        if ($this->command) { $this->command->info("CatalogCleanup · desactivados por nombre: [" . implode(', ', self::DEACTIVATE) . "] ({$n})."); }
     }
 
     private function applyNameEn(): void
