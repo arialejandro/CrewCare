@@ -281,6 +281,13 @@
         return m ? (m.getAttribute('content') || '') : '';
     }
 
+    // ¿El error es por cuota de almacenamiento llena? (para avisar, no fallar en silencio).
+    function isQuota(err) {
+        if (!err) { return false; }
+        var s = String(err.name || '') + ' ' + String(err.message || '');
+        return /QuotaExceeded|NS_ERROR_DOM_QUOTA_REACHED|quota/i.test(s);
+    }
+
     function hasSelectedFiles(form) {
         var yes = false;
         Array.prototype.forEach.call(form.querySelectorAll('input[type=file]'), function (inp) {
@@ -289,21 +296,49 @@
         return yes;
     }
 
-    function payloadFrom(values) {
-        var p = new URLSearchParams();
-        (values || []).forEach(function (pair) {
+    // Reproduce el payload como multipart/form-data (necesario para las fotos). Los pares de
+    // texto se anexan igual que los mandaría el navegador; las fotos (Blobs guardados) van en
+    // el MISMO FormData, por la ruta normal — sin endpoint de imágenes aparte.
+    function buildFormData(rec) {
+        var fd = new FormData();
+        (rec.values || []).forEach(function (pair) {
             var t = pair.t;
             if (t === 'checkbox' || t === 'radio') {
-                if (pair.c) { p.append(pair.n, pair.v == null ? '' : pair.v); }  // solo las marcadas
+                if (pair.c) { fd.append(pair.n, pair.v == null ? '' : pair.v); }  // solo las marcadas
                 return;
             }
             if (t === 'select-multiple' && Array.isArray(pair.v)) {
-                pair.v.forEach(function (v) { p.append(pair.n, v); });
+                pair.v.forEach(function (v) { fd.append(pair.n, v); });
                 return;
             }
-            p.append(pair.n, pair.v == null ? '' : pair.v);
+            fd.append(pair.n, pair.v == null ? '' : pair.v);
         });
-        return p;
+        fd.append('_token', csrfToken());
+        (rec.files || []).forEach(function (f) {
+            if (f && f.blob) { fd.append(f.n, f.blob, f.name || 'foto.jpg'); }
+        });
+        return fd;
+    }
+
+    // Captura las fotos de los <input type=file> en ORDEN del DOM, aplicando la compresión que
+    // YA existe (CCPhoto.process: reescala + JPEG + EXIF) ANTES de guardar → blobs chicos.
+    function collectFiles(form) {
+        var inputs = form.querySelectorAll('input[type=file]');
+        var jobs = [];
+        Array.prototype.forEach.call(inputs, function (input) {
+            if (!input.name || !input.files || !input.files.length) { return; }
+            Array.prototype.forEach.call(input.files, function (file) {
+                var proc = (w.CCPhoto && typeof w.CCPhoto.process === 'function' && w.CCPhoto.isImage && w.CCPhoto.isImage(file))
+                    ? w.CCPhoto.process(file) : Promise.resolve(file);
+                jobs.push(Promise.resolve(proc).then(function (out) {
+                    out = out || file;
+                    return { n: input.name, name: out.name || file.name || 'foto.jpg', type: out.type || file.type || 'image/jpeg', blob: out };
+                }).catch(function () {
+                    return { n: input.name, name: file.name || 'foto.jpg', type: file.type || 'image/jpeg', blob: file };
+                }));
+            });
+        });
+        return Promise.all(jobs);
     }
 
     function flattenErrors(errors) {
@@ -348,8 +383,7 @@
     // Envía UN borrador por su ruta normal. Interpreta el resultado y actualiza el borrador.
     function sendDraft(rec) {
         if (!rec || !rec.url) { return Promise.resolve({ ok: false, skip: true }); }
-        var body = payloadFrom(rec.values);
-        body.append('_token', csrfToken());
+        var body = buildFormData(rec);   // multipart: texto + fotos, por la ruta normal.
         return fetch(rec.url, {
             method: (rec.method || 'POST'),
             credentials: 'same-origin',
@@ -479,15 +513,30 @@
             });
         }
 
-        // OFFLINE submit: encola con destino + llave, sin borrar. Al reconectar, la cola lo envía.
+        // OFFLINE submit: captura+comprime las fotos, encola con destino + llave, sin borrar.
+        // Al reconectar, la cola lo envía por la ruta normal (texto + fotos en el mismo FormData).
         function enqueue() {
-            var files = hasSelectedFiles(form);
-            var rec = baseRec('queued');
-            put(rec).then(function () {
-                onStatus({ state: 'queued', at: rec.updatedAt, id: rec.id, hasFiles: files });
-                if (w.navigator && w.navigator.onLine) { flushPending(); }   // por si 'offline' fue un falso negativo.
-            }).catch(function () {
-                onStatus({ state: 'error' });
+            collectFiles(form).then(function (files) {
+                var rec = baseRec('queued');
+                rec.files = files;
+                put(rec).then(function () {
+                    onStatus({ state: 'queued', at: rec.updatedAt, id: rec.id, hasFiles: files.length > 0, photoCount: files.length });
+                    if (w.navigator && w.navigator.onLine) { flushPending(); }   // por si 'offline' fue un falso negativo.
+                }).catch(function (err) {
+                    // Cuota de IndexedDB llena → NO fallar en silencio: guarda el TEXTO (sin fotos)
+                    // para no perder el reporte y avisa que las fotos no cupieron.
+                    if (isQuota(err) && files.length) {
+                        rec.files = [];
+                        put(rec).then(function () {
+                            onStatus({ state: 'queued-no-photos', at: rec.updatedAt, id: rec.id });
+                            emit('cc-drafts:quota', { id: rec.id });
+                            if (w.navigator && w.navigator.onLine) { flushPending(); }
+                        }).catch(function () { onStatus({ state: 'error' }); emit('cc-drafts:quota', { id: rec.id }); });
+                    } else {
+                        onStatus({ state: 'error' });
+                        if (isQuota(err)) { emit('cc-drafts:quota', { id: rec.id }); }
+                    }
+                });
             });
         }
 

@@ -85,9 +85,13 @@
             if (!elStatus) { return; }
             if (st && st.state === 'device') { elStatus.textContent = 'Guardado en este dispositivo · ' + fmt(st.at); }
             else if (st && st.state === 'queued') {
-                elStatus.textContent = st.hasFiles
-                    ? 'Sin conexión: se enviará al reconectar (las fotos NO van en el envío diferido; agrégalas con red).'
-                    : 'Sin conexión: se enviará al reconectar.';
+                var photos = st.photoCount
+                    ? ' (' + st.photoCount + (st.photoCount === 1 ? ' foto incluida' : ' fotos incluidas') + ')'
+                    : '';
+                elStatus.textContent = 'Sin conexión: se enviará al reconectar' + photos + '.';
+            }
+            else if (st && st.state === 'queued-no-photos') {
+                elStatus.textContent = 'Sin conexión: se enviará al reconectar. ⚠ Las fotos NO cupieron (almacenamiento lleno); reenvía con red para incluirlas.';
             }
             else if (st && st.state === 'error') { elStatus.textContent = 'No se pudo guardar en el dispositivo'; }
         }
@@ -103,6 +107,9 @@
         });
         window.addEventListener('cc-drafts:auth', function () {
             if (elStatus) { elStatus.textContent = 'Inicia sesión para enviar los reportes pendientes.'; }
+        });
+        window.addEventListener('cc-drafts:quota', function () {
+            if (elStatus) { elStatus.textContent = 'Almacenamiento del dispositivo lleno: las fotos no se guardaron. Envía con red o libera espacio.'; }
         });
 
         function isBlank(f) {
