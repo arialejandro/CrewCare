@@ -57,6 +57,7 @@ class DatabaseSeeder extends Seeder
             OrgCatalogSeeder::class,                   // departments/positions globales (production_id NULL)
             CatalogFusionSeeder::class,                // FUSIÓN semilla+vivo: catalog_key/rank/binding/hod_capable/grade + alias (delta #114)
             CatalogCollapseEmptyDeptsSeeder::class,    // colapsa 4 deptos vacíos duplicados en su padre (2026-08-28)
+            CatalogCleanupSeeder::class,               // name_en(84) + rank fixes + Equipo(unidades) + unifica 3 duplicados (2026-08-30)
             ProductionDemoSeeder::class,               // la fila de produccion de la instancia (nombre por env)
             InstallAdminSeeder::class,                 // 1er super-admin idempotente (creds por env)
 
