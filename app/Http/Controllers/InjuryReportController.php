@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Http\Requests\InjuryReportRequest;
 use App\Models\InjuryReport;
 use App\Models\User;
 use App\Models\HazardEvent;
@@ -68,23 +69,11 @@ class InjuryReportController extends Controller
         return view('admin.injuryreportcreate', compact('user', 'standards', 'hazardEvents', 'departments', 'positions', 'isEdit', 'injuryReport'));
     }
 
-    public function store(Request $request)
+    public function store(InjuryReportRequest $request)
 {
-    // (2026-07-14) Pilar 1 — captura en 2 FASES. En Fase 1 (progressive ON, default)
-    // el store de móvil pide lo MÍNIMO (solo what_happened); todo lo demás es
-    // nullable y el compliance se completa luego en la edición (Fase 2). Si el flag
-    // está OFF se conservan las reglas ESTRICTAS de siempre.
-    $progressive = Features::enabled('progressive_capture');
-
-    // Fase 1 → reglas mínimas (strict = false); Fase 1 OFF → reglas estrictas.
-    $validatedData = $request->validate($this->validationRules($request, !$progressive));
-
-    // (2026-07-12) MÓDULO 10: la obligatoriedad de aviso a la autoridad (registrable)
-    // es carga "burocrática" → solo se exige en el flujo ESTRICTO. En Fase 1 (ágil) NO
-    // se bloquea: queda como pendiente de compliance para completarse en la edición.
-    if (!$progressive) {
-        $this->assertRecordableNotified($request);
-    }
+    // (2026-07-14) Pilar 1 — captura en 2 FASES. La validación (mínima en Fase 1, estricta con el
+    // flag apagado) + el aviso a la autoridad si es REGISTRABLE viven en InjuryReportRequest.
+    $validatedData = $request->validated();
 
     // Preparar datos para la base de datos (unsets defensivos, JSON, imágenes, autollenado).
     $dataForDb = $this->prepareDataForDb($request, $validatedData);
@@ -160,19 +149,13 @@ class InjuryReportController extends Controller
      * de compliance cuando la matriz 5×5 queda completa. NUNCA toca la autofirma
      * (make_by / make_date / created_by_id).
      */
-    public function update(Request $request, $id)
+    public function update(InjuryReportRequest $request, $id)
     {
+        // Aislamiento por autor (auditoría #1) + validación ESTRICTA + aviso a la autoridad viven en
+        // InjuryReportRequest: authorize() 403 ANTES de validar (conserva el orden), rules() estricto.
         $injuryReport = InjuryReport::findOrFail($id);
 
-        // Aislamiento por autor (auditoría #1): sólo el autor o la consolidación pueden editar/re-sellar.
-        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $injuryReport), 403,
-            'Solo el autor o la consolidación de seguridad pueden editar este reporte.');
-
-        // Fase 2 SIEMPRE valida estricto (matriz 5×5, injury_type, causas, etc.).
-        $validatedData = $request->validate($this->validationRules($request, true));
-
-        // En Fase 2 la obligatoriedad de aviso a la autoridad (registrable) SÍ aplica.
-        $this->assertRecordableNotified($request);
+        $validatedData = $request->validated();
 
         // Reutiliza exactamente la misma preparación que store (unsets/JSON/imágenes).
         // Se pasa el reporte existente para APPEND (no reemplazo) de imágenes adicionales.
@@ -231,156 +214,8 @@ class InjuryReportController extends Controller
         }
     }
 
-    /**
-     * (2026-07-14) Reglas de validación compartidas por store()/update().
-     * $strict=true → set COMPLETO (matriz/injury_type/causas obligatorios), usado por
-     * update() y por store() con progressive OFF. $strict=false → Fase 1 (móvil ágil):
-     * SOLO what_happened es obligatorio; el resto se relaja a nullable conservando los
-     * formatos (date/numeric/in).
-     */
-    private function validationRules(Request $request, $strict)
-    {
-        // MÓDULO 11: la justificación manual solo se vuelve OBLIGATORIA (sin GPS) en el
-        // flujo estricto y si la columna existe (defensivo prod). En Fase 1 no bloquea.
-        $manualLocationRule = 'nullable|string|max:1000';
-        if ($strict && Schema::hasColumn('injury_reports', 'manual_location_justification')) {
-            $manualLocationRule .= '|required_without:latitude';
-        }
-
-        // Prefijo de obligatoriedad de los campos "de fondo".
-        $req = $strict ? 'required' : 'nullable';
-
-        return [
-            'production_title' => "{$req}|string|max:255",
-            'production_dates' => 'nullable|string|max:255',
-            'location' => 'nullable|string|max:255',
-            'department' => 'nullable|string|max:255',
-            'incident_date' => "{$req}|date|before_or_equal:today",
-            // El cross-field after_or_equal:incident_date solo aplica en estricto (en Fase 1
-            // incident_date puede venir vacío y rompería la comparación).
-            'reported_date' => $strict
-                ? 'required|date|after_or_equal:incident_date|before_or_equal:today'
-                : 'nullable|date|before_or_equal:today',
-            'time' => 'nullable|date_format:H:i',
-            'incident_location' => 'nullable|string|max:255',
-            // (2026-07-07) GPS opcional: coordenadas + dirección detectada (reverse geocoding).
-            'latitude' => 'nullable|numeric|between:-90,90',
-            'longitude' => 'nullable|numeric|between:-180,180',
-            'gps_address' => 'nullable|string|max:500',
-            'name' => "{$req}|string|max:255",
-            'position' => 'nullable|string|max:255',
-            'dob' => 'nullable|date|before:today',
-            'phone' => 'nullable|string|max:20',
-            'other' => 'nullable|string|max:255',
-            'body_part' => 'nullable|string|max:255',
-            'injury_type' => "{$req}|array",
-            'injury_type.*' => 'string|max:255',
-            'treatment_type' => 'nullable|string|max:255',
-            'treatment_by' => 'nullable|string|max:255',
-            'hospital' => 'nullable|string|max:255',
-            'treatment_comments' => 'nullable|string|max:1000',
-            // (2026-07-14) what_happened es el ÚNICO campo obligatorio también en Fase 1.
-            'what_happened' => 'required|string|max:2000',
-            'what_caused' => "{$req}|string|max:2000",
-            'preventions' => "{$req}|string|max:1000",
-            'further_comments' => 'nullable|string|max:1000',
-            'user_id' => 'nullable|exists:users,id',
-            // (2026-07-09) Límite de imagen subido a 12 MB (5 MB rechazaba fotos de celular en silencio).
-            'main_image' => 'nullable|mimes:jpeg,png,jpg,gif,heic,heif|heic_ok|max:12288',
-            'additional_images.*' => 'nullable|mimes:jpeg,png,jpg,gif,heic,heif|heic_ok|max:12288',
-            // (2026-06-28) Catálogo normativo legacy: nullable por compat con envíos viejos.
-            'category_name' => 'nullable|string',
-            // (2026-07-13) Catálogo ÚNICO de eventos. 'nullable|integer' (NO exists) para no
-            // romper PROD antes del SQL; applyHazardEvent() lo resuelve de forma defensiva.
-            'hazard_event_id' => 'nullable|integer',
-            // (2026-07-09) Datos laborales + fatiga.
-            'employer_name' => 'nullable|string|max:255',
-            'call_time' => 'nullable|date_format:H:i',
-            // (2026-07-09) Registrabilidad OSHA 300/301 (is_recordable se fuerza server-side).
-            'treatment_level' => 'nullable|in:first_aid,medical_treatment,hospitalization,fatality',
-            'days_away_from_work' => 'nullable|integer|min:0|max:9999',
-            'days_restricted_work' => 'nullable|integer|min:0|max:9999',
-            // (2026-07-13) Matriz 5×5: en estricto son OBLIGATORIOS; en Fase 1 nullable
-            // (si faltan, el reporte queda pending_compliance=1).
-            'likelihood' => $strict ? 'required|in:A,B,C,D,E' : 'nullable|in:A,B,C,D,E',
-            'consequence' => $strict ? 'required|integer|between:1,5' : 'nullable|integer|between:1,5',
-            // (2026-07-09) Causa raíz estructurada (JSON).
-            'root_cause_analysis' => 'nullable|array',
-            'root_cause_analysis.immediate' => 'nullable|string|max:2000',
-            'root_cause_analysis.contributing' => 'nullable|string|max:2000',
-            'root_cause_analysis.root' => 'nullable|string|max:2000',
-            // (2026-07-20) MECANISMO DE LA LESIÓN: cómo la persona entró en contacto con el
-            // daño. Vive DENTRO del JSON root_cause_analysis (llave nueva) a propósito: NO es
-            // una columna nueva en injury_reports, así que el sello SHA de lo ya firmado no
-            // cambia. Sólo afecta capturas nuevas.
-            'root_cause_analysis.mechanism' => 'nullable|string|max:2000',
-            // (2026-07-13) COHERENCIA: categorías de causa raíz (checkboxes) — additive.
-            'root_cause_analysis.categories' => 'nullable|array',
-            'root_cause_analysis.categories.*' => 'string|max:255',
-            // (2026-07-09) EPP estructurado (JSON).
-            'ppe_details' => 'nullable|array',
-            'ppe_details.worn' => 'nullable|in:si,no,na',
-            'ppe_details.types' => 'nullable|array',
-            'ppe_details.types.*' => 'nullable|string|max:100',
-            'ppe_details.condition' => 'nullable|string|max:255',
-            // (2026-07-09) Vínculo N:M a normas aplicables.
-            'standards' => 'nullable|array',
-            'standards.*' => 'integer|exists:safety_standards,id',
-            // (2026-07-12) MÓDULO 7: Testigos (1:N). Opcionales; si hay fila, el nombre es required.
-            'witnesses' => 'nullable|array',
-            'witnesses.*.name' => 'required_with:witnesses|string|max:255',
-            'witnesses.*.phone' => 'nullable|string|max:50',
-            'witnesses.*.statement' => 'nullable|string|max:2000',
-            // (2026-07-12) MÓDULO 10: Notificaciones a autoridad (JSON estructurado).
-            'authority_notifications' => 'nullable|array',
-            'authority_notifications.*.authority' => 'nullable|string|max:100',
-            'authority_notifications.*.notified_at' => 'nullable|date',
-            'authority_notifications.*.notified_by' => 'nullable|string|max:255',
-            'authority_notifications.*.folio_number' => 'nullable|string|max:100',
-            // (2026-07-12) MÓDULO 11: Justificación de ubicación manual (sin GPS).
-            'manual_location_justification' => $manualLocationRule,
-        ];
-    }
-
-    /**
-     * (2026-07-12) MÓDULO 10: si el incidente es REGISTRABLE (nivel médico/hospitalización/
-     * fatalidad o días perdidos/restringidos), exige al menos UN aviso a la autoridad con
-     * autoridad y folio no vacíos. No-op si la columna no existe (defensivo prod).
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
-    private function assertRecordableNotified(Request $request)
-    {
-        if (!Schema::hasColumn('injury_reports', 'authority_notifications')) {
-            return;
-        }
-
-        $treatmentLevel = $request->input('treatment_level');
-        $daysAway       = (int) $request->input('days_away_from_work', 0);
-        $daysRestricted = (int) $request->input('days_restricted_work', 0);
-        $isRecordable   = in_array($treatmentLevel, ['medical_treatment', 'hospitalization', 'fatality'], true)
-            || $daysAway > 0 || $daysRestricted > 0;
-
-        if (!$isRecordable) {
-            return;
-        }
-
-        $hasValidNotification = false;
-        foreach ((array) $request->input('authority_notifications', []) as $note) {
-            if (is_array($note)
-                && trim((string) ($note['authority'] ?? '')) !== ''
-                && trim((string) ($note['folio_number'] ?? '')) !== '') {
-                $hasValidNotification = true;
-                break;
-            }
-        }
-
-        if (!$hasValidNotification) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'authority_notifications' => 'Este incidente es REGISTRABLE: registra al menos una notificación a la autoridad con autoridad y número de folio.',
-            ]);
-        }
-    }
+    // La validación (reglas + aviso a la autoridad si es REGISTRABLE) + el aislamiento por autor
+    // viven ahora en App\Http\Requests\InjuryReportRequest (mismo comportamiento; higiene).
 
     /**
      * (2026-07-14) Preparación compartida de datos para BD (store + update). Aplica los
