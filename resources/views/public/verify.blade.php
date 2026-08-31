@@ -104,6 +104,11 @@
                     <dt>Folio</dt>     <dd class="mono">{{ $acuse['folio'] }}</dd>
                     <dt>UUID</dt>      <dd class="mono">{{ $acuse['uuid'] }}</dd>
                     <dt>Sellado</dt>   <dd>{{ $acuse['sealed_at'] ?: '—' }}</dd>
+                    @if (! empty($acuse['tsa_at']))
+                        {{-- Sello de tiempo externo (TSA). Se muestra cuando existe; no se exige. --}}
+                        <dt>Sello de tiempo</dt>
+                        <dd>{{ $acuse['tsa_at'] }}<br><small>Timbre RFC&nbsp;3161 · {{ $acuse['tsa_authority'] ?? 'TSA' }}</small></dd>
+                    @endif
                     @if ($acuse['verdict'] === 'ok')
                         {{-- Vigencia solo si el sello es íntegro (si está alterado, la integridad manda). --}}
                         @php

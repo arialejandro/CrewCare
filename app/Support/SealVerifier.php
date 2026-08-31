@@ -185,6 +185,16 @@ class SealVerifier
             'superseded_folio' => $retiro['superseded_folio'] ?? null,
         ];
 
+        // SELLO DE TIEMPO (TSA · RFC 3161): timbre externo sobre este sello, si existe. NO es PII
+        // (misma clase que el folio): es un tiempo autoritativo + el nombre de la autoridad. Se
+        // MUESTRA cuando existe, no se EXIGE (best-effort: un doc puede estar sellado y aún sin timbre).
+        $tsa = $firma ? \App\Support\TsaStamper::stampedFor((int) $firma->id) : null;
+        if ($tsa) {
+            $when = $tsa->gen_time ?: $tsa->stamped_at;
+            $dto['tsa_at']        = $when ? \Carbon\Carbon::parse($when)->format('d/m/Y H:i:s') . ' UTC' : null;
+            $dto['tsa_authority'] = $tsa->authority;
+        }
+
         // El modelo muere aquí: fuera de este método sólo viajan esas claves (5 de integridad
         // + 4 de vigencia). Ninguna revela contenido ni identidad.
         unset($doc, $firma, $model);

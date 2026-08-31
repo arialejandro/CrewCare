@@ -15,6 +15,7 @@ class Kernel extends ConsoleKernel
     protected $commands = [
         Commands\CrewWelcomeResend::class,
         Commands\DispatchFileDeliveries::class,
+        Commands\StampSignatureTimestamps::class,
     ];
 
     /**
@@ -43,6 +44,11 @@ class Kernel extends ConsoleKernel
         // `withoutOverlapping` evita que dos corridas pisen las mismas filas (además del reclamo
         // atómico del despachador). Inofensivo si no hay nada encolado.
         $schedule->command('deliveries:dispatch')->everyMinute()->withoutOverlapping();
+
+        // (2026-08-30) SELLO DE TIEMPO TSA (RFC 3161). Timbra en freeTSA los sellos que aún no
+        // tienen token, best-effort. NO bloquea el sellado (eso ya ocurrió); si freeTSA no
+        // responde, reintenta en la siguiente corrida. Cubre sellos nuevos Y viejos (retroactivo).
+        $schedule->command('tsa:stamp')->everyFiveMinutes()->withoutOverlapping();
     }
 
     /**

@@ -89,4 +89,23 @@ return [
         'expire_days' => (int) env('CONTRACTS_EXPIRE_DAYS', 45),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Sello de tiempo TSA (RFC 3161)
+    |--------------------------------------------------------------------------
+    |
+    | Timbre EXTERNO sobre cada sello digital. Es lo único que sobrevive si se filtra
+    | CREWCARE_SEAL_KEY (que no se puede rotar con sellos vivos): con la llave alguien podría
+    | FABRICAR un sello, pero no un timbre fechado en el pasado por una TSA independiente.
+    | Sólo viaja el HASH (imprint = SHA-256 del document_hash) → confidencialidad intacta.
+    | Best-effort/async: el cron `tsa:stamp` lo hace aparte; el sellado NUNCA se bloquea.
+    |
+    */
+    'tsa' => [
+        'enabled'   => (bool) env('CREWCARE_TSA_ENABLED', true),
+        'url'       => env('CREWCARE_TSA_URL', 'https://freetsa.org/tsr'),
+        'timeout'   => (int) env('CREWCARE_TSA_TIMEOUT', 8),
+        'authority' => env('CREWCARE_TSA_AUTHORITY', 'freeTSA'),
+    ],
+
 ];
