@@ -173,6 +173,48 @@ Si alguna vez estuvo rastreado, rota `APP_KEY`, `DB_PASSWORD`, `MAIL_PASSWORD` e
 
 ## 10 · Cambios por racha (más reciente arriba)
 
+### Racha 2026-08-30 · Endurecimiento (seguridad + estabilidad) · deltas #117–#121
+
+**Deltas de BD (owner-apply nuevos, `CREATE TABLE IF NOT EXISTS`, aditivos; deploy fresco entran con `migrate`):**
+- `#117` `2026-08-29-idempotency-keys.sql` — envío diferido offline idempotente.
+- `#118` `2026-08-30-catalog-cleanup.sql` — limpieza del catálogo (name-based; correr el archivo COMPLETO).
+- `#119` `2026-08-30-signature-timestamps.sql` — sello de tiempo TSA.
+- `#120` `2026-08-30-clinical-read-logs.sql` — bitácora de lectura clínica.
+- `#121` `2026-08-30-sessions-table.sql` — sesión en base (habilita listar/revocar sesiones).
+
+**Crons nuevos (ya en el schedule; solo necesitan el `schedule:run` de §5·b):**
+- `tsa:stamp` (cada 5 min) — timbra en freeTSA los sellos sin sello de tiempo. Best-effort; si freeTSA no responde, reintenta. Cubre sellos viejos y nuevos.
+- `clinical-log:prune` (mensual) — retención de 3 años de la bitácora clínica.
+- latido del cron (cada minuto) — deja la marca que vigila `/healthz`.
+
+**Variables `.env` nuevas (todas con default; opcionales):**
+- `SESSION_SECURE_COOKIE` — si no se pone, la cookie es `Secure` en producción y no-secure en local.
+- `CREWCARE_HSTS`, `CREWCARE_CSP_REPORT` (default `true`).
+- `CREWCARE_TSA_ENABLED` (`true`), `CREWCARE_TSA_URL` (`https://freetsa.org/tsr`), `CREWCARE_TSA_TIMEOUT` (`8`).
+- `SESSION_DRIVER=database` — SOLO si quieres activar "Sesiones activas" del perfil (ver abajo).
+
+**HTTPS/HSTS (solo producción):** la app fuerza https (`URL::forceScheme`) + redirige http→https + HSTS (middleware `SecurityHeaders`). Requiere que el reverse-proxy TLS mande `X-Forwarded-Proto` — `TrustProxies` confía `*` (la app en el VPS solo es alcanzable por el proxy; si no fuera así, acota a la IP del proxy). **El local sigue en http, sin cambios.** La CSP va en modo REPORTE (observación) — revisa las violaciones en el log (`/csp-report`) antes de pasarla a bloqueo.
+
+**Healthcheck:** `GET /healthz` (público, mínimo) → 200 sano / 503 degradado (app/base/cola/cron). **Apúntale el monitor externo** para que alerte. Detecta `schedule:run` muerto (el latido envejece → `stale`).
+
+**Sesiones revocables (perfil → "Sesiones activas"):** requiere **`SESSION_DRIVER=database`** + la tabla `sessions` (#121). Al activarlo, TODOS re-inician sesión UNA vez (las sesiones `file` vigentes dejan de valer). Sin el flip, la página lo explica y no rompe nada. La rotación del id de sesión al iniciar sesión YA ocurre (laravel/ui).
+
+**🔴 CLAVE DEL SELLO — NO ROTAR CON SELLOS VIVOS.** `CREWCARE_SEAL_KEY` (HMAC de los sellos) NO se puede rotar en una instancia con documentos ya sellados: al cambiarla, TODOS los sellos vivos dejan de casar (el verificador los marca **ALTERADO**). Solo se fija en un deploy fresco (prod nace sin sellos) o re-sellando todo. Mitigación: el **sello de tiempo TSA (#119)** es lo único que sobrevive si la llave se filtra — nadie puede forjar un timbre fechado en el pasado.
+
+**Cifrado a nivel almacenamiento (RECOMENDACIÓN, no aplicado — es infra del VPS).** Cubre discos dados de baja / snapshots / respaldos robados; **NO** un servidor comprometido EN CALIENTE (con la BD montada, los datos están en claro para la app y para root). Para MySQL 5.7.33:
+- **A) Disco cifrado (LUKS/dm-crypt del volumen, o el cifrado del proveedor de VPS). ✅ RECOMENDADO.** Transparente para MySQL y para la app, cifra TODO (datos + binlogs + tmp + respaldos que vivan en ese disco), cero configuración del motor. Costo operativo: mínimo — se define al provisionar el volumen; en el arranque hay que aportar la passphrase (o usar el key-management del proveedor). Es lo que pide el caso ("transparente para la app").
+- **B) InnoDB tablespace encryption (`keyring_file` + `innodb-encrypt-tables`).** Cifra por-tablespace DENTRO de MySQL. Más partes móviles: el archivo de llaves NO debe vivir en el mismo disco que los datos; en 5.7 no cubre binlog/undo/redo sin flags extra; complica los respaldos físicos. Más superficie de error para el mismo objetivo.
+- **Recomendación: A.** Más simple, cobertura total, sin tocar MySQL. B solo si un requisito externo exige cifrado dentro del motor.
+
+**Respaldos y llaves (procedimiento).**
+- Respaldo lógico cifrado (diario, cron propio del VPS):
+  ```
+  mysqldump --single-transaction --routines --triggers crewcare | gzip | gpg -c > crewcare-$(date +%F).sql.gz.gpg
+  ```
+- 🔴 **Respaldo y llave en LUGARES y CUENTAS DISTINTAS.** El respaldo cifrado va a un almacenamiento (cuenta A); la passphrase/llave del respaldo va a OTRA cuenta (cuenta B, gestor de contraseñas). Si acaban juntos, el cifrado no separa nada.
+- 🔑 **Las llaves (sello + app) viven en el `.env` del VPS mientras corre.** Al dar de baja el servicio, archívalas junto a un respaldo lógico final en la nube, con la MISMA separación respaldo≠llave.
+- 🔑 **Restauración PROBADA.** Un respaldo sin restaurar no es respaldo: `gpg -d ... | gunzip | mysql crewcare_restore` en una base limpia y corre el humo (§7). El dump es **lógico** (no físico) a propósito: debe poder leerse en un MySQL NUEVO dentro de 3 años, sin atarse a la versión/ruta de datos del motor.
+
 ### Racha 2026-08-27 · Catálogo organizacional FUSIONADO (semilla declarada + vivo) · delta #114
 - **Esquema (migración `2026_08_27_000001` + gemelo `owner-apply/2026-08-27-catalog-fusion-schema.sql`):**
   `positions` +6 columnas (`catalog_key`, `rank`, `binding`, `hod_capable`, `grade`, `existence`) y `departments`
