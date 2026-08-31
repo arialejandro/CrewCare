@@ -46,6 +46,10 @@
             <h1 class="h4 fw-bold mb-0">{{ __('Mi perfil') }}</h1>
             <div class="cc-muted small">{{ $users->name }} {{ $users->lname }}</div>
         </div>
+        {{-- (2026-08-30) Sesiones activas: ver y cerrar sesiones (teléfono perdido) sin cambiar contraseña. --}}
+        <a class="btn btn-outline-secondary btn-sm ms-auto" href="{{ route('perfil.sesiones') }}">
+            {{ __('Sesiones activas') }}
+        </a>
     </div>
 
     <div class="row g-4">

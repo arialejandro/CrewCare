@@ -855,6 +855,11 @@ Route::middleware(['auth'])->group(function () {
     // alguien la posteara. Su único "cliente" era un fetch() de formulario.blade.php a
     // `/registrarformulario/…`, ruta que nunca existió (404). Ambos se retiraron.
     Route::get('/profile',[App\Http\Controllers\PerfilController::class,'indexb'])->name('perfil');
+    // (2026-08-30 · endurecimiento) SESIONES ACTIVAS: ver y cerrar sesiones desde el perfil (sesión
+    // larga pero REVOCABLE; caso del teléfono perdido). Requiere SESSION_DRIVER=database (la vista
+    // lo explica si no lo está). Sobre auth()->user() → sin IDOR.
+    Route::get('/profile/sesiones',[App\Http\Controllers\SessionController::class,'index'])->name('perfil.sesiones');
+    Route::post('/profile/sesiones/cerrar-otras',[App\Http\Controllers\SessionController::class,'destroyOthers'])->name('perfil.sesiones.cerrar');
     // SEGURIDAD (2026-07-06): subida del avatar (cropper) — ahora exige sesión (antes iba SIN auth).
     Route::post('/crop-image-upload',[App\Http\Controllers\cropimageController::class,'uploadCropImage'])->name('uploadCropImage');
 });
