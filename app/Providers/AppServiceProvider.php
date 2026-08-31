@@ -24,6 +24,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        // (2026-08-30 · endurecimiento) PRODUCCIÓN: genera todas las URLs en https (los enlaces,
+        // assets y correos apuntan a https detrás del reverse-proxy TLS). El local NO se toca:
+        // sigue en http. La redirección http→https y HSTS los pone SecurityHeaders.
+        if ($this->app->environment('production')) {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
+
         // FEATURE FLAGS (2026-07-13, Pilar 5): directiva @feature('x')...@endfeature para
         // ocultar/mostrar módulos según el flag (config/features.php + tabla feature_flags).
         \Illuminate\Support\Facades\Blade::if('feature', function ($key) {

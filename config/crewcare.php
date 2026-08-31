@@ -108,4 +108,19 @@ return [
         'authority' => env('CREWCARE_TSA_AUTHORITY', 'freeTSA'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Endurecimiento (cabeceras + CSP)
+    |--------------------------------------------------------------------------
+    |
+    | `csp_report` — emite la CSP en modo REPORTE (no bloquea); las violaciones van a /csp-report
+    | para MEDIR qué se rompería antes de activar el bloqueo. `hsts` — agrega HSTS en producción
+    | sobre https (SecurityHeaders ya gatea el entorno). Todo sin fricción para el usuario.
+    |
+    */
+    'security' => [
+        'csp_report' => (bool) env('CREWCARE_CSP_REPORT', true),
+        'hsts'       => (bool) env('CREWCARE_HSTS', true),
+    ],
+
 ];

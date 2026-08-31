@@ -12,6 +12,7 @@ class VerifyCsrfToken extends Middleware
      * @var array
      */
     protected $except = [
-        //
+        // (2026-08-30) El navegador manda los reportes de la CSP sin token CSRF (no es un form).
+        'csp-report',
     ];
 }

@@ -48,9 +48,28 @@ Route::get('/offline', function () {
 // A petición del owner se REIMPLEMENTARÁ como comando programado `badge:reminder` (pendiente en PROGRESS.md).
 // --- /newTD, /Nresult (resets de cola PCR, COVID) ELIMINADOS — Lote 3b (2026-06-25) ---
 
+// (2026-08-30 · endurecimiento) Sumidero de reportes de la CSP (modo observación). El navegador
+// manda aquí las violaciones (sin CSRF: es el navegador, no un form). Se registra qué se rompería
+// para medir el alcance ANTES de activar el bloqueo. Público + throttle; exento de CSRF (ver VerifyCsrfToken).
+Route::post('/csp-report', function (\Illuminate\Http\Request $request) {
+    \Illuminate\Support\Facades\Log::channel(config('logging.default'))->info('CSP', ['report' => $request->getContent()]);
+    return response()->noContent();
+})->name('csp.report')->middleware('throttle:60,1');
+
 // SEGURIDAD (2026-07-06): sistema CERRADO — las cuentas las crea un admin vía /adduser.
 // Se deshabilita el auto-registro público (rutas GET/POST /register) para no exponer alta libre.
 Auth::routes(['register' => false]);
+
+// (2026-08-30 · endurecimiento) RATE-LIMIT en login y recuperación de contraseña. Se registran
+// DESPUÉS de Auth::routes() para GANAR el match por URI: RouteCollection indexa por método+URI y
+// la ÚLTIMA definición sustituye a la anterior, así que estas (con throttle por IP) reemplazan a
+// las de Auth::routes(). Van sin nombre → no tocan el nameList (route('password.email') sigue
+// resolviendo la misma URI). El login ya tiene el lockout de ThrottlesLogins (5/min por email+IP);
+// esto añade un techo por IP contra rotación de correos. La RECUPERACIÓN no tenía NINGÚN límite de
+// request. Límites holgados: un usuario real nunca los toca (no agrega fricción).
+Route::post('login', [App\Http\Controllers\Auth\LoginController::class, 'login'])->middleware('throttle:30,1');
+Route::post('password/email', [App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetLinkEmail'])->middleware('throttle:6,1');
+Route::post('password/reset', [App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])->middleware('throttle:6,1');
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 // SEGURIDAD (2026-06-26): `/dailyreport` estaba SIN `auth`. `viewencuesta()` usa
 // `auth()->user()->encuestadiaria` y `auth()->user()->id` → sin sesión era null-deref (500)
