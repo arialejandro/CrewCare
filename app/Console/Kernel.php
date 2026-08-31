@@ -16,6 +16,7 @@ class Kernel extends ConsoleKernel
         Commands\CrewWelcomeResend::class,
         Commands\DispatchFileDeliveries::class,
         Commands\StampSignatureTimestamps::class,
+        Commands\PruneClinicalReadLogs::class,
     ];
 
     /**
@@ -49,6 +50,16 @@ class Kernel extends ConsoleKernel
         // tienen token, best-effort. NO bloquea el sellado (eso ya ocurrió); si freeTSA no
         // responde, reintenta en la siguiente corrida. Cubre sellos nuevos Y viejos (retroactivo).
         $schedule->command('tsa:stamp')->everyFiveMinutes()->withoutOverlapping();
+
+        // (2026-08-30) Retención de la bitácora de lectura clínica: poda mensual lo mayor a 3 años.
+        $schedule->command('clinical-log:prune')->monthlyOn(1, '03:30');
+
+        // (2026-08-30 · estabilidad) LATIDO del cron: cada minuto deja una marca fresca que el
+        // healthcheck (/healthz) lee. Si `schedule:run` deja de correr, la marca envejece y /healthz
+        // reporta 'stale' → el monitor alerta. Es la forma de saber que el cron sigue vivo.
+        $schedule->call(function () {
+            \Illuminate\Support\Facades\Cache::put('cron_heartbeat', now()->timestamp, 3600);
+        })->everyMinute()->name('cron-heartbeat');
     }
 
     /**

@@ -425,6 +425,14 @@ public function showComplete($id)
     // GATE del expediente completo: mismo silo médico del reporte de lesión.
     $this->authorize('viewMedical', $injuryReport);
 
+    // (2026-08-30) BITÁCORA de lectura clínica (invisible): el expediente COMPLETO expone el silo
+    // médico de la lesión; se deja el rastro de quién lo abrió. Best-effort, nunca rompe la vista.
+    \App\Support\ClinicalReadLog::record(
+        \App\Support\ClinicalReadLog::T_INJURY_COMPLETO,
+        (int) $injuryReport->id,
+        (int) ($injuryReport->user_id ?: 0) ?: null
+    );
+
     // (2026-06-28) Catálogo normativo: si la fila trae un regulation_code, se resuelve la URL
     // del boletín desde safety_standards (reference_url vive ahí, NO en la tabla del reporte).
     // Defensivo: si la columna aún no existe o no hay norma, queda en null.

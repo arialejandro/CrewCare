@@ -38,6 +38,11 @@ Route::get('/offline', function () {
     return view('/vendor/laravelpwa/offline');
 });
 
+// (2026-08-30 · estabilidad) HEALTHCHECK público y mínimo (app/base/cola/cron) para el monitor
+// externo: 200 sano, 503 degradado. Exento de la redirección https (SecurityHeaders). El latido
+// del cron lo escribe el schedule cada minuto; si `schedule:run` muere, aquí sale 'stale' → 503.
+Route::get('/healthz', [App\Http\Controllers\HealthController::class, 'check'])->name('healthz')->middleware('throttle:60,1');
+
 // SEGURIDAD/LIMPIEZA (2026-06-26): `/newdayRep` y `/newWR` ELIMINADOS — eran DUPLICADOS GET-sin-auth
 // del comando programado `encuestas:task`, que reseteaba `encuestadiaria=0` de TODOS los activos.
 // Cualquiera con la URL podía dispararlo.

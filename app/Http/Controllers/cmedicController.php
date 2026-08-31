@@ -485,6 +485,10 @@ class cmedicController extends Controller
         $target = User::findOrFail($id);
         abort_unless(auth()->user()->canManageCrewMember($target), 403);
 
+        // (2026-08-30) BITÁCORA de lectura clínica (invisible). Producción puede leer expedientes;
+        // esto deja el rastro de quién abrió el de quién y cuándo. Best-effort, nunca rompe la vista.
+        \App\Support\ClinicalReadLog::record(\App\Support\ClinicalReadLog::T_EXPEDIENTE, null, (int) $id);
+
         // (2026-07-24 · PIEZA 3) EXPEDIENTE VIGENTE, misma fuente única que usa create() —
         // antes cada método resolvía "el expediente" por su cuenta. `$usuario` trae UNA sola
         // fila: el `@foreach` de historiamr pintaba una ficha COMPLETA por cada fila, con los
@@ -575,6 +579,7 @@ class cmedicController extends Controller
         abort_unless(LitePatient::supported(), 404);
 
         $paciente = LitePatient::findOrFail($liteId);
+        \App\Support\ClinicalReadLog::record(\App\Support\ClinicalReadLog::T_EXPEDIENTE_LITE, null, (int) $liteId);
         // Si abrieron un duplicado ya fundido, el historial vive en la superviviente.
         if ($paciente->isMerged() && $paciente->mergedInto) {
             return redirect()->route('lite.historial', $paciente->mergedInto->id);
@@ -597,6 +602,11 @@ class cmedicController extends Controller
         abort_unless(auth()->user()->isClinician(), 403);
 
         $consulta    = cmedic::findOrFail($id);   // {id} = id_cmedic (clave primaria)
+        \App\Support\ClinicalReadLog::record(
+            \App\Support\ClinicalReadLog::T_CONSULTA,
+            (int) $consulta->id_cmedic,
+            (int) ($consulta->id_user ?: $consulta->lite_patient_id)
+        );
         $canSeeNotes = cmedic::visibleTo(auth()->user())
             ->where('id_cmedic', $consulta->id_cmedic)->exists();
 
