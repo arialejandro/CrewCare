@@ -133,6 +133,18 @@ Qué depende de esto **hoy**:
 Es el cron estándar de cualquier Laravel; si mañana se agenda otra tarea, ya queda cubierto. Si por lo que
 sea el cron no está, la app **no se rompe** — solo los envíos masivos no se completan solos.
 
+## 5·c · Sesión en base de datos (para revocar sesiones desde el perfil)
+Para que "Perfil → Sesiones activas" liste y **cierre** sesiones (caso del teléfono perdido), la sesión
+debe vivir en la base, no en archivos. En el `.env` del host:
+```bash
+SESSION_DRIVER=database
+```
+La tabla `sessions` la crea `migrate` (o el gemelo `owner-apply/2026-08-30-sessions-table.sql`). Al activarlo,
+**todas las sesiones vigentes se invalidan UNA vez** (los usuarios re-inician sesión) — hazlo en el primer
+deploy, no después, para que ese re-login único no le cueste a nadie. Si se queda en `file`, la app funciona
+igual pero la pantalla de sesiones avisa que está inactiva. Tras cambiarlo: `php artisan config:clear` (o
+`config:cache` de nuevo).
+
 ## 6 · ⛔ Chequeo anti-demo (OBLIGATORIO antes de abrir)
 Confirma que la instancia NO trae datos de demostración ni cuentas de prueba:
 ```bash
