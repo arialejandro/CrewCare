@@ -49,6 +49,14 @@
                 </a>
             @endif
 
+            {{-- (2026-08-30) Bitácora de lectura clínica — SOLO super-admin (el visor aborta 403 al resto). --}}
+            @if(auth()->user()->hasRole('super-admin'))
+                <a class="cc-appbar__btn" href="{{ route('clinical_log.index') }}" title="{{ __('Bitácora clínica') }}">
+                    @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-appbar__ico', 'label' => __('Bitácora clínica')])
+                    <span class="cc-appbar__btn-txt d-none d-md-inline">{{ __('Bitácora') }}</span>
+                </a>
+            @endif
+
             {{-- Disparador de la paleta de comandos (⌘K / Ctrl-K). Abre el overlay
                  componentes/_command-palette; la clase .cc-cmd-open la escucha su JS. --}}
             <button type="button" class="cc-appbar__btn cc-appbar__btn--search cc-cmd-open"

@@ -862,6 +862,11 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/profile/sesiones/cerrar-otras',[App\Http\Controllers\SessionController::class,'destroyOthers'])->name('perfil.sesiones.cerrar');
     // SEGURIDAD (2026-07-06): subida del avatar (cropper) — ahora exige sesión (antes iba SIN auth).
     Route::post('/crop-image-upload',[App\Http\Controllers\cropimageController::class,'uploadCropImage'])->name('uploadCropImage');
+
+    // (2026-08-30 · endurecimiento) VISOR de la bitácora de lectura clínica. SOLO super-admin (el
+    // controlador aborta 403 para cualquier otro rol, auditor incluido). Es el REGISTRO de quién
+    // abrió qué expediente — NO el expediente (ese sigue como estaba).
+    Route::get('/bitacora-clinica',[App\Http\Controllers\ClinicalReadLogController::class,'index'])->name('clinical_log.index');
 });
 // SEGURIDAD/LIMPIEZA (2026-06-26): `/pruebachedule` ELIMINADO — era otro DUPLICADO GET-sin-auth del
 // reset de `encuestadiaria` (nombre de prueba, ni retornaba). (2026-07-24) Ya no hay reset automático.
