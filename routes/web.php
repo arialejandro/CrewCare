@@ -57,7 +57,16 @@ Route::get('/healthz', [App\Http\Controllers\HealthController::class, 'check'])-
 // manda aquí las violaciones (sin CSRF: es el navegador, no un form). Se registra qué se rompería
 // para medir el alcance ANTES de activar el bloqueo. Público + throttle; exento de CSRF (ver VerifyCsrfToken).
 Route::post('/csp-report', function (\Illuminate\Http\Request $request) {
-    \Illuminate\Support\Facades\Log::channel(config('logging.default'))->info('CSP', ['report' => $request->getContent()]);
+    // Canal DEDICADO y ACOTADO (csp.log, rota diario, 3 días de retención). En modo REPORTE cada
+    // script en línea genera un reporte → si esto fuera al log principal lo INUNDA y la app pierde
+    // la capacidad de loguear sus propios errores (fue justo lo que tiró la app). Nunca revienta.
+    try {
+        \Illuminate\Support\Facades\Log::build([
+            'driver' => 'daily', 'path' => storage_path('logs/csp.log'), 'days' => 3, 'level' => 'info',
+        ])->info('CSP', ['report' => mb_substr((string) $request->getContent(), 0, 2000)]);
+    } catch (\Throwable $e) {
+        // un reporte de CSP JAMÁS debe afectar a nadie.
+    }
     return response()->noContent();
 })->name('csp.report')->middleware('throttle:60,1');
 
