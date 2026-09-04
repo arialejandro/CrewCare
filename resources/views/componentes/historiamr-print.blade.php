@@ -447,7 +447,7 @@ body{
 
 </div>
 
-<button type="button" class="printbtn no-print" onclick="window.print()" aria-label="{{ __('Imprimir') }}">
+<button type="button" class="printbtn no-print" id="hmr-print-btn" aria-label="{{ __('Imprimir') }}">
     @include('componentes._icon', ['name' => 'printer', 'class' => 'cc-ico-16', 'label' => null])
     <span>{{ __('Imprimir') }}</span>
 </button>
@@ -458,10 +458,15 @@ body{
     @include('componentes._icon', ['name' => 'download', 'class' => 'cc-ico-16', 'label' => null])
     <span>{{ __('Descargar PDF') }}</span>
 </a>
-<script>
+<script nonce="{{ $cspNonce }}">
     // Abrir el diálogo de impresión al cargar (documento listo para papel). Si el usuario cancela,
     // sigue viendo el expediente limpio y puede reimprimir con el botón.
     window.addEventListener('load', function () { setTimeout(function () { window.print(); }, 400); });
+    // Botón "Imprimir" (CSP: sin onclick inline; delegado por id).
+    document.addEventListener('DOMContentLoaded', function () {
+        var b = document.getElementById('hmr-print-btn');
+        if (b) { b.addEventListener('click', function () { window.print(); }); }
+    });
 </script>
 </body>
 </html>

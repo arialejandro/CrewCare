@@ -158,7 +158,7 @@
 
     {{-- ── Barra de acciones (no se imprime) ── --}}
     <div class="toolbar no-print">
-        <button type="button" class="tb-btn tb-btn--primary" onclick="window.print()">Imprimir / Guardar PDF</button>
+        <button type="button" class="tb-btn tb-btn--primary" id="cc-print-btn">Imprimir / Guardar PDF</button>
         <a href="{{ route('usuarioscrud') }}" class="tb-btn tb-btn--ghost">Volver al Crew List</a>
         <span class="spacer"></span>
         @if($purpose !== '')
@@ -235,6 +235,15 @@
             <span>{{ $roster['total'] }} integrantes</span>
         </div>
     </div>
+
+    {{-- CSP: sin onclick inline. El nonce llega por la FUENTE ÚNICA (View::share del middleware),
+         no por layouts.app — este documento es HTML completo autónomo. --}}
+    <script nonce="{{ $cspNonce }}">
+        document.addEventListener('DOMContentLoaded', function () {
+            var b = document.getElementById('cc-print-btn');
+            if (b) { b.addEventListener('click', function () { window.print(); }); }
+        });
+    </script>
 
 </body>
 </html>

@@ -23,6 +23,13 @@ class SecurityHeaders
     {
         $prod = app()->environment('production');
 
+        // (CSP · fuente única del nonce) Nonce por PETICIÓN, compartido SIEMPRE a las vistas —aunque
+        // la política no se emita— para que `{{ $cspNonce }}` resuelva en local igual que en prod
+        // (AppServiceProvider deja '' como piso para renders sin request). La MISMA variable alimenta
+        // la política de abajo: una sola fuente para la vista y la cabecera.
+        $nonce = base64_encode(random_bytes(16));
+        \Illuminate\Support\Facades\View::share('cspNonce', $nonce);
+
         // 1) PRODUCCIÓN: fuerza https (redirección http→https). No toca el local.
         //    Con TrustProxies confiando el proxy TLS, isSecure() refleja X-Forwarded-Proto,
         //    así que detrás del reverse-proxy no hay bucle. El healthcheck se exime.
@@ -43,7 +50,7 @@ class SecurityHeaders
         // 3) CSP en modo REPORTE (no bloquea). script-src 'self' hace que el navegador REPORTE
         //    cada script en línea → así se mide la deuda de inline antes de activar el bloqueo.
         if (config('crewcare.security.csp_report', true)) {
-            $headers['Content-Security-Policy-Report-Only'] = $this->cspPolicy();
+            $headers['Content-Security-Policy-Report-Only'] = $this->cspPolicy($nonce);
         }
 
         // 4) HSTS — sólo en producción y sobre https real (nunca sobre http).
@@ -60,8 +67,12 @@ class SecurityHeaders
         return $response;
     }
 
-    /** Política CSP OBJETIVO en modo reporte: revela inline-scripts/estilos y orígenes externos. */
-    private function cspPolicy(): string
+    /**
+     * Política CSP OBJETIVO en modo reporte: revela inline-scripts/estilos y orígenes externos.
+     * Lleva el nonce por-petición (misma fuente que `$cspNonce` de las vistas). En modo REPORTE no
+     * bloquea: los scripts que ya tienen el nonce dejan de reportarse; el resto se sigue midiendo.
+     */
+    private function cspPolicy(string $nonce): string
     {
         return implode('; ', [
             "default-src 'self'",
@@ -71,7 +82,7 @@ class SecurityHeaders
             "img-src 'self' data: blob:",
             "font-src 'self' https://fonts.gstatic.com data:",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-            "script-src 'self'",
+            "script-src 'self' 'nonce-{$nonce}'",
             "connect-src 'self'",
             'report-uri /csp-report',
         ]);

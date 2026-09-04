@@ -31,6 +31,12 @@ class AppServiceProvider extends ServiceProvider
             \Illuminate\Support\Facades\URL::forceScheme('https');
         }
 
+        // (CSP · fuente única del nonce) PISO por defecto para `$cspNonce`: '' en TODO render,
+        // incluidos los que NO pasan por el middleware (cola/CLI/dompdf/Browsershot desde archivo).
+        // Así `{{ $cspNonce }}` nunca da "Undefined variable". El middleware SecurityHeaders lo
+        // sobreescribe por-petición con el nonce real; la política CSP usa ese MISMO valor.
+        \Illuminate\Support\Facades\View::share('cspNonce', '');
+
         // FEATURE FLAGS (2026-07-13, Pilar 5): directiva @feature('x')...@endfeature para
         // ocultar/mostrar módulos según el flag (config/features.php + tabla feature_flags).
         \Illuminate\Support\Facades\Blade::if('feature', function ($key) {
