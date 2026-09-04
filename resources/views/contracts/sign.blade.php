@@ -301,7 +301,7 @@
 
     {{-- Rechazar --}}
     <div class="decline">
-        <button type="button" class="decline__toggle" onclick="ccDecline()">{{ __('No puedo firmar este contrato') }}</button>
+        <button type="button" class="decline__toggle" data-decline-toggle>{{ __('No puedo firmar este contrato') }}</button>
         <form method="POST" action="{{ $declineUrl }}" id="declineForm" class="decline__box">
             @csrf
             <label style="font-size:.85rem;color:#546070;display:block;margin-bottom:.4rem">{{ __('Cuéntanos por qué (obligatorio):') }}</label>
@@ -360,7 +360,8 @@
 @endif
 
 @if($stage === 'sign')
-    <script>function ccDecline(){var f=document.getElementById('declineForm');var o=f.style.display==='block';f.style.display=o?'none':'block';var t=document.getElementById('declineReason');o?t.removeAttribute('required'):(t.setAttribute('required','required'),t.focus());}</script>
+    <script>function ccDecline(){var f=document.getElementById('declineForm');var o=f.style.display==='block';f.style.display=o?'none':'block';var t=document.getElementById('declineReason');o?t.removeAttribute('required'):(t.setAttribute('required','required'),t.focus());}
+document.addEventListener('click',function(e){if(e.target.closest('[data-decline-toggle]')){ccDecline();}});</script>
     <script src="{{ asset('js/vendor/pdfjs/pdf.min.js') }}"></script>
     <script>
     (function(){

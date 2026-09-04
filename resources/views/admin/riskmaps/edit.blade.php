@@ -1,5 +1,6 @@
 @extends('layouts.app')
 @section('title', 'Editar mapeo · ' . $map->locationName() . ' - ' . ($branding['brand_name'] ?? 'CrewCare'))
+@include('componentes._confirm-submit')
 
 @push('styles')
 <style>
@@ -172,7 +173,7 @@
                 </select>
             </div>
             <a href="{{ route('riskmaps.document', $map->id) }}" class="rm-btn">@include('componentes._icon', ['name' => 'eye']) Vista previa</a>
-            <form action="{{ route('riskmaps.seal', $map->id) }}" method="POST" onsubmit="return confirm('Sellar el mapeo lo vuelve INMUTABLE. ¿Continuar?');" style="display:inline">
+            <form action="{{ route('riskmaps.seal', $map->id) }}" method="POST" data-confirm="Sellar el mapeo lo vuelve INMUTABLE. ¿Continuar?" style="display:inline">
                 @csrf
                 <button type="submit" class="rm-btn rm-btn--accent">@include('componentes._icon', ['name' => 'shield-check']) Sellar</button>
             </form>
@@ -191,7 +192,7 @@
                             <img src="{{ $v->imageUrl() }}" alt="">
                             <span class="rm-ed-view__lbl">{{ $v->displayLabel() }}</span>
                         </a>
-                        <form action="{{ route('riskmaps.views.destroy', ['id' => $map->id, 'view' => $v->id]) }}" method="POST" onsubmit="return confirm('¿Quitar esta vista?');">
+                        <form action="{{ route('riskmaps.views.destroy', ['id' => $map->id, 'view' => $v->id]) }}" method="POST" data-confirm="¿Quitar esta vista?">
                             @csrf @method('DELETE')
                             <button type="submit" class="rm-ed-view__del" title="Quitar">×</button>
                         </form>

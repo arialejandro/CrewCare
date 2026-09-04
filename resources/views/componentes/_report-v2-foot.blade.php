@@ -74,5 +74,10 @@
     if(msg === null || msg === '') return;
     if(!window.confirm(msg)){ ev.preventDefault(); ev.stopPropagation(); }
   }, true);
+
+  // Botón "volver/atrás" por delegación (CSP: sin onclick inline).
+  document.addEventListener('click', function(ev){
+    if(ev.target.closest('[data-history-back]')){ ev.preventDefault(); history.back(); }
+  });
 })();
 </script>

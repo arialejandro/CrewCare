@@ -255,9 +255,18 @@
     <a href="{{ route('scoutings.show', $p->scouting_report_id) }}">← Volver al scouting</a>
     <span class="sp"></span>
     {{-- Descarga server-side (Browsershot): idéntica a window.print() pero de un clic. --}}
-    <button type="button" class="primary" onclick="window.location.href='{{ request()->fullUrlWithQuery(['pdf' => 1]) }}'">Descargar PDF</button>
-    <button type="button" onclick="window.print()">Imprimir</button>
+    <button type="button" class="primary" data-mv-pdf data-pdf-url="{{ request()->fullUrlWithQuery(['pdf' => 1]) }}">Descargar PDF</button>
+    <button type="button" data-mv-print>Imprimir</button>
 </div>
+
+{{-- Barra de acciones (CSP: sin onclick inline; nonce por la fuente única). --}}
+<script nonce="{{ $cspNonce }}">
+    document.addEventListener('click', function (e) {
+        var pdf = e.target.closest('[data-mv-pdf]');
+        if (pdf) { window.location.href = pdf.getAttribute('data-pdf-url'); return; }
+        if (e.target.closest('[data-mv-print]')) { window.print(); }
+    });
+</script>
 
 <div class="mdv-sheet">
 

@@ -703,7 +703,7 @@
           <input type="hidden" name="move_time" value="{{ $formEcho['move_time'] ?? '' }}">
           @if(($formEcho['embed_map_views'] ?? '') === '1')<input type="hidden" name="embed_map_views" value="1">@endif
           @if(($formEcho['supersedes_uuid'] ?? '') !== '')<input type="hidden" name="supersedes_uuid" value="{{ $formEcho['supersedes_uuid'] }}">@endif
-          <button type="button" class="ghost" onclick="history.back()">{{ $en ? 'Back to edit' : 'Volver a corregir' }}</button>
+          <button type="button" class="ghost" data-history-back>{{ $en ? 'Back to edit' : 'Volver a corregir' }}</button>
           <button type="submit" class="cta">{{ $en ? 'Emit and seal' : 'Emitir y sellar' }}</button>
         </form>
       </div>

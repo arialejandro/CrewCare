@@ -1,5 +1,7 @@
 @extends('layouts.app')
 @section('content')
+{{-- Confirmación de submits destructivos por delegación (data-confirm), sin onsubmit inline (CSP). --}}
+@include('componentes._confirm-submit')
 @include('contracts._route-styles')
 {{-- EL SOBRE (Paso C) — paquete carátula+clausulado+anexos, ruta secuencial. El certificado de cada
      destinatario: nombre/correo/cargo/empresa congelados + 4 marcas de tiempo + IP + método. --}}
@@ -197,7 +199,7 @@
                                     @endif
                                 </span>
                                 @if(!$c->isDelivered() && !$envelope->isStoppedShort())
-                                    <form method="POST" action="{{ route('contracts.envelope.copy.remove', ['envelope' => $envelope->id, 'recipient' => $c->id]) }}" onsubmit="return confirm('{{ __('¿Quitar esta copia?') }}')">
+                                    <form method="POST" action="{{ route('contracts.envelope.copy.remove', ['envelope' => $envelope->id, 'recipient' => $c->id]) }}" data-confirm="{{ __('¿Quitar esta copia?') }}">
                                         @csrf @method('DELETE')
                                         <button class="btn btn-sm btn-outline-danger">{{ __('Quitar') }}</button>
                                     </form>
