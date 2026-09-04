@@ -88,9 +88,9 @@
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 @if($user->activo === 1)
-                                    <form method="post" action="{{ url('/desactivarusuario/'.$user->id) }}">
+                                    <form method="post" action="{{ url('/desactivarusuario/'.$user->id) }}" data-confirm="¿Desea desactivar el usuario?">
                                         {{ csrf_field() }}
-                                        <button type="submit" title="Deactivate" class="dropdown-item text-danger" onclick="return confirm('¿Desea desactivar el usuario?');">
+                                        <button type="submit" title="Deactivate" class="dropdown-item text-danger">
                                             @include('componentes._icon', ['name' => 'x-circle', 'class' => 'cc-ico', 'label' => null]) Desactivar
                                         </button>
                                     </form>

@@ -3,6 +3,8 @@
 @section('content')
 
 @include('componentes._form-kit')
+{{-- Confirmación de submits destructivos por delegación (data-confirm), sin onsubmit inline (CSP). --}}
+@include('componentes._confirm-submit')
 
 @push('styles')
 <style>
@@ -67,8 +69,8 @@
     @endif
 
     <div class="cc-toolbar">
-        <button type="button" class="cc-btn cc-btn--ghost" onclick="ccToggle('cc-new-dept')">+ {{ __('Departamento') }}</button>
-        <button type="button" class="cc-btn cc-btn--ghost" onclick="ccToggle('cc-new-pos')">+ {{ __('Puesto') }}</button>
+        <button type="button" class="cc-btn cc-btn--ghost" data-cc-toggle="cc-new-dept">+ {{ __('Departamento') }}</button>
+        <button type="button" class="cc-btn cc-btn--ghost" data-cc-toggle="cc-new-pos">+ {{ __('Puesto') }}</button>
     </div>
 
     {{-- Alta de departamento --}}
@@ -131,7 +133,7 @@
                 <a href="{{ route('catalogo.dept.edit', $dept->id) }}" class="cc-mini">{{ __('Editar') }}</a>
                 @if ($dept->active)
                     <form method="POST" action="{{ route('catalogo.dept.deactivate', $dept->id) }}" class="d-inline"
-                          onsubmit="return confirm('{{ __('Desactivar el departamento') }} “{{ $dept->name }}”. {{ $assignByDept[$dept->id] ?? 0 }} {{ __('persona(s) asignada(s). No se borra. ¿Continuar?') }}')">
+                          data-confirm="{{ __('Desactivar el departamento') }} “{{ $dept->name }}”. {{ $assignByDept[$dept->id] ?? 0 }} {{ __('persona(s) asignada(s). No se borra. ¿Continuar?') }}">
                         @csrf <button type="submit" class="cc-mini cc-mini--danger">{{ __('Desactivar') }}</button>
                     </form>
                 @else
@@ -184,7 +186,7 @@
                                 <a href="{{ route('catalogo.position.edit', $p->id) }}" class="cc-mini">{{ __('Editar') }}</a>
                                 @if ($p->active)
                                     <form method="POST" action="{{ route('catalogo.position.deactivate', $p->id) }}" class="d-inline"
-                                          onsubmit="return confirm('{{ __('Desactivar') }} “{{ $p->name }}”. {{ $assignByPos[$p->id] ?? 0 }} {{ __('persona(s) asignada(s). No se borra. ¿Continuar?') }}')">
+                                          data-confirm="{{ __('Desactivar') }} “{{ $p->name }}”. {{ $assignByPos[$p->id] ?? 0 }} {{ __('persona(s) asignada(s). No se borra. ¿Continuar?') }}">
                                         @csrf <button type="submit" class="cc-mini cc-mini--danger">{{ __('Desactivar') }}</button>
                                     </form>
                                 @else
@@ -209,6 +211,11 @@
         var el = document.getElementById(id);
         if (el) { el.style.display = (el.style.display === 'none' || !el.style.display) ? 'block' : 'none'; }
     }
+    // Delegación de los toggles (+Departamento / +Puesto) — CSP: sin onclick inline.
+    document.addEventListener('click', function (e) {
+        var t = e.target.closest('[data-cc-toggle]');
+        if (t) { ccToggle(t.getAttribute('data-cc-toggle')); }
+    });
 </script>
 @endpush
 

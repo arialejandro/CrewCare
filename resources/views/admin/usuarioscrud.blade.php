@@ -1,5 +1,7 @@
 @extends('layouts.app')
 @section('content')
+{{-- Confirmación de submits destructivos por delegación (data-confirm), sin onclick inline (CSP). --}}
+@include('componentes._confirm-submit')
 
 {{--
     Crew List — listado interno de gestión de crew (LA JOYA: se conserva íntegra).
@@ -34,7 +36,7 @@
             <div class="crew-actions-bar d-flex align-items-center gap-2 flex-grow-1 flex-lg-grow-0 flex-wrap">
                 <div class="crew-search flex-grow-1">
                     <label for="search" class="visually-hidden">Buscar por nombre, apellido o email</label>
-                    <form onsubmit="return false;">
+                    <form data-search-noop>
                         <div class="input-group">
                             <span class="input-group-text border-end-0">
                                 @include('componentes._icon', ['name' => 'search', 'class' => 'cc-ico', 'label' => null])
@@ -170,9 +172,9 @@
                                             <li><hr class="dropdown-divider"></li>
                                             <li>
                                                 @if($user->activo === 1)
-                                                    <form method="post" action="{{ url('/desactivarusuario/'.$user->id) }}">
+                                                    <form method="post" action="{{ url('/desactivarusuario/'.$user->id) }}" data-confirm="¿Desea desactivar el usuario?">
                                                         {{ csrf_field() }}
-                                                        <button type="submit" title="Deactivate" class="dropdown-item text-danger" onclick="return confirm('¿Desea desactivar el usuario?');">
+                                                        <button type="submit" title="Deactivate" class="dropdown-item text-danger">
                                                             @include('componentes._icon', ['name' => 'x-circle', 'class' => 'cc-ico', 'label' => null]) Desactivar
                                                         </button>
                                                     </form>
@@ -216,6 +218,10 @@
 </div>
 
 <script>
+    // El buscador NO envía el form (búsqueda por keyup/AJAX): veta el submit sin on* (CSP).
+    document.addEventListener('submit', function (e) {
+        if (e.target.closest('[data-search-noop]')) { e.preventDefault(); }
+    });
     $( document ).ready(function() {
         var searchTimer = null;
         function runSearch() {
