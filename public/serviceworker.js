@@ -6,6 +6,21 @@ var filesToCache = [
     '/offline',
     '/css/form-register.css',
     '/js/app.js',
+    // (CSP fase 3) Librerías ahora servidas desde 'self' → el SW las precachea para que las
+    // FORMAS DE CAPTURA offline tengan su JS/CSS sin depender de que un CDN haya cargado antes.
+    // Rutas versionadas (cache-bust): al subir de versión cambia el nombre y se recachea solo.
+    '/js/vendor/jquery-3.7.1.min.js',
+    '/js/vendor/bootstrap-5.1.3.bundle.min.js',
+    '/js/vendor/chart-4.5.1.umd.min.js',
+    '/js/vendor/chartjs-plugin-trendline-3.2.12.min.js',
+    '/js/vendor/cropper-1.5.6.min.js',
+    '/vendor/bootstrap/css/bootstrap-5.1.3.min.css',
+    '/vendor/fontawesome/css/all-6.7.2.min.css',
+    '/vendor/cropper/cropper-1.5.6.min.css',
+    '/css/inicio-tw.css',
+    '/vendor/fontawesome/webfonts/fa-solid-900.woff2',
+    '/vendor/fontawesome/webfonts/fa-regular-400.woff2',
+    '/vendor/fontawesome/webfonts/fa-brands-400.woff2',
     '/images/icons/icon-72x72.png',
     '/images/icons/icon-96x96.png',
     '/images/icons/icon-128x128.png',
