@@ -37,9 +37,11 @@ class CspImgFallbackTest extends DuskTestCase
             'i.src="/no-existe-"+Date.now()+".png";' .
             'document.body.appendChild(i);'
         );
-        $b->pause(900);
-        $disp = $b->script('var e=document.getElementById("cc-test-broken"); return e ? getComputedStyle(e).display : "gone";');
-        $this->assertSame('none', $disp[0] ?? null, "la imagen rota no se ocultó en $ctx");
+        // Poll (hasta 6s): el 404 + evento error + ocultado puede tardar más que una pausa fija.
+        $b->waitUsing(6, 150, function () use ($b) {
+            $d = $b->script('var e=document.getElementById("cc-test-broken"); return e ? getComputedStyle(e).display : "gone";');
+            return ($d[0] ?? '') === 'none';
+        }, "la imagen rota no se ocultó en $ctx");
     }
 
     /** layouts.app (todas las páginas de la app): el fallback oculta una imagen rota. */
