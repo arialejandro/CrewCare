@@ -81,7 +81,7 @@
         <h2 class="h6 mb-1">{{ __('No se encontró a nadie') }}</h2>
         <p class="text-muted mb-3">{{ __('Ni en el crew ni entre las personas sin cuenta.') }}</p>
         @if(auth()->check() && auth()->user()->isClinician())
-            <button type="button" class="btn btn-primary cc-cta" onclick="ccOpenRegister()">
+            <button type="button" class="btn btn-primary cc-cta" data-cc-open-register>
                 @include('componentes._icon', ['name' => 'user-plus', 'class' => 'cc-ico-18', 'label' => null])
                 {{ __('Registrar persona fuera del crew') }}
             </button>

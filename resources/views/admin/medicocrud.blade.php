@@ -39,7 +39,7 @@
 
             <div class="crew-search flex-grow-1 flex-lg-grow-0">
                 <label for="search" class="visually-hidden">{{ __('Buscar paciente por nombre') }}</label>
-                <form onsubmit="return false;">
+                <form data-search-noop>
                     <div class="input-group">
                         <span class="input-group-text border-end-0" aria-hidden="true">
                             @include('componentes._icon', ['name' => 'search', 'class' => 'cc-ico', 'label' => null])
@@ -80,6 +80,16 @@
         var inp = d.querySelector('input[name="full_name"]');
         if (inp) { inp.focus(); }
     }
+
+    // Delegación (CSP: sin on* en atributo). El botón "registrar" del estado vacío se re-inyecta
+    // por AJAX, por eso el listener vive aquí (en el documento), no en el HTML intercambiado.
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('[data-cc-open-register]')) { ccOpenRegister(); }
+    });
+    // El buscador NO envía el form (la búsqueda es por keyup/AJAX): sustituye el viejo veto de envío.
+    document.addEventListener('submit', function (e) {
+        if (e.target.closest('[data-search-noop]')) { e.preventDefault(); }
+    });
 
     $(document).ready(function () {
         var searchTimer = null;

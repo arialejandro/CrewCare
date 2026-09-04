@@ -2,6 +2,8 @@
 
 @section('content')
 @include('componentes._form-kit')
+{{-- Confirmación del submit por delegación (data-confirm), sin onsubmit inline (CSP). --}}
+@include('componentes._confirm-submit')
 
 <div class="container-fluid py-4" style="max-width: 900px;">
     @include('componentes._form-feedback')
@@ -55,7 +57,7 @@
             </div>
             <div class="cc-form-card__body border-top">
                 <form method="POST" action="{{ route('perfil.sesiones.cerrar') }}"
-                      onsubmit="return confirm('{{ __('¿Cerrar todas las demás sesiones? Tendrás que volver a iniciar sesión en esos dispositivos.') }}');">
+                      data-confirm="{{ __('¿Cerrar todas las demás sesiones? Tendrás que volver a iniciar sesión en esos dispositivos.') }}">
                     @csrf
                     <button type="submit" class="btn btn-outline-danger btn-sm">{{ __('Cerrar las demás sesiones') }}</button>
                     <span class="cc-muted small ms-2">{{ __('Útil si perdiste un dispositivo.') }}</span>
