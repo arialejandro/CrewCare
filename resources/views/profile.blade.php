@@ -158,7 +158,8 @@
          Bootstrap 4 CDN CSS/JS + Popper 1.x were REMOVED (modal ported to BS5,
          which the layout already provides). The duplicate jQuery was REMOVED
          (the layout already loads jQuery). --}}
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.6/cropper.js"></script>
+    {{-- CSP/local: Cropper.js 1.5.6 servido desde 'self' (antes cdnjs). --}}
+    <script src="{{ asset('js/vendor/cropper-1.5.6.min.js') }}"></script>
 
     {{-- Expose the upload route to the external JS (which can't use Blade). --}}
     <script>

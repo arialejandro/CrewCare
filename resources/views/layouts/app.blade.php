@@ -15,12 +15,14 @@
     <link rel="stylesheet" href="{{ asset("css/form-register.css") }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
+    {{-- CSP/local: Bootstrap 5.1.3 bundle (incluye Popper) servido desde 'self' (antes jsdelivr). Misma versión. --}}
+    <script src="{{ asset('js/vendor/bootstrap-5.1.3.bundle.min.js') }}"></script>
     <script src="{{ asset('js/app.js') }}"></script>
     {{-- CSP: oculta <img data-hide-on-error> rotas sin onerror inline (same-origin, en <head>). --}}
     <script src="/js/img-fallback.js"></script>
     {{-- TinyMCE removido temporalmente (se reintroduce con el módulo de correos masivos) --}}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {{-- CSP/local: Chart.js servido desde 'self' (antes jsdelivr sin pin → 4.5.x). Fijado a 4.5.1. --}}
+    <script src="{{ asset('js/vendor/chart-4.5.1.umd.min.js') }}"></script>
 
 
 
@@ -34,9 +36,9 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     
-    <script src="https://code.jquery.com/jquery-3.3.1.min.js"
-    integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
-    crossorigin="anonymous"></script>
+    {{-- CSP/local: jQuery servido desde 'self' (antes code.jquery.com 3.3.1). Actualizado a 3.7.1
+         (el 3.3.1 era de 2018). Misma posición de carga para no alterar el orden. --}}
+    <script src="{{ asset('js/vendor/jquery-3.7.1.min.js') }}"></script>
 <!-- -------------- Fonts -------------- -->
 
 <link href='https://fonts.googleapis.com/css?family=Lato:400,300,300italic,400italic,700,700italic' rel='stylesheet'
