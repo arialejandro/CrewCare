@@ -39,6 +39,15 @@ class SecurityHeaders
 
         $response = $next($request);
 
+        // (CSP · sweep del nonce — MISMA fuente única) Estampa el MISMO $nonce en cada <script> en
+        // línea sin nonce del HTML de salida. Un solo punto, la misma fuente que la política y que
+        // `$cspNonce` de las vistas: NO es un segundo mecanismo, es aplicar la fuente única. Garantiza
+        // que ningún inline se escape al pasar a bloqueo (si uno se escapa, al bloquear deja de correr).
+        // No reescribe archivos fuente: sólo el cuerpo de la respuesta, en memoria. Idempotente.
+        if (config('crewcare.security.csp_report', true)) {
+            $this->stampScriptNonce($response, $nonce);
+        }
+
         // 2) Cabeceras de higiene — SIEMPRE (no fuerzan nada, sólo endurecen).
         $headers = [
             'X-Content-Type-Options'            => 'nosniff',
@@ -65,6 +74,45 @@ class SecurityHeaders
         }
 
         return $response;
+    }
+
+    /**
+     * Estampa nonce="$nonce" en los <script> EN LÍNEA (sin `src` y sin `nonce`) del HTML de salida,
+     * usando la misma fuente única ($nonce por petición). Sólo respuestas text/html normales (no
+     * binarias ni en streaming). Idempotente: respeta los `src=`/`nonce=` ya presentes.
+     *
+     * SEGURIDAD ANTE EL FOOTGUN de preg_replace: si el motor fallara devolvería null → NO se toca el
+     * cuerpo (se conserva la respuesta original). Nunca escribe en disco: sólo transforma la salida.
+     */
+    private function stampScriptNonce($response, string $nonce): void
+    {
+        if ($response instanceof \Symfony\Component\HttpFoundation\BinaryFileResponse
+            || $response instanceof \Symfony\Component\HttpFoundation\StreamedResponse) {
+            return;
+        }
+
+        $ct = (string) $response->headers->get('Content-Type', '');
+        if ($ct !== '' && stripos($ct, 'text/html') === false) {
+            return; // JSON, PDF, descargas… no se tocan.
+        }
+
+        $html = $response->getContent();
+        if (! is_string($html) || $html === '' || stripos($html, '<script') === false) {
+            return;
+        }
+
+        // <script …> ejecutable, sin src y sin nonce → inserta el nonce justo después de "<script".
+        // Los <script type="application/json"> (bloques de datos) también reciben el nonce: es inofensivo.
+        $new = preg_replace_callback(
+            '/<script(?=[\s>])(?![^>]*\bsrc=)(?![^>]*\bnonce=)([^>]*)>/i',
+            static fn ($m) => '<script nonce="' . $nonce . '"' . $m[1] . '>',
+            $html
+        );
+
+        if (is_string($new) && $new !== '') {
+            $response->setContent($new);
+            $response->headers->remove('Content-Length'); // el largo cambió; que se recalcule al enviar.
+        }
     }
 
     /**
