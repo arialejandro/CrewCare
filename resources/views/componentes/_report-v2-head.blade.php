@@ -10,6 +10,8 @@
      ES/EN con acentos). Ruta raíz-relativa porque asset() está roto. Regenerar el CSS y los woff2:
      scratchpad/fetch_fonts.php. --}}
 <link rel="stylesheet" href="/fonts/reports/report-fonts.css">
+{{-- CSP: oculta <img data-hide-on-error> rotas sin onerror inline (same-origin, en <head>). --}}
+<script src="/js/img-fallback.js"></script>
 <style>
   :root{
     --bg-deep:#090C13; --bg:#0C1019; --sheet:rgba(20,26,38,.72); --panel:rgba(255,255,255,.04);

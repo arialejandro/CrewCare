@@ -33,6 +33,8 @@
 <title>{{ __('Historial Médico') }} — {{ $fullName }}</title>
 {{-- Fuentes autoalojadas (mismas que los reportes; offline). --}}
 <link rel="stylesheet" href="/fonts/reports/report-fonts.css">
+{{-- CSP: oculta <img data-hide-on-error> rotas sin onerror inline (same-origin, en <head>). --}}
+<script src="/js/img-fallback.js"></script>
 <style>
 :root{
     --ink:#14181f; --muted:#4a5261; --faint:#6b7382;
@@ -182,7 +184,7 @@ body{
         </div>
         <div class="mhead-side mhead-right">
             @if($clientLogo !== '')
-                <img class="mhead-client" src="{{ $clientLogo }}" alt="{{ $branding['brand_name'] ?? '' }}" onerror="this.style.display='none'">
+                <img class="mhead-client" src="{{ $clientLogo }}" alt="{{ $branding['brand_name'] ?? '' }}" data-hide-on-error>
             @endif
         </div>
     </header>

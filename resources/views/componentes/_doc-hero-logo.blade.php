@@ -23,5 +23,5 @@
     <img src="{{ $logoSrc }}"
          width="{{ $logoWidth }}"
          alt="{{ $branding['brand_name'] ?? 'Logo' }}"
-         onerror="this.style.display='none'">
+         data-hide-on-error>
 </div>

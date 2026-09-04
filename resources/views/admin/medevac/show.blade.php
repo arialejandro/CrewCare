@@ -97,6 +97,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ $brandName }} · MEDEVAC · {{ $locName ?: 'Locación' }}</title>
 <link rel="stylesheet" href="/fonts/reports/report-fonts.css">
+{{-- CSP: oculta <img data-hide-on-error> rotas sin onerror inline (same-origin, en <head>). --}}
+<script src="/js/img-fallback.js"></script>
 <style>
     /* Tipografía de marca CrewCare (la misma que el logotipo del footer y el wordmark). */
     @font-face { font-family:'Aspire SC'; src:url('/fonts/aspire-sc/AspireSCLight-Regular.ttf') format('truetype'); font-weight:300; font-style:normal; font-display:swap; }
@@ -265,7 +267,7 @@
         <div class="hd-r">
             <div class="logos">
                 @if($logo !== '')
-                    <img src="{{ $logo }}" alt="{{ $company }}" onerror="this.style.display='none'">
+                    <img src="{{ $logo }}" alt="{{ $company }}" data-hide-on-error>
                 @else
                     <span class="co">{{ $company }}</span>
                 @endif
