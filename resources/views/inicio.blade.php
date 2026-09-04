@@ -7,8 +7,8 @@
 @push('styles')
     <meta name="_token" content="{{ csrf_token() }}">
     <link rel="stylesheet" href="{{ asset('css/inicio.css') }}">
-    {{-- Cropper.js styles (load-bearing: profile-photo cropper, crew branch). --}}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.6/cropper.css"/>
+    {{-- CSP/local: Cropper.js CSS servido desde 'self' (antes cdnjs). Cropper de la foto de perfil. --}}
+    <link rel="stylesheet" href="{{ asset('vendor/cropper/cropper-1.5.6.min.css') }}"/>
 
     {{-- CSP/local: se retiró el Play CDN de Tailwind (cdn.tailwindcss.com, que Tailwind mismo
          desaconseja en producción y además era un <script> externo que rompía script-src).
@@ -347,7 +347,9 @@
                 <div class="img-container">
                     <div class="row">
                         <div class="col-md-8 imgs">
-                            <img class="imgs" id="image" src="https://avatars0.githubusercontent.com/u/3456749">
+                            {{-- CSP/local: era un avatar de la demo de Cropper (avatars0.githubusercontent.com).
+                                 Placeholder transparente same-origin (data:); public/js/inicio.js reemplaza el src al elegir foto. --}}
+                            <img class="imgs" id="image" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
                         </div>
                         <div class="col-md-4">
                             <div class="preview"></div>
