@@ -10,11 +10,12 @@
     {{-- Cropper.js styles (load-bearing: profile-photo cropper, crew branch). --}}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.6/cropper.css"/>
 
-    {{-- Tailwind por CDN — igual que las vistas de reporte. Se carga en <head> (no en el
-         body) para REDUCIR el FOUC/CLS: los estilos están disponibles antes del primer
-         paint del contenido. preflight OFF para no pisar Bootstrap del resto de la app. --}}
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>tailwind.config = { corePlugins: { preflight: false } };</script>
+    {{-- CSP/local: se retiró el Play CDN de Tailwind (cdn.tailwindcss.com, que Tailwind mismo
+         desaconseja en producción y además era un <script> externo que rompía script-src).
+         Las utilidades que usa /home se PRECOMPILARON con el CLI de Tailwind 3.4.17 (la misma
+         versión que servía el Play CDN), escaneando el código fuente, con preflight OFF (igual
+         que el runtime, para no pisar el reset de Bootstrap). Servido desde 'self'. --}}
+    <link rel="stylesheet" href="{{ asset('css/inicio-tw.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,400;0,700;0,900;1,900&display=swap" rel="stylesheet">
     <style>
         .font-poster { font-family: 'Roboto Condensed', sans-serif; font-weight: 900; text-transform: uppercase; letter-spacing: .02em; }
