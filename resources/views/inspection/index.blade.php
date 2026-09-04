@@ -1,5 +1,13 @@
 @extends('layouts.app')
 @section('content')
+@push('scripts')
+<script>
+    // El buscador NO envía el form (búsqueda por keyup/AJAX): veta el submit sin on* (CSP).
+    document.addEventListener('submit', function (e) {
+        if (e.target.closest('[data-search-noop]')) { e.preventDefault(); }
+    });
+</script>
+@endpush
 
 {{-- Paso 1 · ENCONTRAR LA HERRAMIENTA. Rejilla de cards con el lenguaje de crew.
      La operación está DETENIDA: el buscador (alias primero) es lo primero que se ve. --}}
@@ -19,7 +27,7 @@
 
             <div class="crew-search flex-grow-1 flex-lg-grow-0" style="min-width: 280px;">
                 <label for="toolsearch" class="visually-hidden">{{ __('Buscar herramienta') }}</label>
-                <form onsubmit="return false;">
+                <form data-search-noop>
                     <div class="input-group">
                         <span class="input-group-text border-end-0">
                             @include('componentes._icon', ['name' => 'search', 'class' => 'cc-ico', 'label' => null])

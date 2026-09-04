@@ -1,5 +1,6 @@
 @extends('layouts.app')
 @section('content')
+@include('componentes._row-link')
 @php
     // Etiqueta corta del veredicto para el chip de cada acta.
     $verdictChip = [
@@ -67,7 +68,7 @@
                     <tbody>
                         @forelse ($inspections as $insp)
                             @php $vc = $verdictChip[$insp->verdict] ?? $verdictChip['apta']; @endphp
-                            <tr onclick="window.location='{{ route('tools.inspection.show', $insp->uuid) }}'" style="cursor:pointer;">
+                            <tr data-href="{{ route('tools.inspection.show', $insp->uuid) }}" style="cursor:pointer;">
                                 <td class="ps-4" data-label="{{ __('Folio') }}"><strong>{{ $insp->folio() }}</strong></td>
                                 <td data-label="{{ __('Herramienta') }}">
                                     {{ $insp->tool_name }} <span class="text-muted small">({{ $insp->tool_code }})</span>
@@ -78,7 +79,7 @@
                                 <td data-label="{{ __('N.º de serie') }}">
                                     @if ($insp->tool_serial)
                                         <a href="{{ route('tools.records', ['serial' => $insp->tool_serial]) }}"
-                                           onclick="event.stopPropagation();" title="{{ __('Ver esta unidad') }}">{{ $insp->tool_serial }}</a>
+                                           title="{{ __('Ver esta unidad') }}">{{ $insp->tool_serial }}</a>
                                     @else
                                         <span class="text-muted">—</span>
                                     @endif

@@ -64,5 +64,15 @@
 @endisset
   window.addEventListener('beforeprint', beforeP);
   window.addEventListener('afterprint', afterP);
+
+  // Confirmación de submits destructivos por delegación (data-confirm), sin onsubmit inline (CSP).
+  // Los docs de reporte v2 NO tienen @stack('scripts'); el veto vive aquí, en el chrome compartido.
+  document.addEventListener('submit', function(ev){
+    var f = ev.target;
+    if(!f || typeof f.getAttribute !== 'function') return;
+    var msg = f.getAttribute('data-confirm');
+    if(msg === null || msg === '') return;
+    if(!window.confirm(msg)){ ev.preventDefault(); ev.stopPropagation(); }
+  }, true);
 })();
 </script>

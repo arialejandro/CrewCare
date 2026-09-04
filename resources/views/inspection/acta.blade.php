@@ -236,7 +236,7 @@
           @else
           <div class="no-print" style="margin-top:12px">
             <div class="op-note">{{ $en ? 'A stop lasts minutes: lift it once the exit path is met.' : 'El paro dura minutos: levántalo cuando la vía de salida esté cumplida.' }}</div>
-            <form method="post" action="{{ route('tools.inspection.unblock', $inspection->uuid) }}" onsubmit="return confirm('{{ $cfUnblock }}');">
+            <form method="post" action="{{ route('tools.inspection.unblock', $inspection->uuid) }}" data-confirm="{{ $cfUnblock }}">
               @csrf
               <button class="btn stop">@include('componentes._icon', ['name' => 'lock']) {{ $en ? 'Lift the stop' : 'Levantar el paro' }}</button>
             </form>
@@ -260,7 +260,7 @@
             @if(! $aiClosed)
               @can('hazards.manage')
               <div class="no-print" style="margin-top:12px">
-                <form method="post" action="{{ url('/action-items/'.$actionItem->id.'/close') }}" onsubmit="return confirm('{{ $cfClose }}');">
+                <form method="post" action="{{ url('/action-items/'.$actionItem->id.'/close') }}" data-confirm="{{ $cfClose }}">
                   @csrf
                   <button class="btn ok">@include('componentes._icon', ['name' => 'circle-check']) {{ $en ? 'Close and lift stop' : 'Cerrar y levantar paro' }}</button>
                 </form>
@@ -365,7 +365,7 @@
         <details class="insp-retire">
           <summary>{{ $en ? 'Retire this record' : 'Retirar esta acta' }}</summary>
           <div class="panel" style="margin-top:10px">
-            <form method="post" action="{{ route('tools.inspection.retire', $inspection->uuid) }}" onsubmit="return confirm('{{ $cfRetire }}');" style="display:flex;flex-direction:column;gap:11px">
+            <form method="post" action="{{ route('tools.inspection.retire', $inspection->uuid) }}" data-confirm="{{ $cfRetire }}" style="display:flex;flex-direction:column;gap:11px">
               @csrf
               <label class="insp-field-lbl">{{ $en ? 'Reason (optional)' : 'Motivo (opcional)' }}
                 <input type="text" name="retired_reason" class="field" maxlength="255" placeholder="{{ $en ? 'e.g. equipment replaced / re-inspected' : 'p. ej. equipo sustituido / reinspeccionado' }}">

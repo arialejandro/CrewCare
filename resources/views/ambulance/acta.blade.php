@@ -298,7 +298,7 @@
         <div class="ops no-print">
           <span class="ops-note">El paro dura minutos: levántalo cuando la vía de salida esté cumplida.</span>
           <form method="post" action="{{ route('ambulance.unblock', $inspection->uuid) }}"
-                onsubmit="return confirm('¿Levantar el paro? Queda registrado con tu nombre y hora, y el acta se re-sella.');">
+                data-confirm="¿Levantar el paro? Queda registrado con tu nombre y hora, y el acta se re-sella.">
             @csrf
             <button class="btn brand" type="submit">
               @include('componentes._icon', ['name' => 'lock', 'label' => null])
@@ -328,7 +328,7 @@
               @can('hazards.manage')
                 <div class="ai-close no-print">
                   <form method="post" action="{{ url('/action-items/'.$actionItem->id.'/close') }}"
-                        onsubmit="return confirm('¿Cerrar la acción? Si es un PARO, se levanta y el acta se re-sella.');">
+                        data-confirm="¿Cerrar la acción? Si es un PARO, se levanta y el acta se re-sella.">
                     @csrf
                     <button class="btn ok sm" type="submit">
                       @include('componentes._icon', ['name' => 'circle-check', 'label' => null])

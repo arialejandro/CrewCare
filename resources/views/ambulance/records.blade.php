@@ -1,5 +1,6 @@
 @extends('layouts.app')
 @section('content')
+@include('componentes._row-link')
 @php
     // Chip corto del veredicto (mismo lenguaje que las actas de inspección de herramienta).
     $verdictChip = [
@@ -54,7 +55,7 @@
                     <tbody>
                         @forelse ($inspections as $insp)
                             @php $vc = $verdictChip[$insp->verdict] ?? $verdictChip['apta']; @endphp
-                            <tr onclick="window.location='{{ route('ambulance.acta', $insp->uuid) }}'" style="cursor:pointer;">
+                            <tr data-href="{{ route('ambulance.acta', $insp->uuid) }}" style="cursor:pointer;">
                                 <td class="ps-4" data-label="{{ __('Folio') }}"><strong>{{ $insp->folio() }}</strong></td>
                                 <td data-label="{{ __('Tipo') }}">
                                     {{ $insp->type_name }} <span class="text-muted small">({{ $insp->type_code }})</span>
