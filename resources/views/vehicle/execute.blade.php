@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@include('componentes._confirm-submit')
 @section('content')
 @php
     $classTag = ['critical' => ['Crítico', 'danger'], 'major' => ['Mayor', 'warning'], 'minor' => ['Menor', 'secondary']];
@@ -76,7 +77,7 @@
             @if ($draft)
                 <div class="alert alert-secondary d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <span>@include('componentes._icon', ['name' => 'clock', 'label' => null]) {{ __('Retomando un borrador guardado') }} · {{ optional($draft->updated_at)->format('d/m/Y H:i') }}</span>
-                    <form method="post" action="{{ route('transport.inspect.draft.discard', $vehicle) }}" onsubmit="return confirm('{{ __('¿Descartar el borrador? Se perderá lo capturado.') }}');" class="m-0">
+                    <form method="post" action="{{ route('transport.inspect.draft.discard', $vehicle) }}" data-confirm="{{ __('¿Descartar el borrador? Se perderá lo capturado.') }}" class="m-0">
                         @csrf
                         <button type="submit" class="btn btn-sm btn-outline-secondary">{{ __('Descartar borrador') }}</button>
                     </form>

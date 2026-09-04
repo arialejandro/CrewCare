@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@include('componentes._confirm-submit')
 @section('content')
 {{-- DIRECCIONES PRIVADAS + allowlist (§3 Capa 4). Transpo presetea; la allowlist decide quién ve la
      CALLE REAL en la vista de la orden. El driver de una corrida ve la calle por asignación (aparte).
@@ -61,7 +62,7 @@
                         </div>
                         <div class="small text-muted">{{ __('Público') }}: <span class="fw-semibold">{{ $ad->publicLabel() }}</span></div>
                     </div>
-                    <form method="POST" action="{{ route('transport.address.destroy', $ad) }}" onsubmit="return confirm('{{ __('¿Dar de baja esta dirección?') }}')">
+                    <form method="POST" action="{{ route('transport.address.destroy', $ad) }}" data-confirm="{{ __('¿Dar de baja esta dirección?') }}">
                         @csrf<button class="btn btn-sm btn-outline-danger">{{ __('Baja') }}</button>
                     </form>
                 </div>

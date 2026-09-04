@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@include('componentes._confirm-submit')
 @section('content')
 @php
     use App\Support\VehicleVerdict;
@@ -78,7 +79,7 @@
                                 @endif
                             </div>
                             @if ($latest && ! $validated && $latest->isPending())
-                                <form method="post" action="{{ route('transport.document.validate', $latest->id) }}" onsubmit="return confirm('{{ __('¿Validar el documento? Queda a tu nombre.') }}');" class="m-0">
+                                <form method="post" action="{{ route('transport.document.validate', $latest->id) }}" data-confirm="{{ __('¿Validar el documento? Queda a tu nombre.') }}" class="m-0">
                                     @csrf
                                     <input type="hidden" name="attestation" value="1">
                                     <button type="submit" class="btn btn-sm btn-outline-success">{{ __('Validar') }}</button>
@@ -130,7 +131,7 @@
                         @endif
                     </div>
                     @if ($driverLicense && $driverLicense->isPending())
-                        <form method="post" action="{{ route('transport.document.validate', $driverLicense->id) }}" onsubmit="return confirm('{{ __('¿Validar la licencia? Queda a tu nombre.') }}');" class="m-0">
+                        <form method="post" action="{{ route('transport.document.validate', $driverLicense->id) }}" data-confirm="{{ __('¿Validar la licencia? Queda a tu nombre.') }}" class="m-0">
                             @csrf
                             <input type="hidden" name="attestation" value="1">
                             <button type="submit" class="btn btn-sm btn-outline-success">{{ __('Validar') }}</button>

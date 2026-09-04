@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@include('componentes._autosubmit')
 @section('content')
 {{-- MIS CORRIDAS — pantalla del driver (§2 Capa 4). Móvil primero: se usa en la calle, de
      madrugada, con una mano. Muestra SÓLO las corridas del driver, con la DIRECCIÓN REAL de las
@@ -18,7 +19,7 @@
 
         {{-- Selector de día (una mano). --}}
         <form method="GET" action="{{ route('transport.driver.runs') }}" class="d-flex gap-2 align-items-center mb-3">
-            <input type="date" name="date" value="{{ $date }}" class="form-control form-control-lg" onchange="this.form.submit()">
+            <input type="date" name="date" value="{{ $date }}" class="form-control form-control-lg" data-autosubmit>
             <a href="{{ route('transport.driver.runs') }}" class="btn btn-lg btn-outline-secondary">{{ __('Hoy') }}</a>
         </form>
 

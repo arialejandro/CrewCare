@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@include('componentes._confirm-submit')
 @section('content')
 
 <div class="container py-4" style="max-width:720px">
@@ -17,7 +18,7 @@
         <div class="alert alert-warning">{{ session('warning') }}</div>
     @endif
 
-    <form action="{{ route('deliveries.store') }}" method="POST" enctype="multipart/form-data" class="card cc-card">
+    <form action="{{ route('deliveries.store') }}" method="POST" enctype="multipart/form-data" class="card cc-card" data-confirm="¿Enviar a los {{ $recipientCount }} usuarios activos?">
         @csrf
         <div class="card-body d-flex flex-column gap-3">
             <div>
@@ -49,7 +50,7 @@
         </div>
         <div class="card-footer d-flex gap-2 justify-content-end">
             <a href="{{ route('deliveries.index') }}" class="btn btn-outline-secondary">Cancelar</a>
-            <button class="btn btn-primary" onclick="return confirm('¿Enviar a los {{ $recipientCount }} usuarios activos?')">
+            <button class="btn btn-primary">
                 @include('componentes._icon', ['name' => 'send', 'class' => 'cc-ico me-1', 'label' => null]) Enviar
             </button>
         </div>

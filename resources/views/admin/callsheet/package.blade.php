@@ -1,4 +1,6 @@
 @extends('layouts.app')
+@include('componentes._confirm-submit')
+@include('componentes._autosubmit')
 @section('content')
 @push('styles')@include('admin.callsheet._styles')@endpush
 
@@ -66,9 +68,9 @@
                     <div class="d-flex gap-2 mt-2 flex-wrap">
                         <label class="btn btn-sm btn-outline-secondary mb-0">
                             @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-ico me-1', 'label' => null]) Reemplazar
-                            <input type="file" accept="application/pdf" class="d-none" onchange="this.form.submit()" form="pk-front-form" name="front">
+                            <input type="file" accept="application/pdf" class="d-none" data-autosubmit form="pk-front-form" name="front">
                         </label>
-                        <form action="{{ route('callsheet.package.front.remove', ['date' => $ds]) }}" method="POST" onsubmit="return confirm('¿Quitar el front?')">
+                        <form action="{{ route('callsheet.package.front.remove', ['date' => $ds]) }}" method="POST" data-confirm="¿Quitar el front?">
                             @csrf
                             <button class="btn btn-sm btn-outline-danger">Quitar</button>
                         </form>
@@ -118,7 +120,7 @@
                                 <div class="pk-file__name">{{ $doc['name'] ?? ('Adicional ' . ($i + 1)) }}</div>
                                 <div class="pk-file__meta">{{ !empty($doc['pages']) ? $doc['pages'] . ' página' . ($doc['pages'] === 1 ? '' : 's') : 'PDF' }}</div>
                             </div>
-                            <form action="{{ route('callsheet.package.extra.remove', ['date' => $ds]) }}" method="POST" onsubmit="return confirm('¿Quitar este adjunto?')">
+                            <form action="{{ route('callsheet.package.extra.remove', ['date' => $ds]) }}" method="POST" data-confirm="¿Quitar este adjunto?">
                                 @csrf<input type="hidden" name="i" value="{{ $i }}">
                                 <button class="btn btn-sm btn-outline-danger">Quitar</button>
                             </form>
@@ -212,7 +214,7 @@
                     </a>
                 @endif
                 @if(in_array($pkg->status, [CallPackage::PENDING, CallPackage::CHANGED, CallPackage::APPROVED], true))
-                    <form action="{{ route('callsheet.package.reopen', ['date' => $ds]) }}" method="POST" onsubmit="return confirm('¿Reabrir? Se borran las firmas puestas.')">
+                    <form action="{{ route('callsheet.package.reopen', ['date' => $ds]) }}" method="POST" data-confirm="¿Reabrir? Se borran las firmas puestas.">
                         @csrf
                         <button class="btn btn-outline-secondary btn-sm">Reabrir para corregir</button>
                     </form>
@@ -261,7 +263,7 @@
                         @include('componentes._icon', ['name' => 'download', 'class' => 'cc-ico me-1', 'label' => null]) Paquete aprobado
                     </a>
                     <form action="{{ route('callsheet.package.send.crew', ['date' => $ds]) }}" method="POST"
-                          onsubmit="return confirm('{{ $alreadySent ? '¿Reenviar el llamado al crew? Se genera un nuevo envío.' : '¿Enviar el paquete a todo el crew llamado?' }}')">
+                          data-confirm="{{ $alreadySent ? '¿Reenviar el llamado al crew? Se genera un nuevo envío.' : '¿Enviar el paquete a todo el crew llamado?' }}">
                         @csrf
                         <button class="btn btn-primary">
                             @include('componentes._icon', ['name' => 'send', 'class' => 'cc-ico me-1', 'label' => null]) {{ $alreadySent ? 'Reenviar al crew' : 'Enviar al crew' }}

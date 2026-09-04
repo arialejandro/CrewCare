@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@include('componentes._autosubmit')
 @section('content')
 @push('styles')
     @include('componentes._crew-list-styles')
@@ -29,7 +30,7 @@
                     <input type="search" name="q" value="{{ $q }}" class="form-control" style="min-width:220px"
                            placeholder="{{ __('Buscar por nombre o RFC…') }}" aria-label="{{ __('Buscar') }}">
                     @if($departments->isNotEmpty())
-                        <select name="dept" class="form-select" style="max-width:240px" onchange="this.form.submit()"
+                        <select name="dept" class="form-select" style="max-width:240px" data-autosubmit
                                 aria-label="{{ __('Departamento') }}">
                             <option value="">{{ __('Todos los departamentos') }}</option>
                             @foreach($departments as $d)

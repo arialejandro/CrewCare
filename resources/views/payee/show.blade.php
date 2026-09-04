@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@include('componentes._autosubmit')
 @section('content')
 @push('styles')
     @include('componentes._crew-list-styles')
@@ -145,7 +146,7 @@
                         @if(session('external_link'))
                             <div class="alert alert-success">
                                 <div class="mb-1 small">{{ __('Enlace de un solo uso — compártelo con quien firma (WhatsApp/correo):') }}</div>
-                                <input type="text" class="form-control" readonly value="{{ session('external_link') }}" onclick="this.select()">
+                                <input type="text" class="form-control" readonly value="{{ session('external_link') }}" data-select-on-click>
                             </div>
                         @endif
                         <p class="text-muted small mb-2">{{ __('Crea un acceso sin contraseña para el contratado externo. Entra por un enlace de un solo uso y firma con su RFC.') }}
@@ -228,7 +229,7 @@
                                                 {{-- La frecuencia HEREDA el periodo de pago; definible caso por caso (day players/apoyos). --}}
                                                 <form method="POST" action="{{ route('periods.contract.frequency', $c) }}" class="d-inline-flex gap-1 align-items-center">
                                                     @csrf
-                                                    <select name="payment_frequency" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+                                                    <select name="payment_frequency" class="form-select form-select-sm" style="width:auto" data-autosubmit>
                                                         <option value="">{{ __('—') }}</option>
                                                         @foreach(\App\Models\PayeeContract::frequencies() as $fv => $fl)
                                                             <option value="{{ $fv }}" @selected($c->payment_frequency === $fv)>{{ $fl }}</option>

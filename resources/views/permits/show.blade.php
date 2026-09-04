@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@include('componentes._confirm-submit')
 @section('content')
 @php
     $pts = is_array($issued->points_snapshot) ? $issued->points_snapshot : [];
@@ -241,7 +242,7 @@
                 </div>
                 <p class="small text-muted mb-2">{{ __('Todo permiso emitido se cierra al terminar la actividad, con autor y hora.') }}</p>
                 <form method="post" action="{{ route('permits.close', $issued->uuid) }}"
-                      onsubmit="return confirm('{{ __('¿Cerrar el permiso? Queda registrado con tu nombre y hora.') }}');">
+                      data-confirm="{{ __('¿Cerrar el permiso? Queda registrado con tu nombre y hora.') }}">
                     @csrf
                     @if ($issued->requires_fire_watch)
                         <div class="alert alert-warning d-flex align-items-start gap-2 py-2 small mb-2">
@@ -266,7 +267,7 @@
             <details class="mb-3">
                 <summary class="text-muted small" style="cursor:pointer;">{{ __('Suspender el permiso') }}</summary>
                 <form method="post" action="{{ route('permits.suspend', $issued->uuid) }}" class="mt-2 card border-0 shadow-sm rounded-3 p-3"
-                      onsubmit="return confirm('{{ __('¿Suspender? No es cerrar ni alterar; el sello sigue válido.') }}');">
+                      data-confirm="{{ __('¿Suspender? No es cerrar ni alterar; el sello sigue válido.') }}">
                     @csrf
                     <p class="small text-muted mb-2">{{ __('Cambió el clima, entró personal a la zona… Suspender NO es cerrar y NO es alterar.') }}</p>
                     <label class="form-label small fw-semibold">{{ __('Motivo') }} *</label>

@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@include('componentes._confirm-submit')
 @section('content')
 {{-- FASE 1 · Puntos de pickup + matriz de traslado. Orígenes estables con coordenadas + el tiempo del
      PAR origen→destino (locación scouteada). CrewGeo (OSRM en el navegador) PROPONE; transpo CORRIGE;
@@ -66,7 +67,7 @@
                             </div>
                         </form>
                     </details>
-                    <form method="POST" action="{{ route('transport.point.destroy', $p) }}" onsubmit="return confirm('{{ __('¿Dar de baja este punto?') }}')">
+                    <form method="POST" action="{{ route('transport.point.destroy', $p) }}" data-confirm="{{ __('¿Dar de baja este punto?') }}">
                         @csrf<button class="btn btn-sm btn-outline-danger">{{ __('Baja') }}</button>
                     </form>
                 </div>

@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@include('componentes._confirm-submit')
 @section('content')
 @php
     $callById  = $callPlaces->keyBy('id');
@@ -173,7 +174,7 @@
                                     </button>
                                 </form>
                             @endif
-                            <form method="POST" action="{{ route('transport.order.run.destroy', [$order, $run]) }}" onsubmit="return confirm('¿Eliminar la corrida?')">
+                            <form method="POST" action="{{ route('transport.order.run.destroy', [$order, $run]) }}" data-confirm="¿Eliminar la corrida?">
                                 @csrf<button class="btn btn-sm btn-outline-danger">{{ __('Eliminar') }}</button>
                             </form>
                         </div>
@@ -330,7 +331,7 @@
             </div>
 
             {{-- Emitir / congelar --}}
-            <form method="POST" action="{{ route('transport.order.freeze', $order) }}" onsubmit="return confirm('¿Emitir esta versión? Una vez congelada no se edita; para cambios se emite una versión nueva.')">
+            <form method="POST" action="{{ route('transport.order.freeze', $order) }}" data-confirm="¿Emitir esta versión? Una vez congelada no se edita; para cambios se emite una versión nueva.">
                 @csrf
                 <button class="btn btn-primary">@include('componentes._icon', ['name' => 'clipboard-check', 'label' => null]) {{ __('Emitir / congelar versión') }} v{{ $order->version }}</button>
             </form>

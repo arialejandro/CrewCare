@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@include('componentes._confirm-submit')
 @section('content')
 {{-- EDITOR DEL CATÁLOGO DE TIPOS (§5 Capa 4). Alta/edición/baja. El perfil PROPONE al crear un
      vehículo; editarlo NO cambia los ya registrados (guardan su attr_values), ni las actas selladas
@@ -47,7 +48,7 @@
                     <div class="d-flex gap-2">
                         @if ($type->is_active)
                             <form method="POST" action="{{ route('transport.type.destroy', $type) }}"
-                                  onsubmit="return confirm('{{ $used > 0 ? __('Este tipo tiene vehículos. Se DESACTIVA (deja de proponerse); los vehículos NO cambian. ¿Continuar?') : __('¿Desactivar este tipo?') }}')">
+                                  data-confirm="{{ $used > 0 ? __('Este tipo tiene vehículos. Se DESACTIVA (deja de proponerse); los vehículos NO cambian. ¿Continuar?') : __('¿Desactivar este tipo?') }}">
                                 @csrf<button class="btn btn-sm btn-outline-danger">{{ __('Desactivar') }}</button>
                             </form>
                         @else
