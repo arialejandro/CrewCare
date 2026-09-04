@@ -613,7 +613,7 @@
             {{-- Casilla SB132: actividades especiales declaradas (gatilla el RA específico) --}}
             <div class="mt-3 p-3 border rounded {{ $specialChecked ? 'border-danger' : '' }}" id="sb132-box">
                 <div class="form-check mb-0">
-                    <input class="form-check-input" type="checkbox" name="special_activities" value="1" id="special_activities" {{ $specialChecked ? 'checked' : '' }} onchange="toggleSpecial()">
+                    <input class="form-check-input" type="checkbox" name="special_activities" value="1" id="special_activities" {{ $specialChecked ? 'checked' : '' }}>
                     <label class="form-check-label fw-semibold" for="special_activities">
                         Se declaran <u>actividades especiales</u> (armas / pirotecnia / stunts / aéreo / agua / off-road / fuego abierto / altura)
                     </label>
@@ -981,6 +981,10 @@
         if (box) box.classList.toggle('border-danger', cb.checked);
     }
     document.addEventListener('DOMContentLoaded', toggleSpecial);
+    // Aviso SB132 al cambiar la casilla (CSP: sin onchange inline).
+    document.addEventListener('change', function (e) {
+        if (e.target && e.target.id === 'special_activities') { toggleSpecial(); }
+    });
 
     // Tabla de peligros: auto-clasificación (matriz Amazon), agregar y quitar filas.
     (function () {

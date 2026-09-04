@@ -159,10 +159,21 @@
             <a href="{{ route('scoutings.amazon', [$report->id, 'lang' => 'en']) }}" class="{{ $lang === 'en' ? 'on' : 'off' }}">EN</a>
         </div>
         {{-- Descarga server-side (Browsershot): idéntica a window.print() pero de un clic; conserva ?lang. --}}
-        <button onclick="window.location.href='{{ request()->fullUrlWithQuery(['pdf' => 1]) }}';" class="amz-btn amz-btn-dark">{{ $lang === 'en' ? 'Download PDF' : 'Descargar PDF' }}</button>
-        <button onclick="window.print();" class="amz-btn">{{ $L('btn_print') }}</button>
+        <button data-amz-pdf data-pdf-url="{{ request()->fullUrlWithQuery(['pdf' => 1]) }}" class="amz-btn amz-btn-dark">{{ $lang === 'en' ? 'Download PDF' : 'Descargar PDF' }}</button>
+        <button data-amz-print class="amz-btn">{{ $L('btn_print') }}</button>
     </div>
 </div>
+
+@push('scripts')
+<script>
+    // Barra de acciones (CSP: sin onclick inline). La URL del PDF viaja en data-pdf-url.
+    document.addEventListener('click', function (e) {
+        var pdf = e.target.closest('[data-amz-pdf]');
+        if (pdf) { window.location.href = pdf.getAttribute('data-pdf-url'); return; }
+        if (e.target.closest('[data-amz-print]')) { window.print(); }
+    });
+</script>
+@endpush
 
 <div class="amz amz-page">
 <table class="amz-wrap">

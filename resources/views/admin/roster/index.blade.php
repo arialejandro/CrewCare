@@ -95,8 +95,17 @@
         <div class="roster-nav">
             <a class="roster-nav__btn" href="{{ route('roster.index', ['date' => $prevDate]) }}" title="Día anterior" aria-label="Día anterior">‹</a>
             <form method="GET" action="{{ route('roster.index') }}" class="roster-nav__date">
-                <input type="date" name="date" value="{{ $date->toDateString() }}" onchange="this.form.submit()" aria-label="Elegir fecha">
+                <input type="date" name="date" value="{{ $date->toDateString() }}" data-autosubmit aria-label="Elegir fecha">
             </form>
+            @push('scripts')
+            <script>
+                // Auto-envío del filtro al cambiar la fecha (CSP: sin onchange inline).
+                document.addEventListener('change', function (e) {
+                    var el = e.target.closest('[data-autosubmit]');
+                    if (el && el.form) { el.form.submit(); }
+                });
+            </script>
+            @endpush
             <a class="roster-nav__btn" href="{{ route('roster.index', ['date' => $nextDate]) }}" title="Día siguiente" aria-label="Día siguiente">›</a>
             <a class="roster-nav__today {{ $isToday ? 'is-today' : '' }}" href="{{ route('roster.index') }}">Hoy</a>
         </div>

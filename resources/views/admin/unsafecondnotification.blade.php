@@ -377,7 +377,7 @@
                         <div id="additional_images_container"></div>
                         {{-- d-grid = botón de ancho completo en móvil; en md+ vuelve a auto. --}}
                         <div class="d-grid d-md-block">
-                            <button type="button" class="btn btn-outline-secondary" onclick="addImageField()">＋ Agregar otra imagen</button>
+                            <button type="button" class="btn btn-outline-secondary" data-img-add>＋ Agregar otra imagen</button>
                         </div>
                         <div class="form-text">Puedes agregar varias imágenes como evidencia.</div>
                     </div>
@@ -436,7 +436,7 @@
         div.classList.add('input-group', 'mb-2');
         div.innerHTML = `
             <input type="file" class="form-control" id="additional_image_${imageCounter}" name="additional_images[]" accept="image/*,.heic,.heif" aria-label="Imagen adicional ${imageCounter}" data-cc-photo>
-            <button type="button" class="btn btn-outline-danger" onclick="removeImageField(this)" title="Eliminar">✕</button>
+            <button type="button" class="btn btn-outline-danger" data-img-del title="Eliminar">✕</button>
         `;
         container.appendChild(div);
     }
@@ -444,6 +444,13 @@
     function removeImageField(button) {
         button.parentNode.remove();
     }
+
+    // Delegación (CSP: sin onclick inline; el botón "quitar" se inyecta con cada imagen).
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('[data-img-add]')) { addImageField(); return; }
+        var d = e.target.closest('[data-img-del]');
+        if (d) { removeImageField(d); }
+    });
 
     // (2026-07-13) Coherencia — GPS HONESTO (igual que Hazard): respaldo manual ↔ hidden del
     // GPS silencioso + AVISO VISIBLE del estado. Ya no falla en silencio: si la geolocalización
