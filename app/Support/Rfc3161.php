@@ -42,30 +42,64 @@ class Rfc3161
             $imprintRaw = hash('sha256', $documentHash, true);   // 32 bytes
             $tsq        = self::buildTsq($imprintRaw);
 
-            $tsr = self::$transport
-                ? (self::$transport)($tsq)
-                : self::post($tsq);
-
-            if (! is_string($tsr) || $tsr === '') {
-                return null;
+            // Transporte inyectado (pruebas): una sola vía, sin lista de autoridades.
+            if (self::$transport) {
+                $tsr = (self::$transport)($tsq);
+                return (is_string($tsr) && $tsr !== '') ? self::pack($imprintRaw, $tsr, 'test') : null;
             }
 
-            return [
-                'imprint'   => bin2hex($imprintRaw),
-                'tsr'       => $tsr,
-                'gen_time'  => self::genTimeFromTsr($tsr),
-                'authority' => (string) config('crewcare.tsa.authority', 'freeTSA'),
-            ];
+            // AUTORIDADES EN ORDEN: la primera que responda gana; se registra CUÁL fue (para poder
+            // verificar a años vista contra su certificado). Si la principal no responde, cae al respaldo.
+            foreach (self::authorities() as $auth) {
+                $tsr = self::post($tsq, $auth['url']);
+                if (is_string($tsr) && $tsr !== '') {
+                    return self::pack($imprintRaw, $tsr, $auth['name']);
+                }
+                Log::warning("Rfc3161: la TSA '{$auth['name']}' ({$auth['url']}) no respondió; probando la siguiente.");
+            }
+            return null;   // ninguna respondió → best-effort, el cron reintenta luego.
         } catch (\Throwable $e) {
             Log::warning('Rfc3161::stamp falló: ' . $e->getMessage());
             return null;
         }
     }
 
-    /** POST del request a la TSA con el content-type de RFC 3161. Devuelve los bytes del TSR o null. */
-    private static function post(string $tsqDer): ?string
+    /** Empaqueta la respuesta: imprint + token + genTime + qué autoridad lo emitió. */
+    private static function pack(string $imprintRaw, string $tsr, string $authority): array
     {
-        $url     = (string) config('crewcare.tsa.url', 'https://freetsa.org/tsr');
+        return [
+            'imprint'   => bin2hex($imprintRaw),
+            'tsr'       => $tsr,
+            'gen_time'  => self::genTimeFromTsr($tsr),
+            'authority' => $authority,
+        ];
+    }
+
+    /** Lista ORDENADA de autoridades [{name,url}]. Retro-compat con el esquema viejo de una sola URL. */
+    private static function authorities(): array
+    {
+        $list = config('crewcare.tsa.authorities');
+        if (is_array($list) && $list !== []) {
+            $out = [];
+            foreach ($list as $a) {
+                if (! empty($a['url'])) {
+                    $out[] = ['name' => (string) ($a['name'] ?? 'TSA'), 'url' => (string) $a['url']];
+                }
+            }
+            if ($out !== []) {
+                return $out;
+            }
+        }
+        // Esquema viejo (una sola URL) por si sigue en el .env de alguien.
+        return [[
+            'name' => (string) config('crewcare.tsa.authority', 'freeTSA'),
+            'url'  => (string) config('crewcare.tsa.url', 'https://freetsa.org/tsr'),
+        ]];
+    }
+
+    /** POST del request a la TSA con el content-type de RFC 3161. Devuelve los bytes del TSR o null. */
+    private static function post(string $tsqDer, string $url): ?string
+    {
         $timeout = (int) config('crewcare.tsa.timeout', 8);
 
         $resp = Http::withHeaders(['Content-Type' => 'application/timestamp-query'])

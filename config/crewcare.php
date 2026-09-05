@@ -100,12 +100,28 @@ return [
     | Sólo viaja el HASH (imprint = SHA-256 del document_hash) → confidencialidad intacta.
     | Best-effort/async: el cron `tsa:stamp` lo hace aparte; el sellado NUNCA se bloquea.
     |
+    | AUTORIDADES EN ORDEN: se intenta la primera; si no responde, la siguiente (respaldo), y se
+    | REGISTRA en la fila del timbre cuál emitió (columna `authority`) — a 3 años hay que saber
+    | contra qué certificado verificar. Principal DigiCert: su raíz (DigiCert Trusted Root G4) viene
+    | PREINSTALADA en todo sistema operativo → un tercero verifica apuntando `-CAfile` al bundle del
+    | sistema, SIN descargar ni archivar cert de la TSA. Respaldo freeTSA (⚠ la URL lleva `/tsr`; el
+    | dominio a secas falla), cuya raíz NO está en los almacenes estándar → sus timbres exigen su
+    | `cacert.pem`. El `.tsr` embebe su propia cadena de firma en ambos casos.
+    |
     */
     'tsa' => [
-        'enabled'   => (bool) env('CREWCARE_TSA_ENABLED', true),
-        'url'       => env('CREWCARE_TSA_URL', 'https://freetsa.org/tsr'),
-        'timeout'   => (int) env('CREWCARE_TSA_TIMEOUT', 8),
-        'authority' => env('CREWCARE_TSA_AUTHORITY', 'freeTSA'),
+        'enabled' => (bool) env('CREWCARE_TSA_ENABLED', true),
+        'timeout' => (int) env('CREWCARE_TSA_TIMEOUT', 8),
+        'authorities' => [
+            [
+                'name' => env('CREWCARE_TSA_PRIMARY_NAME', 'DigiCert'),
+                'url'  => env('CREWCARE_TSA_PRIMARY_URL', 'http://timestamp.digicert.com'),
+            ],
+            [
+                'name' => env('CREWCARE_TSA_BACKUP_NAME', 'freeTSA'),
+                'url'  => env('CREWCARE_TSA_BACKUP_URL', 'https://freetsa.org/tsr'),
+            ],
+        ],
     ],
 
     /*
