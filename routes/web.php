@@ -1050,6 +1050,12 @@ Route::middleware(['throttle:20,1'])->group(function () {
         ->name('seal.verify')
         ->where('tipo', '[a-z]{3,6}')
         ->where('uuid', '[0-9a-fA-F-]{36}');
+    // Descarga del TOKEN de sello de tiempo (.tsr) — público, sin sesión: es justo lo que un
+    // tercero necesita para verificar el timbre por su cuenta (con OpenSSL, sin CrewCare).
+    Route::get('/verificar/{tipo}/{uuid}/timbre', [\App\Http\Controllers\SealVerificationController::class, 'timbre'])
+        ->name('seal.verify.timbre')
+        ->where('tipo', '[a-z]{3,6}')
+        ->where('uuid', '[0-9a-fA-F-]{36}');
 });
 
 // ---- Pilar 1b: Magic Links (PÚBLICO, firmado + expirable + rate-limit) ----

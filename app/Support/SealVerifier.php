@@ -193,6 +193,11 @@ class SealVerifier
             $when = $tsa->gen_time ?: $tsa->stamped_at;
             $dto['tsa_at']        = $when ? \Carbon\Carbon::parse($when)->format('d/m/Y H:i:s') . ' UTC' : null;
             $dto['tsa_authority'] = $tsa->authority;
+            // El HASH que el timbre atestigua (imprint = SHA-256 del document_hash, hex) + el enlace
+            // para DESCARGAR el token .tsr. Las dos piezas que un tercero necesita para verificar el
+            // timbre SIN CrewCare (con OpenSSL). No es PII: son hashes/tokens sobre un hash.
+            $dto['tsa_imprint'] = $tsa->imprint;
+            $dto['timbre_url']  = route('seal.verify.timbre', ['tipo' => $tipo, 'uuid' => (string) $doc->uuid]);
         }
 
         // El modelo muere aquí: fuera de este método sólo viajan esas claves (5 de integridad
@@ -200,6 +205,47 @@ class SealVerifier
         unset($doc, $firma, $model);
 
         return $dto;
+    }
+
+    /**
+     * Resuelve (tipo, uuid) al TOKEN de sello de tiempo (.tsr) para DESCARGARLO desde el verificador
+     * público. Devuelve ['tsr'=>bytesCrudos, 'imprint'=>hex, 'folio'=>string] o null si no hay timbre
+     * (o el documento no existe). Mismo contrato de privacidad que resolve(): el modelo muere aquí y
+     * afuera sólo viajan el token, su imprint y el folio — ningún contenido ni identidad.
+     */
+    public static function resolveTimbre($tipo, $uuid)
+    {
+        if (! isset(self::TYPES[$tipo])) {
+            return null;
+        }
+        list($class, $label, $folioPrefix) = self::TYPES[$tipo];
+        if (! class_exists($class)) {
+            return null;
+        }
+        $model = new $class;
+        if (! Schema::hasColumn($model->getTable(), 'uuid')) {
+            return null;
+        }
+        $doc = $class::where('uuid', $uuid)->first();
+        if (! $doc) {
+            return null;
+        }
+        $firma = $doc->signatures()->latest('id')->first();
+        if (! $firma) {
+            return null;
+        }
+        $tsr = \App\Support\TsaStamper::tokenBytesFor((int) $firma->id);
+        if ($tsr === null) {
+            return null;   // el documento existe y está sellado, pero aún sin timbre.
+        }
+        $tsa   = \App\Support\TsaStamper::stampedFor((int) $firma->id);
+        $folio = method_exists($doc, 'folio')
+            ? (string) $doc->folio()
+            : $folioPrefix . '-' . str_pad((string) $doc->getKey(), 4, '0', STR_PAD_LEFT);
+
+        unset($doc, $firma, $model);
+
+        return ['tsr' => $tsr, 'imprint' => $tsa->imprint ?? null, 'folio' => $folio];
     }
 
     /**

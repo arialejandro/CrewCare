@@ -43,6 +43,9 @@
         dt{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
         dd{margin:0;font-size:14.5px;word-break:break-all}
         dd.mono{font-family:var(--mono);font-size:13px}
+        .tsr-dl{display:inline-block;margin-top:3px;padding:7px 14px;border-radius:8px;
+                background:var(--ink);color:#fff;text-decoration:none;font-size:13px;font-weight:600}
+        .tsr-dl:hover{opacity:.9}
         .foot{text-align:center;color:var(--muted);font-size:12px;margin-top:20px;line-height:1.6}
         @media (max-width:400px){dl{grid-template-columns:1fr;gap:2px 0}dt{margin-top:8px}}
     </style>
@@ -105,9 +108,19 @@
                     <dt>UUID</dt>      <dd class="mono">{{ $acuse['uuid'] }}</dd>
                     <dt>Sellado</dt>   <dd>{{ $acuse['sealed_at'] ?: '—' }}</dd>
                     @if (! empty($acuse['tsa_at']))
-                        {{-- Sello de tiempo externo (TSA). Se muestra cuando existe; no se exige. --}}
+                        {{-- Sello de tiempo externo (TSA). Se muestra cuando existe; no se exige.
+                             Se ofrece el HASH timbrado + la descarga del token .tsr para que un
+                             tercero pueda verificar el timbre SIN CrewCare (ver VERIFICACION-DOCUMENTOS.md). --}}
                         <dt>Sello de tiempo</dt>
                         <dd>{{ $acuse['tsa_at'] }}<br><small>Timbre RFC&nbsp;3161 · {{ $acuse['tsa_authority'] ?? 'TSA' }}</small></dd>
+                        @if (! empty($acuse['tsa_imprint']))
+                            <dt>Hash timbrado</dt>
+                            <dd class="mono">{{ $acuse['tsa_imprint'] }}<br><small>SHA-256 — es lo que atestigua el timbre</small></dd>
+                        @endif
+                        @if (! empty($acuse['timbre_url']))
+                            <dt>Comprobante</dt>
+                            <dd><a class="tsr-dl" href="{{ $acuse['timbre_url'] }}" download>Descargar timbre (.tsr)</a><br><small>para verificarlo por tu cuenta con OpenSSL</small></dd>
+                        @endif
                     @endif
                     @if ($acuse['verdict'] === 'ok')
                         {{-- Vigencia solo si el sello es íntegro (si está alterado, la integridad manda). --}}

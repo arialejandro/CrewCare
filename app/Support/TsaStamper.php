@@ -115,7 +115,9 @@ class TsaStamper
         return $seeded;
     }
 
-    /** Token STAMPED de una firma (para el verificador público). null si no hay. */
+    /** Token STAMPED de una firma (para el verificador público). null si no hay. Incluye el
+     *  `imprint` (SHA-256 del document_hash en hex) = el valor que el timbre atestigua, para
+     *  mostrarlo junto al acuse (no es PII: es un hash, misma clase que el folio). */
     public static function stampedFor(int $signatureId): ?object
     {
         if (! Schema::hasTable('signature_timestamps')) {
@@ -123,6 +125,24 @@ class TsaStamper
         }
         return DB::table('signature_timestamps')
             ->where('signature_id', $signatureId)->where('status', self::ST_STAMPED)
-            ->first(['authority', 'gen_time', 'stamped_at']);
+            ->first(['authority', 'gen_time', 'stamped_at', 'imprint']);
+    }
+
+    /** Bytes CRUDOS del token RFC 3161 (.tsr) de una firma, para descargarlo desde el verificador
+     *  público. Se guarda en base64 → se decodifica aquí. null si no hay timbre. NO es sensible:
+     *  es un timbre sobre un hash; su razón de ser es que un tercero verifique SIN CrewCare. */
+    public static function tokenBytesFor(int $signatureId): ?string
+    {
+        if (! Schema::hasTable('signature_timestamps')) {
+            return null;
+        }
+        $b64 = DB::table('signature_timestamps')
+            ->where('signature_id', $signatureId)->where('status', self::ST_STAMPED)
+            ->value('tsr');
+        if (! $b64) {
+            return null;
+        }
+        $raw = base64_decode((string) $b64, true);
+        return ($raw === false || $raw === '') ? null : $raw;
     }
 }
