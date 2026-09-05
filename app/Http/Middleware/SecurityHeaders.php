@@ -66,9 +66,9 @@ class SecurityHeaders
             $headers['Content-Security-Policy-Report-Only'] = $this->cspPolicy($nonce);
         }
 
-        // 3b) CSP en modo BLOQUEO (enforce) — MÍNIMA: SÓLO script-src 'self' 'nonce-…' (sin
-        //     unsafe-inline). Bloquea scripts no confiables SIN tocar style/font/img (que siguen en la
-        //     Report-Only de arriba). Las dos cabeceras conviven: ésta bloquea lo suyo, la otra mide.
+        // 3b) CSP en modo BLOQUEO (enforce): script-src 'self' 'nonce-…' (sin unsafe-inline) MÁS
+        //     img-src y font-src (empaquetado local ⇒ sólo quedan orígenes propios/permitidos). style-src
+        //     sigue SÓLO en la Report-Only de arriba (aún se mide). Las dos cabeceras conviven.
         if ($emitEnforce) {
             $headers['Content-Security-Policy'] = $this->cspEnforcePolicy($nonce);
         }
@@ -127,18 +127,29 @@ class SecurityHeaders
     }
 
     /**
-     * Política CSP de BLOQUEO (enforce): `script-src 'self' 'nonce-…'` (sin unsafe-inline) MÁS las
-     * dos directivas que hacen efectivo al nonce:
+     * Política CSP de BLOQUEO (enforce):
+     *   · `script-src 'self' 'nonce-…'` (sin unsafe-inline) — el corazón: sólo scripts propios/con nonce.
+     *   · `img-src 'self' data: blob:` — tras empaquetar, las imágenes son propias; `data:` (placeholder
+     *     de avatar, íconos) y `blob:` (previsualización de Cropper/CCPhoto y render de pdf.js) SON
+     *     necesarios: sin ellos se rompen recorte de foto y visor de PDF.
+     *   · `font-src 'self' https://fonts.gstatic.com data:` — FontAwesome y demás ya son locales; se
+     *     CONSERVA gstatic porque Google Fonts sigue en uso (tipografía de la UI + fuentes de firma de la
+     *     ceremonia + Poppins del login). Es el piso NO disruptivo: bloquea cualquier OTRO origen de
+     *     fuente. Autoalojar Google Fonts (para llegar a `font-src 'self'`) es una mejora aditiva aparte,
+     *     a decisión del owner — mientras tanto gstatic queda permitido y nada se rompe.
      *   · `object-src 'none'` — sin <object>/<embed>: cierra la ejecución vía plugins.
      *   · `base-uri 'self'`  — sin <base> hacia otro origen: un <base> inyectado cambiaría a dónde
      *     resuelven las rutas relativas y los propios scripts de la app cargarían desde otro origen
      *     CON el nonce intacto. Es el mismo agujero que tapa el nonce, cerrado del todo.
-     * NO incluye style/font/img a propósito: ésos siguen midiéndose en la Report-Only.
+     * NO incluye style-src a propósito: los 1319 `style=` en línea (mayormente de correos, exentos de
+     * CSP) siguen midiéndose en la Report-Only hasta que el owner decida la estrategia.
      */
     private function cspEnforcePolicy(string $nonce): string
     {
         return implode('; ', [
             "script-src 'self' 'nonce-{$nonce}'",
+            "img-src 'self' data: blob:",
+            "font-src 'self' https://fonts.gstatic.com data:",
             "object-src 'none'",
             "base-uri 'self'",
         ]);
