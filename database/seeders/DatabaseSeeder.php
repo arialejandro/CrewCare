@@ -49,6 +49,7 @@ class DatabaseSeeder extends Seeder
             TransportPermissionsSeeder::class,         // transport.manage + transport.view (Transportación · Bloque 1)
             PayeeAccessPermissionsSeeder::class,       // payees.view (quien cobra · Paso 4) — DESPUÉS del barrido %.view del auditor
             PeriodPermissionsSeeder::class,            // periods.view/manage (ventana de recepción) — mismo motivo, después del barrido
+            PaymentConceptSeeder::class,               // conceptos de pago globales (SEM/CA/Box Rental) — catálogo editable
             ContractAuthorPermissionsSeeder::class,    // contracts.author (Contract Builder → line-producer)
             // (SdsPermissionsSeeder NO: sds.* ya viene en el base)
             // (MedicRolePermissionsSeeder NO: migra usuarios; el grant a medic vive en el base)

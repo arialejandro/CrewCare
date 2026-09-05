@@ -1127,6 +1127,12 @@ Route::middleware(['auth','permission:periods.manage'])->group(function () {
     // Recordatorio manual a quienes faltan (contabilidad; un clic por persona, WhatsApp).
     Route::get('/periodos/{period}/recordatorios', [\App\Http\Controllers\PaymentPeriodController::class, 'reminders'])->name('periods.reminders')->whereNumber('period');
     Route::post('/periodos',                    [\App\Http\Controllers\PaymentPeriodController::class, 'store'])->name('periods.store');
+    // Generación EN LOTE (N semanas de una) + catálogo editable de CONCEPTOS de pago (SEM/CA/Box…).
+    Route::post('/periodos/lote',               [\App\Http\Controllers\PaymentPeriodController::class, 'storeBatch'])->name('periods.batch');
+    Route::get('/conceptos',                     [\App\Http\Controllers\PaymentConceptController::class, 'index'])->name('payment-concepts.index');
+    Route::post('/conceptos',                    [\App\Http\Controllers\PaymentConceptController::class, 'store'])->name('payment-concepts.store');
+    Route::put('/conceptos/{concept}',           [\App\Http\Controllers\PaymentConceptController::class, 'update'])->name('payment-concepts.update')->whereNumber('concept');
+    Route::delete('/conceptos/{concept}',        [\App\Http\Controllers\PaymentConceptController::class, 'destroy'])->name('payment-concepts.destroy')->whereNumber('concept');
     Route::post('/periodos/{period}/cerrar',    [\App\Http\Controllers\PaymentPeriodController::class, 'close'])->name('periods.close')->whereNumber('period');
     Route::post('/periodos/{period}/reabrir',   [\App\Http\Controllers\PaymentPeriodController::class, 'reopen'])->name('periods.reopen')->whereNumber('period');
     // Editar / borrar un periodo (corregir o quitar uno abierto por error). Borrar solo si está vacío.

@@ -29,6 +29,44 @@
         @endunless
 
         @can('periods.manage')
+        {{-- GENERACIÓN EN LOTE — crea N semanas de una, con la nomenclatura compuesta desde la
+             PLANTILLA (final de la semana). Ej: SEM{DD}{MM}{YY} → SEM060926. --}}
+        <div class="card mb-4">
+            <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                <span>{{ __('Generar semanas en lote') }}</span>
+                <a href="{{ route('payment-concepts.index') }}" class="btn btn-sm btn-crew-soft">{{ __('Catálogo de conceptos') }}</a>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ route('periods.batch') }}" class="row g-3">
+                    @csrf
+                    <div class="col-md-3">
+                        <label class="form-label small">{{ __('Frecuencia') }}</label>
+                        <select name="frequency" class="form-select" required>
+                            <option value="weekly">{{ __('Semanal') }}</option>
+                            <option value="biweekly">{{ __('Quincenal') }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small">{{ __('Inicio (1ª semana)') }}</label>
+                        <input type="date" name="start_date" id="batch-start" class="form-control" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">{{ __('¿Cuántas?') }}</label>
+                        <input type="number" name="count" class="form-control" min="1" max="52" value="12" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">{{ __('Plantilla de nomenclatura') }}</label>
+                        <input type="text" name="template" class="form-control" value="{{ $labelTemplate }}"
+                               placeholder="SEM{DD}{MM}{YY}">
+                        <div class="form-text">{{ __('Tokens: {DD} {MM} {YY} {YYYY} {MES} (fin de semana) · {oDD} {oD} {oMES} (inicio).') }}</div>
+                    </div>
+                    <div class="col-12 d-flex align-items-end">
+                        <button type="submit" class="btn btn-crew">{{ __('Generar en lote') }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <div class="card mb-4">
             <div class="card-header fw-semibold">{{ __('Abrir un periodo') }}</div>
             <div class="card-body">

@@ -31,16 +31,58 @@ class PaymentPeriod extends Model
         'production_id', 'frequency', 'label',
         'opens_on', 'closes_on', 'worked_on', 'payee_id',
         'status', 'closed_at', 'closed_by_id', 'reopened_at', 'reopened_by_id',
-        'created_by_id',
+        'created_by_id', 'announced_at',
     ];
 
     protected $casts = [
-        'opens_on'    => 'date',
-        'closes_on'   => 'date',
-        'worked_on'   => 'date',
-        'closed_at'   => 'datetime',
-        'reopened_at' => 'datetime',
+        'opens_on'     => 'date',
+        'closes_on'    => 'date',
+        'worked_on'    => 'date',
+        'closed_at'    => 'datetime',
+        'reopened_at'  => 'datetime',
+        'announced_at' => 'datetime',
     ];
+
+    /** Meses en español para el token {MES} de la plantilla de nomenclatura. */
+    private const MESES = [
+        1 => 'enero', 2 => 'febrero', 3 => 'marzo', 4 => 'abril', 5 => 'mayo', 6 => 'junio',
+        7 => 'julio', 8 => 'agosto', 9 => 'septiembre', 10 => 'octubre', 11 => 'noviembre', 12 => 'diciembre',
+    ];
+
+    /**
+     * CONSTRUCTOR DE NOMENCLATURA — compone la etiqueta de la semana desde la PLANTILLA configurable
+     * (`ProductionDocumentSetting::period_label_template`), tomando por defecto la FECHA FINAL de la
+     * semana (`$closes`). Tokens (final): {DD} {MM} {YYYY} {YY} {D} {M} {MES}; del inicio: {oDD} {oMM}
+     * {oYYYY} {oYY} {oD} {oM} {oMES}. Ej: `SEM{DD}{MM}{YY}` con cierre 06/09/2026 → `SEM060926`.
+     * Ej: `Semana del {oD} al {D} de {MES} de {YYYY}` → "Semana del 7 al 12 de septiembre de 2026".
+     * El resto del texto de la plantilla pasa literal. Devuelve '' si no hay plantilla ni fecha.
+     */
+    public static function composeLabel(?string $template, $closes, $opens = null): string
+    {
+        $template = trim((string) $template);
+        if ($template === '' || $closes === null) {
+            return '';
+        }
+        $c = $closes instanceof Carbon ? $closes : Carbon::parse($closes);
+        $o = $opens === null ? null : ($opens instanceof Carbon ? $opens : Carbon::parse($opens));
+
+        $map = [
+            '{DD}'   => $c->format('d'),      '{MM}'   => $c->format('m'),
+            '{YYYY}' => $c->format('Y'),      '{YY}'   => $c->format('y'),
+            '{D}'    => (string) $c->day,     '{M}'    => (string) $c->month,
+            '{MES}'  => self::MESES[$c->month] ?? $c->format('m'),
+        ];
+        if ($o !== null) {
+            $map += [
+                '{oDD}'   => $o->format('d'),  '{oMM}'  => $o->format('m'),
+                '{oYYYY}' => $o->format('Y'),  '{oYY}'  => $o->format('y'),
+                '{oD}'    => (string) $o->day, '{oM}'   => (string) $o->month,
+                '{oMES}'  => self::MESES[$o->month] ?? $o->format('m'),
+            ];
+        }
+
+        return strtr($template, $map);
+    }
 
     // ── Relaciones ────────────────────────────────────────────────────────────
     public function production(): BelongsTo

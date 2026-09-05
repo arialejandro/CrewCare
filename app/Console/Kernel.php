@@ -17,6 +17,7 @@ class Kernel extends ConsoleKernel
         Commands\DispatchFileDeliveries::class,
         Commands\StampSignatureTimestamps::class,
         Commands\PruneClinicalReadLogs::class,
+        Commands\AnnouncePeriodOpenings::class,
     ];
 
     /**
@@ -53,6 +54,11 @@ class Kernel extends ConsoleKernel
 
         // (2026-08-30) Retención de la bitácora de lectura clínica: poda mensual lo mayor a 3 años.
         $schedule->command('clinical-log:prune')->monthlyOn(1, '03:30');
+
+        // (2026-09-05) CALENDARIO · aviso de apertura de ventana — una vez al día avisa por correo los
+        // periodos cuya ventana abre HOY (idempotente por announced_at). El "doble en cambio de mes"
+        // lo resuelve el propio comando. NO sustituye el recordatorio manual del tablero.
+        $schedule->command('periods:announce')->dailyAt('07:00')->withoutOverlapping();
 
         // (2026-08-30 · estabilidad) LATIDO del cron: cada minuto deja una marca fresca que el
         // healthcheck (/healthz) lee. Si `schedule:run` deja de correr, la marca envejece y /healthz

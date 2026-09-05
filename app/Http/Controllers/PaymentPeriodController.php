@@ -39,8 +39,9 @@ class PaymentPeriodController extends Controller
         $frequencies = PayeeContract::frequencies();
         $dayPlayerPayees = Payee::query()->active()->visibleTo($request->user())
             ->orderBy('name')->get(['id', 'name']);
+        $labelTemplate = \App\Models\ProductionDocumentSetting::periodTemplateFor($productionId);
 
-        return view('periods.index', compact('periods', 'frequencies', 'dayPlayerPayees', 'productionId'));
+        return view('periods.index', compact('periods', 'frequencies', 'dayPlayerPayees', 'productionId', 'labelTemplate'));
     }
 
     /** EL TABLERO: por periodo, quién entregó / quién falta y quiénes. Filtros dept + tipo. */
@@ -174,6 +175,66 @@ class PaymentPeriodController extends Controller
         ]));
 
         return redirect()->route('periods.index')->with('status', __('Periodo abierto.'));
+    }
+
+    /**
+     * GENERACIÓN EN LOTE — crea N semanas de una, en vez de teclear veinte. Cada periodo compone su
+     * NOMENCLATURA desde la PLANTILLA configurable (o la de la producción) con la FECHA FINAL de la
+     * semana. Solo weekly/biweekly (el day-player es a mano, por su naturaleza). Idempotente por
+     * ventana: si ya existe un periodo de la misma frecuencia que CIERRA el mismo día, se SALTA (no
+     * duplica). No dispara correos: el aviso lo manda el comando diario `periods:announce` cuando la
+     * ventana ABRE de verdad (opens_on = hoy), no al crearla.
+     */
+    public function storeBatch(Request $request)
+    {
+        $productionId = CurrentProduction::id();
+        abort_unless($productionId, 409, 'No hay una producción activa.');
+
+        $weekly   = PayeeContract::FREQ_WEEKLY;
+        $biweekly = PayeeContract::FREQ_BIWEEKLY;
+
+        $data = $request->validate([
+            'frequency'  => 'required|in:' . $weekly . ',' . $biweekly,
+            'start_date' => 'required|date',
+            'count'      => 'required|integer|min:1|max:52',
+            'template'   => 'nullable|string|max:160',
+        ]);
+
+        $step     = $data['frequency'] === $biweekly ? 14 : 7;
+        $template = trim((string) ($data['template'] ?? '')) !== ''
+            ? $data['template']
+            : \App\Models\ProductionDocumentSetting::periodTemplateFor($productionId);
+
+        $start   = \Illuminate\Support\Carbon::parse($data['start_date'])->startOfDay();
+        $created = 0; $skipped = 0;
+
+        for ($i = 0; $i < (int) $data['count']; $i++) {
+            $opens  = $start->copy()->addDays($i * $step);
+            $closes = $opens->copy()->addDays($step - 1);
+
+            $exists = PaymentPeriod::query()->forProduction($productionId)
+                ->where('frequency', $data['frequency'])
+                ->whereDate('closes_on', $closes->toDateString())->exists();
+            if ($exists) { $skipped++; continue; }
+
+            PaymentPeriod::create([
+                'production_id' => $productionId,
+                'frequency'     => $data['frequency'],
+                'label'         => PaymentPeriod::composeLabel($template, $closes, $opens),
+                'opens_on'      => $opens->toDateString(),
+                'closes_on'     => $closes->toDateString(),
+                'status'        => PaymentPeriod::STATUS_OPEN,
+                'created_by_id' => $request->user()->id,
+            ]);
+            $created++;
+        }
+
+        $msg = trans_choice('{0}No se creó ningún periodo.|{1}Se creó 1 periodo.|[2,*]Se crearon :count periodos.', $created, ['count' => $created]);
+        if ($skipped > 0) {
+            $msg .= ' ' . trans_choice('{1}(1 ya existía y se saltó.)|[2,*](:n ya existían y se saltaron.)', $skipped, ['n' => $skipped]);
+        }
+
+        return redirect()->route('periods.index')->with($created > 0 ? 'status' : 'error', $msg);
     }
 
     /** EDITAR un periodo (corregir fecha/etiqueta/frecuencia/día). Solo periods.manage. */
