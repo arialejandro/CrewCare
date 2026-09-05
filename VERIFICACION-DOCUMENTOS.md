@@ -11,7 +11,7 @@ Un documento de CrewCare (un reporte de accidente, un acta de inspección, un co
 | | La pregunta | Quién la contesta | Dónde se comprueba |
 |---|---|---|---|
 | **El sello** | *¿Este documento fue alterado?* | CrewCare | En el **verificador público** de CrewCare, escaneando el QR |
-| **El timbre** | *¿Este documento ya existía en tal fecha?* | Un tercero neutral (**freeTSA**), no CrewCare | Con **OpenSSL**, **sin CrewCare** |
+| **El timbre** | *¿Este documento ya existía en tal fecha?* | Una **autoridad de tiempo independiente** (DigiCert), no CrewCare | Con **OpenSSL**, **sin CrewCare** |
 
 La segunda es la importante para no depender de nosotros: el timbre lo pone un **tercero independiente**, y usted lo verifica **por su cuenta**. Si mañana CrewCare desapareciera, el timbre seguiría siendo comprobable.
 
@@ -30,7 +30,7 @@ Imagine una máquina que lee un documento entero y escupe una cadena de 64 carac
 Con esa sola idea se explican las dos garantías:
 
 - **El sello** es CrewCare guardando la huella del documento *en el momento de emitirlo*, cerrada con una llave secreta. Para verificar, el verificador vuelve a calcular la huella del documento que usted tiene y la compara con la sellada. **¿Coinciden? No se alteró. ¿No coinciden? Se alteró.**
-- **El timbre** es un tercero neutral (freeTSA) que recibió esa huella en un instante y firmó, con su propia firma, *"vi esta huella tal día a tal hora"*. Como la firma es **de ellos, no de CrewCare**, usted la verifica con el certificado público de ellos —sin pasar por nosotros. Y **nadie puede conseguir un timbre con fecha del pasado**: la fecha la pone freeTSA cuando recibe la huella.
+- **El timbre** es un tercero neutral (una *autoridad de sellado de tiempo* — DigiCert) que recibió esa huella en un instante y firmó, con su propia firma, *"vi esta huella tal día a tal hora"*. Como la firma es **de ellos, no de CrewCare**, usted la verifica con el certificado de ellos —sin pasar por nosotros. Y **nadie puede conseguir un timbre con fecha del pasado**: la fecha la pone la autoridad cuando recibe la huella.
 
 ---
 
@@ -62,78 +62,97 @@ https://crewcarer.mx/verificar/<tipo>/<uuid>
 
 ## Parte B — Verificar el TIMBRE **sin CrewCare** (¿existía en tal fecha?)
 
-Aquí está el punto: esto **no depende de que usted confíe en CrewCare**. El timbre lo emitió **freeTSA** (una Autoridad de Sellado de Tiempo independiente, `freetsa.org`) bajo el estándar internacional **RFC 3161**, y usted lo comprueba con herramientas públicas.
+Aquí está el punto: esto **no depende de que usted confíe en CrewCare**. El timbre lo emitió una **Autoridad de Sellado de Tiempo (TSA) independiente**, bajo el estándar internacional **RFC 3161**, y usted lo comprueba con herramientas públicas.
 
-Necesita **tres piezas**, todas obtenibles sin cuenta:
+**¿Qué autoridad lo emitió?** El verificador lo dice junto a la fecha: **"Timbre RFC 3161 · DigiCert"** o **"· freeTSA"**. Importa, porque la verificación cambia un poco según cuál:
 
-1. **El token del timbre** (`.tsr`) — se descarga desde el verificador con el botón **"Descargar timbre (.tsr)"**.
-2. **El hash timbrado** — aparece en el verificador bajo **"Hash timbrado"** (una cadena de 64 caracteres). Es exactamente lo que freeTSA fechó.
-3. **Los certificados públicos de freeTSA** — para comprobar que la firma es de ellos:
-   - `https://freetsa.org/files/cacert.pem`  (certificado raíz)
-   - `https://freetsa.org/files/tsa.crt`  (certificado de la autoridad de tiempo)
+- **DigiCert** (lo normal, de aquí en adelante) — su certificado raíz **ya viene instalado en su computadora** (Windows, macOS y Linux lo traen de fábrica). **No hay que descargar nada de la TSA.**
+- **freeTSA** (timbres antiguos o de respaldo) — su raíz **no** está preinstalada, así que necesita además dos certificados de freeTSA (más abajo).
 
-### Los comandos (copiar y pegar)
+### Lo que necesita
 
-Necesita **OpenSSL** instalado (viene con macOS y Linux; en Windows, con Git for Windows). Ponga los cuatro archivos en una carpeta: el `.tsr` descargado, `cacert.pem`, `tsa.crt`.
+1. **El token del timbre** (`.tsr`) — botón **"Descargar timbre (.tsr)"** en el verificador.
+2. **El hash timbrado** — la cadena de 64 caracteres bajo **"Hash timbrado"**. Es lo que la TSA fechó.
+3. **OpenSSL** — viene con macOS y Linux; en Windows, con Git for Windows.
 
-**1) Ver qué dice el timbre** (fecha, autoridad, algoritmo):
+Nada más, si el timbre es de DigiCert. Además, el propio `.tsr` **ya trae dentro** el certificado con que se firmó, así que no depende de que la TSA siga en línea años después.
+
+### Los comandos (copiar y pegar) — timbre de **DigiCert**
+
+Ponga el `.tsr` descargado en una carpeta y abra una terminal ahí.
+
+**1) Ver qué dice el timbre** (fecha, algoritmo):
 
 ```bash
-openssl ts -reply -in timbre-DSR-0001.tsr -text
+openssl ts -reply -in timbre.tsr -text
 ```
 
-Verá, entre otras líneas:
+Busque `Status: Granted.` y la línea `Time stamp:` — esa es la fecha que la TSA atestigua.
 
-```
-Status: Granted.
-Policy OID: tsa_policy1
-Hash Algorithm: sha256
-Time stamp: Sep  5 02:13:43 2026 GMT
-TSA: .../O=Free TSA/.../CN=www.freetsa.org/...
-```
+**2) Verificar de verdad** que el timbre corresponde a ESE hash y lo firmó DigiCert. Apunte `-CAfile` al **almacén de certificados de su sistema** (ya está en su computadora; no se descarga de nadie):
 
-Esa línea **`Time stamp`** es la fecha que un tercero atestigua. **`TSA: Free TSA`** es quién la atestigua.
-
-**2) Verificar de verdad** que el timbre corresponde a ESE hash y lo firmó freeTSA:
+| Sistema | Ruta del almacén (para `-CAfile`) |
+|---|---|
+| macOS | `/etc/ssl/cert.pem` |
+| Linux (Debian/Ubuntu) | `/etc/ssl/certs/ca-certificates.crt` |
+| Linux (RHEL/Fedora) | `/etc/pki/tls/certs/ca-bundle.crt` |
+| Windows (Git Bash) | el `cert.pem` de Git, p.ej. `C:/Program Files/Git/mingw64/etc/ssl/cert.pem` |
 
 ```bash
 openssl ts -verify \
   -digest <HASH_TIMBRADO> \
-  -in timbre-DSR-0001.tsr \
-  -CAfile cacert.pem \
-  -untrusted tsa.crt
+  -in timbre.tsr \
+  -CAfile /etc/ssl/cert.pem
 ```
 
-Cambie `<HASH_TIMBRADO>` por la cadena de 64 caracteres que muestra el verificador. La respuesta que busca es:
+Cambie `<HASH_TIMBRADO>` por la cadena que muestra el verificador (y la ruta de `-CAfile` por la de su sistema). La respuesta que busca es:
 
 ```
 Verification: OK
 ```
 
-**`Verification: OK`** significa: *este token fue emitido por freeTSA, sobre exactamente este hash, en la fecha que dice.* Si el hash no correspondiera, saldría **`Verification: FAILED`**.
+Significa: *este token lo emitió DigiCert, sobre exactamente este hash, en la fecha que dice.* Si el hash no correspondiera, saldría **`Verification: FAILED`**.
+
+> **¿Por qué `-CAfile` si "no hay que descargar nada"?** El comando `openssl ts -verify` **siempre** exige que le señalen un almacén de certificados (es una peculiaridad suya). La diferencia es que aquí ese almacén es el **de su sistema, que usted ya tiene** — no un archivo que baje de la TSA. No descarga nada; solo apunta a lo que ya está instalado.
+>
+> **De dónde sale ese hash:** el "hash timbrado" es `SHA-256` de la huella del documento. Usted no recalcula nada: el verificador ya le da el valor exacto que va en `-digest`.
 
 ### Ejemplo real (puede reproducirlo)
 
-Para el reporte diario **DSR-0001** de la instalación de demostración, el hash timbrado es:
+Para un reporte diario **DSR** de la demostración, timbrado por **DigiCert**, el hash timbrado es:
 
 ```
-a6970bce396d182492a4af4c710cf96c100709334707620c5d4a563686fdfe6c
+25dd2ff126073c2c707bc7c720de8a334e85882710824b0299fdb1867b5d2095
 ```
-
-Y el comando de verificación completo:
 
 ```bash
 openssl ts -verify \
-  -digest a6970bce396d182492a4af4c710cf96c100709334707620c5d4a563686fdfe6c \
-  -in timbre-DSR-0001.tsr \
-  -CAfile cacert.pem \
-  -untrusted tsa.crt
+  -digest 25dd2ff126073c2c707bc7c720de8a334e85882710824b0299fdb1867b5d2095 \
+  -in timbre.tsr \
+  -CAfile /etc/ssl/cert.pem
 # → Verification: OK
 ```
 
-> **Nota técnica menor:** OpenSSL imprime una advertencia *"certificate ... is not a CA cert"* sobre `tsa.crt`. Es normal y esperado (el certificado de la TSA es de "entidad final", se pasa como `-untrusted` a propósito). La verificación **igual dice `OK`**.
->
-> **De dónde sale ese hash:** internamente es `SHA-256` de la huella del documento (el "hash timbrado" = SHA-256 del hash del sello). Usted no necesita recalcular nada: el verificador ya le da el valor exacto que va en `-digest`.
+### Si el timbre es de **freeTSA** (antiguos o de respaldo)
+
+El verificador lo indicará ("· freeTSA"). La raíz de freeTSA **no** está en su sistema, así que baje sus dos certificados y páselos al comando:
+
+- `https://freetsa.org/files/cacert.pem`  (raíz)
+- `https://freetsa.org/files/tsa.crt`  (autoridad de tiempo)
+
+```bash
+openssl ts -verify \
+  -digest <HASH_TIMBRADO> \
+  -in timbre.tsr \
+  -CAfile cacert.pem \
+  -untrusted tsa.crt
+```
+
+*(OpenSSL imprime una advertencia "certificate ... is not a CA cert" sobre `tsa.crt`; es normal —el cert de la TSA es de entidad final— y la verificación **igual dice `OK`**.)*
+
+### Sobre la renovación de certificados
+
+Los certificados de las TSA **se renuevan al menos cada 15 meses** (requisito de la industria). Por eso un timbre viejo se verifica contra el certificado **de su época**, no contra el vigente. Con **DigiCert esto se resuelve solo**: el `.tsr` **lleva embebido** el certificado con que se firmó, y ese certificado encadena a una **raíz estable que ya está en su sistema** — así que un timbre de DigiCert de hace años sigue verificándose sin conseguir nada nuevo. Con **freeTSA**, en cambio, conviene **archivar su certificado de la época** junto al timbre, porque su raíz podría no estar disponible después.
 
 ---
 
@@ -157,7 +176,7 @@ Estos mecanismos se apoyan en el marco de comercio electrónico mexicano, ya def
 - **Código de Comercio, art. 89 Bis** — *no se negarán efectos jurídicos, validez ni fuerza obligatoria* a la información por la sola razón de estar en un mensaje de datos. (Un documento electrónico no vale menos por ser electrónico.)
 - **Código Civil Federal, art. 1811** — el consentimiento expresado por medios electrónicos es válido y **no requiere pacto previo** entre las partes para producir efectos.
 
-**Sobre la NOM-151** (NOM-151-SCFI-2016, conservación de mensajes de datos y *constancia de conservación*): su adopción quedó **diferida**. La "constancia" de la NOM-151 exige un **Prestador de Servicios de Certificación (PSC)** acreditado en México; mientras eso se decide, CrewCare usa el **sello de tiempo RFC 3161** de una TSA (freeTSA), que es el mecanismo internacional equivalente para probar existencia en el tiempo. Cuando se opte por la NOM-151, el sello de tiempo actual **no estorba**: convive con ella.
+**Sobre la NOM-151** (NOM-151-SCFI-2016, conservación de mensajes de datos y *constancia de conservación*): su adopción quedó **diferida**. La "constancia" de la NOM-151 exige un **Prestador de Servicios de Certificación (PSC)** acreditado en México; mientras eso se decide, CrewCare usa el **sello de tiempo RFC 3161** de una TSA comercial (**DigiCert**, con freeTSA de respaldo), que es el mecanismo internacional equivalente para probar existencia en el tiempo. Cuando se opte por la NOM-151, el sello de tiempo actual **no estorba**: convive con ella.
 
 > *Esta sección describe el marco en el que operan los mecanismos técnicos; no es asesoría legal. La valoración jurídica corresponde al profesional que lea este documento.*
 
@@ -166,8 +185,8 @@ Estos mecanismos se apoyan en el marco de comercio electrónico mexicano, ya def
 ## Resumen de una página
 
 1. **¿Lo alteraron?** → Escanee el QR → verificador público de CrewCare → estado en pantalla.
-2. **¿Existía en tal fecha?** → Descargue el `.tsr` → `openssl ts -verify -digest <hash> -in <archivo>.tsr -CAfile cacert.pem -untrusted tsa.crt` → `Verification: OK`.
-3. **Los certificados de freeTSA** salen de `freetsa.org/files/` — no de CrewCare.
+2. **¿Existía en tal fecha?** → Descargue el `.tsr` → `openssl ts -verify -digest <hash> -in timbre.tsr -CAfile <almacén-del-sistema>` → `Verification: OK`. (Si el verificador dice "· freeTSA", añada los certificados de `freetsa.org/files/`.)
+3. **DigiCert no requiere descargar certificados**: su raíz ya está en su computadora. Solo freeTSA (respaldo/antiguos) los necesita.
 4. **Ninguno de los dos** prueba que el contenido sea *verdadero*: prueban que no se **alteró** ni se **antedató**.
 
 *CrewCare · Salud y Seguridad — verificación de integridad y sello de tiempo de documentos.*

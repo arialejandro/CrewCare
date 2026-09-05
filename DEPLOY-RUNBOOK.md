@@ -195,7 +195,7 @@ Si alguna vez estuvo rastreado, rota `APP_KEY`, `DB_PASSWORD`, `MAIL_PASSWORD` e
 - `#121` `2026-08-30-sessions-table.sql` — sesión en base (habilita listar/revocar sesiones).
 
 **Crons nuevos (ya en el schedule; solo necesitan el `schedule:run` de §5·b):**
-- `tsa:stamp` (cada 5 min) — timbra en freeTSA los sellos sin sello de tiempo. Best-effort; si freeTSA no responde, reintenta. Cubre sellos viejos y nuevos.
+- `tsa:stamp` (cada 5 min) — timbra los sellos sin sello de tiempo contra la TSA (principal **DigiCert**, respaldo freeTSA; si la principal no responde, cae al respaldo y lo registra). Best-effort; reintenta; cubre sellos viejos y nuevos. 🔴 **SIN `schedule:run` NO HAY TIMBRES:** el timbrado depende del cron; si `schedule:run` no corre, los sellos quedan sin timbre indefinidamente (se vigila con el latido de `/healthz`). Timbrar a mano: `php artisan tsa:stamp --limit=N`.
 - `clinical-log:prune` (mensual) — retención de 3 años de la bitácora clínica.
 - latido del cron (cada minuto) — deja la marca que vigila `/healthz`.
 
@@ -203,7 +203,7 @@ Si alguna vez estuvo rastreado, rota `APP_KEY`, `DB_PASSWORD`, `MAIL_PASSWORD` e
 - `SESSION_SECURE_COOKIE` — si no se pone, la cookie es `Secure` en producción y no-secure en local.
 - `CREWCARE_HSTS`, `CREWCARE_CSP_REPORT` (default `true`).
 - **`CREWCARE_CSP_ENFORCE` (default `false`)** — el interruptor del BLOQUEO de la CSP. Con `true` la app emite, ADEMÁS del reporte completo, una `Content-Security-Policy` que hace enforce de `script-src 'self' 'nonce-…'` + `object-src 'none'` + `base-uri 'self'` (bloquea scripts no confiables). El **default committeado es reporte** (`false`); el owner lo pone en `true` por entorno cuando toque. `style-src`/`font-src`/`img-src` NO se bloquean todavía (siguen solo en Report-Only). Test juez: `php artisan dusk --filter=CspBlockingJudgeTest`.
-- `CREWCARE_TSA_ENABLED` (`true`), `CREWCARE_TSA_URL` (`https://freetsa.org/tsr`), `CREWCARE_TSA_TIMEOUT` (`8`).
+- **TSA (sello de tiempo):** `CREWCARE_TSA_ENABLED` (`true`), `CREWCARE_TSA_TIMEOUT` (`8`), y las autoridades EN ORDEN — principal `CREWCARE_TSA_PRIMARY_URL` (`http://timestamp.digicert.com`) / `CREWCARE_TSA_PRIMARY_NAME` (`DigiCert`), respaldo `CREWCARE_TSA_BACKUP_URL` (`https://freetsa.org/tsr` — ⚠ con `/tsr`) / `CREWCARE_TSA_BACKUP_NAME` (`freeTSA`). Cada timbre guarda con qué autoridad se emitió (columna `authority`). DigiCert se verifica con `-CAfile` al bundle del sistema (sin bajar cert); freeTSA exige su `cacert.pem`. Ver `VERIFICACION-DOCUMENTOS.md`.
 - `SESSION_DRIVER=database` — SOLO si quieres activar "Sesiones activas" del perfil (ver abajo).
 
 **HTTPS/HSTS (solo producción):** la app fuerza https (`URL::forceScheme`) + redirige http→https + HSTS (middleware `SecurityHeaders`). Requiere que el reverse-proxy TLS mande `X-Forwarded-Proto` — `TrustProxies` confía `*` (la app en el VPS solo es alcanzable por el proxy; si no fuera así, acota a la IP del proxy). **El local sigue en http, sin cambios.** La CSP de `script-src` ya se puede pasar a **BLOQUEO** con `CREWCARE_CSP_ENFORCE=true` (ver arriba); el default committeado es REPORTE. Revisa el log (`/csp-report`) antes de bloquear también `style-src`/`font-src`/`img-src` (otra fase: 1314 `style=` en línea).
