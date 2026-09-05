@@ -52,6 +52,11 @@
                         <span class="text-muted">({{ $payees->total() }})</span>
                     </a>
                 @endif
+                {{-- Pantalla de CARPETAS: cards por departamento + descarga por semana + proveedores. --}}
+                <a href="{{ route('payees.folders') }}" class="btn btn-sm btn-crew d-inline-flex align-items-center gap-1">
+                    @include('componentes._icon', ['name' => 'folder', 'label' => null])
+                    {{ __('Carpetas por departamento y semana') }}
+                </a>
             </div>
         </div>
 

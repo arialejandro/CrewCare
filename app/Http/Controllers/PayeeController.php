@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\ExternalAuthorization;
 use App\Models\Payee;
 use App\Models\PayeeDocumentDownload;
+use App\Models\PaymentPeriod;
 use App\Support\CurrentProduction;
 use App\Support\PayeePackage;
 use Illuminate\Http\Request;
@@ -219,6 +220,14 @@ class PayeeController extends Controller
         $q      = trim((string) $request->query('q', ''));
         $deptId = (int) $request->query('dept', 0);
 
+        // SEMANA (opcional): si viene, la descarga se rige por ESE periodo. La jerarquía gana el nivel
+        // SEMANA arriba y SOLO entran los FISCALES del periodo (reusa PayeePackage::periodRequirements
+        // → los personales permanentes NO se duplican por semana). La factura atrasada cae donde llegó
+        // porque resolveReception() ya estampó su payment_period_id.
+        $week          = (int) $request->query('week', 0);
+        $period        = $week ? PaymentPeriod::find($week) : null;
+        $fiscalTypeIds = $period ? $this->periodFiscalTypeIds($period) : null;
+
         $disk = Storage::disk('local');
 
         $payees = Payee::query()->active()
@@ -230,8 +239,15 @@ class PayeeController extends Controller
                 });
             })
             ->when($deptId > 0, fn ($w) => $w->inDepartment($deptId))
-            ->with(['documents' => function ($d) {
-                $d->where('is_active', 1)->whereNotNull('photo_path')->with(['documentType', 'paymentPeriod']);
+            ->with(['documents' => function ($d) use ($period, $fiscalTypeIds) {
+                $d->where('is_active', 1)->whereNotNull('photo_path');
+                if ($period) {
+                    $d->where('payment_period_id', $period->id);
+                    if (! empty($fiscalTypeIds)) {
+                        $d->whereIn('document_type_id', $fiscalTypeIds);
+                    }
+                }
+                $d->with(['documentType', 'paymentPeriod']);
             }])
             ->orderBy('name')
             ->get();
@@ -263,7 +279,8 @@ class PayeeController extends Controller
         foreach ($pairs as [$payee, $doc]) {
             if ($count >= self::BULK_MAX_DOCS) { $capped = true; break; }
 
-            $folder = $this->payeeFolderPath($payee);
+            // Jerarquía SEMANA → departamento → persona cuando hay periodo; si no, departamento → persona.
+            $folder = ($period ? $this->safeSegment($period->displayLabel()) . '/' : '') . $this->payeeFolderPath($payee);
             $used[$folder] ??= [];
             $zip->addFromString($folder . '/' . $this->zipEntryName($doc, $used[$folder]), (string) $disk->get($doc->photo_path));
 
@@ -293,9 +310,70 @@ class PayeeController extends Controller
         $zip->close();
 
         $tag = $deptId > 0 ? ('dept-' . $deptId) : 'global';
+        if ($period) { $tag = $this->safeSegment($period->displayLabel()) . '-' . $tag; }
         return response()->download($tmp, 'documentos-payees-' . $tag . '.zip', [
             'Content-Type' => 'application/zip',
         ])->deleteFileAfterSend(true);
+    }
+
+    /**
+     * CARPETAS — pantalla de descarga: cards por DEPARTAMENTO (cada uno con su botón) + los PROVEEDORES
+     * (sin departamento) individuales con su buscador. Un selector de SEMANA rige la descarga (jerarquía
+     * semana → depto → persona, solo fiscales del periodo). Mismo alcance visibleTo del listado. Solo
+     * LECTURA: el zip lo sirven downloadBulk()/downloadDocuments().
+     */
+    public function folders(Request $request)
+    {
+        $viewer       = $request->user();
+        $q            = trim((string) $request->query('q', ''));
+        $week         = (int) $request->query('week', 0);
+        $productionId = CurrentProduction::id();
+
+        $departments = $this->visibleDepartments($viewer);
+
+        // Conteo de payees por departamento (para la card), dentro del alcance del viewer.
+        $counts = [];
+        foreach ($departments as $d) {
+            $counts[$d->id] = Payee::query()->active()->visibleTo($viewer)->inDepartment((int) $d->id)->count();
+        }
+
+        // PROVEEDORES: payees VISIBLES sin departamento determinable (no son crew de ningún depto) →
+        // carpeta individual. Filtrables por nombre/RFC. El filtro por depto se hace en PHP (mismo
+        // criterio que el foldering en disco), acotado por el buscador cuando lo hay.
+        $providers = Payee::query()->active()->visibleTo($viewer)
+            ->when($q !== '', function ($w) use ($q) {
+                $like = '%' . $q . '%';
+                $w->where(fn ($x) => $x->where('name', 'like', $like)->orWhere('rfc', 'like', $like));
+            })
+            ->orderBy('name')->limit(300)->get()
+            ->filter(fn ($p) => $p->departmentId() === null)
+            ->values();
+
+        // Semanas (periodos) para el selector; por defecto la ventana abierta más reciente.
+        $weeks = PaymentPeriod::query()
+            ->when($productionId, fn ($x) => $x->forProduction($productionId))
+            ->orderByDesc('opens_on')->orderByDesc('id')->get();
+        $selectedWeek = $week
+            ?: optional($weeks->firstWhere('status', PaymentPeriod::STATUS_OPEN))->id
+            ?: optional($weeks->first())->id;
+
+        return view('payee.folders', compact('departments', 'counts', 'providers', 'weeks', 'selectedWeek', 'q'));
+    }
+
+    /**
+     * Tipos de documento FISCALES que un periodo espera (recurrentes: CSF/32-D/factura + REPSE después):
+     * unión de {@see PayeePackage::periodRequirements()} sobre los contratos que aplican al periodo. Así
+     * la descarga semanal EXCLUYE los identitarios permanentes (INE/acta) → los personales no se duplican.
+     */
+    private function periodFiscalTypeIds(PaymentPeriod $period): array
+    {
+        $ids = [];
+        foreach ($period->matchingContracts()->with('payee')->get() as $contract) {
+            foreach (PayeePackage::periodRequirements((int) $period->production_id, $contract) as $t) {
+                $ids[$t->id] = true;
+            }
+        }
+        return array_keys($ids);
     }
 
     /** Carpeta de la persona dentro del zip masivo: {deptSlug}/{nombre} ({id}). El id garantiza unicidad. */
