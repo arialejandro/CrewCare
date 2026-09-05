@@ -202,10 +202,11 @@ Si alguna vez estuvo rastreado, rota `APP_KEY`, `DB_PASSWORD`, `MAIL_PASSWORD` e
 **Variables `.env` nuevas (todas con default; opcionales):**
 - `SESSION_SECURE_COOKIE` — si no se pone, la cookie es `Secure` en producción y no-secure en local.
 - `CREWCARE_HSTS`, `CREWCARE_CSP_REPORT` (default `true`).
+- **`CREWCARE_CSP_ENFORCE` (default `false`)** — el interruptor del BLOQUEO de la CSP. Con `true` la app emite, ADEMÁS del reporte completo, una `Content-Security-Policy` que hace enforce de `script-src 'self' 'nonce-…'` + `object-src 'none'` + `base-uri 'self'` (bloquea scripts no confiables). El **default committeado es reporte** (`false`); el owner lo pone en `true` por entorno cuando toque. `style-src`/`font-src`/`img-src` NO se bloquean todavía (siguen solo en Report-Only). Test juez: `php artisan dusk --filter=CspBlockingJudgeTest`.
 - `CREWCARE_TSA_ENABLED` (`true`), `CREWCARE_TSA_URL` (`https://freetsa.org/tsr`), `CREWCARE_TSA_TIMEOUT` (`8`).
 - `SESSION_DRIVER=database` — SOLO si quieres activar "Sesiones activas" del perfil (ver abajo).
 
-**HTTPS/HSTS (solo producción):** la app fuerza https (`URL::forceScheme`) + redirige http→https + HSTS (middleware `SecurityHeaders`). Requiere que el reverse-proxy TLS mande `X-Forwarded-Proto` — `TrustProxies` confía `*` (la app en el VPS solo es alcanzable por el proxy; si no fuera así, acota a la IP del proxy). **El local sigue en http, sin cambios.** La CSP va en modo REPORTE (observación) — revisa las violaciones en el log (`/csp-report`) antes de pasarla a bloqueo.
+**HTTPS/HSTS (solo producción):** la app fuerza https (`URL::forceScheme`) + redirige http→https + HSTS (middleware `SecurityHeaders`). Requiere que el reverse-proxy TLS mande `X-Forwarded-Proto` — `TrustProxies` confía `*` (la app en el VPS solo es alcanzable por el proxy; si no fuera así, acota a la IP del proxy). **El local sigue en http, sin cambios.** La CSP de `script-src` ya se puede pasar a **BLOQUEO** con `CREWCARE_CSP_ENFORCE=true` (ver arriba); el default committeado es REPORTE. Revisa el log (`/csp-report`) antes de bloquear también `style-src`/`font-src`/`img-src` (otra fase: 1314 `style=` en línea).
 
 **Healthcheck:** `GET /healthz` (público, mínimo) → 200 sano / 503 degradado (app/base/cola/cron). **Apúntale el monitor externo** para que alerte. Detecta `schedule:run` muerto (el latido envejece → `stale`).
 
