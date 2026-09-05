@@ -114,10 +114,11 @@ return [
     |--------------------------------------------------------------------------
     |
     | `csp_report` — emite la CSP completa en modo REPORTE (no bloquea); las violaciones van a
-    | /csp-report para MEDIR qué se rompería. `csp_enforce` — emite ADEMÁS una CSP mínima que SÓLO
-    | hace enforce de `script-src 'self' 'nonce-…'` (sin unsafe-inline): bloquea scripts no confiables
-    | y deja style/font/img todavía en reporte (se decidirán después). Dos cabeceras conviven: la de
-    | enforce bloquea lo suyo, la Report-Only sigue midiendo el resto. `hsts` — HSTS en producción
+    | /csp-report para MEDIR qué se rompería. `csp_enforce` — emite ADEMÁS una CSP que hace enforce de
+    | `script-src 'self' 'nonce-…'` (sin unsafe-inline) + `object-src 'none'` + `base-uri 'self'` (las
+    | dos que hacen efectivo al nonce: cierran el bypass por <object>/<base>): bloquea scripts no
+    | confiables y deja style/font/img todavía en reporte (se decidirán después). Dos cabeceras
+    | conviven: la de enforce bloquea lo suyo, la Report-Only sigue midiendo el resto. `hsts` — HSTS en producción
     | sobre https (SecurityHeaders ya gatea el entorno). Todo sin fricción para el usuario.
     |
     */

@@ -107,4 +107,39 @@ class CspBlockingJudgeTest extends DuskTestCase
             }
         });
     }
+
+    /**
+     * Control negativo de `base-uri 'self'`: un <base> hacia otro origen (que reapuntaría las rutas
+     * relativas —y los scripts de la app— a otro host CON el nonce intacto) debe quedar BLOQUEADO.
+     */
+    public function test_base_uri_bloquea_un_base_externo(): void
+    {
+        $admin = $this->findUser('admin@127.0.0.1');
+        $this->assertNotNull($admin, 'falta el super-admin de prueba');
+
+        $this->browse(function (Browser $b) use ($admin) {
+            $b->loginAs($admin)->visit('/home')->pause(600);
+            $b->driver->manage()->getLog('browser'); // drena
+
+            $before = $b->script('return document.baseURI;')[0] ?? null;
+            $b->script("var el=document.createElement('base'); el.href='https://evil.example/'; document.head.appendChild(el);");
+            $after = $b->script('return document.baseURI;')[0] ?? null;
+
+            // Si base-uri lo bloqueó, el baseURI NO cambió a evil.example.
+            $this->assertSame($before, $after, "base-uri no bloqueó el <base> inyectado (baseURI cambió a {$after})");
+
+            // Y la consola registra el BLOQUEO enforce (no un simple report-only).
+            $blocked = false;
+            foreach ($b->driver->manage()->getLog('browser') as $e) {
+                $m = (string) ($e['message'] ?? '');
+                if (stripos($m, 'base-uri') !== false
+                    && stripos($m, 'has been blocked') !== false
+                    && stripos($m, 'report-only') === false) {
+                    $blocked = true;
+                    break;
+                }
+            }
+            $this->assertTrue($blocked, 'no se registró el bloqueo enforce de base-uri en la consola');
+        });
+    }
 }

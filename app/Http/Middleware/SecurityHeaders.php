@@ -127,18 +127,21 @@ class SecurityHeaders
     }
 
     /**
-     * Política CSP de BLOQUEO (enforce) — MÍNIMA: sólo `script-src 'self' 'nonce-…'`, sin
-     * unsafe-inline. Bloquea todo script que no sea del propio origen o que no lleve el nonce por
-     * petición. NO incluye style/font/img a propósito: ésos siguen midiéndose en la Report-Only.
-     *
-     * Nota de endurecimiento (no aplicado por instrucción "sólo script-src"): añadir aquí
-     * `object-src 'none'` y `base-uri 'self'` cerraría los bypass clásicos del nonce (inyección de
-     * <base> o <object>). La app no usa <object>/<embed>/<base> y no hay violaciones de esas
-     * directivas en el reporte, así que sería seguro sumarlas si el owner lo aprueba.
+     * Política CSP de BLOQUEO (enforce): `script-src 'self' 'nonce-…'` (sin unsafe-inline) MÁS las
+     * dos directivas que hacen efectivo al nonce:
+     *   · `object-src 'none'` — sin <object>/<embed>: cierra la ejecución vía plugins.
+     *   · `base-uri 'self'`  — sin <base> hacia otro origen: un <base> inyectado cambiaría a dónde
+     *     resuelven las rutas relativas y los propios scripts de la app cargarían desde otro origen
+     *     CON el nonce intacto. Es el mismo agujero que tapa el nonce, cerrado del todo.
+     * NO incluye style/font/img a propósito: ésos siguen midiéndose en la Report-Only.
      */
     private function cspEnforcePolicy(string $nonce): string
     {
-        return "script-src 'self' 'nonce-{$nonce}'";
+        return implode('; ', [
+            "script-src 'self' 'nonce-{$nonce}'",
+            "object-src 'none'",
+            "base-uri 'self'",
+        ]);
     }
 
     /**
