@@ -40,11 +40,15 @@ abstract class DuskTestCase extends BaseTestCase
             ]);
         })->all());
 
+        // Captura la consola del navegador (aditivo, no cambia comportamiento): lo usa el test juez
+        // de CSP para afirmar CERO violaciones de script-src cuando la política está en BLOQUEO.
+        $capabilities = DesiredCapabilities::chrome()
+            ->setCapability(ChromeOptions::CAPABILITY, $options)
+            ->setCapability('goog:loggingPrefs', ['browser' => 'ALL']);
+
         return RemoteWebDriver::create(
             $_ENV['DUSK_DRIVER_URL'] ?? env('DUSK_DRIVER_URL') ?? 'http://localhost:9515',
-            DesiredCapabilities::chrome()->setCapability(
-                ChromeOptions::CAPABILITY, $options
-            )
+            $capabilities
         );
     }
 }

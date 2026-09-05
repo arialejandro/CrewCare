@@ -113,14 +113,18 @@ return [
     | Endurecimiento (cabeceras + CSP)
     |--------------------------------------------------------------------------
     |
-    | `csp_report` — emite la CSP en modo REPORTE (no bloquea); las violaciones van a /csp-report
-    | para MEDIR qué se rompería antes de activar el bloqueo. `hsts` — agrega HSTS en producción
+    | `csp_report` — emite la CSP completa en modo REPORTE (no bloquea); las violaciones van a
+    | /csp-report para MEDIR qué se rompería. `csp_enforce` — emite ADEMÁS una CSP mínima que SÓLO
+    | hace enforce de `script-src 'self' 'nonce-…'` (sin unsafe-inline): bloquea scripts no confiables
+    | y deja style/font/img todavía en reporte (se decidirán después). Dos cabeceras conviven: la de
+    | enforce bloquea lo suyo, la Report-Only sigue midiendo el resto. `hsts` — HSTS en producción
     | sobre https (SecurityHeaders ya gatea el entorno). Todo sin fricción para el usuario.
     |
     */
     'security' => [
-        'csp_report' => (bool) env('CREWCARE_CSP_REPORT', true),
-        'hsts'       => (bool) env('CREWCARE_HSTS', true),
+        'csp_report'  => (bool) env('CREWCARE_CSP_REPORT', true),
+        'csp_enforce' => (bool) env('CREWCARE_CSP_ENFORCE', false),
+        'hsts'        => (bool) env('CREWCARE_HSTS', true),
     ],
 
 ];

@@ -39,12 +39,16 @@ class SecurityHeaders
 
         $response = $next($request);
 
+        $emitReport  = (bool) config('crewcare.security.csp_report', true);
+        $emitEnforce = (bool) config('crewcare.security.csp_enforce', false);
+
         // (CSP · sweep del nonce — MISMA fuente única) Estampa el MISMO $nonce en cada <script> en
         // línea sin nonce del HTML de salida. Un solo punto, la misma fuente que la política y que
         // `$cspNonce` de las vistas: NO es un segundo mecanismo, es aplicar la fuente única. Garantiza
         // que ningún inline se escape al pasar a bloqueo (si uno se escapa, al bloquear deja de correr).
         // No reescribe archivos fuente: sólo el cuerpo de la respuesta, en memoria. Idempotente.
-        if (config('crewcare.security.csp_report', true)) {
+        // Se estampa siempre que se emita ALGUNA CSP con nonce (reporte y/o enforce).
+        if ($emitReport || $emitEnforce) {
             $this->stampScriptNonce($response, $nonce);
         }
 
@@ -56,10 +60,17 @@ class SecurityHeaders
             'X-Permitted-Cross-Domain-Policies' => 'none',
         ];
 
-        // 3) CSP en modo REPORTE (no bloquea). script-src 'self' hace que el navegador REPORTE
-        //    cada script en línea → así se mide la deuda de inline antes de activar el bloqueo.
-        if (config('crewcare.security.csp_report', true)) {
+        // 3) CSP en modo REPORTE (no bloquea) — política COMPLETA (script + style + font + img…):
+        //    sigue MIDIENDO qué se rompería en las directivas que aún no se bloquean.
+        if ($emitReport) {
             $headers['Content-Security-Policy-Report-Only'] = $this->cspPolicy($nonce);
+        }
+
+        // 3b) CSP en modo BLOQUEO (enforce) — MÍNIMA: SÓLO script-src 'self' 'nonce-…' (sin
+        //     unsafe-inline). Bloquea scripts no confiables SIN tocar style/font/img (que siguen en la
+        //     Report-Only de arriba). Las dos cabeceras conviven: ésta bloquea lo suyo, la otra mide.
+        if ($emitEnforce) {
+            $headers['Content-Security-Policy'] = $this->cspEnforcePolicy($nonce);
         }
 
         // 4) HSTS — sólo en producción y sobre https real (nunca sobre http).
@@ -113,6 +124,21 @@ class SecurityHeaders
             $response->setContent($new);
             $response->headers->remove('Content-Length'); // el largo cambió; que se recalcule al enviar.
         }
+    }
+
+    /**
+     * Política CSP de BLOQUEO (enforce) — MÍNIMA: sólo `script-src 'self' 'nonce-…'`, sin
+     * unsafe-inline. Bloquea todo script que no sea del propio origen o que no lleve el nonce por
+     * petición. NO incluye style/font/img a propósito: ésos siguen midiéndose en la Report-Only.
+     *
+     * Nota de endurecimiento (no aplicado por instrucción "sólo script-src"): añadir aquí
+     * `object-src 'none'` y `base-uri 'self'` cerraría los bypass clásicos del nonce (inyección de
+     * <base> o <object>). La app no usa <object>/<embed>/<base> y no hay violaciones de esas
+     * directivas en el reporte, así que sería seguro sumarlas si el owner lo aprueba.
+     */
+    private function cspEnforcePolicy(string $nonce): string
+    {
+        return "script-src 'self' 'nonce-{$nonce}'";
     }
 
     /**
