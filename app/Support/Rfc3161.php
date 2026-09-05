@@ -97,17 +97,24 @@ class Rfc3161
         ]];
     }
 
-    /** POST del request a la TSA con el content-type de RFC 3161. Devuelve los bytes del TSR o null. */
+    /** POST del request a la TSA con el content-type de RFC 3161. Devuelve los bytes del TSR o null.
+     *  NUNCA lanza: una conexión caída o un timeout se traducen a null para que el fallback pase a la
+     *  siguiente autoridad — si la excepción escapara del bucle, se saltaría el respaldo por completo. */
     private static function post(string $tsqDer, string $url): ?string
     {
         $timeout = (int) config('crewcare.tsa.timeout', 8);
 
-        $resp = Http::withHeaders(['Content-Type' => 'application/timestamp-query'])
-            ->timeout($timeout)
-            ->withBody($tsqDer, 'application/timestamp-query')
-            ->post($url);
+        try {
+            $resp = Http::withHeaders(['Content-Type' => 'application/timestamp-query'])
+                ->timeout($timeout)
+                ->withBody($tsqDer, 'application/timestamp-query')
+                ->post($url);
 
-        return $resp->successful() ? $resp->body() : null;
+            return $resp->successful() ? $resp->body() : null;
+        } catch (\Throwable $e) {
+            Log::warning("Rfc3161: POST a {$url} falló: " . $e->getMessage());
+            return null;
+        }
     }
 
     /**
