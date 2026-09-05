@@ -42,14 +42,14 @@ class SecurityHeaders
         $emitReport  = (bool) config('crewcare.security.csp_report', true);
         $emitEnforce = (bool) config('crewcare.security.csp_enforce', false);
 
-        // (CSP · sweep del nonce — MISMA fuente única) Estampa el MISMO $nonce en cada <script> en
-        // línea sin nonce del HTML de salida. Un solo punto, la misma fuente que la política y que
-        // `$cspNonce` de las vistas: NO es un segundo mecanismo, es aplicar la fuente única. Garantiza
-        // que ningún inline se escape al pasar a bloqueo (si uno se escapa, al bloquear deja de correr).
-        // No reescribe archivos fuente: sólo el cuerpo de la respuesta, en memoria. Idempotente.
-        // Se estampa siempre que se emita ALGUNA CSP con nonce (reporte y/o enforce).
+        // (CSP · sweep del nonce — MISMA fuente única) Estampa el MISMO $nonce en cada <script> Y cada
+        // <style> EN LÍNEA sin nonce del HTML de salida. Un solo punto, la misma fuente que la política y
+        // que `$cspNonce` de las vistas: NO es un segundo mecanismo, es aplicar la fuente única. Con
+        // `style-src 'self' 'nonce-…'` esto deja pasar los ~80 <style> legítimos de la app (marca, glass,
+        // componentes) mientras un <style> INYECTADO —sin el nonce por-petición— queda BLOQUEADO. No
+        // reescribe archivos fuente: sólo el cuerpo de la respuesta, en memoria. Idempotente.
         if ($emitReport || $emitEnforce) {
-            $this->stampScriptNonce($response, $nonce);
+            $this->stampInlineNonce($response, $nonce);
         }
 
         // 2) Cabeceras de higiene — SIEMPRE (no fuerzan nada, sólo endurecen).
@@ -60,17 +60,16 @@ class SecurityHeaders
             'X-Permitted-Cross-Domain-Policies' => 'none',
         ];
 
-        // 3) CSP en modo REPORTE (no bloquea) — política COMPLETA (script + style + font + img…):
-        //    sigue MIDIENDO qué se rompería en las directivas que aún no se bloquean.
-        if ($emitReport) {
-            $headers['Content-Security-Policy-Report-Only'] = $this->cspPolicy($nonce);
-        }
-
-        // 3b) CSP en modo BLOQUEO (enforce): script-src 'self' 'nonce-…' (sin unsafe-inline) MÁS
-        //     img-src y font-src (empaquetado local ⇒ sólo quedan orígenes propios/permitidos). style-src
-        //     sigue SÓLO en la Report-Only de arriba (aún se mide). Las dos cabeceras conviven.
+        // 3) CSP — la MISMA política completa (fuente única `cspPolicy`) se emite en UNO de dos modos,
+        //    nunca ambos:
+        //      · enforce ON  → `Content-Security-Policy` (BLOQUEA). NADA en modo reporte: la política
+        //        está cerrada del todo (script/style/style-attr/img/font/object/base/connect…).
+        //      · enforce OFF → `Content-Security-Policy-Report-Only` (sólo MIDE) — estado pre-cutover.
+        //    El cutover a prod es del owner (CREWCARE_CSP_ENFORCE=true); el default committeado mide.
         if ($emitEnforce) {
-            $headers['Content-Security-Policy'] = $this->cspEnforcePolicy($nonce);
+            $headers['Content-Security-Policy'] = $this->cspPolicy($nonce);
+        } elseif ($emitReport) {
+            $headers['Content-Security-Policy-Report-Only'] = $this->cspPolicy($nonce);
         }
 
         // 4) HSTS — sólo en producción y sobre https real (nunca sobre http).
@@ -88,14 +87,19 @@ class SecurityHeaders
     }
 
     /**
-     * Estampa nonce="$nonce" en los <script> EN LÍNEA (sin `src` y sin `nonce`) del HTML de salida,
-     * usando la misma fuente única ($nonce por petición). Sólo respuestas text/html normales (no
+     * Estampa nonce="$nonce" en los <script> y <style> EN LÍNEA (sin `src` y sin `nonce`) del HTML de
+     * salida, usando la misma fuente única ($nonce por petición). Sólo respuestas text/html normales (no
      * binarias ni en streaming). Idempotente: respeta los `src=`/`nonce=` ya presentes.
      *
-     * SEGURIDAD ANTE EL FOOTGUN de preg_replace: si el motor fallara devolvería null → NO se toca el
-     * cuerpo (se conserva la respuesta original). Nunca escribe en disco: sólo transforma la salida.
+     * Los <style> propios reciben el nonce → válidos bajo `style-src 'self' 'nonce-…'`; un <style>
+     * inyectado (sin el nonce por-petición) queda bloqueado. Los `style=` en atributo NO llevan nonce
+     * (no pueden): los cubre `style-src-attr 'unsafe-inline'`, aparte.
+     *
+     * SEGURIDAD ANTE EL FOOTGUN de preg_replace: si un pase fallara devolvería null → se conserva lo que
+     * había ANTES de ese pase (nunca se pierde el estampado ya hecho ni se rompe el cuerpo). Nunca escribe
+     * en disco: sólo transforma la salida.
      */
-    private function stampScriptNonce($response, string $nonce): void
+    private function stampInlineNonce($response, string $nonce): void
     {
         if ($response instanceof \Symfony\Component\HttpFoundation\BinaryFileResponse
             || $response instanceof \Symfony\Component\HttpFoundation\StreamedResponse) {
@@ -108,57 +112,53 @@ class SecurityHeaders
         }
 
         $html = $response->getContent();
-        if (! is_string($html) || $html === '' || stripos($html, '<script') === false) {
+        if (! is_string($html) || $html === ''
+            || (stripos($html, '<script') === false && stripos($html, '<style') === false)) {
             return;
         }
+        $orig = $html;
 
         // <script …> ejecutable, sin src y sin nonce → inserta el nonce justo después de "<script".
         // Los <script type="application/json"> (bloques de datos) también reciben el nonce: es inofensivo.
-        $new = preg_replace_callback(
+        $pass = preg_replace_callback(
             '/<script(?=[\s>])(?![^>]*\bsrc=)(?![^>]*\bnonce=)([^>]*)>/i',
             static fn ($m) => '<script nonce="' . $nonce . '"' . $m[1] . '>',
             $html
         );
+        if (is_string($pass)) {
+            $html = $pass; // pase de <script> ok; si falló (null), se conserva $html previo.
+        }
 
-        if (is_string($new) && $new !== '') {
-            $response->setContent($new);
+        // <style …> en línea sin nonce → mismo trato (un <style> no tiene `src`).
+        $pass = preg_replace_callback(
+            '/<style(?=[\s>])(?![^>]*\bnonce=)([^>]*)>/i',
+            static fn ($m) => '<style nonce="' . $nonce . '"' . $m[1] . '>',
+            $html
+        );
+        if (is_string($pass)) {
+            $html = $pass;
+        }
+
+        if ($html !== $orig) {
+            $response->setContent($html);
             $response->headers->remove('Content-Length'); // el largo cambió; que se recalcule al enviar.
         }
     }
 
     /**
-     * Política CSP de BLOQUEO (enforce):
-     *   · `script-src 'self' 'nonce-…'` (sin unsafe-inline) — el corazón: sólo scripts propios/con nonce.
-     *   · `img-src 'self' data: blob:` — tras empaquetar, las imágenes son propias; `data:` (placeholder
-     *     de avatar, íconos) y `blob:` (previsualización de Cropper/CCPhoto y render de pdf.js) SON
-     *     necesarios: sin ellos se rompen recorte de foto y visor de PDF.
-     *   · `font-src 'self' https://fonts.gstatic.com data:` — FontAwesome y demás ya son locales; se
-     *     CONSERVA gstatic porque Google Fonts sigue en uso (tipografía de la UI + fuentes de firma de la
-     *     ceremonia + Poppins del login). Es el piso NO disruptivo: bloquea cualquier OTRO origen de
-     *     fuente. Autoalojar Google Fonts (para llegar a `font-src 'self'`) es una mejora aditiva aparte,
-     *     a decisión del owner — mientras tanto gstatic queda permitido y nada se rompe.
-     *   · `object-src 'none'` — sin <object>/<embed>: cierra la ejecución vía plugins.
-     *   · `base-uri 'self'`  — sin <base> hacia otro origen: un <base> inyectado cambiaría a dónde
-     *     resuelven las rutas relativas y los propios scripts de la app cargarían desde otro origen
-     *     CON el nonce intacto. Es el mismo agujero que tapa el nonce, cerrado del todo.
-     * NO incluye style-src a propósito: los 1319 `style=` en línea (mayormente de correos, exentos de
-     * CSP) siguen midiéndose en la Report-Only hasta que el owner decida la estrategia.
-     */
-    private function cspEnforcePolicy(string $nonce): string
-    {
-        return implode('; ', [
-            "script-src 'self' 'nonce-{$nonce}'",
-            "img-src 'self' data: blob:",
-            "font-src 'self' https://fonts.gstatic.com data:",
-            "object-src 'none'",
-            "base-uri 'self'",
-        ]);
-    }
-
-    /**
-     * Política CSP OBJETIVO en modo reporte: revela inline-scripts/estilos y orígenes externos.
-     * Lleva el nonce por-petición (misma fuente que `$cspNonce` de las vistas). En modo REPORTE no
-     * bloquea: los scripts que ya tienen el nonce dejan de reportarse; el resto se sigue midiendo.
+     * Política CSP COMPLETA y ÚNICA — se emite en enforce (bloquea) o en report-only (mide) según el
+     * flag; el MISMO texto en ambos casos. Cerrada del todo tras empaquetar librerías y autoalojar
+     * fuentes:
+     *   · script-src 'self' 'nonce-…'  — sólo scripts propios/con nonce (sin unsafe-inline).
+     *   · style-src  'self' 'nonce-…'  — hojas propias y <style> CON nonce (los estampa el sweep); un
+     *     <style> o una hoja externa INYECTADA quedan fuera. El vector serio de inyección de CSS, cerrado.
+     *   · style-src-attr 'unsafe-inline' — los `style=` en atributo (1319, mayormente de correos exentos)
+     *     sólo pintan SU elemento: se permiten para no reescribir 623 estáticos repartidos en 161 vistas
+     *     (higiene de código, no seguridad). Un atributo no puede llevar nonce.
+     *   · img-src 'self' data: blob:   — imágenes propias + placeholder (data:) + Cropper/pdf.js (blob:).
+     *   · font-src 'self' data:        — TODO autoalojado; gstatic FUERA (ya no hay Google Fonts).
+     *   · object-src 'none' + base-uri 'self' — hacen efectivo al nonce (cierran <object>/<base>).
+     *   · default-src/frame-ancestors/connect-src 'self' — el resto, acotado al propio origen.
      */
     private function cspPolicy(string $nonce): string
     {
@@ -168,8 +168,9 @@ class SecurityHeaders
             "object-src 'none'",
             "frame-ancestors 'self'",
             "img-src 'self' data: blob:",
-            "font-src 'self' https://fonts.gstatic.com data:",
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+            "font-src 'self' data:",
+            "style-src 'self' 'nonce-{$nonce}'",
+            "style-src-attr 'unsafe-inline'",
             "script-src 'self' 'nonce-{$nonce}'",
             "connect-src 'self'",
             'report-uri /csp-report',

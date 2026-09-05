@@ -16,7 +16,8 @@
          versión que servía el Play CDN), escaneando el código fuente, con preflight OFF (igual
          que el runtime, para no pisar el reset de Bootstrap). Servido desde 'self'. --}}
     <link rel="stylesheet" href="{{ asset('css/inicio-tw.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,400;0,700;0,900;1,900&display=swap" rel="stylesheet">
+    {{-- CSP/local: Roboto Condensed (el .font-poster usa 900) ya se autoaloja en ui-fonts.css,
+         heredado del layout app. Se retiró el <link> a Google Fonts. --}}
     <style>
         .font-poster { font-family: 'Roboto Condensed', sans-serif; font-weight: 900; text-transform: uppercase; letter-spacing: .02em; }
 

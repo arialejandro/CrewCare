@@ -9,8 +9,9 @@ use Laravel\Dusk\Browser;
 use Tests\DuskTestCase;
 
 /**
- * CSP · TEST JUEZ DEL BLOQUEO — con la CSP en ENFORCE recorre las vistas principales y AFIRMA CERO
- * violaciones de las directivas ya bloqueadas: `script-src`, `img-src` y `font-src`.
+ * CSP · TEST JUEZ DEL BLOQUEO — con la CSP COMPLETA en ENFORCE recorre las vistas principales y AFIRMA
+ * CERO violaciones de las directivas bloqueadas: `script-src`, `img-src`, `font-src` y `style-src`.
+ * (La CSP ya no deja NADA en modo reporte: enforce O nada.)
  *
  * Sólo tiene sentido con el bloqueo activo: .env.dusk.local lleva CREWCARE_CSP_ENFORCE=true. El
  * primer test es una GUARDA que falla si no está activo (para no dar un verde vacío).
@@ -130,6 +131,7 @@ class CspBlockingJudgeTest extends DuskTestCase
                 $this->assertNoDirective($msgs, 'script-src', $label);
                 $this->assertNoDirective($msgs, 'img-src', $label);
                 $this->assertNoDirective($msgs, 'font-src', $label);
+                $this->assertNoDirective($msgs, 'style-src', $label);
             }
 
             // Ceremonia de firma (pdf.js + canvas + fuentes de firma de Google) — el flujo de más peso.
@@ -140,6 +142,7 @@ class CspBlockingJudgeTest extends DuskTestCase
                 $this->assertNoDirective($msgs, 'script-src', 'ceremonia de firma (pdf.js)');
                 $this->assertNoDirective($msgs, 'img-src', 'ceremonia de firma (pdf.js)');
                 $this->assertNoDirective($msgs, 'font-src', 'ceremonia de firma (pdf.js)');
+                $this->assertNoDirective($msgs, 'style-src', 'ceremonia de firma (pdf.js)');
             }
         });
     }
@@ -203,6 +206,54 @@ class CspBlockingJudgeTest extends DuskTestCase
             $this->assertTrue(
                 $this->hasEnforceBlock($msgs, 'font-src'),
                 'no se registró el bloqueo enforce de font-src en la consola'
+            );
+        });
+    }
+
+    /**
+     * Control negativo de `style-src`: un <style> en línea y una hoja EXTERNA deben quedar BLOQUEADOS
+     * (el vector serio de inyección de CSS), pero un `style=` en ATRIBUTO legítimo SIGUE aplicando
+     * (`style-src-attr 'unsafe-inline'`). Sin esto, un verde no probaría que la separación funciona.
+     */
+    public function test_style_src_bloquea_estilo_y_hoja_pero_permite_atributo(): void
+    {
+        $admin = $this->findUser('admin@127.0.0.1');
+        $this->assertNotNull($admin, 'falta el super-admin de prueba');
+
+        $this->browse(function (Browser $b) use ($admin) {
+            $b->loginAs($admin)->visit('/home')->pause(600);
+            $b->driver->manage()->getLog('browser'); // drena
+
+            // 1) <style> INYECTADO sin nonce → sus reglas NO deben aplicar.
+            $b->script(
+                "var d=document.createElement('div'); d.id='cssprobe'; d.textContent='x';"
+                . " document.body.appendChild(d);"
+                . "var s=document.createElement('style'); s.textContent='#cssprobe{color:rgb(9,8,7)}';"
+                . " document.head.appendChild(s);"
+            );
+            // 2) hoja EXTERNA → debe quedar bloqueada.
+            $b->script(
+                "var l=document.createElement('link'); l.rel='stylesheet';"
+                . " l.href='https://evil.example/x.css'; document.head.appendChild(l);"
+            );
+            // 3) style= LEGÍTIMO en atributo → debe aplicar (style-src-attr 'unsafe-inline').
+            $b->script(
+                "var a=document.createElement('div'); a.id='attrprobe';"
+                . " a.setAttribute('style','color:rgb(1,2,3)'); document.body.appendChild(a);"
+            );
+            $b->pause(900);
+
+            // Funcional: el <style> NO aplicó su color, pero el style= SÍ.
+            $styleColor = $b->script("var e=document.getElementById('cssprobe'); return e?getComputedStyle(e).color:'';")[0] ?? '';
+            $attrColor  = $b->script("var e=document.getElementById('attrprobe'); return e?getComputedStyle(e).color:'';")[0] ?? '';
+            $this->assertNotSame('rgb(9, 8, 7)', $styleColor, 'el <style> inyectado aplicó (style-src no lo bloqueó)');
+            $this->assertSame('rgb(1, 2, 3)', $attrColor, "el style= legítimo NO aplicó (color={$attrColor}); style-src-attr debería permitirlo");
+
+            // Consola: bloqueo enforce (no report-only) de style-src (por el <style> y/o la hoja externa).
+            $msgs = $this->browserMessages($b);
+            $this->assertTrue(
+                $this->hasEnforceBlock($msgs, 'style-src'),
+                'no se registró el bloqueo enforce de style-src en la consola'
             );
         });
     }

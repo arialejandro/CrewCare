@@ -30,25 +30,20 @@
 
     <script src="{{ asset('js/a2hs.js') }}"></script>
 
-    <!-- Fonts -->
-    <link rel="dns-prefetch" href="//fonts.gstatic.com">
-    <link href="https://fonts.googleapis.com/css?family=Nunito" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- Fonts · CSP/local: autoalojadas desde 'self' (antes Google Fonts). ui-fonts.css declara
+         Poppins (fuente de la UI) + Roboto Condensed (pósters/hero) + Roboto + las fuentes de firma;
+         reusa los .woff2 de /fonts/reports. Se RETIRARON Nunito, Lato y Material Icons: ningún CSS
+         cargado los aplicaba (fuentes muertas, verificado con document.fonts); el full-range de
+         Roboto tampoco se usaba. gstatic/googleapis quedan FUERA de la política. -->
+    <link rel="stylesheet" href="{{ asset('fonts/ui/ui-fonts.css') }}">
     {{-- CSP/local: Font Awesome 6.7.2 (CSS + webfonts en ../webfonts) servido desde 'self' (antes cdnjs). --}}
     <link href="{{ asset('vendor/fontawesome/css/all-6.7.2.min.css') }}" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     
     {{-- CSP/local: jQuery servido desde 'self' (antes code.jquery.com 3.3.1). Actualizado a 3.7.1
          (el 3.3.1 era de 2018). Misma posición de carga para no alterar el orden. --}}
     <script src="{{ asset('js/vendor/jquery-3.7.1.min.js') }}"></script>
-<!-- -------------- Fonts -------------- -->
-
-<link href='https://fonts.googleapis.com/css?family=Lato:400,300,300italic,400italic,700,700italic' rel='stylesheet'
-          type='text/css'>
-          <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-{{-- Poppins duplicado ELIMINADO: ya se importa (junto con Roboto y display=swap) en el
-     <link> de arriba. Los preconnect se conservan para acelerar la carga de fuentes. --}}
+{{-- Lato y los preconnect a Google Fonts ELIMINADOS: Lato no lo aplicaba ningún CSS cargado
+     (sólo el legado main.css, que no se enlaza) y las fuentes ya se autoalojan en ui-fonts.css. --}}
 
 {{-- PWA: el paquete silviolleite/laravelpwa se retiró en el upgrade (era sólo el cascarón;
      ver [[pwa-push-native-strategy]]). Una PWA propia (manifest + service worker) llegará después. --}}

@@ -129,15 +129,16 @@ return [
     | Endurecimiento (cabeceras + CSP)
     |--------------------------------------------------------------------------
     |
-    | `csp_report` — emite la CSP completa en modo REPORTE (no bloquea); las violaciones van a
-    | /csp-report para MEDIR qué se rompería. `csp_enforce` — emite ADEMÁS una CSP que hace enforce de
-    | `script-src 'self' 'nonce-…'` (sin unsafe-inline) + `img-src 'self' data: blob:` + `font-src 'self'
-    | https://fonts.gstatic.com data:` (tras empaquetar, sólo quedan orígenes propios/permitidos; gstatic
-    | se conserva porque Google Fonts sigue en uso) + `object-src 'none'` + `base-uri 'self'` (las dos que
-    | hacen efectivo al nonce: cierran el bypass por <object>/<base>). SÓLO `style-src` sigue en reporte
-    | (los `style=` en línea, mayormente de correos exentos de CSP, se deciden después). Dos cabeceras
-    | conviven: la de enforce bloquea lo suyo, la Report-Only sigue midiendo el resto. `hsts` — HSTS en producción
-    | sobre https (SecurityHeaders ya gatea el entorno). Todo sin fricción para el usuario.
+    | La CSP es UNA sola política COMPLETA (SecurityHeaders::cspPolicy) que se emite en uno de dos modos,
+    | nunca ambos: con `csp_enforce=true` va como `Content-Security-Policy` (BLOQUEA todo: script/style/
+    | style-attr/img/font/object/base/connect); con enforce OFF va como `Content-Security-Policy-Report-Only`
+    | (sólo MIDE, mandando violaciones a /csp-report) — estado pre-cutover. `csp_report` gobierna esa emisión
+    | en reporte. Tras empaquetar librerías y autoalojar Google Fonts, la política quedó cerrada del todo:
+    | `script-src`/`style-src` = `'self' 'nonce-…'` (el sweep estampa los inline propios; lo inyectado sin
+    | nonce se bloquea), `style-src-attr 'unsafe-inline'` (los `style=` sólo pintan su elemento; no se
+    | reescriben), `font-src 'self' data:` (gstatic FUERA), `img-src 'self' data: blob:`, `object-src 'none'`
+    | + `base-uri 'self'`. El cutover a prod es del owner (`CREWCARE_CSP_ENFORCE=true`); el default committeado
+    | mide. `hsts` — HSTS en producción sobre https (SecurityHeaders ya gatea el entorno). Sin fricción.
     |
     */
     'security' => [

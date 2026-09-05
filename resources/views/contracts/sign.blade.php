@@ -8,10 +8,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ __('Firma de contrato') }}</title>
-{{-- Letras manuscritas para la galería de estilos (como DocuSign); con respaldo a fuentes del sistema. --}}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&family=Caveat:wght@600&family=Great+Vibes&family=Sacramento&family=Satisfy&display=swap" rel="stylesheet">
+{{-- Letras manuscritas para la galería de estilos (como DocuSign); con respaldo a fuentes del sistema.
+     CSP/local: las 5 (Dancing Script 600, Caveat 600, Great Vibes, Sacramento, Satisfy) se autoalojan
+     desde 'self' en ui-fonts.css (antes Google Fonts). Mismas familias/pesos. --}}
+<link rel="stylesheet" href="{{ asset('fonts/ui/ui-fonts.css') }}">
 <style>
     :root{
         --canvas:#eaedf2; --page:#fff; --ink:#18212f; --muted:#5f6b7c; --faint:#8b95a4;
@@ -459,6 +459,11 @@ document.addEventListener('click',function(e){if(e.target.closest('[data-decline
                 wired=true;
                 try{
                     var st=idoc.createElement('style');
+                    // CSP: este <style> se inyecta en RUNTIME (no lo alcanza el sweep del nonce) dentro de
+                    // un iframe srcdoc que HEREDA la política de la ceremonia → sin nonce `style-src 'self'
+                    // 'nonce-…'` lo bloquearía y las etiquetas de firma perderían su estilo. Le pasamos el
+                    // MISMO nonce por-petición (fuente única $cspNonce). Vacío en dev sin CSP: inofensivo.
+                    try{ st.setAttribute('nonce','{{ $cspNonce }}'); st.nonce='{{ $cspNonce }}'; }catch(e){}
                     st.textContent='[data-anchor].cc-tag{cursor:pointer;background:#ffcf4a!important;border:1px solid #e3a600!important;color:#6a4a00!important;box-shadow:0 2px 5px rgba(180,120,0,.28);border-radius:5px}'+
                         '[data-anchor].cc-tag:hover{background:#ffd968!important}'+
                         '.cc-tag.applied{background:#fff!important;border:1px solid #d8dcff!important;box-shadow:0 1px 3px rgba(16,24,40,.1)}'+

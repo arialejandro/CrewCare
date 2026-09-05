@@ -21,6 +21,23 @@ var filesToCache = [
     '/vendor/fontawesome/webfonts/fa-solid-900.woff2',
     '/vendor/fontawesome/webfonts/fa-regular-400.woff2',
     '/vendor/fontawesome/webfonts/fa-brands-400.woff2',
+    // (CSP · autoalojar Google Fonts) La tipografía de la UI (Poppins) + el póster (Roboto Condensed)
+    // servidas desde 'self' → las formas offline conservan su fuente real sin depender de la red.
+    // Subsets latin + latin-ext (los acentos del español viven en 'latin'). Las fuentes de firma NO
+    // se precachean: la ceremonia rara vez es offline y degradan a fuente del sistema sin romper.
+    '/fonts/ui/ui-fonts.css',
+    '/fonts/reports/poppins-400-normal-latin.woff2',
+    '/fonts/reports/poppins-400-normal-latin-ext.woff2',
+    '/fonts/ui/poppins-500-normal-latin.woff2',
+    '/fonts/ui/poppins-500-normal-latin-ext.woff2',
+    '/fonts/reports/poppins-600-normal-latin.woff2',
+    '/fonts/reports/poppins-600-normal-latin-ext.woff2',
+    '/fonts/reports/poppins-700-normal-latin.woff2',
+    '/fonts/reports/poppins-700-normal-latin-ext.woff2',
+    '/fonts/reports/poppins-800-normal-latin.woff2',
+    '/fonts/reports/poppins-800-normal-latin-ext.woff2',
+    '/fonts/ui/roboto-condensed-900-normal-latin.woff2',
+    '/fonts/ui/roboto-condensed-900-normal-latin-ext.woff2',
     '/images/icons/icon-72x72.png',
     '/images/icons/icon-96x96.png',
     '/images/icons/icon-128x128.png',
