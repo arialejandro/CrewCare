@@ -65,6 +65,14 @@
     .cell-light-menu button:hover { background:color-mix(in srgb, var(--brand-primary) 14%, transparent); }
     .cell-light-menu button.on { font-weight:700; color:var(--brand-primary); }
 
+    /* ===== Selector de unidad ===== */
+    .unit-bar { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; margin-bottom:1rem; }
+    .unit-lbl { font-size:.8rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; margin-right:.2rem; }
+    .unit-chip { font-size:.85rem; text-decoration:none; color:var(--text); border:1px solid var(--stroke); background:var(--glass); border-radius:999px; padding:.28rem .8rem; }
+    .unit-chip:hover { border-color:color-mix(in srgb, var(--brand-primary) 45%, var(--stroke)); }
+    .unit-chip.on { background:var(--brand-primary); color:#fff; border-color:var(--brand-primary); font-weight:600; }
+    .cal-unit-tag { color:var(--brand-primary); font-weight:500; font-size:.9rem; }
+
     @media (max-width:640px){
         .cal-cell { height:68px; }
         .cal-grid { border-spacing:4px; }
@@ -86,6 +94,7 @@
         'MIXTO'     => ['ini' => 'MX', 'cls' => 'luz-mixto'],
     ];
     $filas = array_merge($semanas, array_fill(0, 8, ['end' => '', 'days' => '', 'last_slug' => 'DÍA']));
+    $unitParam = $unitId !== null ? ['unit' => $unitId] : [];
 @endphp
 
 <div class="container py-4 cal-wrap">
@@ -111,6 +120,19 @@
         <div class="alert alert-warning">No hay producción vigente que configurar.</div>
     @else
 
+    {{-- ============ SELECTOR DE UNIDAD — solo aparece cuando existe más de una ============ --}}
+    @if($units->isNotEmpty())
+        <div class="unit-bar">
+            <span class="unit-lbl">Unidad:</span>
+            <a href="{{ route('production.shootdays.edit', ['month' => $cursor->format('Y-m')]) }}"
+               class="unit-chip {{ $unitId === null ? 'on' : '' }}">Principal</a>
+            @foreach($units as $u)
+                <a href="{{ route('production.shootdays.edit', ['month' => $cursor->format('Y-m'), 'unit' => $u->id]) }}"
+                   class="unit-chip {{ $unitId === $u->id ? 'on' : '' }}">{{ $u->name }}</a>
+            @endforeach
+        </div>
+    @endif
+
     {{-- ============ ASISTENTE: generación en lote (vía rápida) ============ --}}
     <details class="card cal-card mb-4">
         <summary class="card-header" style="cursor:pointer; list-style:none;">
@@ -121,6 +143,7 @@
             <form action="{{ route('production.shootdays.generate') }}" method="POST">
                 @csrf
                 <input type="hidden" name="month" value="{{ $cursor->format('Y-m') }}">
+                                            <input type="hidden" name="unit" value="{{ $unitId }}">
                 <p class="form-text mb-3">
                     {{ $daysPerWeek }} días/semana por default (ajustable por fila). Una luz <strong>NOCHE</strong> o
                     <strong>MIXTO</strong> en el último día recorre el arranque de la siguiente semana un día hábil
@@ -152,9 +175,9 @@
         <div class="card-body">
 
             <div class="cal-nav">
-                <a href="{{ route('production.shootdays.edit', ['month' => $prevMonth]) }}" class="btn btn-outline-secondary btn-sm">← Mes anterior</a>
-                <span class="cal-month">{{ $monthLabel }}</span>
-                <a href="{{ route('production.shootdays.edit', ['month' => $nextMonth]) }}" class="btn btn-outline-secondary btn-sm">Mes siguiente →</a>
+                <a href="{{ route('production.shootdays.edit', array_merge(['month' => $prevMonth], $unitParam)) }}" class="btn btn-outline-secondary btn-sm">← Mes anterior</a>
+                <span class="cal-month">{{ $monthLabel }}@if($unitId !== null) <span class="cal-unit-tag">· {{ $unitLabel }}</span>@endif</span>
+                <a href="{{ route('production.shootdays.edit', array_merge(['month' => $nextMonth], $unitParam)) }}" class="btn btn-outline-secondary btn-sm">Mes siguiente →</a>
             </div>
 
             <div class="cal-legend">
@@ -196,6 +219,7 @@
                                             <input type="hidden" name="date" value="{{ $c['date'] }}">
                                             <input type="hidden" name="is_shoot" value="{{ $c['isShoot'] ? 0 : 1 }}">
                                             <input type="hidden" name="month" value="{{ $cursor->format('Y-m') }}">
+                                            <input type="hidden" name="unit" value="{{ $unitId }}">
                                             <button type="submit" class="cell-btn" title="{{ $c['isShoot'] ? 'Marcar descanso' : 'Marcar rodaje' }}">
                                                 <span class="cell-dom">{{ $c['dom'] }}</span>
                                                 @if($c['shootNo'])
@@ -213,6 +237,7 @@
                                                         @csrf
                                                         <input type="hidden" name="date" value="{{ $c['date'] }}">
                                                         <input type="hidden" name="month" value="{{ $cursor->format('Y-m') }}">
+                                            <input type="hidden" name="unit" value="{{ $unitId }}">
                                                         @foreach($slugs as $s)
                                                             <button type="submit" name="slug" value="{{ $s }}" class="{{ $c['slug'] === $s ? 'on' : '' }}">{{ $s }}</button>
                                                         @endforeach

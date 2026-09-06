@@ -4,6 +4,7 @@ namespace Tests\Feature\Calendario;
 
 use App\Models\Production;
 use App\Models\ShootDay;
+use App\Models\Unit;
 use App\Models\User;
 use App\Support\CurrentProduction;
 use App\Support\ProductionCalendar;
@@ -133,6 +134,32 @@ class ShootCalendarControllerTest extends QaTestCase
 
         $row = ShootDay::forProduction($prod->id)->whereDate('shoot_date', $mar->toDateString())->first();
         $this->assertSame('NOCHE', $row->slug(), 'La luz se captura en el calendario, sin leer el DSR.');
+        $this->assertTrue($row->is_manual);
+    }
+
+    public function test_generar_para_una_unidad_no_toca_la_principal(): void
+    {
+        $fri1 = $this->fri('2026-10-04');
+        $fri2 = $fri1->copy()->addWeeks(5);
+        $prod = $this->producciónVigente($fri1->copy()->subDays(4)->toDateString());
+        $u2   = Unit::create(['production_id' => $prod->id, 'name' => 'Segunda unidad', 'sort_order' => 1, 'is_active' => true]);
+        $admin = $this->admin();
+
+        // PRINCIPAL: una semana de 5.
+        $this->actingAs($admin)->post(route('production.shootdays.generate'), ['weeks' => [['end' => $fri1->toDateString(), 'days' => 5]]])->assertRedirect();
+        $this->assertSame(5, ShootDay::whereNull('unit_id')->count());
+
+        // 2ª UNIDAD: otra semana de 3 — sus días llevan su unit_id; la principal NO se toca.
+        $this->actingAs($admin)->post(route('production.shootdays.generate'), ['unit' => $u2->id, 'weeks' => [['end' => $fri2->toDateString(), 'days' => 3]]])->assertRedirect();
+        $this->assertSame(3, ShootDay::where('unit_id', $u2->id)->count(), 'La 2ª unidad tiene sus días con su id.');
+        $this->assertSame(5, ShootDay::whereNull('unit_id')->count(), 'La principal quedó intacta.');
+
+        // Una excepción a mano en la 2ª unidad se guarda con su unit_id.
+        $festivo = $fri2->copy()->subDays(1)->toDateString();
+        $this->actingAs($admin)->post(route('production.shootdays.toggle'), ['unit' => $u2->id, 'date' => $festivo, 'is_shoot' => 0])->assertRedirect();
+        $row = ShootDay::where('unit_id', $u2->id)->whereDate('shoot_date', $festivo)->first();
+        $this->assertNotNull($row);
+        $this->assertFalse($row->is_shoot_day);
         $this->assertTrue($row->is_manual);
     }
 }
