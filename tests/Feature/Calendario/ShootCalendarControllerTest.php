@@ -47,6 +47,18 @@ class ShootCalendarControllerTest extends QaTestCase
         return Carbon::parse($d)->next(Carbon::FRIDAY)->startOfDay();
     }
 
+    public function test_la_pagina_de_dias_carga_y_lista_lo_marcado(): void
+    {
+        $prod = $this->producciónVigente('2026-10-01');
+        ShootDay::create(['production_id' => $prod->id, 'shoot_date' => '2026-10-05', 'is_shoot_day' => true, 'week_no' => 1]);
+
+        $this->actingAs($this->admin())
+            ->get(route('production.shootdays.edit'))
+            ->assertOk()
+            ->assertSee('Días de rodaje')
+            ->assertSee('05/10/2026');   // el día marcado aparece en la tabla
+    }
+
     public function test_generar_persiste_los_dias_y_aplica_la_madrugada(): void
     {
         $fri1 = $this->fri('2026-10-04');
