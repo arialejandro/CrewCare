@@ -731,6 +731,13 @@ Route::middleware(['auth','permission:settings.manage'])->group(function () {
     // PARTE A · CALENDARIO DE RODAJE: inicio + semanas + días/semana → total y wrap estimado.
     Route::get('/settings/calendario',  [App\Http\Controllers\ProductionCalendarController::class, 'edit'])->name('production.calendar.edit');
     Route::post('/settings/calendario', [App\Http\Controllers\ProductionCalendarController::class, 'update'])->name('production.calendar.update');
+
+    // CALENDARIO DE RODAJE DINÁMICO: producción marca qué días se trabajan (shoot_days). El calendario
+    // manda, el DSR confirma. Solo captura manual — nada de importación de planes.
+    Route::get('/settings/dias-rodaje',          [App\Http\Controllers\ShootCalendarController::class, 'edit'])->name('production.shootdays.edit');
+    Route::post('/settings/dias-rodaje/generar', [App\Http\Controllers\ShootCalendarController::class, 'generate'])->name('production.shootdays.generate');
+    Route::post('/settings/dias-rodaje/dia',     [App\Http\Controllers\ShootCalendarController::class, 'toggleDay'])->name('production.shootdays.toggle');
+    Route::post('/settings/dias-rodaje/luz',     [App\Http\Controllers\ShootCalendarController::class, 'setSlug'])->name('production.shootdays.light');
 });
 
 // ---- CATÁLOGOS (departamentos / puestos / notificaciones) ----

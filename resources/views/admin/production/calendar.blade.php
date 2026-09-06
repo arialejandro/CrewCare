@@ -124,7 +124,11 @@
             </div>
         </div>
 
-        <div class="d-flex justify-content-end mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-4 gap-2 flex-wrap">
+            <a href="{{ route('production.shootdays.edit') }}" class="btn btn-outline-primary">
+                @include('componentes._icon', ['name' => 'calendar', 'class' => 'cc-ico me-1', 'label' => null])
+                Marcar los días de rodaje →
+            </a>
             <button type="submit" class="btn btn-primary">
                 @include('componentes._icon', ['name' => 'save', 'class' => 'cc-ico me-1', 'label' => null]) Guardar calendario
             </button>

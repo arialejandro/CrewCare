@@ -75,7 +75,7 @@
             <div class="card dsr-card border-0 rounded-3 h-100 overflow-hidden">
 
                 <div class="dsr-cover-wrap">
-                    <span class="dsr-day-badge badge fs-6 rounded-pill px-3 py-2">{{ \App\Support\ProductionCalendar::labelForReport($report) }}</span>
+                    <span class="dsr-day-badge badge fs-6 rounded-pill px-3 py-2">{{ \App\Support\ProductionCalendar::documentDayLabel($report) }}</span>
 
                     @if($isLocked)
                         <span class="dsr-status-badge badge bg-secondary text-white"><i class="fas fa-lock me-1"></i> Sellado</span>

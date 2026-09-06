@@ -323,7 +323,7 @@
          El nombre del proyecto NO se repite aquí (vive en el hero); las 4 celdas ocupan todo el ancho. --}}
     <div class="band">
       <div class="stats">
-        <div class="cell"><span class="lbl">{{ __('reports.dsr_shoot_day') }}</span><span class="v">{{ \App\Support\ProductionCalendar::labelForReport($r) }}</span></div>
+        <div class="cell"><span class="lbl">{{ __('reports.dsr_shoot_day') }}</span><span class="v">{{ \App\Support\ProductionCalendar::documentDayLabel($r) }}</span></div>
         <div class="cell"><span class="lbl">{{ __('reports.dsr_crew') }}</span><span class="v">{{ ($r->crew_count !== null && $r->crew_count !== '') ? $r->crew_count : '—' }}</span></div>
         <div class="cell"><span class="lbl">{{ __('reports.dsr_logs') }}</span><span class="v ok">{{ $r->logs->count() }}</span></div>
         <div class="cell"><span class="lbl">{{ __('reports.dsr_min_max') }}</span><span class="v">{{ $wxEmoji }} {{ $tempRange }}</span></div>
