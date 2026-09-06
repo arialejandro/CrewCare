@@ -17,7 +17,14 @@ class CfdiParser
      * @return null|array{uuid:string, rfc_emisor:string, rfc_receptor:string, total:string,
      *                    sello:string, conceptos:array<int,string>}
      */
-    public static function parse(string $xmlContent, ?string $dateOrder = null): ?array
+    /** Meses en español (con y sin acento, y la variante "setiembre") para las fechas en palabras. */
+    private const MESES_ES = [
+        'enero' => 1, 'febrero' => 2, 'marzo' => 3, 'abril' => 4, 'mayo' => 5, 'junio' => 6,
+        'julio' => 7, 'agosto' => 8, 'septiembre' => 9, 'setiembre' => 9, 'octubre' => 10,
+        'noviembre' => 11, 'diciembre' => 12,
+    ];
+
+    public static function parse(string $xmlContent, ?string $dateOrder = null, array $knownCodes = []): ?array
     {
         if (trim($xmlContent) === '') {
             return null;
@@ -58,13 +65,16 @@ class CfdiParser
             $conceptoNodes = $cfdiNs ? $children->Conceptos->children($cfdiNs) : $children->Conceptos->children();
             foreach ($conceptoNodes->Concepto ?? [] as $con) {
                 $desc = self::attr($con->attributes(), 'Descripcion');
-                if ($desc !== '') { $parts[] = self::splitConcepto($desc); }
+                if ($desc !== '') { $parts[] = self::splitConcepto($desc, $knownCodes); }
             }
         }
+        // La SEMANA la resuelve una capa de lectores: primero los 6 dígitos (con el orden por factura);
+        // si no hay, la FECHA EN PALABRAS ("del X al Y de MES del AÑO" → fin del rango). Agregar un
+        // estilo = agregar un lector, sin reescribir la gramática.
         $order     = $dateOrder ?: self::detectDateOrder(array_column($parts, 'digits'));
         $conceptos = array_map(fn ($p) => [
             'prefix' => $p['prefix'],
-            'week'   => self::digitsToWeek($p['digits'], $order),
+            'week'   => self::digitsToWeek($p['digits'], $order) ?? self::spelledWeek($p['raw']),
             'raw'    => $p['raw'],
         ], $parts);
 
@@ -102,17 +112,72 @@ class CfdiParser
      *
      * @return array{prefix: ?string, digits: ?string, raw: string}
      */
-    public static function splitConcepto(string $desc): array
+    public static function splitConcepto(string $desc, array $knownCodes = []): array
     {
         $raw    = trim($desc);
         $prefix = null;
-        $digits = null;
-        if (preg_match('/^\s*([A-Za-z]{2,12})\s*(\d{6})?/', $raw, $m)) {
-            $prefix = strtoupper($m[1]);
-            $digits = ! empty($m[2]) ? $m[2] : null;
+
+        // PREFIJO por CATÁLOGO (posición LIBRE: inicio, medio o fin): se busca cada código conocido como
+        // palabra completa y gana el que aparezca ANTES (empate → el más largo/específico). Así un
+        // prefijo nuevo se reconoce agregándolo al catálogo, sin tocar código. Si el catálogo no matchea
+        // (p.ej. un prefijo que aún no se dio de alta), cae al token inicial.
+        if ($knownCodes) {
+            $bestPos = PHP_INT_MAX;
+            foreach ($knownCodes as $code) {
+                $code = trim((string) $code);
+                if ($code === '') { continue; }
+                if (preg_match('/\b' . preg_quote($code, '/') . '\b/i', $raw, $mm, PREG_OFFSET_CAPTURE)) {
+                    $pos = $mm[0][1];
+                    if ($pos < $bestPos || ($pos === $bestPos && strlen($code) > strlen((string) $prefix))) {
+                        $prefix  = strtoupper($code);
+                        $bestPos = $pos;
+                    }
+                }
+            }
+        }
+        if ($prefix === null && preg_match('/^\s*([A-Za-z]{2,12})/', $raw, $m)) {
+            $prefix = strtoupper($m[1]);   // fallback: token inicial (prefijo aún no en el catálogo)
         }
 
+        // 6 dígitos de fecha: pegados al prefijo (SEM021724) o sueltos, pero NO parte de un número mayor.
+        $digits = preg_match('/(?<!\d)(\d{6})(?!\d)/', $raw, $m) ? $m[1] : null;
+
         return ['prefix' => $prefix, 'digits' => $digits, 'raw' => $raw];
+    }
+
+    /**
+     * FECHA EN PALABRAS (español) → Y-m-d de la ÚLTIMA fecha del texto (fin del rango = final de la
+     * semana, consistente con la nomenclatura). Lee "…04 de julio del 2026", "del 29 de junio al 04 de
+     * julio de 2026", etc. El año es el último 20xx del texto. null si no hay una fecha en palabras.
+     */
+    public static function spelledWeek(string $text): ?string
+    {
+        $t = mb_strtolower($text, 'UTF-8');
+
+        if (! preg_match_all('/(\d{1,2})\s+de\s+([a-záéíóúñ]+)/u', $t, $ms, PREG_SET_ORDER)) {
+            return null;
+        }
+        $year = null;
+        if (preg_match_all('/\b(20\d{2})\b/', $t, $ys)) {
+            $year = (int) end($ys[1]);
+        }
+
+        $last = null;
+        foreach ($ms as $m) {
+            $mes = self::MESES_ES[$m[2]] ?? null;
+            if ($mes !== null) {
+                $last = ['d' => (int) $m[1], 'm' => $mes];
+            }
+        }
+        if ($last === null || $year === null || $last['d'] < 1 || $last['d'] > 31) {
+            return null;
+        }
+
+        try {
+            return \Carbon\Carbon::create($year, $last['m'], $last['d'])->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     /**

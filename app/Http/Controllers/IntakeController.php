@@ -255,6 +255,9 @@ class IntakeController extends Controller
                     'sat_folio' => 'nullable|array', 'sat_folio.*' => 'nullable|string|max:60',
                 ]);
                 $cfdiWarnings = [];
+                // Prefijos que el parser reconoce en las descripciones = el CATÁLOGO editable de conceptos
+                // (posición libre). Agregar un prefijo nuevo allí lo hace reconocible, sin tocar código.
+                $conceptCodes = \App\Models\PaymentConcept::forProduction(CurrentProduction::id())->pluck('code')->all();
                 foreach ((array) $request->file('documents', []) as $docTypeId => $file) {
                     if (! $file) {
                         continue;
@@ -282,7 +285,7 @@ class IntakeController extends Controller
                         if ($xmlFile) {
                             try {
                                 $xmlPath = $xmlFile->storeAs('payee/docs/' . $payee->departmentSlug() . '/' . $payee->id, uniqid('cfdi_') . '.xml', 'local');
-                                $cfdi = \App\Support\CfdiParser::parse((string) \Illuminate\Support\Facades\Storage::disk('local')->get($xmlPath));
+                                $cfdi = \App\Support\CfdiParser::parse((string) \Illuminate\Support\Facades\Storage::disk('local')->get($xmlPath), null, $conceptCodes);
                                 if ($cfdi) {
                                     $doc->update([
                                         'xml_path'          => $xmlPath,

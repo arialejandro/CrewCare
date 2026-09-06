@@ -74,6 +74,24 @@ class CfdiTest extends TestCase
         $this->assertNull(CfdiParser::digitsToWeek('021724', 'dmy'));   // mes 17 inválido en dmy
     }
 
+    public function test_fecha_en_palabras_toma_el_fin_del_rango(): void
+    {
+        // Factura real (HTLR): "DEL 29 DE JUNIO AL 04 DE JULIO DEL 2026" → fin del rango = 04-jul-2026.
+        $this->assertSame('2026-07-04', CfdiParser::spelledWeek('DEL 29 DE JUNIO AL 04 DE JULIO DEL 2026'));
+        $this->assertSame('2026-07-04', CfdiParser::spelledWeek('honorarios 04 de julio de 2026'));
+        $this->assertSame('2026-09-13', CfdiParser::spelledWeek('semana del 7 al 13 de septiembre de 2026'));
+        $this->assertNull(CfdiParser::spelledWeek('SEM021724 sin fecha en palabras'));
+    }
+
+    public function test_prefijo_por_catalogo_en_cualquier_posicion(): void
+    {
+        $codes = ['SEM', 'CA', 'BOX', 'HTLR'];
+        $this->assertSame('SEM', CfdiParser::splitConcepto('SEM021724 SUPERVISOR', $codes)['prefix']);   // inicio, pegado
+        $this->assertSame('HTLR', CfdiParser::splitConcepto('HTLR HONORARIOS HEALTH AND SAFETY', $codes)['prefix']);
+        $this->assertSame('CA', CfdiParser::splitConcepto('Renta CA de vehiculo personal', $codes)['prefix']); // en medio
+        $this->assertSame('XYZ', CfdiParser::splitConcepto('XYZ algo aún no en el catálogo', [])['prefix']);   // fallback token inicial
+    }
+
     public function test_url_32d_usa_d1_1(): void
     {
         $doc = new ExternalAuthorization(['sat_folio' => 'ABC12345', 'result_status' => 'positiva', 'issued_at' => '2026-09-06']);
