@@ -45,7 +45,7 @@ class EmergencyActionPlan extends Model
     protected $table = 'emergency_action_plans';
 
     protected $fillable = [
-        'uuid', 'production_id',
+        'uuid', 'production_id', 'unit_id',
         'shoot_day', 'revision', 'supersedes_id', 'root_id', 'plan_date', 'unit_name', 'plan_label',
         'payload',
         'issued_by_id', 'issued_by_name', 'issued_at', 'is_active',
@@ -95,6 +95,44 @@ class EmergencyActionPlan extends Model
     public function production(): BelongsTo
     {
         return $this->belongsTo(Production::class, 'production_id');
+    }
+
+    /** Referencia VIVA a la unidad (unit_id → units). NULL = unidad principal. Sólo lectura. */
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class, 'unit_id');
+    }
+
+    /**
+     * (2026-09-06 · Unidades 2A) Nombre de la unidad a MOSTRAR — doctrina snapshot: `unit_name` es la FOTO
+     * CONGELADA (lo que se estampó al emitir, sellado) y es lo que el documento DICE. Sin snapshot (PAE
+     * viejo) cae a la referencia VIVA (`unit_id` resuelve el nombre actual) o a la principal. NUNCA
+     * reescribe `unit_name`. El ESTAMPADO al emitir (unit_name := nombre de la unidad elegida) se cablea en
+     * el flujo de emisión (Paso 2b), no aquí.
+     */
+    public function unitDisplayName(): string
+    {
+        $snap = trim((string) $this->unit_name);
+        if ($snap !== '') {
+            return $snap;
+        }
+
+        return Unit::displayName($this->unit_id);
+    }
+
+    /**
+     * Nombre ACTUAL de la unidad referida (`unit_id`), o null si es principal / sin referencia. Sirve para
+     * SEÑALAR si la unidad se renombró desde que se estampó `unit_name` (foto vs referencia viva) — se
+     * muestra, no se resuelve, como el resto de las divergencias.
+     */
+    public function liveUnitName(): ?string
+    {
+        if ($this->unit_id === null) {
+            return null;
+        }
+        $u = $this->unit;
+
+        return $u ? $u->name : null;
     }
 
     public function issuer(): BelongsTo
