@@ -51,9 +51,15 @@ class ProductionCalendar
     /** Días trabajados por semana de prep (lunes a sábado). El domingo no cuenta. */
     const PREP_WEEK_DAYS = 6;
 
-    /** Caché por petición. */
-    private static $dates = null;
-    private static $anchor = false;
+    /** Caché por petición, POR UNIDAD (clave: 'n' = principal/null; o el id de la unidad). */
+    private static $datesCache = [];
+    private static $anchorCache = [];
+
+    /** Clave de caché por unidad. NULL (principal) → 'n'. */
+    private static function unitKey($unitId): string
+    {
+        return $unitId === null ? 'n' : (string) (int) $unitId;
+    }
 
     // ---------------------------------------------------------------------------------------
     // Cimientos
@@ -68,22 +74,24 @@ class ProductionCalendar
      *
      * @return array  ['Y-m-d', ...]
      */
-    public static function shootDates()
+    public static function shootDates(?int $unitId = null)
     {
-        if (self::$dates !== null) {
-            return self::$dates;
+        $k = self::unitKey($unitId);
+        if (array_key_exists($k, self::$datesCache)) {
+            return self::$datesCache[$k];
         }
 
-        // EL CALENDARIO MANDA, EL DSR CONFIRMA. Si hay días marcados en shoot_days, ésos son la verdad
-        // y el contador avanza AUNQUE NO EXISTA UN DSR. Sin calendario poblado se cae al comportamiento
-        // anterior (derivar de daily_reports), así NADA cambia hasta que producción lo use. (2026-09-06)
-        $marcados = self::calendarShootDates();
+        // EL CALENDARIO MANDA, EL DSR CONFIRMA. Si hay días marcados en shoot_days para ESTA unidad,
+        // ésos son la verdad y el contador avanza AUNQUE NO EXISTA UN DSR. Sin calendario poblado la
+        // PRINCIPAL cae al comportamiento anterior (derivar de daily_reports); una unidad ADICIONAL no
+        // usa el DSR del principal → su lista vacía es su verdad. (2026-09-06)
+        $marcados = self::calendarShootDates($unitId);
         if ($marcados !== null) {
-            return self::$dates = $marcados;
+            return self::$datesCache[$k] = $marcados;
         }
 
         if (! Schema::hasTable('daily_reports')) {
-            return self::$dates = [];
+            return self::$datesCache[$k] = [];
         }
 
         try {
@@ -97,7 +105,7 @@ class ProductionCalendar
 
             $fechas = $q->orderBy('report_date')->pluck('report_date')->all();
         } catch (\Throwable $e) {
-            return self::$dates = [];
+            return self::$datesCache[$k] = [];
         }
 
         $out = [];
@@ -111,7 +119,7 @@ class ProductionCalendar
         sort($out);
 
         // Un DSR anterior al ancla es PREP, no rodaje: se queda fuera de la numeración positiva.
-        $ancla = self::anchorDate();
+        $ancla = self::anchorDate($unitId);
         if ($ancla !== null) {
             $a = $ancla->toDateString();
             $out = array_values(array_filter($out, function ($d) use ($a) {
@@ -119,7 +127,7 @@ class ProductionCalendar
             }));
         }
 
-        return self::$dates = $out;
+        return self::$datesCache[$k] = $out;
     }
 
     /**
@@ -129,19 +137,31 @@ class ProductionCalendar
      *
      * @return array|null  ['Y-m-d', ...] o null
      */
-    private static function calendarShootDates()
+    private static function calendarShootDates(?int $unitId)
     {
         if (! Schema::hasTable('shoot_days')) {
             return null;
         }
+        $hasUnitCol = Schema::hasColumn('shoot_days', 'unit_id');
 
         try {
-            $q   = ShootDay::query()->where('is_shoot_day', 1)->whereNotNull('shoot_date');
+            // ¿Acotar a la producción vigente? Sólo si esta unidad tiene días propios en ella.
             $pid = CurrentProduction::id();
-            if ($pid && ShootDay::where('production_id', $pid)->where('is_shoot_day', 1)->exists()) {
-                $q->where('production_id', $pid);   // acota a la producción vigente si tiene días propios
-            } elseif (! ShootDay::where('is_shoot_day', 1)->exists()) {
-                return null;                          // tabla vacía → fallback al DSR
+            $scopeProd = false;
+            if ($pid) {
+                $probe = ShootDay::where('is_shoot_day', 1)->where('production_id', $pid);
+                if ($hasUnitCol) {
+                    $unitId === null ? $probe->whereNull('unit_id') : $probe->where('unit_id', $unitId);
+                }
+                $scopeProd = $probe->exists();
+            }
+
+            $q = ShootDay::query()->where('is_shoot_day', 1)->whereNotNull('shoot_date');
+            if ($hasUnitCol) {
+                $unitId === null ? $q->whereNull('unit_id') : $q->where('unit_id', $unitId);
+            }
+            if ($scopeProd) {
+                $q->where('production_id', $pid);
             }
             $fechas = $q->orderBy('shoot_date')->pluck('shoot_date')->all();
         } catch (\Throwable $e) {
@@ -156,13 +176,15 @@ class ProductionCalendar
             }
         }
         if (empty($out)) {
-            return null;
+            // PRINCIPAL sin días marcados → null (fallback al DSR, como hoy). Unidad ADICIONAL sin días
+            // marcados → [] (esa unidad simplemente no tiene días; NO hereda el DSR del principal).
+            return $unitId === null ? null : [];
         }
         $out = array_keys($out);
         sort($out);
 
         // Igual que el fallback: un día marcado antes del ancla es prep, fuera de la numeración positiva.
-        $ancla = self::anchorDate();
+        $ancla = self::anchorDate($unitId);
         if ($ancla !== null) {
             $a = $ancla->toDateString();
             $out = array_values(array_filter($out, function ($d) use ($a) {
@@ -178,41 +200,60 @@ class ProductionCalendar
      *
      * @return \Carbon\Carbon|null
      */
-    public static function anchorDate()
+    public static function anchorDate(?int $unitId = null)
     {
-        if (self::$anchor !== false) {
-            return self::$anchor;
+        $k = self::unitKey($unitId);
+        if (array_key_exists($k, self::$anchorCache)) {
+            return self::$anchorCache[$k];
         }
 
+        $hasUnitCol = Schema::hasTable('shoot_days') && Schema::hasColumn('shoot_days', 'unit_id');
+
+        // UNIDAD ADICIONAL: su día 1 es su PRIMER día marcado — SIEMPRE arranca en día 1, nazca cuando
+        // nazca (semana 6 o la que sea). No hereda start_date ni DSR del principal.
+        if ($unitId !== null) {
+            $min = null;
+            if (Schema::hasTable('shoot_days')) {
+                try {
+                    $min = ShootDay::where('is_shoot_day', 1)->where('unit_id', $unitId)->min('shoot_date');
+                } catch (\Throwable $e) {
+                    // sin días marcados → sin ancla
+                }
+            }
+
+            return self::$anchorCache[$k] = $min ? Carbon::parse($min)->startOfDay() : null;
+        }
+
+        // PRINCIPAL: `productions.start_date` manda; si no, el primer día marcado de la principal; si
+        // tampoco, el primer día con DSR (comportamiento anterior).
         $prod = CurrentProduction::get();
         if ($prod && ! empty($prod->start_date)) {
-            return self::$anchor = Carbon::parse($prod->start_date)->startOfDay();
+            return self::$anchorCache[$k] = Carbon::parse($prod->start_date)->startOfDay();
         }
-
-        // Sin start_date: el ancla es el PRIMER día marcado en el calendario (el calendario manda);
-        // si tampoco hay calendario, cae al primer día con DSR (comportamiento anterior). (2026-09-06)
         if (Schema::hasTable('shoot_days')) {
             try {
-                $minCal = ShootDay::where('is_shoot_day', 1)->min('shoot_date');
+                $q = ShootDay::where('is_shoot_day', 1);
+                if ($hasUnitCol) {
+                    $q->whereNull('unit_id');
+                }
+                $minCal = $q->min('shoot_date');
                 if ($minCal) {
-                    return self::$anchor = Carbon::parse($minCal)->startOfDay();
+                    return self::$anchorCache[$k] = Carbon::parse($minCal)->startOfDay();
                 }
             } catch (\Throwable $e) {
                 // sigue al fallback del DSR
             }
         }
-
         if (! Schema::hasTable('daily_reports')) {
-            return self::$anchor = null;
+            return self::$anchorCache[$k] = null;
         }
-
         try {
             $min = DailyReport::whereNotNull('report_date')->min('report_date');
         } catch (\Throwable $e) {
             $min = null;
         }
 
-        return self::$anchor = $min ? Carbon::parse($min)->startOfDay() : null;
+        return self::$anchorCache[$k] = $min ? Carbon::parse($min)->startOfDay() : null;
     }
 
     /**
@@ -256,8 +297,30 @@ class ProductionCalendar
      *
      * @return int|null
      */
-    public static function plannedShootDays()
+    public static function plannedShootDays(?int $unitId = null)
     {
+        // UNIDAD ADICIONAL: no tiene weeks×days de producción — su M es su PROPIO calendario (los días
+        // que marcó). Una 2ª unidad que nace en la semana 6 tiene su propia M, no la de la producción.
+        if ($unitId !== null) {
+            if (Schema::hasTable('shoot_days') && Schema::hasColumn('shoot_days', 'unit_id')) {
+                try {
+                    $q = ShootDay::where('is_shoot_day', 1)->where('unit_id', $unitId);
+                    $pid = CurrentProduction::id();
+                    if ($pid && ShootDay::where('is_shoot_day', 1)->where('unit_id', $unitId)->where('production_id', $pid)->exists()) {
+                        $q->where('production_id', $pid);
+                    }
+                    $n = $q->count();
+
+                    return $n > 0 ? $n : null;
+                } catch (\Throwable $e) {
+                    return null;
+                }
+            }
+
+            return null;
+        }
+
+        // PRINCIPAL: la M PLANEADA de la producción (semanas × días/semana). Comportamiento de hoy.
         $prod = CurrentProduction::get();
         if (! $prod) {
             return null;
@@ -347,14 +410,14 @@ class ProductionCalendar
      * @param  mixed $fecha
      * @return int|null
      */
-    public static function dayNumber($fecha)
+    public static function dayNumber($fecha, ?int $unitId = null)
     {
         $d = self::toDay($fecha);
         if ($d === null) {
             return null;
         }
 
-        $ancla = self::anchorDate();
+        $ancla = self::anchorDate($unitId);
         if ($ancla === null) {
             return null;
         }
@@ -371,8 +434,8 @@ class ProductionCalendar
             return -self::workingDaysBetween($c, $ancla);
         }
 
-        // ---- RODAJE: posición dentro de las fechas con DSR ---------------------------------
-        $dates = self::shootDates();
+        // ---- RODAJE: posición dentro de las fechas de ESA UNIDAD ---------------------------
+        $dates = self::shootDates($unitId);
         $idx = array_search($d, $dates, true);
         if ($idx !== false) {
             return $idx + 1;
@@ -485,9 +548,9 @@ class ProductionCalendar
      * @param  mixed $fecha
      * @return int|null
      */
-    public static function shootDayFor($fecha)
+    public static function shootDayFor($fecha, ?int $unitId = null)
     {
-        return self::dayNumber($fecha);
+        return self::dayNumber($fecha, $unitId);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -532,9 +595,9 @@ class ProductionCalendar
      * @param  mixed $fecha
      * @return string
      */
-    public static function labelFor($fecha)
+    public static function labelFor($fecha, ?int $unitId = null)
     {
-        $n = self::dayNumber($fecha);
+        $n = self::dayNumber($fecha, $unitId);
         if ($n !== null) {
             return self::label($n);
         }
@@ -542,7 +605,7 @@ class ProductionCalendar
         $d = self::toDay($fecha);
         if ($d !== null) {
             $c = Carbon::parse($d);
-            $ancla = self::anchorDate();
+            $ancla = self::anchorDate($unitId);
             if ($ancla !== null && $c->lt($ancla) && $c->dayOfWeek === Carbon::SUNDAY) {
                 return 'Domingo';
             }
@@ -556,16 +619,16 @@ class ProductionCalendar
      * (N>0) y la M planeada está configurada; "Día 12" si no hay total; para prep u otros cae a
      * labelFor(). El total es la M PLANEADA, no los días reales con DSR.
      */
-    public static function dayLabelWithTotal($fecha): string
+    public static function dayLabelWithTotal($fecha, ?int $unitId = null): string
     {
-        $n = self::dayNumber($fecha);
+        $n = self::dayNumber($fecha, $unitId);
         if ($n !== null && $n > 0) {
-            $m = self::plannedShootDays();
+            $m = self::plannedShootDays($unitId);
 
             return $m !== null ? ('Día ' . $n . ' de ' . $m) : ('Día ' . $n);
         }
 
-        return self::labelFor($fecha);
+        return self::labelFor($fecha, $unitId);
     }
 
     /**
@@ -594,10 +657,15 @@ class ProductionCalendar
 
         $propio = self::label($frozen);
 
-        // Lo que el calendario asigna HOY a la fecha del documento, con la MISMA acotación por producción
-        // que labelForReport (fuera de la producción vigente no hay con qué comparar → no se anexa nada).
+        // 🔴 Se compara contra el calendario DE LA UNIDAD DEL DOCUMENTO (su propio unit_id), NO contra el
+        // de la producción: comparar contra el equivocado inventaría divergencias FALSAS en todos los
+        // documentos de la 2ª unidad. NULL = principal. labelForReport ya lee el mismo unit_id del doc.
+        $unitId = (isset($report->unit_id) && $report->unit_id !== null && $report->unit_id !== '')
+            ? (int) $report->unit_id
+            : null;
+
         $calLabel = self::labelForReport($report);
-        $calN     = self::dayNumber(isset($report->report_date) ? $report->report_date : null);
+        $calN     = self::dayNumber(isset($report->report_date) ? $report->report_date : null, $unitId);
 
         if ($calLabel !== '—' && $calN !== null && $calN > 0 && $calN !== $frozen) {
             return $propio . ' · el calendario dice ' . $calN;
@@ -624,12 +692,17 @@ class ProductionCalendar
             return '—';
         }
 
+        // La unidad del DOCUMENTO (NULL = principal): todo el conteo se hace contra su propio calendario.
+        $unitId = (isset($reporte->unit_id) && $reporte->unit_id !== null && $reporte->unit_id !== '')
+            ? (int) $reporte->unit_id
+            : null;
+
         $pid = CurrentProduction::id();
         if ($pid !== null && isset($reporte->production_id)) {
             // Sólo se descarta si la producción vigente YA tiene reportes propios: mientras la
             // columna esté vacía en todos, acotar dejaría el listado entero sin número.
             $suyo = (int) $reporte->production_id === (int) $pid;
-            if (! $suyo && ! empty(self::shootDates())) {
+            if (! $suyo && ! empty(self::shootDates($unitId))) {
                 try {
                     if (DailyReport::where('production_id', $pid)->exists()) {
                         return '—';
@@ -640,7 +713,7 @@ class ProductionCalendar
             }
         }
 
-        return self::labelFor(isset($reporte->report_date) ? $reporte->report_date : null);
+        return self::labelFor(isset($reporte->report_date) ? $reporte->report_date : null, $unitId);
     }
 
     /** Etiqueta de HOY. @return string */
@@ -715,9 +788,9 @@ class ProductionCalendar
      *
      * @return int
      */
-    public static function shootDaysCount()
+    public static function shootDaysCount(?int $unitId = null)
     {
-        return count(self::shootDates());
+        return count(self::shootDates($unitId));
     }
 
     /**
@@ -727,13 +800,13 @@ class ProductionCalendar
      * @param  \Carbon\Carbon|null $desde  arranque real de la operación (p. ej. el primer scouting)
      * @return int
      */
-    public static function workedDaysElapsed($desde = null)
+    public static function workedDaysElapsed($desde = null, ?int $unitId = null)
     {
-        $dates = self::shootDates();
+        $dates = self::shootDates($unitId);
         $ultimo = ! empty($dates) ? Carbon::parse(end($dates)) : null;
 
         $inicio = $desde ? $desde->copy()->startOfDay() : null;
-        $ancla  = self::anchorDate();
+        $ancla  = self::anchorDate($unitId);
         if ($inicio === null || ($ancla !== null && $ancla->lt($inicio))) {
             $inicio = $ancla;
         }
@@ -779,8 +852,8 @@ class ProductionCalendar
      */
     public static function forget()
     {
-        self::$dates = null;
-        self::$anchor = false;
+        self::$datesCache = [];
+        self::$anchorCache = [];
         CurrentProduction::forget();
     }
 }
