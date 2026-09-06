@@ -508,7 +508,15 @@ class ScoutingReportController extends Controller
             //       firmas duplicadas en cada guardado). Si SÍ cambió, se re-sella y esa firma nueva
             //       queda en el historial (digital_signatures) con su autor y fecha: el "final"
             //       siempre refleja el contenido actual, y cada re-sello queda registrado.
-            if ($report->status === 'final') {
+            // (2026-09-05 · Integridad) El re-sellado se guarda por "¿ya estaba SELLADO?", no solo por
+            // "¿está en final?". Un scouting con FIRMA PREVIA DEBE re-sellarse al editarse, quede en el
+            // estado que quede: antes, bajarlo de final dejaba su sello viejo sin que nadie se enterara
+            // (un documento sellado es un documento que no cambió). Se CONSERVA la doctrina "un borrador
+            // nunca sellado no se sella; 'final' siempre queda sellado" → por eso la condición también
+            // entra cuando el estado nuevo es final aunque no hubiera firma (primer sellado al pasar a
+            // final, igual que store()). hash_equals evita apilar firmas idénticas si nada cambió.
+            $tieneFirmaPrevia = Schema::hasTable('digital_signatures') && $report->signatures()->exists();
+            if ($report->status === 'final' || $tieneFirmaPrevia) {
                 $report->refresh();
                 $nuevoHash = $report->computeDocumentHash();
                 $ultima    = Schema::hasTable('digital_signatures')
