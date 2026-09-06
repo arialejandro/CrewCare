@@ -221,7 +221,8 @@ class ExternalAuthorization extends Model
         $sentido = $this->result_status === self::RESULT_POSITIVE ? 'P' : 'N';
         $d3      = $folio . '_' . $rfc . '_' . $fecha . '_' . $sentido;
 
-        // D1=1&D2=1 (corregido con la URL real del owner; antes asumí D1=10). D3 exacto.
+        // D1=1&D2=1 — ✅ CONFIRMADO EN VIVO contra el validador del SAT (escaneo humano, 2026-09-05, con
+        // una 32-D real la reconoció). D3 = folio_RFC_dd-mm-aaaa_P, exacto como la Cadena Original.
         return 'https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?D1=1&D2=1&D3=' . $d3;
     }
 
