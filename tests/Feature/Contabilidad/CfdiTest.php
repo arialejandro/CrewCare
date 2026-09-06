@@ -58,6 +58,22 @@ class CfdiTest extends TestCase
         $this->assertStringNotContainsString('%3D', $url);           // NO url-encode de los iguales
     }
 
+    public function test_detecta_orden_de_fecha_por_factura(): void
+    {
+        // Productora gringa (MM-DD-YY): 021724 es INEQUÍVOCO (mes 17 imposible en dd-mm) → toda la
+        // factura es mdy. Calibrado contra un CFDI real ("THE GRINGO HUNTER"): sus semanas eran
+        // 02/10/24 y 02/17/24, no 10 de febrero y "mes 17".
+        $this->assertSame('mdy', CfdiParser::detectDateOrder(['021024', '021724']));
+        $this->assertSame('2024-02-10', CfdiParser::digitsToWeek('021024', 'mdy'));
+        $this->assertSame('2024-02-17', CfdiParser::digitsToWeek('021724', 'mdy'));
+
+        // México (DD-MM-YY) y el caso ambiguo (ambas mitades ≤12) que cae al default México.
+        $this->assertSame('dmy', CfdiParser::detectDateOrder(['130926', '060926']));
+        $this->assertSame('dmy', CfdiParser::detectDateOrder(['010224', '030424']));
+        $this->assertSame('2026-09-13', CfdiParser::digitsToWeek('130926', 'dmy'));
+        $this->assertNull(CfdiParser::digitsToWeek('021724', 'dmy'));   // mes 17 inválido en dmy
+    }
+
     public function test_url_32d_usa_d1_1(): void
     {
         $doc = new ExternalAuthorization(['sat_folio' => 'ABC12345', 'result_status' => 'positiva', 'issued_at' => '2026-09-06']);
