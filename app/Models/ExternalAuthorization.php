@@ -60,6 +60,9 @@ class ExternalAuthorization extends Model
         // estampan best-effort al capturar; null = recibido sin periodo. `received_out_of_window`
         // marca lo recibido fuera de ventana (nunca rechazado).
         'payment_period_id', 'received_out_of_window',
+        // XML DE LA FACTURA (CFDI) — extraídos del XML al recibir (CfdiParser). VERBATIM el total. NADA
+        // obligatorio: sin XML quedan NULL y el enlace de la factura simplemente no se puede armar.
+        'cfdi_uuid', 'cfdi_rfc_emisor', 'cfdi_rfc_receptor', 'cfdi_total', 'cfdi_sello', 'xml_path',
     ];
 
     protected $casts = [
@@ -159,6 +162,16 @@ class ExternalAuthorization extends Model
     {
         $p = trim((string) $this->photo_path);
         return $p !== '' ? Storage::url($p) : null;
+    }
+
+    /** ¿Trae los datos del CFDI (extraídos del XML) para armar el enlace de verificación del SAT? */
+    public function hasCfdi(): bool
+    {
+        return trim((string) $this->cfdi_uuid) !== ''
+            && trim((string) $this->cfdi_rfc_emisor) !== ''
+            && trim((string) $this->cfdi_rfc_receptor) !== ''
+            && trim((string) $this->cfdi_total) !== ''
+            && trim((string) $this->cfdi_sello) !== '';
     }
 
     public function scopeActive($query)

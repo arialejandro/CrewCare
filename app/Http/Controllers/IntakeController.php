@@ -245,7 +245,13 @@ class IntakeController extends Controller
                 break;
 
             case 'documents':
-                $request->validate(['documents' => 'nullable|array', 'documents.*' => 'nullable|file|mimes:pdf|max:20480']);
+                $request->validate([
+                    'documents' => 'nullable|array', 'documents.*' => 'nullable|file|mimes:pdf|max:20480',
+                    // XML de la factura (CFDI): OPCIONAL junto al PDF. Aditivo → NO rompe el flujo PDF-only
+                    // existente (por eso no es required). mimes xml/txt (algunos XML se detectan text/plain).
+                    'documents_xml' => 'nullable|array', 'documents_xml.*' => 'nullable|file|mimes:xml,txt|max:5120',
+                ]);
+                $cfdiWarnings = [];
                 foreach ((array) $request->file('documents', []) as $docTypeId => $file) {
                     if (! $file) {
                         continue;
@@ -262,6 +268,39 @@ class IntakeController extends Controller
                         'status' => 'presentado',   // RECIBIDO; el cotejo (validated_*) es aparte
                         'is_active' => 1, 'created_by_id' => $actor?->id, // quién subió + (created_at) cuándo
                     ]);
+
+                    // XML DE LA FACTURA (CFDI): si el tipo ES factura y llegó su XML, se guarda, se PARSEA
+                    // (folio fiscal/RFCs/total/sello para el enlace) y se COTEJA el RFC emisor contra el del
+                    // payee. RECIBIR NO ES VALIDAR: comparar dos datos que ya tienes no valida nada.
+                    // Best-effort: un XML ilegible NO rompe la recepción del PDF (queda como está).
+                    if ($dt && $dt->expects_cfdi_xml) {
+                        $xmlFile = $request->file("documents_xml.$docTypeId");
+                        if ($xmlFile) {
+                            try {
+                                $xmlPath = $xmlFile->storeAs('payee/docs/' . $payee->departmentSlug() . '/' . $payee->id, uniqid('cfdi_') . '.xml', 'local');
+                                $cfdi = \App\Support\CfdiParser::parse((string) \Illuminate\Support\Facades\Storage::disk('local')->get($xmlPath));
+                                if ($cfdi) {
+                                    $doc->update([
+                                        'xml_path'          => $xmlPath,
+                                        'cfdi_uuid'         => $cfdi['uuid'] ?: null,
+                                        'cfdi_rfc_emisor'   => $cfdi['rfc_emisor'] ?: null,
+                                        'cfdi_rfc_receptor' => $cfdi['rfc_receptor'] ?: null,
+                                        'cfdi_total'        => $cfdi['total'] ?: null,
+                                        'cfdi_sello'        => $cfdi['sello'] ?: null,
+                                    ]);
+                                    $payeeRfc = strtoupper(trim((string) $payee->rfc));
+                                    if ($payeeRfc !== '' && $cfdi['rfc_emisor'] !== '' && $payeeRfc !== $cfdi['rfc_emisor']) {
+                                        $cfdiWarnings[] = ($dt->name ?: 'Factura') . ': el RFC emisor del XML (' . $cfdi['rfc_emisor'] . ') no coincide con el del proveedor (' . $payeeRfc . ').';
+                                    }
+                                } else {
+                                    $cfdiWarnings[] = ($dt->name ?: 'Factura') . ': el XML no se leyó como CFDI; se recibió el PDF, sin enlace de verificación.';
+                                }
+                            } catch (\Throwable $e) {
+                                $cfdiWarnings[] = ($dt->name ?: 'Factura') . ': no se pudo procesar el XML; se recibió el PDF.';
+                            }
+                        }
+                    }
+
                     // VENTANA DE RECEPCIÓN: cuelga el documento del periodo de pago (dentro o fuera de
                     // ventana). Best-effort: si falla, la captura NO se rompe y el tablero igual deriva
                     // el estado con PayeePackage.
@@ -276,6 +315,9 @@ class IntakeController extends Controller
                     } catch (\Throwable $e) {
                         // silencioso a propósito: el estampado del periodo no puede impedir la recepción.
                     }
+                }
+                if (! empty($cfdiWarnings)) {
+                    session()->flash('warning', implode(' ', $cfdiWarnings));
                 }
                 break;
 

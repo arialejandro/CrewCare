@@ -199,6 +199,11 @@
               @unless($recibidos->has($d->id))
                 <label>Archivo PDF</label>
                 <input type="file" name="documents[{{ $d->id }}]" accept="application/pdf">
+                @if($d->expects_cfdi_xml)
+                  <label>Archivo XML del CFDI</label>
+                  <input type="file" name="documents_xml[{{ $d->id }}]" accept="text/xml,application/xml,.xml">
+                  <div class="hint">La factura es PDF y XML: el PDF es la representación impresa, el XML es la factura. Del XML se arma el enlace de verificación del SAT.</div>
+                @endif
               @endunless
             </div>
           @empty

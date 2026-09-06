@@ -97,6 +97,14 @@ class DocumentTypeSeeder extends Seeder
             );
         }
 
+        // XML DE LA FACTURA (CFDI): marca los tipos que SON factura → el intake acepta/parsea su XML.
+        // Los CFDI reconocidos hoy (renta, propiedad del equipo, nómina REPSE). El owner puede marcar
+        // otros aquí si aparece una factura de honorarios como tipo aparte.
+        if (\Illuminate\Support\Facades\Schema::hasColumn('document_types', 'expects_cfdi_xml')) {
+            DocumentType::whereIn('code', ['FACT_RENTA', 'FACT_PROPIEDAD', 'REPSE_CFDI_NOMINA'])
+                ->update(['expects_cfdi_xml' => 1]);
+        }
+
         // Sinónimos de búsqueda (PASO 2): "Opinión SAT" es como se le llama a la 32-D en la
         // práctica. Solo se fija si la columna existe (delta 2026-08-13-payee-packages aplicado).
         if (\Illuminate\Support\Facades\Schema::hasColumn('document_types', 'aliases')) {

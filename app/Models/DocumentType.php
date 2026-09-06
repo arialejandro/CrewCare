@@ -36,7 +36,7 @@ class DocumentType extends Model
     protected $fillable = [
         'code', 'name', 'aliases', 'family', 'scope', 'legal_nature', 'nationality',
         'validity_shape', 'validity_days', 'requires_positive_status',
-        'is_repse', 'repse_phase', 'is_active', 'sort_order',
+        'is_repse', 'repse_phase', 'is_active', 'sort_order', 'expects_cfdi_xml',
     ];
 
     protected $casts = [
@@ -45,6 +45,7 @@ class DocumentType extends Model
         'is_repse'                 => 'boolean',
         'is_active'                => 'boolean',
         'sort_order'               => 'integer',
+        'expects_cfdi_xml'         => 'boolean',
     ];
 
     public function scopeActive($query)
