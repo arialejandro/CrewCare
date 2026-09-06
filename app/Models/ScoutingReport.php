@@ -38,6 +38,14 @@ class ScoutingReport extends Model
     protected $signatureExcludes = ['has_ambulance'];
 
     /**
+     * (2026-09-05 · Unidades P1) `unit_id` EXCLUIDA del hash SOLO cuando es null: los scoutings sellados
+     * antes de sembrar la columna la traen en null → fuera del payload → su sello NO cambia; con valor
+     * (2ª unidad) SÍ entra al hash y la unidad queda sellada. La aplica el trait
+     * (HasDigitalSignatures::nullableHashExcludes). NO se cablea ningún filtro por unidad (eso es Paso 2).
+     */
+    const NULLABLE_HASH_EXCLUDES = ['unit_id'];
+
+    /**
      * $fillable explícito: solo estas columnas son asignables en masa.
      * Las columnas JSON se asignan como ARRAY de PHP; el cast 'array' las
      * serializa una sola vez (NO usar json_encode al guardar).

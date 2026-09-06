@@ -48,7 +48,10 @@ class DailyReport extends Model
      * cuando es null, esos sellos conservan su hash; un DSR nuevo que SÍ apunta a un scouting la
      * hashea → el vínculo queda atado al sello. Mismo patrón que los gemelos Acto/Condición.
      */
-    const NULLABLE_HASH_EXCLUDES = ['scouting_report_id'];
+    // (2026-09-05 · Unidades P1) `unit_id` se suma a la exclusión-en-null: los DSR sellados antes de
+    // sembrar la columna la traen en null → fuera del hash → su sello no cambia; con valor (2ª unidad)
+    // SÍ se sella. NO se cablea ningún filtro por unidad aquí (eso es Paso 2).
+    const NULLABLE_HASH_EXCLUDES = ['scouting_report_id', 'unit_id'];
 
     // (2026-07-12) Casts de los JSON nuevos de cimientos módulos 6-14.
     protected $casts = [

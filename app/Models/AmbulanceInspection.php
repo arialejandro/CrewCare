@@ -31,6 +31,12 @@ class AmbulanceInspection extends Model
 
     protected $table = 'ambulance_inspections';
 
+    // (2026-09-05 · Unidades P1) `unit_id` EXCLUIDA del hash SOLO cuando es null: las 5 inspecciones
+    // selladas la traen en null → su sello NO cambia; con valor (2ª unidad) SÍ se sella. La aplica el
+    // trait. OJO: `unit_id` (unidad de PRODUCCIÓN) es un concepto distinto de las const TRIGGER_UNIT/
+    // 'unidad' de abajo (que son un ALCANCE DE CHECKLIST). No se mezclan. Sin cablear filtros (Paso 2).
+    const NULLABLE_HASH_EXCLUDES = ['unit_id'];
+
     const VERDICT_PARO    = 'paro';
     const VERDICT_NO_EXEC = 'actividad_no_ejecutable';
     const VERDICT_APTA    = 'apta';

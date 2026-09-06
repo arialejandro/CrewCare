@@ -92,6 +92,13 @@ class IssuedPermit extends Model
     ];
 
     /**
+     * (2026-09-05 · Unidades P1) `unit_id` EXCLUIDA del hash SOLO cuando es null. El override de este
+     * modelo delega en el método del trait (baseCanonicalSignaturePayload), que lee esta const, así que
+     * la exclusión-en-null aplica sin re-implementarla aquí. NO se cablea ningún filtro (eso es Paso 2).
+     */
+    const NULLABLE_HASH_EXCLUDES = ['unit_id'];
+
+    /**
      * SELLO — override NULL-ONLY de `photos`.
      *
      * Las fotografías adjuntas son CONTENIDO del permiso (adjuntar a un permiso ya sellado una

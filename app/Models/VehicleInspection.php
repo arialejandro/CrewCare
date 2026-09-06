@@ -27,6 +27,13 @@ class VehicleInspection extends Model
 
     protected $table = 'vehicle_inspections';
 
+    /**
+     * (2026-09-05 · Unidades P1) `unit_id` EXCLUIDA del hash SOLO cuando es null (hoy 0 sellos, pero el
+     * patrón se siembra igual para no re-arriesgar cuando existan). Con valor (2ª unidad) SÍ se sella.
+     * La aplica el trait (HasDigitalSignatures::nullableHashExcludes). Sin cablear filtros (eso es Paso 2).
+     */
+    const NULLABLE_HASH_EXCLUDES = ['unit_id'];
+
     const VERDICT_APTO    = 'apto';
     const VERDICT_NO_APTO = 'no_apto';
 

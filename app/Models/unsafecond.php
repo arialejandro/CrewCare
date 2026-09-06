@@ -95,7 +95,10 @@ class unsafecond extends Model
      * `involved_user_id` se conserva en la lista (aunque ya NO se captura en la Condición) para no
      * alterar el hash de las condiciones selladas durante el 2/2 (donde ya estaba en null/excluida).
      */
-    const NULLABLE_HASH_EXCLUDES = ['scouting_report_id', 'involved_user_id', 'related_hazard_id', 'is_recurrent'];
+    // (2026-09-05 · Unidades P1) `unit_id` y `production_id` se suman a la exclusión-en-null. Esta tabla
+    // NO tenía `production_id` (se aislaba solo por autor): se siembra en la misma pasada, en null para
+    // todo lo existente → fuera del hash → los 6 sellos no cambian. El filtro por autor NO se toca.
+    const NULLABLE_HASH_EXCLUDES = ['scouting_report_id', 'involved_user_id', 'related_hazard_id', 'is_recurrent', 'unit_id', 'production_id'];
 
     /**
      * Override del payload canónico: quita volátiles + ksort recursivo (como el trait) y excluye

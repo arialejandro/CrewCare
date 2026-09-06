@@ -31,6 +31,14 @@ class RiskMap extends Model
 
     protected $table = 'risk_maps';
 
+    /**
+     * (2026-09-05 · Unidades P1) `unit_id` EXCLUIDA del hash SOLO cuando es null: el mapeo sellado la
+     * trae en null → fuera del payload → su sello NO cambia; con valor (2ª unidad) SÍ se sella. Este
+     * modelo SOBRESCRIBE canonicalSignaturePayload() con un payload propio (anexa vistas/marcadores),
+     * así que la exclusión-en-null se aplica AHÍ explícitamente, no vía el trait. Sin cablear filtros (Paso 2).
+     */
+    const NULLABLE_HASH_EXCLUDES = ['unit_id'];
+
     protected $fillable = [
         'scouting_id', 'project_id', 'location_id',
         'title', 'status', 'version', 'pin_scale',
@@ -318,6 +326,15 @@ class RiskMap extends Model
         ];
         foreach ($drop as $k) {
             unset($payload[$k]);
+        }
+
+        // (2026-09-05 · Unidades P1) Exclusión CONDICIONAL EN NULL — mismo criterio que el trait: una
+        // columna sembrada después del sello (unit_id) sale del payload cuando es null → el mapeo ya
+        // sellado no se marca ALTERADO; con valor SÍ se sella.
+        foreach (self::NULLABLE_HASH_EXCLUDES as $k) {
+            if (array_key_exists($k, $payload) && $payload[$k] === null) {
+                unset($payload[$k]);
+            }
         }
 
         $views = [];

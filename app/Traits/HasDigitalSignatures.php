@@ -35,7 +35,8 @@ trait HasDigitalSignatures
     /**
      * Payload DETERMINISTA para hashear. Toma attributesToArray(), elimina claves
      * volátiles (created_at/updated_at/uuid) y cualquier clave de $signatureExcludes,
-     * luego ordena recursivamente por clave (ksort recursivo). Sobreescribible.
+     * aplica las exclusiones CONDICIONALES EN NULL (const NULLABLE_HASH_EXCLUDES del
+     * modelo), luego ordena recursivamente por clave (ksort recursivo). Sobreescribible.
      *
      * @return array
      */
@@ -43,6 +44,7 @@ trait HasDigitalSignatures
     {
         $payload = $this->attributesToArray();
 
+        // Exclusiones INCONDICIONALES: volátiles + $signatureExcludes (fuera SIEMPRE).
         $volatile = ['created_at', 'updated_at', 'uuid'];
         if (isset($this->signatureExcludes) && is_array($this->signatureExcludes)) {
             $volatile = array_merge($volatile, $this->signatureExcludes);
@@ -51,9 +53,41 @@ trait HasDigitalSignatures
             unset($payload[$key]);
         }
 
+        // Exclusiones CONDICIONALES EN NULL (const NULLABLE_HASH_EXCLUDES del modelo): la columna
+        // sale del hash SOLO cuando su valor es null. Así una columna añadida DESPUÉS de que ya
+        // había filas selladas no mueve su hash (la traían en null → se excluye), pero en cuanto
+        // lleva valor SÍ se sella (queda cubierta contra manipulación). Patrón PROMOVIDO a la base
+        // (2026-09-05, Unidades P1) desde el override que ya vivía en DailyReport / unsafecond /
+        // hazardnotification / HealthRecordAddendum. Esos modelos SOBRESCRIBEN este método y aplican
+        // su propia const en su override, así que NO pasan por aquí (no hay doble exclusión);
+        // IssuedPermit sí pasa, porque su override delega en este método vía alias.
+        foreach ($this->nullableHashExcludes() as $key) {
+            if (array_key_exists($key, $payload) && $payload[$key] === null) {
+                unset($payload[$key]);
+            }
+        }
+
         $this->ksortRecursive($payload);
 
         return $payload;
+    }
+
+    /**
+     * Columnas a excluir del hash SOLO cuando son null. Fuente: la const NULLABLE_HASH_EXCLUDES del
+     * modelo si la declara; [] si no. Sin la const este método es no-op y el hash NO cambia — por eso
+     * promover el patrón al trait no altera el sello de ningún modelo que no declare la const.
+     *
+     * @return array
+     */
+    protected function nullableHashExcludes(): array
+    {
+        if (defined(static::class . '::NULLABLE_HASH_EXCLUDES')) {
+            $list = constant(static::class . '::NULLABLE_HASH_EXCLUDES');
+
+            return is_array($list) ? $list : [];
+        }
+
+        return [];
     }
 
     /**

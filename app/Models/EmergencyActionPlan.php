@@ -67,6 +67,14 @@ class EmergencyActionPlan extends Model
     protected $signatureExcludes = ['is_active'];
 
     /**
+     * (2026-09-05 · Unidades P1) `unit_id` EXCLUIDA del hash SOLO cuando es null (los 4 PAE sellados la
+     * traen en null → su sello NO cambia; con valor SÍ se sella). CONVIVE con `unit_name` (texto libre
+     * ya sellado): unit_name se queda intacto, unit_id se suma como referencia estructurada — ver el
+     * reporte de homologación. La const la aplica el trait. Sin cablear filtros (Paso 2).
+     */
+    const NULLABLE_HASH_EXCLUDES = ['unit_id'];
+
+    /**
      * ¿Está aplicado el SQL del módulo? Memo por petición. Sin la tabla, el módulo se
      * apaga (menú/rutas/botón) en vez de tronar. Mismo patrón que MedevacPoster::supported().
      */

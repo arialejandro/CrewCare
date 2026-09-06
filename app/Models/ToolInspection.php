@@ -32,6 +32,13 @@ class ToolInspection extends Model
 
     protected $table = 'tool_inspections';
 
+    /**
+     * (2026-09-05 · Unidades P1) `unit_id` EXCLUIDA del hash SOLO cuando es null: las 3 inspecciones
+     * selladas la traen en null → su sello NO cambia; con valor (2ª unidad) SÍ se sella. La aplica el
+     * trait (HasDigitalSignatures::nullableHashExcludes). NO se cablea ningún filtro (eso es Paso 2).
+     */
+    const NULLABLE_HASH_EXCLUDES = ['unit_id'];
+
     /** Veredictos posibles (los 3 titulares de la calculadora de inoperatividad). */
     const VERDICT_PARO      = 'paro';                    // cayó un gate de correccion/reemplazo
     const VERDICT_NO_EXEC   = 'actividad_no_ejecutable'; // cayó un gate de actividad

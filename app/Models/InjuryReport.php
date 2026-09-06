@@ -24,6 +24,15 @@ class InjuryReport extends Model
     use CalculatesRiskMatrix, TracksCorrectiveActions, HasStandards, DeterminesInjuryRecordability, HasDigitalSignatures, GeneratesUuidKey, ResolvesHazardEvent, HasMedicalAddendums;
 
     /**
+     * (2026-09-05 · Unidades P1) `unit_id` y `production_id` EXCLUIDAS del hash SOLO cuando son null.
+     * injury_reports NO tenía `production_id` (se aislaba solo por autor, created_by_id): se siembra en
+     * la misma pasada, en null para los 4 sellos existentes → fuera del hash → no cambian. El filtro por
+     * autor NO se toca. La const la aplica el trait (HasDigitalSignatures::nullableHashExcludes). Paso 2
+     * cablea los filtros; aquí solo se siembra la columna.
+     */
+    const NULLABLE_HASH_EXCLUDES = ['unit_id', 'production_id'];
+
+    /**
      * (2026-07-13) Pilar 2 (Event-Driven): al CREARSE un accidente se dispara el
      * evento → el Listener inyecta un log al DSR del día (find-or-create). El
      * usuario no hace trabajo extra. DsrHub es defensivo/idempotente.
