@@ -206,8 +206,8 @@
                 @endif
                 @if($d->code === 'OPINION_32D')
                   <label>Folio de la 32-D (opcional)</label>
-                  <input type="text" name="sat_folio[{{ $d->id }}]" maxlength="60" placeholder="Folio del acuse">
-                  <div class="hint">Para armar el enlace de verificación del SAT. Si no lo tienes ahora, se captura después.</div>
+                  <input type="text" name="sat_folio[{{ $d->id }}]" maxlength="60" placeholder="Se extrae solo del PDF">
+                  <div class="hint">El folio se lee solo de la Cadena Original del PDF; déjalo vacío salvo que quieras forzar uno.</div>
                 @endif
               @endunless
             </div>

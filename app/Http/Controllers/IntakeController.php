@@ -309,6 +309,25 @@ class IntakeController extends Controller
                         }
                     }
 
+                    // 32-D: extrae el FOLIO (+ fecha/sentido) de la CADENA ORIGINAL del PDF (texto
+                    // estructurado, no OCR). El acuse SIEMPRE es PDF con texto; si un PDF raro no la trae,
+                    // el folio se captura a mano (fallback intacto). El folio TECLEADO gana sobre lo
+                    // extraído. 🔴 No consulta al SAT ni valida: solo pre-llena lo que arma el enlace.
+                    if ($dt && $dt->code === 'OPINION_32D' && trim((string) $path) !== '') {
+                        $c32 = \App\Support\Sat32dReader::fromPdf(\Illuminate\Support\Facades\Storage::disk('local')->path($path));
+                        if ($c32) {
+                            $updates = [];
+                            if (trim((string) $doc->sat_folio) === '' && $c32['folio'] !== '')       { $updates['sat_folio'] = $c32['folio']; }
+                            if ($doc->issued_at === null && $c32['fecha'])                            { $updates['issued_at'] = $c32['fecha']; }
+                            if (trim((string) $doc->result_status) === '' && $c32['sentido'])         { $updates['result_status'] = $c32['sentido']; }
+                            if ($updates) { $doc->update($updates); }
+                            $payeeRfc = strtoupper(trim((string) $payee->rfc));
+                            if ($payeeRfc !== '' && $c32['rfc'] !== '' && $payeeRfc !== $c32['rfc']) {
+                                $cfdiWarnings[] = 'Opinión 32-D: el RFC de la cadena (' . $c32['rfc'] . ') no coincide con el del proveedor (' . $payeeRfc . ').';
+                            }
+                        }
+                    }
+
                     // VENTANA DE RECEPCIÓN: cuelga el documento del periodo de pago (dentro o fuera de
                     // ventana). Best-effort: si falla, la captura NO se rompe y el tablero igual deriva
                     // el estado con PayeePackage.

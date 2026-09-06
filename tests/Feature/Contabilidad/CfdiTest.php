@@ -92,6 +92,19 @@ class CfdiTest extends TestCase
         $this->assertSame('XYZ', CfdiParser::splitConcepto('XYZ algo aún no en el catálogo', [])['prefix']);   // fallback token inicial
     }
 
+    public function test_lee_la_cadena_original_de_la_32d(): void
+    {
+        // Cadena Original del acuse: ||RFC|FOLIO|dd-mm-aaaa|P||serie|| (texto estructurado, no OCR).
+        $c = \App\Support\Sat32dReader::fromText('… Cadena Original ||XAXX010101000|26NA1234567|21-01-2026|P||00001088888800000031||');
+        $this->assertSame('XAXX010101000', $c['rfc']);
+        $this->assertSame('26NA1234567', $c['folio']);
+        $this->assertSame('2026-01-21', $c['fecha']);
+        $this->assertSame('positiva', $c['sentido']);
+
+        $this->assertSame('negativa', \App\Support\Sat32dReader::fromText('||XAXX010101000|26NA1|21-01-2026|N||1||')['sentido']);
+        $this->assertNull(\App\Support\Sat32dReader::fromText('un pdf sin cadena original'));   // → captura manual
+    }
+
     public function test_url_32d_usa_d1_1(): void
     {
         $doc = new ExternalAuthorization(['sat_folio' => 'ABC12345', 'result_status' => 'positiva', 'issued_at' => '2026-09-06']);
