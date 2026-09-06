@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\DailyReport;
+use App\Models\ShootDay;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Schema;
 
@@ -73,6 +74,14 @@ class ProductionCalendar
             return self::$dates;
         }
 
+        // EL CALENDARIO MANDA, EL DSR CONFIRMA. Si hay días marcados en shoot_days, ésos son la verdad
+        // y el contador avanza AUNQUE NO EXISTA UN DSR. Sin calendario poblado se cae al comportamiento
+        // anterior (derivar de daily_reports), así NADA cambia hasta que producción lo use. (2026-09-06)
+        $marcados = self::calendarShootDates();
+        if ($marcados !== null) {
+            return self::$dates = $marcados;
+        }
+
         if (! Schema::hasTable('daily_reports')) {
             return self::$dates = [];
         }
@@ -114,6 +123,57 @@ class ProductionCalendar
     }
 
     /**
+     * Días de rodaje MARCADOS en el calendario (shoot_days, is_shoot_day=1) de la producción vigente,
+     * desde el ancla en adelante. Devuelve null cuando NO hay calendario poblado, para que shootDates()
+     * caiga al comportamiento anterior (derivar de daily_reports) y nada cambie hasta que se use.
+     *
+     * @return array|null  ['Y-m-d', ...] o null
+     */
+    private static function calendarShootDates()
+    {
+        if (! Schema::hasTable('shoot_days')) {
+            return null;
+        }
+
+        try {
+            $q   = ShootDay::query()->where('is_shoot_day', 1)->whereNotNull('shoot_date');
+            $pid = CurrentProduction::id();
+            if ($pid && ShootDay::where('production_id', $pid)->where('is_shoot_day', 1)->exists()) {
+                $q->where('production_id', $pid);   // acota a la producción vigente si tiene días propios
+            } elseif (! ShootDay::where('is_shoot_day', 1)->exists()) {
+                return null;                          // tabla vacía → fallback al DSR
+            }
+            $fechas = $q->orderBy('shoot_date')->pluck('shoot_date')->all();
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        $out = [];
+        foreach ($fechas as $f) {
+            $d = self::toDay($f);
+            if ($d !== null) {
+                $out[$d] = true;
+            }
+        }
+        if (empty($out)) {
+            return null;
+        }
+        $out = array_keys($out);
+        sort($out);
+
+        // Igual que el fallback: un día marcado antes del ancla es prep, fuera de la numeración positiva.
+        $ancla = self::anchorDate();
+        if ($ancla !== null) {
+            $a = $ancla->toDateString();
+            $out = array_values(array_filter($out, function ($d) use ($a) {
+                return $d >= $a;
+            }));
+        }
+
+        return $out;
+    }
+
+    /**
      * Ancla = día 1. `productions.start_date` manda; si no está, el primer día con DSR.
      *
      * @return \Carbon\Carbon|null
@@ -127,6 +187,19 @@ class ProductionCalendar
         $prod = CurrentProduction::get();
         if ($prod && ! empty($prod->start_date)) {
             return self::$anchor = Carbon::parse($prod->start_date)->startOfDay();
+        }
+
+        // Sin start_date: el ancla es el PRIMER día marcado en el calendario (el calendario manda);
+        // si tampoco hay calendario, cae al primer día con DSR (comportamiento anterior). (2026-09-06)
+        if (Schema::hasTable('shoot_days')) {
+            try {
+                $minCal = ShootDay::where('is_shoot_day', 1)->min('shoot_date');
+                if ($minCal) {
+                    return self::$anchor = Carbon::parse($minCal)->startOfDay();
+                }
+            } catch (\Throwable $e) {
+                // sigue al fallback del DSR
+            }
         }
 
         if (! Schema::hasTable('daily_reports')) {
@@ -493,6 +566,44 @@ class ProductionCalendar
         }
 
         return self::labelFor($fecha);
+    }
+
+    /**
+     * Etiqueta de un DOCUMENTO que lleva `shoot_day` CONGELADO (sellado). Muestra LO SUYO y, SOLO si el
+     * calendario dice otra cosa, anexa la divergencia — NUNCA reescribe el shoot_day sellado. Es el mismo
+     * criterio que planeado-vs-real: el documento conserva lo suyo, el calendario dice lo suyo, y la
+     * persona ve las dos. En una producción bien armada desde el inicio, no se ve nunca.
+     *   coinciden → "Día 12"
+     *   difieren  → "Día 12 · el calendario dice 14"
+     * Sin shoot_day propio cae a labelForReport() (comportamiento anterior).
+     *
+     * @param  object $report  algo con ->shoot_day, ->report_date y ->production_id
+     * @return string
+     */
+    public static function documentDayLabel($report): string
+    {
+        if (! is_object($report)) {
+            return '—';
+        }
+        $frozen = (isset($report->shoot_day) && $report->shoot_day !== null && $report->shoot_day !== '')
+            ? (int) $report->shoot_day
+            : null;
+        if ($frozen === null) {
+            return self::labelForReport($report);   // sin sellado propio: comportamiento anterior
+        }
+
+        $propio = self::label($frozen);
+
+        // Lo que el calendario asigna HOY a la fecha del documento, con la MISMA acotación por producción
+        // que labelForReport (fuera de la producción vigente no hay con qué comparar → no se anexa nada).
+        $calLabel = self::labelForReport($report);
+        $calN     = self::dayNumber(isset($report->report_date) ? $report->report_date : null);
+
+        if ($calLabel !== '—' && $calN !== null && $calN > 0 && $calN !== $frozen) {
+            return $propio . ' · el calendario dice ' . $calN;
+        }
+
+        return $propio;
     }
 
     /**
