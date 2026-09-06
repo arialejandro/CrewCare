@@ -28,6 +28,7 @@ class PayeePackage
     const ST_RECEIVED     = 'received';      // recibido y en regla
     const ST_NOT_POSITIVE = 'not_positive';  // recibido pero la 32-D no vino positiva
     const ST_EXPIRED      = 'expired';       // recibido pero caducado
+    const ST_INCOMPLETE   = 'incomplete';    // factura recibida en PDF pero SIN su XML (CFDI) → pendiente
 
     /**
      * Tipos exigidos a la IDENTIDAD (paquete fiscal), por naturaleza y NACIONALIDAD. El
@@ -121,6 +122,14 @@ class PayeePackage
 
         if ($doc === null) {
             return self::ST_MISSING;
+        }
+
+        // La factura es PDF + XML: sin el XML (cfdi_*) el documento está INCOMPLETO. Cuenta como NO
+        // entregado en el tablero (contabilidad lo persigue), pero NO se marca mal — se marca PENDIENTE.
+        // La factura vieja subida sin XML cae aquí sola (sus cfdi_* son NULL). La VENTANA NO RECHAZA: el
+        // form sí acepta la subida sin XML; el "faltante" es del tablero, no del formulario.
+        if ($type->expects_cfdi_xml && ! $doc->hasCfdi()) {
+            return self::ST_INCOMPLETE;
         }
 
         // La 32-D exige POSITIVA: existir no basta (se consume requires_positive_status).

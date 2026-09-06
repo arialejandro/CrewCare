@@ -63,6 +63,7 @@ class ExternalAuthorization extends Model
         // XML DE LA FACTURA (CFDI) — extraídos del XML al recibir (CfdiParser). VERBATIM el total. NADA
         // obligatorio: sin XML quedan NULL y el enlace de la factura simplemente no se puede armar.
         'cfdi_uuid', 'cfdi_rfc_emisor', 'cfdi_rfc_receptor', 'cfdi_total', 'cfdi_sello', 'xml_path',
+        'cfdi_conceptos',
     ];
 
     protected $casts = [
@@ -74,6 +75,7 @@ class ExternalAuthorization extends Model
         'validated_at'           => 'datetime',
         'validated_snapshot'     => 'array',
         'received_out_of_window' => 'boolean',
+        'cfdi_conceptos'         => 'array',
     ];
 
     public function holder(): MorphTo
@@ -185,15 +187,18 @@ class ExternalAuthorization extends Model
         if (! $this->hasCfdi()) {
             return null;
         }
+        // `fe` = últimos 8 del sello, TAL CUAL (calibrado con un CFDI real: terminan en `==` por el
+        // relleno base64 y van así, sin url-encode). Por eso se ARMA la URL en crudo, no con
+        // http_build_query (que convertiría `==` en %3D%3D). `tt` = Total VERBATIM del XML. `id` = UUID
+        // del TimbreFiscalDigital (lo devuelve CfdiParser, no el del Comprobante).
         $fe = substr(preg_replace('/\s+/', '', (string) $this->cfdi_sello), -8);
 
-        return 'https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?' . http_build_query([
-            'id' => $this->cfdi_uuid,
-            're' => $this->cfdi_rfc_emisor,
-            'rr' => $this->cfdi_rfc_receptor,
-            'tt' => $this->cfdi_total,
-            'fe' => $fe,
-        ]);
+        return 'https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx'
+            . '?id=' . $this->cfdi_uuid
+            . '&re=' . $this->cfdi_rfc_emisor
+            . '&rr=' . $this->cfdi_rfc_receptor
+            . '&tt=' . $this->cfdi_total
+            . '&fe=' . $fe;
     }
 
     /**
@@ -213,15 +218,32 @@ class ExternalAuthorization extends Model
         $sentido = $this->result_status === self::RESULT_POSITIVE ? 'P' : 'N';
         $d3      = $folio . '_' . $rfc . '_' . $fecha . '_' . $sentido;
 
-        return 'https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?' . http_build_query([
-            'D1' => 10, 'D2' => 1, 'D3' => $d3,
-        ]);
+        // D1=1&D2=1 (corregido con la URL real del owner; antes asumí D1=10). D3 exacto.
+        return 'https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?D1=1&D2=1&D3=' . $d3;
     }
 
     /** ¿Es la 32-D (Opinión de cumplimiento)? Por el código del tipo de documento. */
     public function is32d(): bool
     {
         return optional($this->documentType)->code === 'OPINION_32D';
+    }
+
+    /**
+     * Semanas que CUBRE esta factura (Y-m-d, fecha final de cada semana), leídas de las DESCRIPCIONES de
+     * los conceptos, no de la fecha del documento. Una factura puede cubrir varias. Distintas, ordenadas.
+     * Permite responder "qué se pagó de la semana X" sin depender de cuándo se recibió el documento.
+     */
+    public function coveredWeeks(): array
+    {
+        $weeks = [];
+        foreach ((array) $this->cfdi_conceptos as $c) {
+            $w = is_array($c) ? ($c['week'] ?? null) : null;
+            if ($w && ! in_array($w, $weeks, true)) {
+                $weeks[] = $w;
+            }
+        }
+        sort($weeks);
+        return $weeks;
     }
 
     public function scopeActive($query)

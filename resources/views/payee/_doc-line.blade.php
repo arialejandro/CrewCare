@@ -19,6 +19,11 @@
                 <span class="text-muted">· {{ __('sin XML: no hay enlace de verificación') }}</span>
             @endif
         </div>
+        @if($doc->hasCfdi() && count($doc->coveredWeeks()))
+            {{-- Qué semanas cubre la factura, leído de las descripciones de los conceptos (una factura
+                 puede cubrir varias), no de la fecha del documento. --}}
+            <div class="small text-muted">{{ __('Cubre') }}: {{ implode(' · ', array_map(fn ($w) => \Carbon\Carbon::parse($w)->format('d/m/y'), $doc->coveredWeeks())) }}</div>
+        @endif
     </div>
 
     <div class="d-flex flex-wrap align-items-center gap-2">

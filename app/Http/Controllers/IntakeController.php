@@ -291,6 +291,7 @@ class IntakeController extends Controller
                                         'cfdi_rfc_receptor' => $cfdi['rfc_receptor'] ?: null,
                                         'cfdi_total'        => $cfdi['total'] ?: null,
                                         'cfdi_sello'        => $cfdi['sello'] ?: null,
+                                        'cfdi_conceptos'    => ! empty($cfdi['conceptos']) ? $cfdi['conceptos'] : null,
                                     ]);
                                     $payeeRfc = strtoupper(trim((string) $payee->rfc));
                                     if ($payeeRfc !== '' && $cfdi['rfc_emisor'] !== '' && $payeeRfc !== $cfdi['rfc_emisor']) {

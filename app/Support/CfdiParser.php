@@ -50,12 +50,13 @@ class CfdiParser
         $rfcEmisor   = isset($children->Emisor)   ? self::attr($children->Emisor->attributes(), 'Rfc')   : '';
         $rfcReceptor = isset($children->Receptor) ? self::attr($children->Receptor->attributes(), 'Rfc') : '';
 
+        // TODOS los conceptos (una factura cubre varias semanas: p.ej. 2 SEM + 2 CA de 2 semanas).
         $conceptos = [];
         if (isset($children->Conceptos)) {
             $conceptoNodes = $cfdiNs ? $children->Conceptos->children($cfdiNs) : $children->Conceptos->children();
             foreach ($conceptoNodes->Concepto ?? [] as $con) {
                 $desc = self::attr($con->attributes(), 'Descripcion');
-                if ($desc !== '') { $conceptos[] = $desc; }
+                if ($desc !== '') { $conceptos[] = self::parseConcepto($desc); }
             }
         }
 
@@ -82,6 +83,40 @@ class CfdiParser
             'sello'        => $sello,
             'conceptos'    => $conceptos,
         ];
+    }
+
+    /**
+     * Descompone la descripción de UN concepto en {prefix, week, raw}. CONFIABLE: el prefijo (SEM/CA/
+     * BOX…, letras iniciales) y la fecha `ddmmaa` embebida vienen de un FORMATO, no de teclear. El
+     * puesto y la producción viven en `raw` y NO se estructuran ni se cotejan EXACTO: la muestra real
+     * trae erratas humanas (el nombre de la producción con una letra de menos en un concepto). `week` =
+     * Y-m-d de la fecha FINAL de la semana embebida (o null si el concepto no la trae, p.ej. un CA suelto).
+     *
+     * @return array{prefix: ?string, week: ?string, raw: string}
+     */
+    public static function parseConcepto(string $desc): array
+    {
+        $raw    = trim($desc);
+        $prefix = null;
+        $week   = null;
+
+        if (preg_match('/^\s*([A-Za-z]{2,12})\s*(\d{6})?/', $raw, $m)) {
+            $prefix = strtoupper($m[1]);
+            if (! empty($m[2])) {
+                $dd = (int) substr($m[2], 0, 2);
+                $mm = (int) substr($m[2], 2, 2);
+                $aa = (int) substr($m[2], 4, 2);
+                if ($dd >= 1 && $dd <= 31 && $mm >= 1 && $mm <= 12) {
+                    try {
+                        $week = \Carbon\Carbon::createFromFormat('!d-m-y', "{$dd}-{$mm}-{$aa}")->format('Y-m-d');
+                    } catch (\Throwable $e) {
+                        $week = null;
+                    }
+                }
+            }
+        }
+
+        return ['prefix' => $prefix, 'week' => $week, 'raw' => $raw];
     }
 
     /** Lee un atributo (case-sensitive) de un SimpleXMLElement de atributos; '' si no está. */

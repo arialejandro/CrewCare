@@ -1,0 +1,71 @@
+<?php
+
+namespace Tests\Feature\Contabilidad;
+
+use App\Models\DocumentType;
+use App\Models\ExternalAuthorization;
+use App\Models\Payee;
+use App\Support\CfdiParser;
+use Tests\TestCase;
+
+/**
+ * CFDI · caso CONOCIDO (calibrado con un CFDI real, versión 4.0). Congela los valores para que un
+ * cambio futuro en el parser o en el armado de las URLs NO lo rompa en silencio. Sin BD: parser puro
+ * + modelos en memoria.
+ */
+class CfdiTest extends TestCase
+{
+    private function sampleXml(): string
+    {
+        return file_get_contents(base_path('tests/fixtures/cfdi-sample.xml'));
+    }
+
+    public function test_parser_extrae_los_valores_conocidos(): void
+    {
+        $c = CfdiParser::parse($this->sampleXml());
+
+        $this->assertSame('A1B2C3D4-E5F6-7890-ABCD-EF1234567890', $c['uuid']);   // UUID del TimbreFiscalDigital
+        $this->assertSame('XAXX010101000', $c['rfc_emisor']);
+        $this->assertSame('EKU9003173C9', $c['rfc_receptor']);
+        $this->assertSame('1160.00', $c['total']);              // VERBATIM (dos decimales, sin miles/moneda)
+        $this->assertStringEndsWith('==', $c['sello']);         // relleno base64 → va tal cual
+        $this->assertCount(4, $c['conceptos']);                 // TODOS los conceptos, no el primero
+    }
+
+    public function test_conceptos_y_semanas_cubiertas(): void
+    {
+        $c = CfdiParser::parse($this->sampleXml());
+
+        $this->assertSame(['SEM', 'SEM', 'CA', 'CA'], array_column($c['conceptos'], 'prefix'));
+
+        $weeks = array_values(array_unique(array_filter(array_column($c['conceptos'], 'week'))));
+        sort($weeks);
+        $this->assertSame(['2026-09-06', '2026-09-13'], $weeks);  // una factura, DOS semanas
+    }
+
+    public function test_url_factura_arma_fe_con_iguales_sin_encode(): void
+    {
+        $c   = CfdiParser::parse($this->sampleXml());
+        $doc = new ExternalAuthorization([
+            'cfdi_uuid' => $c['uuid'], 'cfdi_rfc_emisor' => $c['rfc_emisor'], 'cfdi_rfc_receptor' => $c['rfc_receptor'],
+            'cfdi_total' => $c['total'], 'cfdi_sello' => $c['sello'],
+        ]);
+
+        $url = $doc->satFacturaUrl();
+        $this->assertStringContainsString('id=A1B2C3D4-E5F6-7890-ABCD-EF1234567890', $url);
+        $this->assertStringContainsString('tt=1160.00', $url);
+        $this->assertStringContainsString('fe=wXyZ12==', $url);      // últimos 8 del sello, TAL CUAL
+        $this->assertStringNotContainsString('%3D', $url);           // NO url-encode de los iguales
+    }
+
+    public function test_url_32d_usa_d1_1(): void
+    {
+        $doc = new ExternalAuthorization(['sat_folio' => 'ABC12345', 'result_status' => 'positiva', 'issued_at' => '2026-09-06']);
+        $doc->setRelation('holder', new Payee(['rfc' => 'XAXX010101000']));
+        $doc->setRelation('documentType', new DocumentType(['code' => 'OPINION_32D']));
+
+        $url = $doc->sat32dUrl();
+        $this->assertStringContainsString('D1=1&D2=1', $url);
+        $this->assertStringContainsString('D3=ABC12345_XAXX010101000_06-09-2026_P', $url);
+    }
+}
