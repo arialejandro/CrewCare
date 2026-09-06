@@ -738,6 +738,13 @@ Route::middleware(['auth','permission:settings.manage'])->group(function () {
     Route::post('/settings/dias-rodaje/generar', [App\Http\Controllers\ShootCalendarController::class, 'generate'])->name('production.shootdays.generate');
     Route::post('/settings/dias-rodaje/dia',     [App\Http\Controllers\ShootCalendarController::class, 'toggleDay'])->name('production.shootdays.toggle');
     Route::post('/settings/dias-rodaje/luz',     [App\Http\Controllers\ShootCalendarController::class, 'setSlug'])->name('production.shootdays.light');
+
+    // UNIDADES: CRUD de la 2ª unidad y siguientes (la principal = unit_id NULL, no tiene fila). Baja por
+    // desactivación, nunca borrado.
+    Route::get('/settings/unidades',                 [App\Http\Controllers\UnitController::class, 'index'])->name('production.units.index');
+    Route::post('/settings/unidades',                [App\Http\Controllers\UnitController::class, 'store'])->name('production.units.store');
+    Route::put('/settings/unidades/{unit}',          [App\Http\Controllers\UnitController::class, 'update'])->name('production.units.update')->whereNumber('unit');
+    Route::post('/settings/unidades/{unit}/toggle',  [App\Http\Controllers\UnitController::class, 'toggle'])->name('production.units.toggle')->whereNumber('unit');
 });
 
 // ---- CATÁLOGOS (departamentos / puestos / notificaciones) ----

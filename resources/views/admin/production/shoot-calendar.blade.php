@@ -255,8 +255,9 @@
                 </tbody>
             </table>
 
-            <div class="mt-3">
+            <div class="mt-3 d-flex gap-2 flex-wrap">
                 <a href="{{ route('production.calendar.edit') }}" class="btn btn-outline-secondary btn-sm">← Calendario planeado</a>
+                <a href="{{ route('production.units.index') }}" class="btn btn-outline-secondary btn-sm">Unidades →</a>
             </div>
         </div>
     </div>
