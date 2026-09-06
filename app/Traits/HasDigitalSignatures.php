@@ -25,6 +25,36 @@ use Illuminate\Support\Facades\Schema;
 trait HasDigitalSignatures
 {
     /**
+     * (2026-09-05 · Integridad) INVARIANTE: un documento SELLADO no se borra en duro. La firma es la
+     * evidencia de que el documento no cambió; borrar el documento la dejaría huérfana (y borrarla en
+     * cascada destruiría la evidencia). La doctrina del owner (append-only) deja de ser costumbre y pasa
+     * a ser regla del código: si tiene firma, el borrado se NIEGA con un mensaje claro. Quien de verdad
+     * tenga que borrarlo tendrá que hacerlo a mano en la base — justo donde debe costar trabajo.
+     *
+     * Solo bloquea el HARD delete: un modelo con SoftDeletes puede ARCHIVARSE (soft-delete), porque ahí
+     * la fila y su firma sobreviven; solo el forceDelete se niega. NO alcanza los borrados MASIVOS por
+     * query (`Model::where(...)->delete()` / `$rel->delete()`): Eloquent no dispara `deleting` en esos.
+     * Es a propósito acotado al borrado de una INSTANCIA, que es por donde la app borra documentos sueltos.
+     */
+    protected static function bootHasDigitalSignatures(): void
+    {
+        static::deleting(function ($model) {
+            // Con SoftDeletes: permitir el archivado (soft); negar solo el hard/force delete.
+            if (method_exists($model, 'isForceDeleting') && ! $model->isForceDeleting()) {
+                return;
+            }
+            if (Schema::hasTable('digital_signatures') && $model->signatures()->exists()) {
+                throw new \RuntimeException(
+                    'No se puede borrar en duro un documento SELLADO (' . class_basename($model) . ' #' . $model->getKey()
+                    . '): su firma digital es evidencia de integridad y quedaría huérfana. La doctrina es append-only'
+                    . ' — retíralo con su bandera de estado (is_active / cierre) o, si de verdad hay que borrarlo,'
+                    . ' hazlo directo en la base.'
+                );
+            }
+        });
+    }
+
+    /**
      * Firmas digitales de este documento (morphMany polimórfica).
      */
     public function signatures()
