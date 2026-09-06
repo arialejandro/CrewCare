@@ -1113,6 +1113,8 @@ Route::middleware(['auth','permission:payees.view'])->group(function () {
     Route::get('/payees/{payee}',                  [\App\Http\Controllers\PayeeController::class, 'show'])->name('payees.show')->whereNumber('payee');
     Route::get('/payees/{payee}/documento/{doc}',  [\App\Http\Controllers\PayeeController::class, 'document'])->name('payees.document')->whereNumber('payee')->whereNumber('doc');
     Route::get('/payees/{payee}/documentos.zip',   [\App\Http\Controllers\PayeeController::class, 'downloadDocuments'])->name('payees.documents.zip')->whereNumber('payee');
+    // Captura del folio de la 32-D desde el tablero (contabilidad) → arma el enlace del SAT.
+    Route::post('/payees/{payee}/documento/{doc}/sat-folio', [\App\Http\Controllers\PayeeController::class, 'setSatFolio'])->name('payees.document.satfolio')->whereNumber('payee')->whereNumber('doc');
 });
 
 // ---- Quien cobra · VENTANA DE RECEPCIÓN POR PERIODO DE PAGO ----

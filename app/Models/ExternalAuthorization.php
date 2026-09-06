@@ -50,7 +50,7 @@ class ExternalAuthorization extends Model
     // compatibilidad mientras se migran las ambulancias (Paso 5).
     protected $fillable = [
         'holder_type', 'holder_id', 'level',
-        'document_type', 'document_type_id', 'authority', 'folio',
+        'document_type', 'document_type_id', 'authority', 'folio', 'sat_folio',
         'valid_until', 'issued_at', 'photo_path',
         'origen', 'exigido_por', 'is_gate',
         'status', 'result_status', 'pending_commit_date',
@@ -172,6 +172,56 @@ class ExternalAuthorization extends Model
             && trim((string) $this->cfdi_rfc_receptor) !== ''
             && trim((string) $this->cfdi_total) !== ''
             && trim((string) $this->cfdi_sello) !== '';
+    }
+
+    /**
+     * ENLACE DE VERIFICACIÓN DE LA FACTURA (CFDI) en el SAT — se ARMA solo desde los datos del XML, sin
+     * teclear. 🔴 El servidor NUNCA consulta al SAT: solo devuelve la URL para que un HUMANO la abra y
+     * resuelva el captcha. `fe` = últimos 8 del sello del comprobante. `tt` = total VERBATIM del XML (el
+     * verificador es quisquilloso con los decimales → no se re-formatea). null si faltan datos CFDI.
+     */
+    public function satFacturaUrl(): ?string
+    {
+        if (! $this->hasCfdi()) {
+            return null;
+        }
+        $fe = substr(preg_replace('/\s+/', '', (string) $this->cfdi_sello), -8);
+
+        return 'https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?' . http_build_query([
+            'id' => $this->cfdi_uuid,
+            're' => $this->cfdi_rfc_emisor,
+            'rr' => $this->cfdi_rfc_receptor,
+            'tt' => $this->cfdi_total,
+            'fe' => $fe,
+        ]);
+    }
+
+    /**
+     * ENLACE DE VERIFICACIÓN DE LA 32-D (Opinión de cumplimiento) en el validador del SAT — se ARMA con el
+     * `sat_folio` capturado + el RFC del payee (holder) + la fecha (issued_at) + el sentido (result_status).
+     * D3 = `folio_RFC_dd-mm-aaaa_P`. 🔴 El servidor NUNCA consulta al SAT: solo la URL, el captcha lo
+     * resuelve un humano. null si falta el folio, el RFC o la fecha.
+     */
+    public function sat32dUrl(): ?string
+    {
+        $folio = trim((string) $this->sat_folio);
+        $rfc   = strtoupper(trim((string) optional($this->holder)->rfc));
+        if ($folio === '' || $rfc === '' || $this->issued_at === null) {
+            return null;
+        }
+        $fecha   = ($this->issued_at instanceof \Carbon\Carbon ? $this->issued_at : \Carbon\Carbon::parse($this->issued_at))->format('d-m-Y');
+        $sentido = $this->result_status === self::RESULT_POSITIVE ? 'P' : 'N';
+        $d3      = $folio . '_' . $rfc . '_' . $fecha . '_' . $sentido;
+
+        return 'https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?' . http_build_query([
+            'D1' => 10, 'D2' => 1, 'D3' => $d3,
+        ]);
+    }
+
+    /** ¿Es la 32-D (Opinión de cumplimiento)? Por el código del tipo de documento. */
+    public function is32d(): bool
+    {
+        return optional($this->documentType)->code === 'OPINION_32D';
     }
 
     public function scopeActive($query)

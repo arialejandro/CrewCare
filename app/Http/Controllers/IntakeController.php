@@ -250,6 +250,9 @@ class IntakeController extends Controller
                     // XML de la factura (CFDI): OPCIONAL junto al PDF. Aditivo → NO rompe el flujo PDF-only
                     // existente (por eso no es required). mimes xml/txt (algunos XML se detectan text/plain).
                     'documents_xml' => 'nullable|array', 'documents_xml.*' => 'nullable|file|mimes:xml,txt|max:5120',
+                    // Folio de la 32-D (OPCIONAL): un solo campo para el enlace del SAT; si no viene, se
+                    // captura después desde el tablero. Campo DEDICADO sat_folio (no el `folio` de trámite).
+                    'sat_folio' => 'nullable|array', 'sat_folio.*' => 'nullable|string|max:60',
                 ]);
                 $cfdiWarnings = [];
                 foreach ((array) $request->file('documents', []) as $docTypeId => $file) {
@@ -264,6 +267,7 @@ class IntakeController extends Controller
                     $doc = $payee->documents()->create([
                         'level' => 'persona', 'document_type' => $dt ? $dt->name : 'documento', 'document_type_id' => $dt?->id,
                         'issued_at' => $request->input("issued.$docTypeId"), 'result_status' => $request->input("result.$docTypeId"),
+                        'sat_folio' => trim((string) $request->input("sat_folio.$docTypeId")) ?: null,   // 32-D (opcional)
                         'photo_path' => $path, 'origen' => 'contractual',
                         'status' => 'presentado',   // RECIBIDO; el cotejo (validated_*) es aparte
                         'is_active' => 1, 'created_by_id' => $actor?->id, // quién subió + (created_at) cuándo

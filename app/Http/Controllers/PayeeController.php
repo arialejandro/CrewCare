@@ -376,6 +376,23 @@ class PayeeController extends Controller
         return array_keys($ids);
     }
 
+    /**
+     * Captura del FOLIO de la 32-D desde el tablero (contabilidad) — el único campo nuevo del enlace del
+     * SAT que puede llegar vacío al subir. ADITIVO, no valida: solo guarda el dato en `sat_folio`. Requiere
+     * ver el payee + permiso de administración de periodos (contabilidad).
+     */
+    public function setSatFolio(Request $request, Payee $payee, ExternalAuthorization $doc)
+    {
+        $this->authorize('view', $payee);
+        abort_unless($request->user()->can('periods.manage'), 403);
+        abort_unless((int) $doc->holder_id === (int) $payee->id, 404);
+
+        $data = $request->validate(['sat_folio' => 'nullable|string|max:60']);
+        $doc->update(['sat_folio' => trim((string) $data['sat_folio']) ?: null]);
+
+        return back()->with('status', __('Folio de la 32-D guardado.'));
+    }
+
     /** Carpeta de la persona dentro del zip masivo: {deptSlug}/{nombre} ({id}). El id garantiza unicidad. */
     private function payeeFolderPath(Payee $payee): string
     {

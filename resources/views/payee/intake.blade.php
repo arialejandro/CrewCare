@@ -204,6 +204,11 @@
                   <input type="file" name="documents_xml[{{ $d->id }}]" accept="text/xml,application/xml,.xml">
                   <div class="hint">La factura es PDF y XML: el PDF es la representación impresa, el XML es la factura. Del XML se arma el enlace de verificación del SAT.</div>
                 @endif
+                @if($d->code === 'OPINION_32D')
+                  <label>Folio de la 32-D (opcional)</label>
+                  <input type="text" name="sat_folio[{{ $d->id }}]" maxlength="60" placeholder="Folio del acuse">
+                  <div class="hint">Para armar el enlace de verificación del SAT. Si no lo tienes ahora, se captura después.</div>
+                @endif
               @endunless
             </div>
           @empty
