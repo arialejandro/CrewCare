@@ -18,7 +18,7 @@ class ShootDay extends Model
     protected $table = 'shoot_days';
 
     protected $fillable = [
-        'production_id', 'shoot_date', 'is_shoot_day', 'slug_time', 'week_no', 'is_manual', 'note', 'created_by_id',
+        'production_id', 'unit_id', 'shoot_date', 'is_shoot_day', 'slug_time', 'week_no', 'is_manual', 'note', 'created_by_id',
     ];
 
     protected $casts = [
@@ -43,6 +43,12 @@ class ShootDay extends Model
     public function scopeForProduction($query, $productionId)
     {
         return $query->where('production_id', $productionId);
+    }
+
+    /** Acota a una unidad. NULL = unidad principal (unit_id IS NULL), no "todas". */
+    public function scopeForUnit($query, $unitId)
+    {
+        return $unitId === null ? $query->whereNull('unit_id') : $query->where('unit_id', $unitId);
     }
 
     /** Solo días de rodaje (excluye descansos/festivos marcados). */
