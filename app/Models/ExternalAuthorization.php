@@ -181,6 +181,9 @@ class ExternalAuthorization extends Model
      * teclear. 🔴 El servidor NUNCA consulta al SAT: solo devuelve la URL para que un HUMANO la abra y
      * resuelva el captcha. `fe` = últimos 8 del sello del comprobante. `tt` = total VERBATIM del XML (el
      * verificador es quisquilloso con los decimales → no se re-formatea). null si faltan datos CFDI.
+     *
+     * ✅ CONFIRMADO EN VIVO contra el verificador del SAT (escaneo humano, 2026-09-05): con dos facturas
+     * reales el SAT las mostró VIGENTES → `tt` verbatim y `fe` crudo con los `==` son correctos.
      */
     public function satFacturaUrl(): ?string
     {
