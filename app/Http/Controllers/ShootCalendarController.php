@@ -7,39 +7,115 @@ use App\Support\CurrentProduction;
 use App\Support\ProductionCalendar;
 use App\Support\ShootCalendarBuilder;
 use App\Support\ShootCalendarService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 /**
  * CALENDARIO DE RODAJE DINÁMICO — producción marca a mano qué días se trabajan (2026-09-06).
  *
- * 🔑 EL CALENDARIO MANDA, EL DSR CONFIRMA, Y SIN DSR EL CALENDARIO SIGUE. Producción marca el FIN de
- * cada semana; los días se derivan hacia atrás ({@see ShootCalendarBuilder}) con la regla de la
- * madrugada, y se guardan explícitos en `shoot_days`. Las excepciones a mano ganan sobre la regla.
+ * 🔑 EL CALENDARIO MANDA, EL DSR CONFIRMA, Y SIN DSR EL CALENDARIO SIGUE. La VISTA es una rejilla
+ * MENSUAL: cada día es una celda que se toca (un clic alterna rodaje/descanso; un chip de luz por día).
+ * El asistente de generación en lote (marcar el fin de cada semana → derivar hacia atrás con la regla de
+ * la madrugada) vive arriba, como vía rápida. Toda la LÓGICA es de {@see ShootCalendarBuilder} /
+ * {@see ShootCalendarService} / {@see ShootDay} — aquí solo se prepara la vista.
  *
- * 🔴 NADA de importación de planes (ni parseo ni IA): el plan es confidencial. Solo captura manual.
- * Gate settings.manage (super-admin), igual que el calendario planeado.
+ * 🔴 NADA de importación de planes. Gate settings.manage (super-admin).
  */
 class ShootCalendarController extends Controller
 {
-    public function edit()
+    public function edit(Request $request)
     {
         $prod = CurrentProduction::get();
-        $dias = $prod
-            ? ShootDay::forProduction($prod->id)->orderBy('shoot_date')->get()
-            : collect();
+
+        // Mes visible: ?month=YYYY-MM; por default, donde vive el calendario (primer día marcado),
+        // luego el inicio de producción, luego hoy.
+        $default = Carbon::now();
+        if ($prod) {
+            $firstMarked = ShootDay::forProduction($prod->id)->where('is_shoot_day', 1)->min('shoot_date');
+            if ($firstMarked) {
+                $default = Carbon::parse($firstMarked);
+            } elseif (! empty($prod->start_date)) {
+                $default = Carbon::parse($prod->start_date);
+            }
+        }
+        $cursor = $request->query('month')
+            ? Carbon::createFromFormat('Y-m-d', $request->query('month') . '-01')
+            : $default;
+        $cursor = $cursor->startOfMonth();
+
+        // Días marcados de la producción, indexados por fecha, y el fin de cada semana (max fecha por week_no).
+        $marked   = collect();
+        $weekEnds = collect();
+        if ($prod) {
+            $rows   = ShootDay::forProduction($prod->id)->orderBy('shoot_date')->get();
+            $marked = $rows->keyBy(fn ($d) => $d->shoot_date->format('Y-m-d'));
+            $weekEnds = $rows->where('is_shoot_day', true)
+                ->groupBy('week_no')
+                ->map(fn ($g) => $g->max(fn ($d) => $d->shoot_date->format('Y-m-d')))
+                ->values()
+                ->flip();   // set de 'Y-m-d' que son fin de semana
+        }
+
+        // Rejilla: del lunes de la 1ª semana al domingo de la última (semanas en filas, días en celdas).
+        $gridStart = $cursor->copy()->startOfMonth()->startOfWeek(Carbon::MONDAY);
+        $gridEnd   = $cursor->copy()->endOfMonth()->endOfWeek(Carbon::SUNDAY);
+
+        $weeks = [];
+        $day   = $gridStart->copy();
+        while ($day <= $gridEnd) {
+            $cells = [];
+            for ($i = 0; $i < 7; $i++) {
+                $key = $day->format('Y-m-d');
+                $sd  = $marked->get($key);
+                $isShoot = $sd ? (bool) $sd->is_shoot_day : false;
+                $cells[] = [
+                    'date'     => $key,
+                    'dom'      => $day->day,
+                    'inMonth'  => $day->month === $cursor->month,
+                    'sd'       => $sd,
+                    'isShoot'  => $isShoot,
+                    'manual'   => $sd ? (bool) $sd->is_manual : false,
+                    'slug'     => $sd ? $sd->slug() : ShootDay::SLUG_DIA,
+                    'shootNo'  => $isShoot ? ProductionCalendar::dayNumber($key) : null,
+                    'weekEnd'  => $isShoot && $weekEnds->has($key),
+                    'week_no'  => $sd ? $sd->week_no : null,
+                ];
+                $day->addDay();
+            }
+            $weekNo = collect($cells)->pluck('week_no')->filter()->first();
+            $weeks[] = ['week_no' => $weekNo, 'dias' => $cells];
+        }
+
+        // Asistente (generación en lote): reconstruye las semanas ya marcadas para poder editarlas.
+        $semanas = [];
+        if ($prod) {
+            foreach ($marked->where('is_shoot_day', true)->groupBy('week_no') as $g) {
+                $g    = $g->sortBy('shoot_date');
+                $last = $g->last();
+                $semanas[] = [
+                    'end'       => optional($last->shoot_date)->format('Y-m-d'),
+                    'days'      => $g->count(),
+                    'last_slug' => $last->slug(),
+                ];
+            }
+        }
 
         return view('admin.production.shoot-calendar', [
             'prod'        => $prod,
-            'dias'        => $dias,
-            'daysPerWeek' => ProductionCalendar::shootDaysPerWeek(),
+            'cursor'      => $cursor,
+            'weeks'       => $weeks,
+            'semanas'     => $semanas,
             'slugs'       => ShootDay::SLUGS,
+            'prevMonth'   => $cursor->copy()->subMonth()->format('Y-m'),
+            'nextMonth'   => $cursor->copy()->addMonth()->format('Y-m'),
+            'daysPerWeek' => ProductionCalendar::shootDaysPerWeek(),
             'total'       => ProductionCalendar::shootDaysCount(),
         ]);
     }
 
     /**
      * Genera los días desde los FINES DE SEMANA marcados. Se envían TODAS las semanas (la regla de la
-     * madrugada depende del orden entre semanas). Las filas vacías se ignoran.
+     * madrugada depende del orden). Las filas vacías se ignoran.
      */
     public function generate(Request $request)
     {
@@ -53,11 +129,9 @@ class ShootCalendarController extends Controller
             'weeks.*.last_slug' => ['nullable', 'string', 'in:' . implode(',', ShootDay::SLUGS)],
         ]);
 
-        // Solo semanas con fin marcado; ordenadas por fin ascendente (la madrugada mira el orden).
         $weeks = array_values(array_filter($data['weeks'], fn ($w) => ! empty($w['end'])));
         if (empty($weeks)) {
-            return redirect()->route('production.shootdays.edit')
-                ->with('error', 'Marca al menos el fin de una semana.');
+            return $this->backToMonth($request)->with('error', 'Marca al menos el fin de una semana.');
         }
         usort($weeks, fn ($a, $b) => strcmp($a['end'], $b['end']));
 
@@ -65,7 +139,7 @@ class ShootCalendarController extends Controller
         ShootCalendarService::applyPlan((int) $prod->id, $plan, auth()->id());
         ProductionCalendar::forget();
 
-        return redirect()->route('production.shootdays.edit')
+        return $this->backToMonth($request, $weeks[0]['end'])
             ->with('success', 'Calendario generado: ' . count($plan) . ' días de rodaje. Las excepciones a mano se conservaron.');
     }
 
@@ -82,7 +156,7 @@ class ShootCalendarController extends Controller
         ShootCalendarService::markException((int) $prod->id, $data['date'], (bool) $data['is_shoot'], auth()->id());
         ProductionCalendar::forget();
 
-        return redirect()->route('production.shootdays.edit')->with('success', 'Excepción guardada (gana sobre la regla).');
+        return $this->backToMonth($request, $data['date'])->with('success', 'Día actualizado.');
     }
 
     /** EXCEPCIÓN a mano: fija la LUZ de un día en el calendario (sin leer el DSR). */
@@ -98,6 +172,17 @@ class ShootCalendarController extends Controller
         ShootCalendarService::setLight((int) $prod->id, $data['date'], $data['slug'], auth()->id());
         ProductionCalendar::forget();
 
-        return redirect()->route('production.shootdays.edit')->with('success', 'Luz del día actualizada.');
+        return $this->backToMonth($request, $data['date'])->with('success', 'Luz del día actualizada.');
+    }
+
+    /** Vuelve al calendario conservando el mes visible (del hidden `month` o de una fecha tocada). */
+    private function backToMonth(Request $request, ?string $date = null)
+    {
+        $month = $request->input('month');
+        if (! $month && $date) {
+            $month = Carbon::parse($date)->format('Y-m');
+        }
+
+        return redirect()->route('production.shootdays.edit', $month ? ['month' => $month] : []);
     }
 }

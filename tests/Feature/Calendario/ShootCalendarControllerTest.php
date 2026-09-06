@@ -56,7 +56,8 @@ class ShootCalendarControllerTest extends QaTestCase
             ->get(route('production.shootdays.edit'))
             ->assertOk()
             ->assertSee('Días de rodaje')
-            ->assertSee('05/10/2026');   // el día marcado aparece en la tabla
+            ->assertSee('Octubre 2026')   // la rejilla abre en el mes del primer día marcado
+            ->assertSee('Día 1');          // el día marcado muestra su número de rodaje en la celda
     }
 
     public function test_generar_persiste_los_dias_y_aplica_la_madrugada(): void
@@ -76,7 +77,7 @@ class ShootCalendarControllerTest extends QaTestCase
                     ['end' => '', 'days' => '', 'last_slug' => 'DÍA'],   // fila vacía: se ignora
                 ],
             ])
-            ->assertRedirect(route('production.shootdays.edit'));
+            ->assertRedirect();   // vuelve al calendario conservando el mes
 
         // El viernes nocturno consume el sábado: NO es día de rodaje; el lunes SÍ.
         $this->assertFalse(
