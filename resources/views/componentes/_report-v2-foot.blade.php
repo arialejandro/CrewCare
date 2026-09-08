@@ -65,8 +65,10 @@
   window.addEventListener('beforeprint', beforeP);
   window.addEventListener('afterprint', afterP);
 
-  // Confirmación de submits destructivos por delegación (data-confirm), sin onsubmit inline (CSP).
-  // Los docs de reporte v2 NO tienen @stack('scripts'); el veto vive aquí, en el chrome compartido.
+  // Confirmacion de submits destructivos por delegacion (data-confirm), sin onsubmit inline (CSP).
+  // El veto vive aqui, en el chrome compartido (no en un stack de scripts por-documento). OJO: NO
+  // escribir el nombre de una directiva Blade con arroba dentro de este bloque; aunque este en un
+  // comentario JS, Blade la compilaria e inyectaria contenido aqui, partiendo el <script>.
   document.addEventListener('submit', function(ev){
     var f = ev.target;
     if(!f || typeof f.getAttribute !== 'function') return;

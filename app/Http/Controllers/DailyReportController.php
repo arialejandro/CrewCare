@@ -340,7 +340,9 @@ class DailyReportController extends Controller
         $request->validate([
             'log_time' => 'required',
             'description' => 'required|string',
-            'action_taken' => 'nullable|string',
+            // (2026-09-08) max explícito: la columna es TEXT, pero sin tope un texto enorme daría 500
+            // (SQLSTATE 22001) que hace perder lo capturado. Con esto es un error de campo en pantalla.
+            'action_taken' => 'nullable|string|max:5000',
             // (2026-07-13) Catálogo único de eventos: el Daily EXIGE el evento (como antes exigía
             // category_name). 'nullable'→'required|integer' sin 'exists:' para no romper PROD antes
             // del SQL de hazard_events. applyHazardEvent() (más abajo) resuelve la norma.
