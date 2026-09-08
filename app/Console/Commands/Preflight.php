@@ -191,21 +191,48 @@ class Preflight extends Command
     }
 
     // --- 7) Clave del sello ---------------------------------------------------------------
+    //
+    // 🪤 SE LEE DE config(), NUNCA DE env(). En producción la config se cachea (`config:cache`), y
+    // con la caché presente Laravel NO carga el `.env` en absoluto: cualquier `env()` FUERA de un
+    // archivo de config devuelve el DEFAULT. La primera versión de este check usaba
+    // `env('CREWCARE_SEAL_KEY')` y por eso reportaba "clave vacía" en un servidor que la tenía
+    // perfectamente puesta (flor.crewcare.mx, 2026-09-08). Un falso positivo aquí es peor que no
+    // tener el check: es el punto más delicado del sistema, y una alarma que grita en verde es una
+    // alarma que se aprende a ignorar.
+    //
+    // `config('crewcare.seal.key')` es además EXACTAMENTE lo que lee
+    // HasDigitalSignatures::computeDocumentHash() —`config('crewcare.seal.key') ?: config('app.key')`—
+    // así que este check mira la MISMA clave con la que se firma de verdad, no una aproximación.
     private function checkSealKey(): array
     {
-        $raw = (string) env('CREWCARE_SEAL_KEY', '');
-        if (trim($raw) === '') {
-            return ['FAIL', 'CREWCARE_SEAL_KEY vacía → el sello cae a APP_KEY (no dedicada). Genera una con '
-                . '`php -r "echo \'base64:\'.base64_encode(random_bytes(32));"`.'];
+        $key = trim((string) config('crewcare.seal.key'));
+        $app = trim((string) config('app.key'));
+
+        // Vacía = el trait cae a APP_KEY. No es un hash sin clave (eso nunca), pero acopla la vida
+        // de los documentos a la de la app: rotar APP_KEY pasaría a invalidar TODOS los sellos.
+        if ($key === '') {
+            return ['FAIL', 'sin clave dedicada → el sello cae a APP_KEY, y entonces rotar APP_KEY invalidaría '
+                . 'TODOS los documentos sellados. Pon CREWCARE_SEAL_KEY en el .env ANTES de sellar nada real '
+                . '(con sellos vivos ya no se puede cambiar) y corre `config:cache`.'];
         }
-        if ($raw === self::DEV_SEAL_KEY) {
-            return ['FAIL', 'es la clave de DESARROLLO committeada en el repo → cualquiera podría forjar un sello. '
-                . 'Pon una propia y secreta.'];
+
+        if (hash_equals($app, $key)) {
+            return ['FAIL', 'CREWCARE_SEAL_KEY es idéntica a APP_KEY → mismo acoplamiento que no ponerla. '
+                . 'Tienen que ser dos secretos distintos.'];
         }
-        if (trim((string) config('crewcare.seal.key')) === '') {
-            return ['FAIL', 'config(crewcare.seal.key) resolvió vacío pese al env (¿formato base64: mal?).'];
+
+        // La clave de desarrollo viaja committeada en el repo. config() ya decodificó el prefijo
+        // `base64:`, así que se comparan sus DOS formas (cruda y decodificada) para reconocerla
+        // venga como venga escrita en el .env.
+        $dev        = self::DEV_SEAL_KEY;
+        $devDecoded = str_starts_with($dev, 'base64:') ? (base64_decode(substr($dev, 7)) ?: $dev) : $dev;
+        if (hash_equals($dev, $key) || hash_equals($devDecoded, $key)) {
+            return ['FAIL', 'es la clave de DESARROLLO committeada en el repo → cualquiera con acceso al código '
+                . 'podría forjar un sello válido. Pon una propia y secreta.'];
         }
-        return ['OK', 'clave dedicada del sello configurada (y no es la de dev).'];
+
+        return ['OK', 'clave dedicada del sello configurada (' . strlen($key) . ' bytes), distinta de APP_KEY '
+            . 'y de la de desarrollo.'];
     }
 
     // --- 8) Permisos de escritura en storage ----------------------------------------------

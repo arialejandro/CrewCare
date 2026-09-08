@@ -161,6 +161,14 @@ iPhone se rechaza y la verificación de vehículos exige foto); **nombre/código
 **la base no tiene datos de demo** (incluye el chequeo del §6). Sal con código ≠ 0 si hay alguna FALLA.
 **Córrelo lo primero tras instalar y lo último antes de abrir en set**, y de nuevo después de cada actualización.
 
+> 🪤 **Al AMPLIAR este comando (o cualquier otro): usa `config()`, nunca `env()`.** En producción la config
+> se cachea (`config:cache`) y **con la caché presente Laravel no lee el `.env`**: todo `env()` fuera de un
+> archivo de `config/` devuelve el default. Ya costó una vez — el check de `CREWCARE_SEAL_KEY` leía
+> `env()` y reportó **[FALLA] "clave vacía"** en un servidor que la tenía bien puesta (flor.crewcare.mx,
+> 2026-09-08). Un falso positivo en el punto más delicado del sistema enseña a ignorar la alarma, que es
+> exactamente lo contrario de para lo que existe el comando. Bonus de usar `config()`: se mira la MISMA
+> clave que usa `HasDigitalSignatures::computeDocumentHash()`, no una aproximación.
+
 ## 6 · ⛔ Chequeo anti-demo (OBLIGATORIO antes de abrir)
 Confirma que la instancia NO trae datos de demostración ni cuentas de prueba:
 ```bash
