@@ -170,6 +170,27 @@ git ls-files | grep -i "^\.env$"     # NO debe listar .env (solo .env.example)
 ```
 Si alguna vez estuvo rastreado, rota `APP_KEY`, `DB_PASSWORD`, `MAIL_PASSWORD` en el entorno del que salieron.
 
+## 8·b · Ganchos de git (hooks) — candado CSP de vistas
+El repo trae un `pre-commit` en `.githooks/` que **bloquea el commit** si una vista Blade en *staging* mete un
+manejador `on*=` EN LÍNEA (`onclick`, `onchange`, …). Es la red para la CSP en bloqueo (un `on*=` no se puede
+cubrir con nonce → quedaría muerto). Existe porque una regresión así entró aunque el test la cazaba: **un test
+solo protege si alguien lo corre; el hook corre solo.**
+
+Los hooks **no se activan solos al clonar** — hay que apuntarlos una vez por clon:
+```bash
+git config core.hooksPath .githooks
+```
+Al bloquear dice el archivo, la línea y el `on*=` ofensor, y pide convertirlo a `addEventListener` con `data-*`
+(partials `_autosubmit` / `_confirm-submit` / `_row-link`). Ignora los comentarios Blade `{{-- --}}` y las vistas
+`*-legacy` (igual que `tests/Feature/Security/NoInlineHandlersTest.php`, su fuente de verdad).
+
+**Saltarlo en una emergencia real** (sabiendo lo que haces):
+```bash
+git commit --no-verify
+```
+Un candado sin llave termina desactivado para siempre; por eso el bypass es explícito y de una línea. Requiere
+`sh`/`perl` (los trae Git for Windows / Git Bash). El hook NO levanta Laravel: es un `grep` sobre lo *staged*.
+
 ## 9 · Local vs Producción (para no confundirte)
 - **Local (`crewcare`):** aplicas los `database/owner-apply/*.sql` **a mano** cuando te paso uno nuevo:
   ```bash
