@@ -17,6 +17,7 @@ use App\Support\CallPackageAssembler;
 use App\Support\CallSheetEngine;
 use App\Support\CallSheetFormats;
 use App\Support\CurrentProduction;
+use App\Support\CurrentUnit;
 use App\Support\DayRosterBuilder;
 use App\Support\Features;
 use App\Support\FileDeliveryDispatcher;
@@ -966,7 +967,7 @@ class CallSheetController extends Controller
         $pid = CurrentProduction::id();
         abort_if($pid === null, 404);
         $day     = $this->parseDate($date);
-        $callDay = CallDay::where('production_id', $pid)->whereDate('call_date', $day->toDateString())->first();
+        $callDay = CurrentUnit::applyTo(CallDay::where('production_id', $pid)->whereDate('call_date', $day->toDateString()))->first();
         $general = $callDay ? $callDay->generalHHMM() : null;
 
         // Conteo por depto (de la población del roster) + offset actual + canal de radio (global).
@@ -1006,7 +1007,7 @@ class CallSheetController extends Controller
         $pid = CurrentProduction::id();
         abort_if($pid === null, 404);
         $day     = $this->parseDate($date);
-        $callDay = CallDay::where('production_id', $pid)->whereDate('call_date', $day->toDateString())->first();
+        $callDay = CurrentUnit::applyTo(CallDay::where('production_id', $pid)->whereDate('call_date', $day->toDateString()))->first();
         $general = $callDay ? $callDay->generalHHMM() : null;
 
         $data = $request->validate([
@@ -1089,7 +1090,7 @@ class CallSheetController extends Controller
         $pid = CurrentProduction::id();
         abort_if($pid === null, 404);
         $day     = $this->parseDate($date);
-        $callDay = CallDay::where('production_id', $pid)->whereDate('call_date', $day->toDateString())->first();
+        $callDay = CurrentUnit::applyTo(CallDay::where('production_id', $pid)->whereDate('call_date', $day->toDateString()))->first();
         $general = $callDay ? $callDay->generalHHMM() : null;
 
         $data = $request->validate([
@@ -1702,9 +1703,15 @@ class CallSheetController extends Controller
     /** El CallDay del día (lo crea si no existe) + siembra sus comidas la 1ª vez (hereda del día previo). */
     private function resolveCallDay(Carbon $day, int $pid): CallDay
     {
-        $callDay = CallDay::firstOrCreate(
-            ['production_id' => $pid, 'call_date' => $day->toDateString()],
-        );
+        // (2026-09-07 · Unidades 2b) El call_day es POR UNIDAD: (producción, fecha) → (producción, fecha,
+        // unidad). El unit_id entra a la LLAVE sólo cuando hay más de una unidad; con una sola, la llave es
+        // idéntica a la de hoy (y las filas existentes tienen unit_id NULL → coincide por IS NULL). Los
+        // hijos que cuelgan del call_day (comidas) heredan por call_day_id.
+        $key = ['production_id' => $pid, 'call_date' => $day->toDateString()];
+        if (CurrentUnit::hasMultiple()) {
+            $key['unit_id'] = CurrentUnit::id();
+        }
+        $callDay = CallDay::firstOrCreate($key);
 
         if ($callDay->wasRecentlyCreated || $callDay->meals()->count() === 0) {
             $this->seedMeals($callDay, $pid, $day);
@@ -1723,8 +1730,11 @@ class CallSheetController extends Controller
         if ($callDay->meals()->count() > 0) {
             return;
         }
-        $prev = CallDay::where('production_id', $pid)
-            ->whereDate('call_date', '<', $day->toDateString())
+        // (2026-09-07 · Unidades 2b) Hereda las comidas del día previo DE LA MISMA UNIDAD (con una sola
+        // unidad no filtra → idéntico a hoy).
+        $prev = CurrentUnit::applyTo(
+            CallDay::where('production_id', $pid)->whereDate('call_date', '<', $day->toDateString())
+        )
             ->orderByDesc('call_date')->first();
 
         if ($prev && $prev->meals()->count() > 0) {

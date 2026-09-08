@@ -16,7 +16,7 @@ class CallDay extends Model
     protected $table = 'call_days';
 
     protected $fillable = [
-        'production_id', 'call_date', 'general_call', 'journey_minutes', 'wrap_estimate_enabled',
+        'production_id', 'unit_id', 'call_date', 'general_call', 'journey_minutes', 'wrap_estimate_enabled',
         'location_place_id', 'location_text', 'basecamp_place_id', 'basecamp_text',
         'notes', 'cast_count', 'bg_count', 'sign_enabled', 'footer_extra',
     ];
