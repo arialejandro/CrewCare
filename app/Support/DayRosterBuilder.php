@@ -103,6 +103,9 @@ class DayRosterBuilder
         $query = User::applyDepartmentScope($query, $viewer);
         // Orden depto→puesto, HOD arriba (idéntico a las pantallas de crew).
         $query = User::applyRosterOrder($query, $productionId);
+        // (2026-09-07 · Unidades 2c) El roster del día es POR UNIDAD: sólo aparece quien está en la vigente
+        // (la principal, todo menos los exclusivos de otra unidad). Con una sola unidad, no filtra.
+        $query = UnitMembership::applyToCrew($query, 'users.id');
 
         $rows = $query->get();
 

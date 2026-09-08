@@ -750,6 +750,11 @@ Route::middleware(['auth','permission:settings.manage'])->group(function () {
     Route::post('/settings/unidades',                [App\Http\Controllers\UnitController::class, 'store'])->name('production.units.store');
     Route::put('/settings/unidades/{unit}',          [App\Http\Controllers\UnitController::class, 'update'])->name('production.units.update')->whereNumber('unit');
     Route::post('/settings/unidades/{unit}/toggle',  [App\Http\Controllers\UnitController::class, 'toggle'])->name('production.units.toggle')->whereNumber('unit');
+
+    // UNIDADES · 2c — EL CONSTRUCTOR: arma una unidad adicional marcando quién está en ella (pivote
+    // unit_members). Comparación de CrewList por departamento; el mismo control sirve para el switch.
+    Route::get('/settings/unidades/{unit}/constructor',  [App\Http\Controllers\UnitBuilderController::class, 'show'])->name('production.units.builder')->whereNumber('unit');
+    Route::post('/settings/unidades/{unit}/constructor', [App\Http\Controllers\UnitBuilderController::class, 'save'])->name('production.units.builder.save')->whereNumber('unit');
 });
 
 // ---- CATÁLOGOS (departamentos / puestos / notificaciones) ----

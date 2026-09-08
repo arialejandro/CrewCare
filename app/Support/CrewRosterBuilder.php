@@ -27,9 +27,12 @@ class CrewRosterBuilder
 {
     /**
      * @param  \App\Models\User  $viewer
+     * @param  bool  $allUnits  (2c) true = SIN filtro por unidad vigente (todo el crew) — lo usa el
+     *                          CONSTRUCTOR de unidades, que necesita ver a todos para asignarlos. Default
+     *                          false = acota a la unidad vigente (CrewList/exports normales).
      * @return array{groups: array, unordered: array, total: int, production: ?string}
      */
-    public static function build(User $viewer): array
+    public static function build(User $viewer, bool $allUnits = false): array
     {
         $productionId = CurrentProduction::id();
         $production   = CurrentProduction::get();
@@ -67,6 +70,12 @@ class CrewRosterBuilder
         // `crewlist_visible` gatea el LISTADO (los no-crew externos nacen fuera; un proveedor que el
         // owner SÍ quiera listar se marca visible). Las filas existentes son visible=1 por default.
         $query = User::applyDepartmentScope(DB::table('users')->where('activo', 1)->where('crewlist_visible', 1), $viewer);
+        // (2026-09-07 · Unidades 2c) Acota a la UNIDAD VIGENTE: la 2ª unidad ve sólo su gente; la principal
+        // ve todo menos los exclusivos de otra unidad. Con una sola unidad, no filtra → idéntico a hoy. El
+        // CONSTRUCTOR pasa $allUnits=true para ver a TODOS (los está asignando).
+        if (! $allUnits) {
+            $query = UnitMembership::applyToCrew($query, 'users.id');
+        }
         $users = $query->get(['id', 'name', 'lname', 'lname2', 'ncreditos', 'email', 'phone', 'zone', 'puestodepartamento']);
 
         $groups = []; // deptKey => ['label', 'sort', 'people'=>[]]
@@ -98,6 +107,9 @@ class CrewRosterBuilder
             }
 
             $person = [
+                // (2026-09-07 · 2c) id del usuario: lo usa el CONSTRUCTOR de unidades para llavear la pivote.
+                // Los demás consumidores (CrewList/export) simplemente no lo pintan.
+                'id'       => (int) $u->id,
                 'cargo'    => $posName ?? '',
                 // Nombre a mostrar = crédito (si es real) o nombre corto — misma regla que la app
                 // (User::displayName). Antes armaba el nombre COMPLETO ignorando el crédito.

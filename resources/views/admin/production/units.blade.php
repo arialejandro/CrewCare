@@ -67,6 +67,8 @@
                         <button type="submit" class="btn btn-sm btn-outline-secondary">Guardar</button>
                     </form>
                     <span class="form-text">orden {{ $u->sort_order }}</span>
+                    {{-- 2c · Constructor: armar quién trabaja en esta unidad (pivote). --}}
+                    <a href="{{ route('production.units.builder', $u->id) }}" class="btn btn-sm btn-outline-primary">Constructor →</a>
                     <span class="unit-badge {{ $u->is_active ? 'on' : 'paused' }}">{{ $u->is_active ? 'Activa' : 'Inactiva' }}</span>
                     <form action="{{ route('production.units.toggle', $u->id) }}" method="POST" class="unit-inline">
                         @csrf
