@@ -233,6 +233,11 @@ class IssuedPermit extends Model
             ->whereNull('suspended_at')
             ->where('shoot_day', $shootDay);
 
+        // (2026-09-07 · Unidades 2b) La vigencia es POR UNIDAD: el número de día colisiona entre unidades
+        // (el día 3 de la 2ª unidad no es el día 3 de la principal). Con una sola unidad no filtra →
+        // idéntico a hoy. El $shootDay que llega ya es el de la unidad vigente (currentShootDay unit-aware).
+        \App\Support\CurrentUnit::applyTo($q);
+
         if ($scope === self::SCOPE_SITEBOUND && $siteLabel !== null && $siteLabel !== '') {
             $q->where('site_label', $siteLabel);
         }

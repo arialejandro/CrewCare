@@ -36,8 +36,11 @@ class PermitController extends Controller
     {
         $shootDay = $this->currentShootDay();
 
-        $open = IssuedPermit::active()
-            ->whereNull('closed_at')->whereNull('suspended_at')
+        // (2026-09-07 · Unidades 2b) Listado acotado a la UNIDAD VIGENTE. Con una sola unidad no filtra
+        // → idéntico a hoy; con más de una, sólo los permisos de la vigente (null = principal).
+        $open = CurrentUnit::applyTo(
+            IssuedPermit::active()->whereNull('closed_at')->whereNull('suspended_at')
+        )
             ->orderBy('shoot_day', 'desc')->orderBy('id', 'desc')
             ->get();
 

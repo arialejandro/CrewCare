@@ -523,6 +523,9 @@ class InspectionController extends Controller
         if ($tool->inspection_regime === 'por_jornada') {
             $q->where('shoot_day', $this->currentShootDay());
         }
+        // (2026-09-07 · Unidades 2b) La vigencia es POR UNIDAD (el día colisiona entre unidades). Con una
+        // sola unidad no filtra → idéntico a hoy.
+        CurrentUnit::applyTo($q);
         // por_colocacion y por_evento: no caducan por día → la última vigente vale.
         $acta = $q->first();
         return ($acta && $acta->isVigente()) ? $acta : null;
