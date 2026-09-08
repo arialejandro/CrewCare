@@ -431,7 +431,12 @@
               </div>
               <div>
                 <span class="lbl">Foto evidencia</span>
-                <input type="file" name="photo" class="field" accept="image/*,.heic,.heif" capture="environment" data-cc-photo>
+                {{-- SIN `capture`: el atributo FUERZA la app de Cámara y, en iOS, ELIMINA la opción
+                     "Fototeca" del menú — o sea, obliga a tomar la foto en el momento. En set hace falta
+                     lo contrario: poder tomarla Y poder elegir una que ya tienes (o una ligera, cuando la
+                     red no da). Sin el atributo, iOS ofrece Fototeca / Tomar foto / Elegir archivo y
+                     Android su selector equivalente: las DOS opciones en las DOS plataformas. --}}
+                <input type="file" name="photo" class="field" accept="image/*,.heic,.heif" data-cc-photo>
               </div>
               <button class="btn brand" type="submit" style="align-self:flex-start">@include('componentes._icon', ['name' => 'check-circle']) Guardar hallazgo</button>
             </form>
@@ -458,7 +463,8 @@
               @if($ccHasMeetPhoto && !$meetDenied)
               <div>
                 <span class="lbl">{{ __('reports.dsr_meeting_photo_label') }}</span>
-                <input type="file" name="safety_meeting_photo" class="field" accept="image/*,.heic,.heif" capture="environment" data-cc-photo>
+                {{-- Sin `capture`, por lo mismo que la foto del hallazgo (ver arriba): tomar O elegir. --}}
+                <input type="file" name="safety_meeting_photo" class="field" accept="image/*,.heic,.heif" data-cc-photo>
                 <div style="font-size:.68rem;color:var(--faint);margin-top:4px">{{ __('reports.dsr_meeting_photo_hint') }}</div>
               </div>
               @endif
