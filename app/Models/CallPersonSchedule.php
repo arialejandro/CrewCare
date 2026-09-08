@@ -14,7 +14,7 @@ class CallPersonSchedule extends Model
     protected $table = 'call_person_schedules';
 
     protected $fillable = [
-        'production_id', 'user_id',
+        'production_id', 'unit_id', 'user_id',
         'schedule_offset_minutes', 'schedule_literal',
         'pickup_offset_minutes', 'pickup_literal', 'pickup_place_id', 'pickup_place_text',
         'hotel_code', 'meal_mark',

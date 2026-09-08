@@ -1029,12 +1029,15 @@ class CallSheetController extends Controller
             }
 
             if ($literal === '' && ($time === null || $time === '')) {
-                CallDeptOffset::where('production_id', $pid)->where('department_id', $deptId)->delete();
+                // (2026-09-07 · Unidades 2b) Borra SÓLO el offset de la unidad vigente (con una sola unidad,
+                // no filtra → el de la principal, como hoy).
+                CurrentUnit::applyTo(CallDeptOffset::where('production_id', $pid)->where('department_id', $deptId))->delete();
                 continue;   // sin offset ni literal = vuelve al general
             }
             $offset = ($literal === '' && $time && $general) ? CallSheetEngine::minutesFrom($general, $time) : null;
+            // (2026-09-07 · Unidades 2b) El offset es POR UNIDAD: la llave incluye unit_id (null = principal).
             CallDeptOffset::updateOrCreate(
-                ['production_id' => $pid, 'department_id' => $deptId],
+                ['production_id' => $pid, 'unit_id' => CurrentUnit::id(), 'department_id' => $deptId],
                 ['offset_minutes' => $literal === '' ? $offset : null, 'literal_value' => $literal === '' ? null : $literal]
             );
         }
@@ -1125,15 +1128,19 @@ class CallSheetController extends Controller
             // Sin nada propio y come (default) → sin fila (mantiene los singletons dispersos).
             $hasOverride = $schedLiteral !== '' || $schedTime || $pickupLiteral !== '' || $pickupTime || $placeId || $hotel !== '' || ! $meal;
             if (! $hasOverride) {
-                CallPersonSchedule::where('production_id', $pid)->where('user_id', $userId)->delete();
+                // (2026-09-07 · Unidades 2b) Borra SÓLO el horario de la unidad vigente (con una sola
+                // unidad, no filtra → el de la principal, como hoy).
+                CurrentUnit::applyTo(CallPersonSchedule::where('production_id', $pid)->where('user_id', $userId))->delete();
                 continue;
             }
 
             $schedOffset  = ($schedLiteral === '' && $schedTime && $general) ? CallSheetEngine::minutesFrom($general, $schedTime) : null;
             $pickupOffset = ($pickupLiteral === '' && $pickupTime && $general) ? CallSheetEngine::minutesFrom($general, $pickupTime) : null;
 
+            // (2026-09-07 · Unidades 2b) El horario es POR UNIDAD: la llave incluye unit_id (null = principal).
+            // La tabla SIGUE SIN FECHA: es el estado del único día abierto (sólo se planea el día siguiente).
             CallPersonSchedule::updateOrCreate(
-                ['production_id' => $pid, 'user_id' => $userId],
+                ['production_id' => $pid, 'unit_id' => CurrentUnit::id(), 'user_id' => $userId],
                 [
                     'schedule_offset_minutes' => $schedLiteral === '' ? $schedOffset : null,
                     'schedule_literal'        => $schedLiteral === '' ? null : $schedLiteral,

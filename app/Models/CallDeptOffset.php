@@ -13,7 +13,7 @@ class CallDeptOffset extends Model
 {
     protected $table = 'call_dept_offsets';
 
-    protected $fillable = ['production_id', 'department_id', 'offset_minutes', 'literal_value'];
+    protected $fillable = ['production_id', 'unit_id', 'department_id', 'offset_minutes', 'literal_value'];
 
     protected $casts = ['offset_minutes' => 'integer'];
 }

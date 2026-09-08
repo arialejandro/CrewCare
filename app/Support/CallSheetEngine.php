@@ -98,16 +98,21 @@ class CallSheetEngine
         return CallDay::where('production_id', $productionId)->whereDate('call_date', $d)->first();
     }
 
-    /** [department_id => CallDeptOffset] singletons de la producción. */
+    /**
+     * [department_id => CallDeptOffset] de la UNIDAD VIGENTE (2b). El motor no cambió: sólo lee de otro
+     * conjunto. Con una sola unidad no filtra → los mismos singletons de la producción de hoy.
+     */
     public static function deptOffsets(int $productionId): array
     {
-        return CallDeptOffset::where('production_id', $productionId)->get()->keyBy('department_id')->all();
+        return CurrentUnit::applyTo(CallDeptOffset::where('production_id', $productionId))
+            ->get()->keyBy('department_id')->all();
     }
 
-    /** [user_id => CallPersonSchedule] singletons de la producción. */
+    /** [user_id => CallPersonSchedule] de la UNIDAD VIGENTE (2b). Con una sola unidad, idéntico a hoy. */
     public static function personSchedules(int $productionId): array
     {
-        return CallPersonSchedule::where('production_id', $productionId)->get()->keyBy('user_id')->all();
+        return CurrentUnit::applyTo(CallPersonSchedule::where('production_id', $productionId))
+            ->get()->keyBy('user_id')->all();
     }
 
     // ---- Resolver el horario / pick up de una persona -----------------------------------------
