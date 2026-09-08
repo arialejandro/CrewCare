@@ -145,6 +145,22 @@ deploy, no después, para que ese re-login único no le cueste a nadie. Si se qu
 igual pero la pantalla de sesiones avisa que está inactiva. Tras cambiarlo: `php artisan config:clear` (o
 `config:cache` de nuevo).
 
+## 5·d · 🔎 `crewcare:preflight` — revisión del entorno (PRIMER paso tras instalar, ÚLTIMO antes de usar)
+Un comando que revisa lo que **rompe el día uno** y reporta cada punto como `[ OK ]` / `[ AVISO]` / `[ FALLA]`
+con la razón. Es SÓLO LECTURA (salvo un PDF de prueba en temporal y, opcional, un correo de prueba): **se puede
+correr en cualquier momento** — es la herramienta para saber si el servidor está sano después de cada actualización.
+```bash
+php artisan crewcare:preflight
+# para probar además el correo saliente de verdad:
+php artisan crewcare:preflight --mail-to=tu-correo@dominio.com
+```
+Revisa los 10 puntos: **Chrome+Node generan un PDF de prueba**; **imagick con libheif** (sin él, un HEIC de
+iPhone se rechaza y la verificación de vehículos exige foto); **nombre/código de producción no son los de demo**;
+**SESSION_DRIVER=database**; **el cron corre** (latido `schedule:run`); **el correo sale** (envío de prueba);
+**CREWCARE_SEAL_KEY puesta y no la de dev**; **permisos de escritura en storage**; **`storage:link` hecho**; y
+**la base no tiene datos de demo** (incluye el chequeo del §6). Sal con código ≠ 0 si hay alguna FALLA.
+**Córrelo lo primero tras instalar y lo último antes de abrir en set**, y de nuevo después de cada actualización.
+
 ## 6 · ⛔ Chequeo anti-demo (OBLIGATORIO antes de abrir)
 Confirma que la instancia NO trae datos de demostración ni cuentas de prueba:
 ```bash

@@ -66,8 +66,8 @@ class PdfExporter
         // 4) Browsershot -> savePdf (en Windows pdf() por stdout corrompe binarios grandes)
         try {
             Browsershot::htmlFromFilePath($tmpHtml)
-                ->setChromePath(env('BROWSERSHOT_CHROME', 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'))
-                ->setNodeBinary(env('BROWSERSHOT_NODE', 'C:\\Program Files\\nodejs\\node.exe'))
+                ->setChromePath(self::chromePath())
+                ->setNodeBinary(self::nodePath())
                 ->setNodeModulePath(base_path('node_modules'))
                 ->noSandbox()
                 ->setOption('preferCSSPageSize', true)
@@ -102,5 +102,70 @@ class PdfExporter
             'Content-Type'        => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="' . $filename . '.pdf"',
         ]);
+    }
+
+    /** Ruta al binario de Chrome/Chromium (o lanza si no se puede resolver en no-Windows). */
+    public static function chromePath(): string
+    {
+        return self::resolveBinary(
+            env('BROWSERSHOT_CHROME'),
+            'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+            ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/snap/bin/chromium'],
+            ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser'],
+            'Chrome/Chromium',
+            'BROWSERSHOT_CHROME'
+        );
+    }
+
+    /** Ruta al binario de Node (o lanza si no se puede resolver en no-Windows). */
+    public static function nodePath(): string
+    {
+        return self::resolveBinary(
+            env('BROWSERSHOT_NODE'),
+            'C:\\Program Files\\nodejs\\node.exe',
+            ['/usr/bin/node', '/usr/local/bin/node', '/usr/bin/nodejs'],
+            ['node', 'nodejs'],
+            'Node',
+            'BROWSERSHOT_NODE'
+        );
+    }
+
+    /**
+     * Resuelve la ruta de un binario para Browsershot SIN caer NUNCA a una ruta de Windows en un sistema
+     * que no es Windows (el bug que rompía todo PDF por Chrome en el deploy Linux). Orden:
+     *   1) si la env está puesta, manda (el operador sabe su ruta; si no existe, Browsershot lo dirá).
+     *   2) Windows → el default histórico de `C:\Program Files\...` (local del owner: comportamiento idéntico).
+     *   3) NO-Windows → autodetecta entre rutas comunes y `command -v`; si no aparece, LANZA diciendo qué
+     *      falta y DÓNDE buscó, en vez de intentar una ruta imposible que sólo produce un error opaco.
+     */
+    private static function resolveBinary(?string $env, string $winDefault, array $linuxPaths, array $whichNames, string $human, string $var): string
+    {
+        $env = is_string($env) ? trim($env) : '';
+        if ($env !== '') {
+            return $env;
+        }
+        if (stripos(PHP_OS, 'WIN') === 0) {
+            return $winDefault;
+        }
+        foreach ($linuxPaths as $p) {
+            if (@is_file($p)) {
+                return $p;
+            }
+        }
+        if (function_exists('shell_exec')) {
+            foreach ($whichNames as $n) {
+                $found = @shell_exec('command -v ' . escapeshellarg($n) . ' 2>/dev/null');
+                $found = is_string($found) ? trim($found) : '';
+                if ($found !== '' && @is_file($found)) {
+                    return $found;
+                }
+            }
+        }
+        throw new \RuntimeException(
+            "Browsershot: no encuentro {$human} en este sistema (no es Windows) y {$var} está vacía en .env. "
+            . "Define {$var} con la ruta al binario (p. ej. `which google-chrome`). Busqué en: "
+            . implode(', ', $linuxPaths)
+            . (function_exists('shell_exec') ? ' y en `command -v`.' : ' (shell_exec deshabilitado).')
+        );
     }
 }

@@ -23,6 +23,23 @@ class ProductionDemoSeeder extends Seeder
         $name = env('INSTALL_PRODUCTION_NAME', 'Producción Demo');
         $code = env('INSTALL_PRODUCTION_CODE', 'DEMO');
 
+        // 🔴 GUARDA: en PRODUCCIÓN el nombre/código se SELLAN en cada documento y no se pueden cambiar
+        // después. Si quedaron en el default de demo (o en blanco), la instalación se NIEGA a correr —
+        // es un ERROR, no un aviso, porque equivocarse aquí es irreversible. En local/otros entornos no
+        // estorba (el default demo es legítimo ahí).
+        if (app()->environment('production')) {
+            $nameBad = trim((string) $name) === '' || trim((string) $name) === 'Producción Demo';
+            $codeBad = trim((string) $code) === '' || strtoupper(trim((string) $code)) === 'DEMO';
+            if ($nameBad || $codeBad) {
+                throw new \RuntimeException(
+                    "Instalación DETENIDA (APP_ENV=production): define INSTALL_PRODUCTION_NAME e "
+                    . "INSTALL_PRODUCTION_CODE reales en .env antes de sembrar. Ahora: "
+                    . "name=\"{$name}\", code=\"{$code}\". Esos valores se sellan en cada documento y NO "
+                    . "se pueden cambiar después. Llena esas variables y vuelve a correr `php artisan db:seed`."
+                );
+            }
+        }
+
         $production = Production::firstOrCreate(
             ['name' => $name],
             [
