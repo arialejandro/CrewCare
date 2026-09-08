@@ -16,7 +16,7 @@ class InjuryReportController extends Controller
     {
         // Aislamiento por propiedad (auditoría #1): cada quien sólo lo que capturó (safety aislados
         // entre sí, y el médico igual); la CONSOLIDACIÓN (safety.consolidate) ve todo.
-        $injuryReports = \App\Support\ReportVisibility::apply(InjuryReport::query(), auth()->user())
+        $injuryReports = \App\Support\ReportVisibility::forCurrentUnit(InjuryReport::query(), auth()->user())
             ->latest()->paginate(10);
         return view('admin.injuryreports', compact('injuryReports'));
     }
@@ -83,6 +83,10 @@ class InjuryReportController extends Controller
     $dataForDb['make_date'] = now()->toDateString();
     if (Schema::hasColumn('injury_reports', 'created_by_id')) {
         $dataForDb['created_by_id'] = auth()->id();
+    }
+    // (2026-09-07 · Unidades 2b) Unidad VIGENTE del contexto (null = principal → idéntico a hoy).
+    if (Schema::hasColumn('injury_reports', 'unit_id')) {
+        $dataForDb['unit_id'] = \App\Support\CurrentUnit::id();
     }
 
     // (2026-07-14) Pilar 1: si falta la matriz 5×5 (likelihood/consequence), el reporte

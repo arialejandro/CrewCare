@@ -161,6 +161,10 @@ class unsafecondNotificationController extends Controller
         if (\Illuminate\Support\Facades\Schema::hasColumn('unsafeconds', 'created_by_id')) {
             $data['created_by_id'] = auth()->id();
         }
+        // (2026-09-07 · Unidades 2b) Unidad VIGENTE del contexto (null = principal → idéntico a hoy).
+        if (\Illuminate\Support\Facades\Schema::hasColumn('unsafeconds', 'unit_id')) {
+            $data['unit_id'] = \App\Support\CurrentUnit::id();
+        }
 
         // (2026-06-28) Lectura rápida: se fijan risk_level + action_status (default 'Abierto').
         // Guardado defensivo: si el OWNER aún no aplicó el ALTER, el form sigue funcionando.
@@ -395,7 +399,7 @@ class unsafecondNotificationController extends Controller
     {
         // breadcrumb: antes 'unsafecond::all()' (sin paginar). Ahora paginado de 15 en 15, más reciente primero.
         // Aislamiento por propiedad (auditoría #1): autor, con bypass safety.consolidate.
-        $unsafenotifications = \App\Support\ReportVisibility::apply(unsafecond::query(), auth()->user())
+        $unsafenotifications = \App\Support\ReportVisibility::forCurrentUnit(unsafecond::query(), auth()->user())
             ->orderBy('id', 'desc')->paginate(15);
         return View::make('admin.unsafeconds', compact('unsafenotifications'));
     }

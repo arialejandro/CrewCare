@@ -31,7 +31,7 @@ class DailyReportController extends Controller
         // Aislamiento por propiedad (auditoría #1): cada quien ve sólo los DSR que capturó
         // (safety aislados entre sí); la CONSOLIDACIÓN (safety.consolidate = LP/coord/auditor/
         // super-admin) ve todo.
-        $dailyReports = \App\Support\ReportVisibility::apply(DailyReport::query(), auth()->user())
+        $dailyReports = \App\Support\ReportVisibility::forCurrentUnit(DailyReport::query(), auth()->user())
             ->orderBy('report_date', 'desc')
             ->orderBy('id', 'desc')
             ->paginate(10);
@@ -148,6 +148,13 @@ class DailyReportController extends Controller
         $data['author_name'] = auth()->user()->name;
         if (Schema::hasColumn('daily_reports', 'created_by_id')) {
             $data['created_by_id'] = auth()->id();
+        }
+
+        // (2026-09-07 · Unidades 2b) UNIDAD del documento: hereda la unidad VIGENTE del contexto si el
+        // request no la trae explícita. NULL = principal → idéntico a hoy. Debe ir ANTES de
+        // resolveShootDay para que el día se selle contra la unidad correcta (irreversible).
+        if (! array_key_exists('unit_id', $data) || $data['unit_id'] === null || $data['unit_id'] === '') {
+            $data['unit_id'] = \App\Support\CurrentUnit::id();
         }
 
         // (2026-07-25) DÍA DE RODAJE — captura manual PRELLENADA (arranque en frío). resolveShootDay()

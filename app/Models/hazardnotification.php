@@ -32,6 +32,7 @@ class hazardnotification extends Model
     ];
 
     protected $fillable = [
+        'unit_id',   // (2026-09-07 · Unidades 2b) unidad del acto inseguro; NULL = principal
         'production_name',
         'name_loc',
         // (2026-07-07) GPS opcional: coordenadas + dirección detectada (reverse geocoding).

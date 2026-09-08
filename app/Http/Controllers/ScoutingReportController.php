@@ -129,7 +129,7 @@ class ScoutingReportController extends Controller
     {
         // paginate(12): divisible entre las 1/2/3 columnas del grid de cards.
         // Aislamiento por propiedad (auditoría #1): autor, con bypass safety.consolidate.
-        $reports = \App\Support\ReportVisibility::apply(ScoutingReport::query(), auth()->user())
+        $reports = \App\Support\ReportVisibility::forCurrentUnit(ScoutingReport::query(), auth()->user())
             ->orderBy('id', 'desc')->paginate(12);
         return view('admin.scoutings.index', compact('reports'));
     }
@@ -275,6 +275,11 @@ class ScoutingReportController extends Controller
         $reportData['make_by']       = auth()->user()->name;
         $reportData['created_by_id'] = auth()->id();
         $reportData['make_date']     = now()->toDateString();
+
+        // (2026-09-07 · Unidades 2b) Unidad VIGENTE del contexto (null = principal → idéntico a hoy).
+        if (\Illuminate\Support\Facades\Schema::hasColumn('scouting_reports', 'unit_id')) {
+            $reportData['unit_id'] = \App\Support\CurrentUnit::id();
+        }
 
         // ---- Imágenes (mismo patrón que locationController@store) ----
         if ($request->hasFile('main_image')) {

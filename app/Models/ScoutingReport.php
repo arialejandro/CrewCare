@@ -52,6 +52,7 @@ class ScoutingReport extends Model
      */
     protected $fillable = [
         'production_id',
+        'unit_id',   // (2026-09-07 · Unidades 2b) unidad del scouting; NULL = principal
         'production_name',
         'production_type',   // Amazon MGM: Production Type (TV/Film/Game Show)
         'manager_name',      // Amazon MGM: Production Manager

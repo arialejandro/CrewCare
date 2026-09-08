@@ -168,6 +168,10 @@ class HazardNotificationController extends Controller
         if (\Illuminate\Support\Facades\Schema::hasColumn('hazardnotifications', 'created_by_id')) {
             $data['created_by_id'] = auth()->id();
         }
+        // (2026-09-07 · Unidades 2b) Unidad VIGENTE del contexto (null = principal → idéntico a hoy).
+        if (\Illuminate\Support\Facades\Schema::hasColumn('hazardnotifications', 'unit_id')) {
+            $data['unit_id'] = \App\Support\CurrentUnit::id();
+        }
 
         // (2026-06-28) Chips de severidad/estado: SON capturados por el usuario (NO autofirma).
         // Salvaguarda para despliegues frescos: sólo se asignan si la columna ya existe.
@@ -434,7 +438,7 @@ class HazardNotificationController extends Controller
     public function index()
     {
         // Aislamiento por propiedad (auditoría #1): autor, con bypass safety.consolidate.
-        $hazardNotifications = \App\Support\ReportVisibility::apply(HazardNotification::query(), auth()->user())
+        $hazardNotifications = \App\Support\ReportVisibility::forCurrentUnit(HazardNotification::query(), auth()->user())
             ->orderBy('id', 'desc')->paginate(15);
         return View::make('admin.hazards', compact('hazardNotifications'));
     }

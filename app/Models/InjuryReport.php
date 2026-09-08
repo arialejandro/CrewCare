@@ -42,6 +42,7 @@ class InjuryReport extends Model
     ];
 
     protected $fillable = [
+        'unit_id',   // (2026-09-07 · Unidades 2b) unidad del reporte; NULL = principal
         'production_title', 'production_dates', 'location', 'department',
         // (2026-07-09) Patrón/contratista del lesionado (aviso IMSS/STPS).
         'employer_name',

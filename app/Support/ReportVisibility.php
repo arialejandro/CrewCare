@@ -70,6 +70,18 @@ class ReportVisibility
         return $query;
     }
 
+    /**
+     * Igual que apply(), pero apilando el eje de la UNIDAD VIGENTE (2b). Con una sola unidad pasa
+     * UNIT_UNSCOPED → no filtra por unidad → idéntico a hoy; con más de una, la vigente (null = principal).
+     * Es el punto único que usan los 5 listados de safety.
+     */
+    public static function forCurrentUnit(Builder $query, ?User $user, string $ownerColumn = 'created_by_id'): Builder
+    {
+        $scope = CurrentUnit::hasMultiple() ? CurrentUnit::id() : self::UNIT_UNSCOPED;
+
+        return self::apply($query, $user, $ownerColumn, $scope);
+    }
+
     /** ¿La tabla del modelo consultado tiene columna unit_id? (defensivo para instancias sin P1). */
     private static function hasUnitColumn(Builder $query): bool
     {

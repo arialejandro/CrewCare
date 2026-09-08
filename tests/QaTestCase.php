@@ -49,6 +49,13 @@ abstract class QaTestCase extends TestCase
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
+        // (2026-09-07 · Unidades 2b) Los memos estáticos de CurrentProduction/CurrentUnit persisten entre
+        // tests del mismo proceso; en producción cada request es un proceso fresco. Sin este reset, una
+        // unidad vigente memoizada en un test (ya revertida por la transacción) se filtra al siguiente y el
+        // store estampa un unit_id inexistente → viola la FK. Se limpian al arrancar cada test.
+        \App\Support\CurrentProduction::forget();
+        \App\Support\CurrentUnit::forget();
+
         // FASE 3 — el render del contrato firmado (y el del certificado) corre al completar un sobre y
         // al mandar el correo. En pruebas NUNCA levantamos Chrome/Browsershot: sustituimos el motor PDF
         // (costura compartida ContractPdf) por un doble determinista. Así el flujo (render → guardar →
