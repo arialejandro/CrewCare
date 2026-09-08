@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\IssuedPermit;
 use App\Models\Permit;
 use App\Support\CurrentProduction;
+use App\Support\CurrentUnit;
 use App\Support\ImageCompressor;
 use App\Support\ProductionCalendar;
 use Illuminate\Http\Request;
@@ -216,6 +217,7 @@ class PermitController extends Controller
 
         $payload = [
             'production_id'        => CurrentProduction::id(),
+            'unit_id'              => CurrentUnit::id(),   // 2b: la unidad vigente (null = principal), sella con su día
             'shoot_day'            => $this->currentShootDay(),
             'permit_id'            => $permit->id,
             'permit_code'          => $permit->code,
@@ -455,10 +457,11 @@ class PermitController extends Controller
         return false;
     }
 
+    /** El shoot day de hoy EN LA UNIDAD VIGENTE (2b). null = principal = idéntico a hoy. Blindado. */
     private function currentShootDay()
     {
         try {
-            return ProductionCalendar::shootDayFor(now()->toDateString());
+            return ProductionCalendar::shootDayFor(now()->toDateString(), CurrentUnit::id());
         } catch (\Throwable $e) {
             return null;
         }

@@ -7,6 +7,7 @@ use App\Models\Tool;
 use App\Models\ToolInspection;
 use App\Models\User;
 use App\Support\CurrentProduction;
+use App\Support\CurrentUnit;
 use App\Support\ImageCompressor;
 use App\Support\InspectionVerdict;
 use App\Support\InvolvedResolver;
@@ -327,6 +328,7 @@ class InspectionController extends Controller
 
         $payload = [
             'production_id'           => CurrentProduction::id(),
+            'unit_id'                 => CurrentUnit::id(),   // 2b: la unidad vigente (null = principal), sella con su día
             'shoot_day'               => $this->currentShootDay(),
             'tool_id'                 => $tool->id,
             'tool_code'               => $tool->code,
@@ -619,10 +621,11 @@ class InspectionController extends Controller
         return "FIELD(p.scope,'universal','universal_energizada','familia','tipo','actividad')";
     }
 
+    /** El shoot day de hoy EN LA UNIDAD VIGENTE (2b). null = principal = idéntico a hoy. Blindado. */
     private function currentShootDay()
     {
         try {
-            return ProductionCalendar::shootDayFor(now()->toDateString());
+            return ProductionCalendar::shootDayFor(now()->toDateString(), CurrentUnit::id());
         } catch (\Throwable $e) {
             return null;
         }

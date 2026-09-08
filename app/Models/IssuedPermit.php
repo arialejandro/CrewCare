@@ -48,7 +48,7 @@ class IssuedPermit extends Model
     const SCOPE_SITEBOUND   = 'ligado_al_sitio';  // cambiar de sitio exige emisión nueva
 
     protected $fillable = [
-        'uuid', 'production_id', 'shoot_day',
+        'uuid', 'production_id', 'unit_id', 'shoot_day',
         'permit_id', 'permit_code', 'permit_key', 'permit_family', 'permit_name', 'permit_definition',
         'permit_site_scope', 'points_snapshot', 'standards_snapshot', 'photos',
         'activity_description', 'site_label', 'tool_id', 'tool_code', 'tool_name',

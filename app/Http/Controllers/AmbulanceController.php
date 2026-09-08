@@ -12,6 +12,7 @@ use App\Models\MedicCredential;
 use App\Models\User;
 use App\Support\AmbulanceVerdict;
 use App\Support\CurrentProduction;
+use App\Support\CurrentUnit;
 use App\Support\ImageCompressor;
 use App\Support\ProductionCalendar;
 use Illuminate\Http\Request;
@@ -624,6 +625,7 @@ class AmbulanceController extends Controller
 
         $payload = [
             'production_id'      => CurrentProduction::id(),
+            'unit_id'            => CurrentUnit::id(),   // 2b: la unidad vigente (null = principal), sella con su día
             'shoot_day'          => $this->currentShootDay(),
             'trigger_scope'      => AmbulanceInspection::TRIGGER_FULL,
             'ambulance_type_id'  => $type->id,
@@ -746,11 +748,15 @@ class AmbulanceController extends Controller
 
     /* ============================ Helpers ============================ */
 
-    /** El shoot day de hoy (blindado: nunca rompe el guardado). */
+    /**
+     * El shoot day de hoy EN LA UNIDAD VIGENTE (Unidades 2b). Un acta de recurso de la 2ª unidad cuenta en
+     * el contador de SU unidad, no en el de la principal: documentos del mismo día y la misma unidad dicen
+     * lo mismo. CurrentUnit::id() = null = principal = idéntico a hoy. Blindado: nunca rompe el guardado.
+     */
     private function currentShootDay()
     {
         try {
-            return ProductionCalendar::shootDayFor(now()->toDateString());
+            return ProductionCalendar::shootDayFor(now()->toDateString(), CurrentUnit::id());
         } catch (\Throwable $e) {
             return null;
         }

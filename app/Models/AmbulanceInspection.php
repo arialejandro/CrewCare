@@ -56,7 +56,7 @@ class AmbulanceInspection extends Model
     const TRIGGERS = ['identidad', 'persona', 'unidad', 'consumo', 'riesgo'];
 
     protected $fillable = [
-        'uuid', 'production_id', 'shoot_day', 'trigger_scope',
+        'uuid', 'production_id', 'unit_id', 'shoot_day', 'trigger_scope',
         'ambulance_type_id', 'type_code', 'type_name', 'rama', 'type_level', 'capacity_level',
         'provider_id', 'provider_name', 'plates', 'economic_number',
         'latitude', 'longitude', 'location_label',   // (Parte D+) locación del GPS-back — hash-excluida

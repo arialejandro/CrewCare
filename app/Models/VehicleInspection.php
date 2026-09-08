@@ -45,7 +45,7 @@ class VehicleInspection extends Model
     const LEVEL_EXCELENTE = 'excelente';
 
     protected $fillable = [
-        'uuid', 'production_id', 'shoot_day', 'vehicle_id',
+        'uuid', 'production_id', 'unit_id', 'shoot_day', 'vehicle_id',
         'vehicle_type_id', 'type_code', 'type_name',
         'make', 'model', 'year', 'color', 'plate', 'vin',
         'attributes_snapshot',

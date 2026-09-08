@@ -12,6 +12,7 @@ use App\Models\VehicleInspection;
 use App\Models\VehicleInspectionDraft;
 use App\Models\VehicleType;
 use App\Support\CurrentProduction;
+use App\Support\CurrentUnit;
 use App\Support\ImageCompressor;
 use App\Support\ProductionCalendar;
 use App\Support\TransportAccess;
@@ -528,6 +529,7 @@ class VehicleController extends Controller
 
         $payload = [
             'production_id'        => CurrentProduction::id(),
+            'unit_id'              => CurrentUnit::id(),   // 2b: la unidad vigente (null = principal), sella con su día
             'shoot_day'            => $this->currentShootDay(),
             'vehicle_id'           => $vehicle->id,
             'vehicle_type_id'      => $vehicle->vehicle_type_id,
@@ -747,10 +749,11 @@ class VehicleController extends Controller
         ];
     }
 
+    /** El shoot day de hoy EN LA UNIDAD VIGENTE (2b). null = principal = idéntico a hoy. Blindado. */
     private function currentShootDay()
     {
         try {
-            return ProductionCalendar::shootDayFor(now()->toDateString());
+            return ProductionCalendar::shootDayFor(now()->toDateString(), CurrentUnit::id());
         } catch (\Throwable $e) {
             return null;
         }

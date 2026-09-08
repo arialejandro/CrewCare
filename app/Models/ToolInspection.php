@@ -65,7 +65,7 @@ class ToolInspection extends Model
     const MOMENTS = [self::MOMENT_ARRIVAL, self::MOMENT_PRE_USE, self::MOMENT_IN_USE, self::MOMENT_FROM_HAZARD];
 
     protected $fillable = [
-        'uuid', 'production_id', 'shoot_day',
+        'uuid', 'production_id', 'unit_id', 'shoot_day',
         'tool_id', 'tool_code', 'tool_name', 'tool_family_key',
         // Unidad FÍSICA (delta #47): marca/modelo/serie + foto real. La serie es la llave con
         // que la consulta agrupa por unidad. Todo esto es CONTENIDO → entra al sello.
