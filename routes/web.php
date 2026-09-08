@@ -153,6 +153,11 @@ Route::middleware(['auth','permission:users.view'])->group(function () {
     Route::get('/idcardscrud',[App\Http\Controllers\CrewListController::class,'idcardscrud'])->name('idcardscrud');
     Route::get('/idcard/{id}',[App\Http\Controllers\CrewListController::class,'idcard'])->name('idcard');
 
+    // DADOS DE BAJA (2026-09-08): lista de crew INACTIVO por departamento (activo=0), junto al crew —
+    // es gente, no ajuste. Distingue baja individual de "apagado con una unidad". Solo lectura; el mismo
+    // scope por depto que el crew list (users.view). Reintegrar vive en el grupo users.update (abajo).
+    Route::get('/crew/dados-de-baja',[App\Http\Controllers\CrewInactiveController::class,'index'])->name('crew.inactive');
+
     // ===== Gafetes configurables (ID-Badge) =====
     // Descargas (individual PDF, bulk PDF, bulk JPG-ZIP) → mismo permiso que ver la lista de gafetes.
     Route::get('/idcard/{id}/pdf',[App\Http\Controllers\BadgeController::class,'pdf'])->name('badge.pdf');
@@ -176,6 +181,10 @@ Route::middleware(['auth','permission:users.update'])->group(function () {
     Route::post('/uncheckgft/{id}',[App\Http\Controllers\CrewStatusController::class,'uncheckgft'])->name('uncheckgft');
     Route::post('/activarusuario/{id}',[App\Http\Controllers\CrewStatusController::class,'activarusuario'])->name('activarusuario');
     Route::post('/activarencuesta/{id}',[App\Http\Controllers\CrewStatusController::class,'activarencuesta'])->name('activarencuesta');
+    // REINTEGRACIÓN (2026-09-08): acto propio desde la lista de dados de baja. Reactiva a la persona
+    // (activo=1) y la saca del ciclo de la unidad; EVIDENCIA que falta contrato y condiciones nuevas
+    // (no las emite — la ceremonia va aparte). Mismo permiso que reactivar (users.update) + guarda de scope.
+    Route::post('/crew/{id}/reintegrar',[App\Http\Controllers\CrewInactiveController::class,'reintegrate'])->name('crew.reintegrate')->whereNumber('id');
 
     // ---- Cédula profesional del médico (PASO B, 2026-07-19) ----
     // Viven en el grupo `users.update` porque su UI es la ficha de edición de crew

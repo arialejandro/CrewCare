@@ -23,7 +23,8 @@
                 <form method="GET" action="{{ route('payees.folders') }}" class="row g-2 align-items-end">
                     <div class="col-md-8">
                         <label class="form-label small mb-1">{{ __('Semana') }}</label>
-                        <select name="week" class="form-select" onchange="this.form.submit()">
+                        {{-- CSP-safe: sin onchange en línea. El envío al cambiar lo hace _autosubmit (data-*). --}}
+                        <select name="week" class="form-select" data-autosubmit>
                             <option value="0" @selected(!$selectedWeek)>{{ __('Sin semana — todos los documentos') }}</option>
                             @foreach($weeks as $w)
                                 <option value="{{ $w->id }}" @selected($selectedWeek == $w->id)>
@@ -114,4 +115,5 @@
 
     </div>
 </div>
+@include('componentes._autosubmit')
 @endsection

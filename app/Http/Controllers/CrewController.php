@@ -114,6 +114,12 @@ class CrewController extends Controller
             // /rolescrud (super-admin excluido a propósito: god-mode nunca desde una pantalla).
             // Que llegue el campo NO basta: abajo se exige `users.assign-role` para respetarlo.
             'role'          => 'nullable|in:' . implode(',', self::ASSIGNABLE_ROLES),
+        ], [
+            // (2026-09-08) SOLO cambio de MENSAJE (no de flujo): la regla unique:users,email sigue
+            // rechazando igual. El texto apunta a la lista de "Dados de baja" para que, si la persona
+            // ya existe pero fue dada de baja (p. ej. se apagó con una unidad), quien intenta el alta no
+            // quede atorado: la reintegra desde ahí en vez de intentar crearla de nuevo.
+            'email.unique' => 'Ese correo ya está registrado. Si la persona fue dada de baja, búscala en «Dados de baja» y reintégrala en vez de crearla de nuevo.',
         ]);
 
         $viewer = auth()->user();

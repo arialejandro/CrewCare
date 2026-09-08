@@ -326,6 +326,10 @@
                                 @include('componentes._icon', ['name' => 'users', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.crew_list') }}</span>
                             </a>
+                            <a href="{{ route('crew.inactive') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'x-circle', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Dados de baja') }}</span>
+                            </a>
                             <a href="/idcardscrud" class="cc-item">
                                 @include('componentes._icon', ['name' => 'id-card', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.crew_badge_list') }}</span>
@@ -821,6 +825,10 @@
                                 <a href="{{ route('usuarioscrud') }}" class="cc-item">
                                     @include('componentes._icon', ['name' => 'users', 'class' => 'cc-item__ico', 'label' => null])
                                     <span>{{ __('nav.crew_list') }}</span>
+                                </a>
+                                <a href="{{ route('crew.inactive') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'x-circle', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Dados de baja') }}</span>
                                 </a>
                                 <a href="/idcardscrud" class="cc-item">
                                     @include('componentes._icon', ['name' => 'id-card', 'class' => 'cc-item__ico', 'label' => null])

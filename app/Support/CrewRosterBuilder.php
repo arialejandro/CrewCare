@@ -30,9 +30,13 @@ class CrewRosterBuilder
      * @param  bool  $allUnits  (2c) true = SIN filtro por unidad vigente (todo el crew) — lo usa el
      *                          CONSTRUCTOR de unidades, que necesita ver a todos para asignarlos. Default
      *                          false = acota a la unidad vigente (CrewList/exports normales).
+     * @param  bool  $onlyInactive  (2026-09-08) true = personas DADAS DE BAJA (activo=0) en vez de activas —
+     *                          lo usa la lista de "dados de baja". No acota por unidad vigente (un apagado
+     *                          exclusivo de una unidad quedaría fuera del scope; aquí se quieren TODOS los
+     *                          inactivos del alcance del visor). Mismo agrupado y mismo applyDepartmentScope.
      * @return array{groups: array, unordered: array, total: int, production: ?string}
      */
-    public static function build(User $viewer, bool $allUnits = false): array
+    public static function build(User $viewer, bool $allUnits = false, bool $onlyInactive = false): array
     {
         $productionId = CurrentProduction::id();
         $production   = CurrentProduction::get();
@@ -69,11 +73,14 @@ class CrewRosterBuilder
         // --- Crew activo y VISIBLE en el listado, ACOTADO por el scope del visor ---
         // `crewlist_visible` gatea el LISTADO (los no-crew externos nacen fuera; un proveedor que el
         // owner SÍ quiera listar se marca visible). Las filas existentes son visible=1 por default.
-        $query = User::applyDepartmentScope(DB::table('users')->where('activo', 1)->where('crewlist_visible', 1), $viewer);
+        // activo=1 por default; la lista de "dados de baja" pide activo=0 ($onlyInactive). En ambos casos
+        // el mismo scope por departamento (HOD ve su depto; producción ve todo) y el mismo crewlist_visible.
+        $query = User::applyDepartmentScope(DB::table('users')->where('activo', $onlyInactive ? 0 : 1)->where('crewlist_visible', 1), $viewer);
         // (2026-09-07 · Unidades 2c) Acota a la UNIDAD VIGENTE: la 2ª unidad ve sólo su gente; la principal
         // ve todo menos los exclusivos de otra unidad. Con una sola unidad, no filtra → idéntico a hoy. El
-        // CONSTRUCTOR pasa $allUnits=true para ver a TODOS (los está asignando).
-        if (! $allUnits) {
+        // CONSTRUCTOR pasa $allUnits=true para ver a TODOS (los está asignando). La lista de INACTIVOS NO
+        // acota por unidad: un apagado exclusivo de una unidad debe verse igual (si no, quedaría oculto).
+        if (! $allUnits && ! $onlyInactive) {
             $query = UnitMembership::applyToCrew($query, 'users.id');
         }
         $users = $query->get(['id', 'name', 'lname', 'lname2', 'ncreditos', 'email', 'phone', 'zone', 'puestodepartamento']);
