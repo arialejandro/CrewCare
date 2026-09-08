@@ -14,9 +14,10 @@
     $en      = app()->getLocale() === 'en';
     $source  = $source ?? null;
     $editing = (bool) $source;
+    $units   = $units ?? collect();
     $prefill = ($prefill ?? []) + [
         'scoutings' => [], 'plan_date' => now()->toDateString(),
-        'shoot_day' => $shootDay ?? null, 'unit_name' => '', 'move_time' => '', 'embed' => false,
+        'shoot_day' => $shootDay ?? null, 'unit_id' => null, 'unit_name' => '', 'move_time' => '', 'embed' => false,
     ];
     $cancelUrl = $editing ? route('pae.show', $source->uuid) : route('pae.index');
     $nextVer   = $editing ? ('v' . ($source->revisionNumber() + 1) . '.0') : 'v1.0';
@@ -73,8 +74,20 @@
                 </label>
                 <label class="cc-field">
                     <span class="cc-label">{{ $en ? 'Unit' : 'Unidad' }}</span>
-                    <input type="text" class="cc-control" name="unit_name" maxlength="255"
-                           value="{{ old('unit_name', $prefill['unit_name']) }}" placeholder="{{ $en ? 'Main Unit / 2nd Unit…' : 'Unidad principal / 2.ª unidad…' }}">
+                    @if($units->isNotEmpty())
+                        {{-- Con unidades adicionales: se ELIGE la unidad (el servidor estampa su nombre y
+                             sella el día contra SU calendario). Vacío = principal, como hoy. --}}
+                        <select class="cc-control" name="unit_id">
+                            <option value="">{{ \App\Models\Unit::PRINCIPAL_LABEL }}</option>
+                            @foreach($units as $u)
+                                <option value="{{ $u->id }}" @selected((string) old('unit_id', $prefill['unit_id']) === (string) $u->id)>{{ $u->name }}</option>
+                            @endforeach
+                        </select>
+                    @else
+                        {{-- Sin unidades adicionales: texto libre, idéntico a hoy. --}}
+                        <input type="text" class="cc-control" name="unit_name" maxlength="255"
+                               value="{{ old('unit_name', $prefill['unit_name']) }}" placeholder="{{ $en ? 'Main Unit / 2nd Unit…' : 'Unidad principal / 2.ª unidad…' }}">
+                    @endif
                 </label>
             </div>
         </div>

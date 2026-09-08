@@ -177,6 +177,8 @@ class DailyReportController extends Controller
             'safety_meeting_held', 'safety_meeting_photo_path',
             // (2026-07-25) vínculo con el scouting de origen del hospital (prod aún sin la columna)
             'scouting_report_id',
+            // (2026-09-07 · Unidades 2b) unidad del DSR; guard por si una instancia no aplicó P1.
+            'unit_id',
         ] as $col) {
             if (array_key_exists($col, $data) && !Schema::hasColumn('daily_reports', $col)) {
                 unset($data[$col]);
@@ -224,8 +226,16 @@ class DailyReportController extends Controller
         if (isset($data['shoot_day']) && $data['shoot_day'] !== null && $data['shoot_day'] !== '') {
             return (int) $data['shoot_day'];
         }
+        // (2026-09-07 · Unidades 2b) 🔴 EL NÚMERO SE DERIVA CONTRA LA UNIDAD DEL DOCUMENTO, no contra la
+        // principal. Un DSR de la 2ª unidad sella SU día (día 1 el primero, etc.), no el de la principal
+        // — y como shoot_day se sella y no se reescribe, sellar el de la principal quedaría mal PARA
+        // SIEMPRE. NULL = principal → idéntico a hoy mientras no exista contexto de unidad (§4).
+        $unitId = (isset($data['unit_id']) && $data['unit_id'] !== null && $data['unit_id'] !== '')
+            ? (int) $data['unit_id']
+            : null;
         $derivado = \App\Support\ProductionCalendar::shootDayFor(
-            isset($data['report_date']) ? $data['report_date'] : null
+            isset($data['report_date']) ? $data['report_date'] : null,
+            $unitId
         );
         return $derivado !== null ? (int) $derivado : 1;
     }

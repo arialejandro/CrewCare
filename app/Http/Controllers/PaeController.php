@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\EmergencyActionPlan;
 use App\Models\ScoutingReport;
+use App\Models\Unit;
 use App\Support\CurrentProduction;
 use App\Support\EmergencyActionPlanBuilder;
 use App\Support\PaeOrgChart;
 use App\Support\ProductionCalendar;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * PaeController — EMISIÓN del PLAN DE ATENCIÓN A EMERGENCIAS (PAE, 2026-08-06).
@@ -85,6 +87,7 @@ class PaeController extends Controller
                 'scoutings' => array_values(array_map('intval', (array) $source->pdata('scouting_ids', []))),
                 'plan_date' => (trim((string) ($hd['date'] ?? '')) ?: optional($source->plan_date)->toDateString()) ?: now()->toDateString(),
                 'shoot_day' => $source->shoot_day,
+                'unit_id'   => $source->unit_id,
                 'unit_name' => (string) ($source->unit_name ?? ''),
                 'move_time' => trim((string) ($move['move_time'] ?? '')),
                 'embed'     => (bool) $source->pdata('embed_map_views', false),
@@ -95,6 +98,7 @@ class PaeController extends Controller
                 'scoutings' => [],
                 'plan_date' => now()->toDateString(),
                 'shoot_day' => ProductionCalendar::shootDayFor(now()->toDateString()),
+                'unit_id'   => null,
                 'unit_name' => '',
                 'move_time' => '',
                 'embed'     => false,
@@ -103,7 +107,17 @@ class PaeController extends Controller
 
         $shootDay = $prefill['shoot_day'];
 
-        return compact('scoutings', 'contacts', 'shootDay', 'source', 'prefill');
+        // (2026-09-07 · Unidades 2b) Unidades ADICIONALES activas de la producción. El PAE es el único
+        // documento que ELIGE su unidad por documento (nombra su unidad — antes en texto libre); las demás
+        // operativas la heredan del contexto (§4). Con 0 unidades adicionales el selector no se pinta y el
+        // campo de texto libre `unit_name` sigue igual que hoy → idéntico. Guard de tabla para no romper
+        // una instancia sin el esquema de P2A.
+        $units = collect();
+        if (Schema::hasTable('units')) {
+            $units = Unit::query()->forProduction($pid)->active()->get();
+        }
+
+        return compact('scoutings', 'contacts', 'shootDay', 'source', 'prefill', 'units');
     }
 
     /** Locaciones elegibles: scouting de la producción vigente; si no hay, los más recientes. */
@@ -177,6 +191,11 @@ class PaeController extends Controller
             'issued_at'      => now(),
             'is_active'      => 1,
         ];
+        // (2026-09-07 · Unidades 2b) Referencia estructurada a la unidad (unit_id) JUNTO al snapshot de
+        // texto (unit_name). Guard de columna: sin P2A aplicado no se intenta escribir. NULL = principal.
+        if (Schema::hasColumn('emergency_action_plans', 'unit_id')) {
+            $attrs['unit_id'] = $built['unitId'];
+        }
         if (EmergencyActionPlan::supportsVersioning()) {
             $attrs['revision']      = $revision;
             $attrs['supersedes_id'] = $source ? $source->id : null;
@@ -221,6 +240,7 @@ class PaeController extends Controller
             'production_id'  => $built['productionId'],
             'shoot_day'      => $built['shootDay'],
             'plan_date'      => $built['planDate'],
+            'unit_id'        => $built['unitId'],
             'unit_name'      => $built['unitName'] !== '' ? $built['unitName'] : null,
             'plan_label'     => $built['label'],
             'payload'        => $built['payload'],
@@ -238,6 +258,7 @@ class PaeController extends Controller
                 'contacts'        => (array) $request->input('contacts', []),
                 'shoot_day'       => (string) $built['shootDay'],
                 'plan_date'       => (string) $built['planDate'],
+                'unit_id'         => $built['unitId'] !== null ? (string) $built['unitId'] : '',
                 'unit_name'       => (string) $built['unitName'],
                 'move_time'       => (string) $built['moveTime'],
                 'embed_map_views' => $built['embed'] ? '1' : '',
@@ -252,7 +273,7 @@ class PaeController extends Controller
      * NO guarda ni sella nada. Que ambos caminos usen ESTO garantiza que el documento sellado sea
      * idéntico al previsualizado.
      *
-     * @return array{payload:array,label:string,shootDay:int,planDate:string,unitName:string,moveTime:string,embed:bool,productionId:int,scoutingIds:array}
+     * @return array{payload:array,label:string,shootDay:int,planDate:string,unitId:?int,unitName:string,moveTime:string,embed:bool,productionId:int,scoutingIds:array}
      */
     protected function buildPayload(Request $request): array
     {
@@ -270,6 +291,9 @@ class PaeController extends Controller
             'scoutings.*'      => 'integer|exists:scouting_reports,id',
             'shoot_day'        => 'nullable|integer|min:1|max:999',
             'plan_date'        => 'nullable|date',
+            // (2026-09-07 · Unidades 2b) unidad ELEGIDA (adicional). nullable|integer; se re-valida contra
+            // el catálogo activo abajo (whereKey). Vacío = principal, como hoy.
+            'unit_id'          => 'nullable|integer',
             'unit_name'        => 'nullable|string|max:255',
             'move_time'        => 'nullable|string|max:50',
             'embed_map_views'  => 'nullable|boolean',
@@ -307,10 +331,30 @@ class PaeController extends Controller
             ];
         }
 
-        // Día de rodaje: lo tecleado manda; si no, se deriva de la fecha (misma regla que el DSR).
         $planDate = trim((string) ($data['plan_date'] ?? '')) ?: now()->toDateString();
-        $shootDay = self::resolveShootDay($data['shoot_day'] ?? null, $planDate);
+
+        // (2026-09-07 · Unidades 2b) UNIDAD ELEGIDA. El PAE es el único documento que NOMBRA su unidad por
+        // documento (antes texto libre en `unit_name`). Si el emisor eligió una unidad adicional (unit_id),
+        // se resuelve contra el catálogo `units` (ACTIVA, de esta producción) y su NOMBRE se ESTAMPA como
+        // snapshot en unit_name — la unidad estructurada manda sobre el texto. Sin elección → principal
+        // (unit_id null) y `unit_name` sigue siendo el texto libre de hoy (compatibilidad).
+        $unitId   = null;
         $unitName = trim((string) ($data['unit_name'] ?? ''));
+        $rawUnit  = $data['unit_id'] ?? null;
+        if ($rawUnit !== null && $rawUnit !== '' && Schema::hasTable('units')) {
+            $unit = Unit::query()
+                ->forProduction($ordered[0]->production_id ?: CurrentProduction::id())
+                ->active()->whereKey((int) $rawUnit)->first();
+            if ($unit) {
+                $unitId   = (int) $unit->id;
+                $unitName = (string) $unit->name;   // foto congelada del nombre de la unidad elegida
+            }
+        }
+
+        // Día de rodaje: lo tecleado manda; si no, se deriva de la fecha CONTRA LA UNIDAD ELEGIDA (misma
+        // regla que el DSR). 🔴 Un PAE de la 2ª unidad sella SU día, no el de la principal — y como
+        // shoot_day se sella y no se reescribe, sellar el de la principal quedaría mal para siempre.
+        $shootDay = self::resolveShootDay($data['shoot_day'] ?? null, $planDate, $unitId);
         $moveTime = trim((string) ($data['move_time'] ?? ''));
         $embed    = ! empty($data['embed_map_views']);
 
@@ -338,6 +382,7 @@ class PaeController extends Controller
             'label'        => $label,
             'shootDay'     => $shootDay,
             'planDate'     => $planDate,
+            'unitId'       => $unitId,
             'unitName'     => $unitName,
             'moveTime'     => $moveTime,
             'embed'        => $embed,
@@ -366,15 +411,17 @@ class PaeController extends Controller
     }
 
     /**
-     * Día de rodaje: si el emisor tecleó un número, se RESPETA; si no, se DERIVA de la fecha
-     * del plan (misma regla que DailyReportController::resolveShootDay). Sin ancla, cae a 1.
+     * Día de rodaje: si el emisor tecleó un número, se RESPETA; si no, se DERIVA de la fecha del plan
+     * CONTRA LA UNIDAD del documento (misma regla que DailyReportController::resolveShootDay). Sin ancla,
+     * cae a 1. 🔴 NULL = principal; una unidad adicional deriva contra SU propio calendario (día 1 el
+     * primero) para no sellar el número de la principal (irreversible).
      */
-    protected static function resolveShootDay($typed, string $planDate): int
+    protected static function resolveShootDay($typed, string $planDate, ?int $unitId = null): int
     {
         if ($typed !== null && $typed !== '') {
             return (int) $typed;
         }
-        $derived = ProductionCalendar::shootDayFor($planDate);
+        $derived = ProductionCalendar::shootDayFor($planDate, $unitId);
         return $derived !== null ? (int) $derived : 1;
     }
 }

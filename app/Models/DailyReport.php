@@ -38,6 +38,10 @@ class DailyReport extends Model
         // ambulancia / locación. Fuente de origen del hospital (belongsTo scouting()); reemplaza
         // el arrastre del DSR anterior, que heredaba el hospital de OTRA locación.
         'scouting_report_id',
+        // (2026-09-07 · Unidades 2b) UNIDAD del DSR. NULL = principal (idéntico a hoy). Sembrada en P1,
+        // ahora fillable para que el store la persista cuando el contexto la aporte. Sin fuente ambiental
+        // aún (ver §4 del reporte) llega null → principal. Su número de día se sella contra ESTA unidad.
+        'unit_id',
     ];
 
     /**

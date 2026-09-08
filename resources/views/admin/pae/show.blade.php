@@ -699,6 +699,7 @@
           @endforeach
           <input type="hidden" name="shoot_day" value="{{ $formEcho['shoot_day'] ?? '' }}">
           <input type="hidden" name="plan_date" value="{{ $formEcho['plan_date'] ?? '' }}">
+          @if(($formEcho['unit_id'] ?? '') !== '')<input type="hidden" name="unit_id" value="{{ $formEcho['unit_id'] }}">@endif
           <input type="hidden" name="unit_name" value="{{ $formEcho['unit_name'] ?? '' }}">
           <input type="hidden" name="move_time" value="{{ $formEcho['move_time'] ?? '' }}">
           @if(($formEcho['embed_map_views'] ?? '') === '1')<input type="hidden" name="embed_map_views" value="1">@endif

@@ -136,6 +136,11 @@ class StoreDailyReportRequest extends FormRequest
             // Vínculo con el scouting de origen del hospital. nullable|integer (sin 'exists:' para no
             // acoplar a prod antes del SQL); el controlador PISA lo que llegue con guard de columna.
             'scouting_report_id'   => 'nullable|integer',
+            // (2026-09-07 · Unidades 2b) UNIDAD del DSR. nullable|integer (mismo patrón que
+            // scouting_report_id: sin 'exists:' para no acoplar a prod; el controlador guarda con guard de
+            // columna). HOY ningún formulario la manda → llega null → principal → idéntico. El día que el
+            // contexto de unidad exista (§4), el store la persistirá y el día se sellará contra SU unidad.
+            'unit_id'              => 'nullable|integer',
             'ambulance_company'    => 'nullable|string',
             // medic_name: formaliza el campo huérfano (nullable, ahora con límite de longitud).
             'medic_name'           => 'nullable|string|max:255',
