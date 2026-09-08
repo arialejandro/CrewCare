@@ -43,9 +43,12 @@ class DayRosterBuilder
     ];
 
     /**
+     * @param  bool  $allUnits  (2c) true = SIN filtro por unidad vigente (todo el crew). Lo usa la ORDEN DE
+     *                          TRANSPORTE: los ocupantes de una corrida pueden ser de cualquier unidad — no
+     *                          se acota por simetría. Default false = roster de la unidad vigente (llamado).
      * @return array{date: Carbon, groups: array, unordered: array, counts: array, production: ?string}
      */
-    public static function build(User $viewer, $date): array
+    public static function build(User $viewer, $date, bool $allUnits = false): array
     {
         $day = ($date instanceof Carbon ? $date->copy() : Carbon::parse($date))->startOfDay();
 
@@ -104,8 +107,11 @@ class DayRosterBuilder
         // Orden depto→puesto, HOD arriba (idéntico a las pantallas de crew).
         $query = User::applyRosterOrder($query, $productionId);
         // (2026-09-07 · Unidades 2c) El roster del día es POR UNIDAD: sólo aparece quien está en la vigente
-        // (la principal, todo menos los exclusivos de otra unidad). Con una sola unidad, no filtra.
-        $query = UnitMembership::applyToCrew($query, 'users.id');
+        // (la principal, todo menos los exclusivos de otra unidad). Con una sola unidad, no filtra. La ORDEN
+        // DE TRANSPORTE pasa $allUnits=true: sus ocupantes pueden ser de cualquier unidad (no por simetría).
+        if (! $allUnits) {
+            $query = UnitMembership::applyToCrew($query, 'users.id');
+        }
 
         $rows = $query->get();
 

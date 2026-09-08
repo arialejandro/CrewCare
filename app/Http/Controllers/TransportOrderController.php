@@ -249,7 +249,9 @@ class TransportOrderController extends Controller
         }
         $diff = TransportOrderSnapshot::diff($current, $prev);
 
-        $roster = DayRosterBuilder::build($request->user(), $order->order_date);
+        // (2026-09-07 · 2c) allUnits=true: los ocupantes de una corrida pueden ser de CUALQUIER unidad —
+        // la orden es por unidad, pero quién sube a la van no se acota por simetría.
+        $roster = DayRosterBuilder::build($request->user(), $order->order_date, true);
 
         $pdf = Pdf::loadView('transport.orders.pdf', [
             'order'      => $order,
@@ -857,7 +859,8 @@ class TransportOrderController extends Controller
             ->get(['id', 'location_name']);
 
         // Encabezado por puesto (§1) + opciones de crew para ocupantes/driver — dinámico.
-        $roster = DayRosterBuilder::build($user, $order->order_date);
+        // (2026-09-07 · 2c) allUnits=true: los ocupantes/driver pueden ser de CUALQUIER unidad (no por simetría).
+        $roster = DayRosterBuilder::build($user, $order->order_date, true);
         $crew = [];
         foreach ($roster['groups'] as $g) {
             foreach ($g['people'] as $p) {
