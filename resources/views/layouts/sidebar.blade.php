@@ -701,6 +701,10 @@
                             @include('componentes._icon', ['name' => 'calendar', 'class' => 'cc-item__ico', 'label' => null])
                             <span>Calendario de rodaje</span>
                         </a>
+                        <a href="{{ route('production.units.index') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'folder', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>Unidades</span>
+                        </a>
                         <a href="{{ route('settings.branding.edit') }}" class="cc-item">
                             @include('componentes._icon', ['name' => 'settings', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('nav.settings_branding') }}</span>
@@ -1187,6 +1191,10 @@
                             <a href="{{ route('production.calendar.edit') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'calendar', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>Calendario de rodaje</span>
+                            </a>
+                            <a href="{{ route('production.units.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'folder', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>Unidades</span>
                             </a>
                             <a href="{{ route('settings.branding.edit') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'settings', 'class' => 'cc-item__ico', 'label' => null])

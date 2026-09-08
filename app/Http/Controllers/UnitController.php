@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Unit;
 use App\Support\CurrentProduction;
+use App\Support\UnitMembership;
 use Illuminate\Http\Request;
 
 /**
@@ -22,7 +23,17 @@ class UnitController extends Controller
         $prod  = CurrentProduction::get();
         $units = $prod ? Unit::forProduction($prod->id)->get() : collect();
 
-        return view('admin.production.units', ['prod' => $prod, 'units' => $units]);
+        // Números para el AVISO previo a desactivar (§4): cuánta gente exclusiva se apagará y cuántos
+        // documentos conserva cada unidad. La gente compartida (ambas) no cuenta: no se apaga.
+        $meta = [];
+        foreach ($units as $u) {
+            $meta[$u->id] = [
+                'off'  => UnitMembership::countActiveExclusivesOf((int) $u->id),
+                'docs' => $u->documentCount(),
+            ];
+        }
+
+        return view('admin.production.units', ['prod' => $prod, 'units' => $units, 'meta' => $meta]);
     }
 
     public function store(Request $request)
@@ -60,15 +71,30 @@ class UnitController extends Controller
         return redirect()->route('production.units.index')->with('success', 'Unidad actualizada.');
     }
 
-    /** DESACTIVAR / reactivar. Nunca borra. No toca los documentos de la unidad. */
+    /**
+     * DESACTIVAR / reactivar. Nunca borra ni toca los documentos de la unidad.
+     *
+     * 🔑 Al DESACTIVAR, su gente EXCLUSIVA se apaga con ella (users.activo=0, mismo mecanismo que el crew):
+     * no queda en limbo ni reaparece en la principal. Los COMPARTIDOS no se tocan. Al REACTIVAR, vuelven
+     * EXACTAMENTE los que la unidad apagó. Ver App\Support\UnitMembership::deactivateExclusivesOf.
+     */
     public function toggle(Request $request, Unit $unit)
     {
         $this->assertOwned($unit);
-        $unit->update(['is_active' => ! $unit->is_active]);
+        $turningOff = (bool) $unit->is_active;   // estaba activa → la vamos a apagar
 
-        $msg = $unit->is_active
-            ? 'Unidad activada.'
-            : 'Unidad desactivada. Sus documentos ya sellados conservan su unidad; solo deja de aparecer en los selectores.';
+        if ($turningOff) {
+            $n = UnitMembership::deactivateExclusivesOf((int) $unit->id);
+            $unit->update(['is_active' => false]);
+            $msg = 'Unidad desactivada.'
+                . ($n > 0 ? " Se apagaron {$n} persona(s) exclusiva(s) de esta unidad (los compartidos siguen activos)." : '')
+                . ' Sus documentos ya sellados conservan su unidad; todo vuelve si la reactivas.';
+        } else {
+            $unit->update(['is_active' => true]);
+            $n = UnitMembership::reactivateAutoDeactivatedOf((int) $unit->id);
+            $msg = 'Unidad reactivada.'
+                . ($n > 0 ? " Volvieron {$n} persona(s) que se habían apagado con la unidad." : '');
+        }
 
         return redirect()->route('production.units.index')->with('success', $msg);
     }

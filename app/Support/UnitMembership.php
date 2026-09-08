@@ -2,7 +2,10 @@
 
 namespace App\Support;
 
+use App\Models\Unit;
 use App\Models\UnitMember;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -113,12 +116,124 @@ class UnitMembership
         );
     }
 
+    // ---------------------------------------------------------------------------------------
+    // CICLO DE VIDA — apagar / encender a la gente CON la unidad (§1 desactivación en cascada)
+    // ---------------------------------------------------------------------------------------
+    //
+    // 🔑 Las unidades NO se combinan. Desactivar una unidad NO devuelve a nadie a la principal: a sus
+    // EXCLUSIVOS los apaga de verdad (users.activo=0, el MISMO mecanismo que el crew), para que no queden
+    // en limbo. Los COMPARTIDOS (exclusive=0) NUNCA se tocan: siguen trabajando en la principal. Reactivar
+    // la unidad devuelve EXACTAMENTE a los que ella apagó (marcador deactivated_with_unit), sin resucitar a
+    // quien ya estaba de baja por su cuenta. Estas operaciones son independientes de CurrentUnit/hasMultiple:
+    // actúan sobre la pivote de la unidad dada, se llame como se llame el contexto vigente.
+
+    /**
+     * user_ids EXCLUSIVOS de $unitId que están ACTIVOS hoy y que, por tanto, la desactivación apagará.
+     * Se excluye a quien además sea exclusivo de OTRA unidad todavía activa (caso raro pero posible: dos
+     * constructores marcan a la misma persona 'solo'): esa unidad aún lo necesita, no se apaga por ésta.
+     * Es la fuente ÚNICA del número que ve el aviso y de a quién toca deactivateExclusivesOf().
+     *
+     * @return int[]
+     */
+    private static function activeExclusiveTargets(int $unitId): array
+    {
+        if (! self::supported()) {
+            return [];
+        }
+        $members = UnitMember::where('unit_id', $unitId)->where('exclusive', 1)
+            ->pluck('user_id')->map(fn ($v) => (int) $v)->all();
+        if (empty($members)) {
+            return [];
+        }
+        // Sólo los que hoy están activos: a quien ya estaba de baja no lo "apaga" esta unidad.
+        $active = User::whereIn('id', $members)->where('activo', 1)
+            ->pluck('id')->map(fn ($v) => (int) $v)->all();
+        if (empty($active)) {
+            return [];
+        }
+        // Protege a quien sea exclusivo de otra unidad ACTIVA (≠ ésta): esa unidad aún lo tiene trabajando.
+        $otherActiveUnitIds = Unit::forProduction(CurrentProduction::id())->active()
+            ->where('id', '!=', $unitId)->pluck('id')->map(fn ($v) => (int) $v)->all();
+        $protected = empty($otherActiveUnitIds) ? [] : UnitMember::where('exclusive', 1)
+            ->whereIn('unit_id', $otherActiveUnitIds)->whereIn('user_id', $active)
+            ->pluck('user_id')->map(fn ($v) => (int) $v)->all();
+
+        return array_values(array_diff($active, $protected));
+    }
+
+    /** Cuántas personas exclusivas ACTIVAS apagaría desactivar $unitId (para el aviso previo). */
+    public static function countActiveExclusivesOf(int $unitId): int
+    {
+        return count(self::activeExclusiveTargets($unitId));
+    }
+
+    /**
+     * DESACTIVAR EN CASCADA: apaga (users.activo=0) a los exclusivos activos de $unitId y los marca como
+     * "apagados con la unidad" para poder devolverlos exactos al reactivar. Los compartidos no se tocan.
+     * Devuelve cuántas personas apagó. No-op si falta el marcador (degrade-safe) o no hay a quién apagar.
+     */
+    public static function deactivateExclusivesOf(int $unitId): int
+    {
+        if (! self::markerSupported()) {
+            return 0;
+        }
+        $targets = self::activeExclusiveTargets($unitId);
+        if (empty($targets)) {
+            return 0;
+        }
+        DB::transaction(function () use ($unitId, $targets) {
+            User::whereIn('id', $targets)->update(['activo' => 0]);
+            UnitMember::where('unit_id', $unitId)->whereIn('user_id', $targets)
+                ->update(['deactivated_with_unit' => 1]);
+        });
+
+        return count($targets);
+    }
+
+    /**
+     * REACTIVAR: devuelve (users.activo=1) SÓLO a los que esta unidad apagó (marcador=1) y limpia la marca.
+     * No resucita a quien se dio de baja por su cuenta. Devuelve cuántas personas devolvió.
+     */
+    public static function reactivateAutoDeactivatedOf(int $unitId): int
+    {
+        if (! self::markerSupported()) {
+            return 0;
+        }
+        $ids = UnitMember::where('unit_id', $unitId)->where('deactivated_with_unit', 1)
+            ->pluck('user_id')->map(fn ($v) => (int) $v)->all();
+        if (empty($ids)) {
+            return 0;
+        }
+        DB::transaction(function () use ($unitId, $ids) {
+            User::whereIn('id', $ids)->update(['activo' => 1]);
+            UnitMember::where('unit_id', $unitId)->whereIn('user_id', $ids)
+                ->update(['deactivated_with_unit' => 0]);
+        });
+
+        return count($ids);
+    }
+
     private static function supported(): bool
     {
         static $memo = null;
         if ($memo === null) {
             try {
                 $memo = Schema::hasTable('unit_members');
+            } catch (\Throwable $e) {
+                $memo = false;
+            }
+        }
+
+        return $memo;
+    }
+
+    /** La cascada necesita además la columna marcador; sin ella no apaga a nadie (degrade-safe). */
+    private static function markerSupported(): bool
+    {
+        static $memo = null;
+        if ($memo === null) {
+            try {
+                $memo = self::supported() && Schema::hasColumn('unit_members', 'deactivated_with_unit');
             } catch (\Throwable $e) {
                 $memo = false;
             }

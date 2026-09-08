@@ -59,6 +59,7 @@
             </div>
 
             @foreach($units as $u)
+                @php $m = $meta[$u->id] ?? ['off' => 0, 'docs' => 0]; @endphp
                 <div class="unit-row {{ $u->is_active ? '' : 'off' }}">
                     <form action="{{ route('production.units.update', $u->id) }}" method="POST" class="unit-inline" style="flex:1;">
                         @csrf @method('PUT')
@@ -70,12 +71,18 @@
                     {{-- 2c · Constructor: armar quién trabaja en esta unidad (pivote). --}}
                     <a href="{{ route('production.units.builder', $u->id) }}" class="btn btn-sm btn-outline-primary">Constructor →</a>
                     <span class="unit-badge {{ $u->is_active ? 'on' : 'paused' }}">{{ $u->is_active ? 'Activa' : 'Inactiva' }}</span>
-                    <form action="{{ route('production.units.toggle', $u->id) }}" method="POST" class="unit-inline">
+                    {{-- Desactivar AVISA antes, con números (CSP-safe: el mensaje viaja en data-confirm, sin on*=).
+                         Reactivar no pregunta: sólo devuelve lo que se había apagado. --}}
+                    <form action="{{ route('production.units.toggle', $u->id) }}" method="POST" class="unit-inline"
+                        @if($u->is_active) data-confirm="Vas a desactivar «{{ $u->name }}».&#10;&#10;· Se apagarán {{ $m['off'] }} persona(s) exclusiva(s) de esta unidad. Los compartidos (Ambas) siguen activos en la principal.&#10;· Sus {{ $m['docs'] }} documento(s) sellado(s) se conservan intactos.&#10;· Todo vuelve si la reactivas.&#10;&#10;¿Continuar?" @endif>
                         @csrf
                         <button type="submit" class="btn btn-sm btn-outline-secondary">{{ $u->is_active ? 'Desactivar' : 'Activar' }}</button>
                     </form>
                 </div>
             @endforeach
+
+            {{-- Red de UI del aviso previo a desactivar (idempotente, @once). --}}
+            @include('componentes._confirm-submit')
 
             <form action="{{ route('production.units.store') }}" method="POST" class="d-flex gap-2 mt-3">
                 @csrf

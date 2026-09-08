@@ -15,9 +15,11 @@ class UnitMember extends Model
 {
     protected $table = 'unit_members';
 
-    protected $fillable = ['unit_id', 'user_id', 'exclusive', 'created_by_id'];
+    protected $fillable = ['unit_id', 'user_id', 'exclusive', 'deactivated_with_unit', 'created_by_id'];
 
     protected $casts = [
-        'exclusive' => 'boolean',
+        'exclusive'             => 'boolean',
+        // 1 = a esta persona la apagó la desactivación de la unidad (se reactiva al reactivar la unidad).
+        'deactivated_with_unit' => 'boolean',
     ];
 }
