@@ -88,22 +88,27 @@ class TransportOrder extends Model
      */
     public static function nextVersionFor(?int $productionId, $date): int
     {
-        $max = static::query()
+        // (2026-09-07 · Unidades 2b) El versionado es POR UNIDAD: la 2ª unidad lleva su propia serie de
+        // versiones ese día, independiente de la principal. Con una sola unidad no filtra → idéntico a hoy.
+        $q = static::query()
             ->where('production_id', $productionId)
-            ->whereDate('order_date', $date)
-            ->max('version');
+            ->whereDate('order_date', $date);
+        \App\Support\CurrentUnit::applyTo($q);
+        $max = $q->max('version');
 
         return ((int) $max) + 1;
     }
 
-    /** La última versión CONGELADA de un día (la "inmediata anterior" para el diff §4). */
+    /** La última versión CONGELADA de un día (la "inmediata anterior" para el diff §4). POR UNIDAD (2b). */
     public static function latestFrozenFor(?int $productionId, $date): ?self
     {
-        return static::query()
+        $q = static::query()
             ->where('production_id', $productionId)
             ->whereDate('order_date', $date)
             ->where('status', self::STATUS_FROZEN)
-            ->orderByDesc('version')
-            ->first();
+            ->orderByDesc('version');
+        \App\Support\CurrentUnit::applyTo($q);
+
+        return $q->first();
     }
 }

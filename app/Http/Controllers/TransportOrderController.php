@@ -13,6 +13,7 @@ use App\Models\TransportPickupPoint;
 use App\Models\TransportRunOccupant;
 use App\Models\Vehicle;
 use App\Support\CurrentProduction;
+use App\Support\CurrentUnit;
 use App\Support\DayRosterBuilder;
 use App\Support\TransportAccess;
 use App\Support\TransportCrew;
@@ -40,9 +41,11 @@ class TransportOrderController extends Controller
 
         $pid = CurrentProduction::id();
 
-        $orders = TransportOrder::query()
-            ->where('production_id', $pid)
-            ->where('is_active', 1)
+        // (2026-09-07 · Unidades 2b) Listado acotado a la UNIDAD VIGENTE (los hijos heredan de la orden).
+        // Con una sola unidad no filtra → idéntico a hoy; con más de una, sólo las órdenes de la vigente.
+        $orders = CurrentUnit::applyTo(
+            TransportOrder::query()->where('production_id', $pid)->where('is_active', 1)
+        )
             ->orderByDesc('order_date')
             ->orderByDesc('version')
             ->get()
@@ -64,11 +67,14 @@ class TransportOrderController extends Controller
         $pid  = CurrentProduction::id();
         $date = Carbon::parse($data['order_date'])->toDateString();
 
-        // 1) Borrador abierto ese día → retomarlo (no dupliques borradores).
-        $draft = TransportOrder::where('production_id', $pid)
-            ->whereDate('order_date', $date)
-            ->where('status', TransportOrder::STATUS_DRAFT)
-            ->where('is_active', 1)
+        // 1) Borrador abierto ese día → retomarlo (no dupliques borradores). POR UNIDAD (2b): el borrador
+        //    de la 2ª unidad es independiente del de la principal ese mismo día.
+        $draft = CurrentUnit::applyTo(
+            TransportOrder::where('production_id', $pid)
+                ->whereDate('order_date', $date)
+                ->where('status', TransportOrder::STATUS_DRAFT)
+                ->where('is_active', 1)
+        )
             ->orderByDesc('version')
             ->first();
         if ($draft) {
@@ -88,6 +94,7 @@ class TransportOrderController extends Controller
         //    agrupado por vehículo (Fase 3). Snapshot: sin vínculo a la asignación. Propone, no obliga.
         $draft = TransportOrder::create([
             'production_id' => $pid,
+            'unit_id'       => CurrentUnit::id(),   // 2b: la orden nace en la unidad vigente (null = principal)
             'order_date'    => $date,
             'version'       => TransportOrder::nextVersionFor($pid, $date),
             'status'        => TransportOrder::STATUS_DRAFT,
@@ -378,6 +385,7 @@ class TransportOrderController extends Controller
         return DB::transaction(function () use ($frozen, $user) {
             $draft = TransportOrder::create([
                 'production_id'   => $frozen->production_id,
+                'unit_id'         => $frozen->unit_id,   // 2b: la nueva versión hereda la unidad de la anterior
                 'order_date'      => $frozen->order_date,
                 'version'         => TransportOrder::nextVersionFor($frozen->production_id, $frozen->order_date),
                 'status'          => TransportOrder::STATUS_DRAFT,
