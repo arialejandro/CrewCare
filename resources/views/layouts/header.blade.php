@@ -25,6 +25,9 @@
              desde md se muestran las etiquetas. RBAC preservado (admin vs crew). --}}
         <nav class="cc-appbar__actions" aria-label="{{ __('nav.menu') }}">
 
+            {{-- Selector de UNIDAD VIGENTE (Unidades 2b) — sólo con más de una unidad. --}}
+            @auth @include('layouts._unit-switch') @endauth
+
             <a class="cc-appbar__btn" href="{{ URL::previous() }}">
                 @include('componentes._icon', ['name' => 'chevron-left', 'class' => 'cc-appbar__ico', 'label' => __('nav.back')])
                 <span class="cc-appbar__btn-txt d-none d-md-inline">{{ __('nav.back') }}</span>

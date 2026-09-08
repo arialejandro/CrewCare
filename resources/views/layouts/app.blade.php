@@ -81,6 +81,10 @@
 
             @include('layouts.header')
 
+        {{-- Franja de UNIDAD VIGENTE (Unidades 2b): grita cuando se trabaja fuera de la principal.
+             Sólo se pinta con más de una unidad y estando fuera de la principal → idéntico a hoy si no. --}}
+        @include('layouts._unit-banner')
+
         <div class="container-fluid">
             <div class="row">
                 <!-- -------------- Sidebar - Author -------------- -->

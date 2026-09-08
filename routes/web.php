@@ -105,6 +105,11 @@ Route::middleware(['auth', 'privacidad'])->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('/aviso-privacidad',[App\Http\Controllers\PrivacyConsentController::class,'show'])->name('privacidad.aviso');
     Route::post('/aviso-privacidad',[App\Http\Controllers\PrivacyConsentController::class,'store'])->name('privacidad.aceptar');
+
+    // UNIDADES 2b · cambiar la UNIDAD VIGENTE (preferencia por sesión). Cualquier usuario autenticado:
+    // trabajar en una unidad no es un permiso de gestión. NULL = principal. El selector sólo aparece
+    // cuando hay más de una unidad; con una sola, esta ruta nunca se dispara.
+    Route::post('/unidad/cambiar', [App\Http\Controllers\UnitContextController::class, 'switch'])->name('unit.switch');
 });
 
 // --- /negative-mail (MailController@sendMail, COVID) ELIMINADO — Lote 3 COVID-DECOMMISSION (2026-06-25), respaldo en _legacy_backup/ ---
