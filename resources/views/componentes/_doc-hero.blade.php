@@ -19,9 +19,22 @@
       $logoWidth    (int)          opcional (default 250)
 --}}
 @php
-    $heroProject  = ($heroProject ?? null) ?: ($branding['brand_name'] ?? 'PROYECTO');
+    // NOMBRE DEL PROYECTO (el rótulo grande del hero). Orden de respaldo, y el orden IMPORTA:
+    // primero lo que pase el documento, luego el nombre de Marca, y si Marca no se ha llenado, el
+    // nombre de la PRODUCCIÓN de esta instancia. Antes se caía directo a `brand_name`, cuyo valor
+    // de fábrica es "CrewCare" — así que una instancia recién montada imprimía el nombre de la APP
+    // en el lugar reservado al proyecto (visto en flor.crewcare.mx: la cabecera decía "CrewCare"
+    // donde debía decir el título). El nombre de la app nunca es el nombre del proyecto; el de la
+    // producción sí es un respaldo honesto, y 'PROYECTO' queda como último recurso.
+    $__brandName  = trim((string) ($branding['brand_name'] ?? ''));
+    if ($__brandName === '' || strcasecmp($__brandName, 'CrewCare') === 0) {
+        $__brandName = trim((string) (optional(\App\Support\CurrentProduction::get())->name ?? ''));
+    }
+    $heroProject  = ($heroProject ?? null) ?: ($__brandName ?: 'PROYECTO');
     $heroLocation = trim((string) ($heroLocation ?? ''));
-    $logoWidth    = $logoWidth ?? 250;
+    // 200 (antes 250): a 250 un logo apaisado —el caso normal de un logo de casa productora— llega
+    // al borde de su placa y se ve enorme. El alto también se acota en el parcial del logo.
+    $logoWidth    = $logoWidth ?? 200;
     // $logoSrc OPCIONAL: se reenvía al parcial del logo para que los documentos sellados puedan
     // pintar el logo CONGELADO en su payload en vez del vivo de Marca. Null = logo vivo (default).
     $logoSrc      = $logoSrc ?? null;
