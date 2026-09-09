@@ -65,9 +65,25 @@ return [
     | will be used by the PHP date and date-time functions. We have gone
     | ahead and set this to a sensible default for you out of the box.
     |
+    | ⏰ SE LEE DEL .env — CrewCare NO puede vivir en UTC. Esto estuvo clavado en 'UTC'
+    | (el default de fábrica de Laravel, que nunca se cambió) y la consecuencia no era
+    | cosmética: un DSR sellado en flor.crewcare.mx imprimía "Sellado 13:29:53" cuando en
+    | realidad eran las 07:29:53 de Ciudad de México. Seis horas de error en la cara de un
+    | documento con valor probatorio, que además NO se puede re-sellar. También afectaba al
+    | `display_timezone` que ContractEventLog estampa en el certificado de conclusión de cada
+    | contrato, y hacía que los crons corrieran seis horas corridos (el aviso "de las 07:00"
+    | salía a la 1 de la madrugada).
+    |
+    | 🪤 Ojo: `APP_TIMEZONE` en el .env NO servía de nada mientras esta línea fuera literal.
+    | La variable se puso en producción de buena fe y no la leía nadie. Si algún día vuelves a
+    | fijar aquí un valor literal, esa variable se vuelve decorativa otra vez y en silencio.
+    |
+    | El sello NO depende de esto: `created_at`/`updated_at` están excluidos del payload y se
+    | verificó en producción que el hash es idéntico bajo UTC y bajo America/Mexico_City.
+    |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------

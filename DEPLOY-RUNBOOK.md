@@ -52,6 +52,7 @@ Luego edita `.env` y llena **como mínimo**:
 | `APP_ENV` | `production` | |
 | `APP_DEBUG` | `false` | |
 | `APP_URL` | `https://tu-dominio` | **CON esquema** (`https://…`), nunca pelón. Manda los deep-links de correos/QR. |
+| `APP_TIMEZONE` | zona de la producción (`America/Mexico_City`) | ⏰ **Ponla ANTES de sellar el primer documento.** Es la hora que se IMPRIME en las actas selladas, y un sello no se rehace: sin ella la app corre en UTC y un acta de las 07:29 de CDMX dice "13:29". También manda la hora a la que corren los crons. |
 | `APP_KEY` | (lo generó `key:generate`) | |
 | `CREWCARE_SEAL_KEY` | clave aleatoria (ver abajo) | **Firma el sello HMAC de todos los documentos.** Fíjala **una vez** y NO la cambies (cambiarla invalida todos los sellos). |
 | `DB_DATABASE` / `DB_USERNAME` / `DB_PASSWORD` / `DB_HOST` | tu BD | La base debe existir vacía (paso 3). |
