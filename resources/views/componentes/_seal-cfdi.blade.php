@@ -57,8 +57,16 @@
     // (2026-08-12) El sello muestra el NOMBRE DE CRÉDITOS del firmante (ncreditos; si vacío, nombre
     // corto), homologado con las firmas y el pie del documento — no el nombre legal completo.
     $__signer = ($__rec && $__rec->user) ? \App\Models\User::displayName($__rec->user) : null;
+    // (2026-09-08) Junto al nombre va el PUESTO, no el ROL DE SISTEMA. Aquí se imprimía
+    // `role_at_signing` y el sello decía "Ari Rómulo · super-admin": a quien lee un documento de
+    // seguridad no le dice nada que el firmante tenga permisos de administrador — le importa QUÉ
+    // ES en la producción (Coordinador de Seguridad, Gerente de Producción…). El rol es una
+    // categoría interna de permisos; el puesto es el cargo por el que esa persona responde.
+    // Se lee el puesto VIGENTE y no una foto congelada al firmar, a propósito: una instancia es
+    // UNA producción y el puesto de alguien no cambia mientras dura. Si no tiene puesto
+    // registrado no se pinta nada (regla: lo que no existe, no se muestra).
+    $__role   = ($__rec && $__rec->user) ? $__rec->user->positionName() : null;
     // Sello de SISTEMA: no lo firmó una persona, lo emitió la app al cerrarse el día.
-    $__role   = $__rec ? $__rec->role_at_signing : null;
     $__system = $__rec && $__rec->user_id === null;
 @endphp
 

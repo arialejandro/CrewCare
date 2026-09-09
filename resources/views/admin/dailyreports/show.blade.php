@@ -135,6 +135,12 @@
     // si no hay autor, cae al author_name guardado.
     $__author = ! empty($r->created_by_id) ? \App\Models\User::find($r->created_by_id) : null;
     $creditName = $__author ? \App\Models\User::displayName($__author) : ($r->author_name ?: '—');
+    // PUESTO real de quien elaboró, bajo la línea de firma. Antes ahí iba la etiqueta FIJA
+    // `label_risk_assessment` ("Risk Assessment"), que es el nombre del formato de Amazon MGM y no
+    // el cargo de nadie: firmara quien firmara, el documento decía lo mismo. Lo que identifica a
+    // quien responde por un reporte de seguridad es su PUESTO en la producción. Si no tiene puesto
+    // registrado se queda solo el nombre (regla: lo que no existe, no se muestra).
+    $creditRole = $__author ? $__author->positionName() : null;
 
     // ---- RISK HEATMAP: SOLO los iconos de los riesgos REALMENTE presentes (sin ausentes, sin radios).
     //      Un riesgo está presente si (a) un log del día lo disparó vía su boletín ($heatmap del ctrl),
@@ -657,7 +663,7 @@
         <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'shield'])<h2>{{ __('reports.label_prepared_by') }}</h2><span class="line"></span></div>
         {{-- Casilla 1 = nombre de créditos sobre la línea de firma; casilla 2 = fecha SIN línea. --}}
         <div class="sign">
-          <div class="sig"><div class="who">{{ $creditName }}</div><div class="role">{{ __('reports.label_risk_assessment') }}</div></div>
+          <div class="sig"><div class="who">{{ $creditName }}</div>@if($creditRole)<div class="role">{{ $creditRole }}</div>@endif</div>
           <div class="sig sig--plain"><div class="who">{{ $heroDate ?: '—' }}</div><div class="role">{{ __('reports.label_date') }}</div></div>
         </div>
         {{-- Hueco de la firma autógrafa (ver la nota equivalente en el Injury): el espacio
@@ -681,7 +687,7 @@
     </table>
     @include('componentes._report-v2-foot', [
       'footPreparedName' => $creditName,
-      'footPreparedMeta' => __('reports.label_risk_assessment'), // pie SIN fecha (owner 2026-08)
+      'footPreparedMeta' => $creditRole ?: '', // PUESTO real, no la etiqueta fija; pie SIN fecha (owner 2026-08)
       'footUuid'         => $footUuid,
     ])
 
