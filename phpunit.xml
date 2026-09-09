@@ -10,6 +10,15 @@
   </testsuites>
   <php>
     <server name="APP_ENV" value="testing"/>
+    <!-- RELOJ DE LAS PRUEBAS, FIJADO A PROPÓSITO. El default de la app es America/Mexico_City
+         (config/app.php), pero la suite se ancla a UTC para que su resultado no dependa del país
+         de la instancia ni cambie el día que ese default cambie: una prueba que falla en marzo
+         por el horario de verano no enseña nada sobre el código.
+         ⚠ Contrapartida honesta: así la suite NO ejercita la zona real, y una suposición de
+         "todo es UTC" escondida en el código no saldría aquí. Correrla alguna vez con
+         America/Mexico_City es un ejercicio que vale la pena — pero es un cambio a verificar
+         con la suite entera, no algo que se pone de paso. -->
+    <server name="APP_TIMEZONE" value="UTC"/>
     <server name="BCRYPT_ROUNDS" value="4"/>
     <server name="CACHE_DRIVER" value="array"/>
     <!-- BD de PRUEBAS dedicada. NUNCA la real (crewcare). El QaTestCase aborta

@@ -81,9 +81,41 @@ return [
     | El sello NO depende de esto: `created_at`/`updated_at` están excluidos del payload y se
     | verificó en producción que el hash es idéntico bajo UTC y bajo America/Mexico_City.
     |
+    |--------------------------------------------------------------------------
+    | CÓMO SE CAMBIA (es un dato POR INSTANCIA, no del producto)
+    |--------------------------------------------------------------------------
+    |
+    | Una instancia = una producción = un país. La zona se pone en el `.env` de esa instancia:
+    |
+    |     APP_TIMEZONE=America/Bogota
+    |
+    | y después `php artisan config:cache` (con la config cacheada el .env no se relee solo).
+    | NO hace falta tocar este archivo para operar en otro país: el default de abajo es sólo la
+    | red para una instancia a la que se le olvidó la variable.
+    |
+    | El default es **México** porque hoy el producto opera en México y un default correcto para
+    | el caso real vale más que uno "neutro": UTC no es la hora de NINGÚN cliente, así que como
+    | respaldo sólo garantiza estar mal. Cuando el grueso de las instancias deje de ser mexicano,
+    | este default deja de tener sentido y toca revisarlo — no es una constante del producto.
+    |
+    | Zonas de la región, para cuando toque (nombres IANA, que respetan el horario de verano):
+    |     México (centro) ....... America/Mexico_City      Colombia ...... America/Bogota
+    |     México (noroeste) ..... America/Tijuana          Perú .......... America/Lima
+    |     México (Cancún) ....... America/Cancun           Ecuador ....... America/Guayaquil
+    |     Argentina ............. America/Argentina/Buenos_Aires
+    |     Chile ................. America/Santiago         Uruguay ....... America/Montevideo
+    |     Brasil (São Paulo) .... America/Sao_Paulo        Panamá ........ America/Panama
+    |     Costa Rica ............ America/Costa_Rica       Guatemala ..... America/Guatemala
+    |     R. Dominicana ......... America/Santo_Domingo    España ........ Europe/Madrid
+    |
+    | ⚠ Ponla ANTES de sellar el primer documento. Cambiarla después NO corrige los ya emitidos:
+    | un sello no se rehace, así que cada acta se queda con la hora que tenía al firmarse. Si una
+    | instancia lleva meses corriendo con la zona equivocada, eso ya no tiene arreglo retroactivo.
+    | El preflight (`php artisan crewcare:preflight`) lo comprueba y avisa antes de que pase.
+    |
     */
 
-    'timezone' => env('APP_TIMEZONE', 'UTC'),
+    'timezone' => env('APP_TIMEZONE', 'America/Mexico_City'),
 
     /*
     |--------------------------------------------------------------------------
