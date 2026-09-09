@@ -337,7 +337,10 @@ window.__intakeTA = (function () {
         any = true;
         var li = document.createElement('li'); li.className = 'cc-ta-opt'; li.setAttribute('role', 'option');
         li.dataset.value = it.value; li.textContent = it.label;
-        li.addEventListener('mousedown', function (e) { e.preventDefault(); setVal(it.value, it.label); close(); });
+        {{-- 🪤 pointerdown, NO mousedown: en iOS los eventos de ratón son sintetizados y no son
+             fiables sobre un <li>, así que al tocar la opción setVal() no corría y el campo se
+             enviaba vacío. Mismo arreglo (y mismo porqué) que en componentes/_typeahead. --}}
+        li.addEventListener(window.PointerEvent ? 'pointerdown' : 'mousedown', function (e) { e.preventDefault(); setVal(it.value, it.label); close(); });
         list.appendChild(li); visible.push(li);
       });
       if (!any) { var em = document.createElement('li'); em.className = 'cc-ta-empty'; em.textContent = 'Sin coincidencias'; list.appendChild(em); }

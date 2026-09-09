@@ -64,6 +64,21 @@
 (function () {
     if (window.CCTypeahead) { return; }
 
+    // ── ELEGIR UNA OPCIÓN: pointerdown, NO mousedown. ──────────────────────────────────
+    // 🪤 Las opciones de la lista se cableaban SOLO a 'mousedown'. En iOS los eventos de
+    // ratón son SINTETIZADOS a partir del toque y no son fiables sobre elementos que no son
+    // controles de formulario; encima el preventDefault() sobre un mouse sintético interfiere
+    // con la secuencia del toque. Resultado en iPad: tocabas la opción, setVal() NUNCA corría,
+    // el <select> se quedaba vacío y el servidor respondía "el campo X es obligatorio" — con el
+    // agravante de que el usuario SÍ había elegido y no tenía forma de saber qué faltaba.
+    // Android sintetiza mousedown bien, por eso ahí nunca se vio (flor.crewcare.mx, 2026-09-08).
+    //
+    // 'pointerdown' cubre ratón, toque y lápiz con UN solo manejador y existe en Safari desde
+    // la 13. Se mantiene 'mousedown' de respaldo para navegadores sin Pointer Events. Sigue
+    // siendo *down* y no *click* a propósito: dispara ANTES del blur del input, que es lo que
+    // permite el preventDefault() para no perder el foco antes de asignar el valor.
+    var PICK_EVENT = window.PointerEvent ? 'pointerdown' : 'mousedown';
+
     // Enum BLANCO de marcos: solo estos valores se pintan como chip y se usan como sufijo
     // de clase .badge-XXX (defensa XSS: los data-badges son controlados pero se validan).
     var BADGE_ENUM  = { CSATF:1, OSHA:1, STPS:1, DOT:1, SCT:1, GENERAL:1, AMAZON:1 };
@@ -228,7 +243,7 @@
                     } else {
                         li.textContent = it.label; // comportamiento de hoy, intacto
                     }
-                    li.addEventListener('mousedown', function (e) { e.preventDefault(); setVal(it.value, it.label); close(); });
+                    li.addEventListener(PICK_EVENT, function (e) { e.preventDefault(); setVal(it.value, it.label); close(); });
                     list.appendChild(li); visible.push(li);
                 });
             });
@@ -248,7 +263,7 @@
                         var deptName = (createDeptSel && deptEl && deptEl.selectedOptions && deptEl.selectedOptions[0]) ? deptEl.selectedOptions[0].textContent.trim() : '';
                         var cli = document.createElement('li'); cli.className = 'cc-ta-opt cc-ta-create';
                         cli.textContent = 'Crear «' + typedRaw + '»' + (deptName ? ' en ' + deptName : '');
-                        cli.addEventListener('mousedown', function (e) { e.preventDefault(); doCreate(typedRaw, deptVal); });
+                        cli.addEventListener(PICK_EVENT, function (e) { e.preventDefault(); doCreate(typedRaw, deptVal); });
                         list.appendChild(cli); hasCreateRow = true;
                     }
                 }
