@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Http\Requests\InjuryReportRequest;
 use App\Models\InjuryReport;
 use App\Models\User;
 use App\Models\HazardEvent;
@@ -13,7 +14,10 @@ class InjuryReportController extends Controller
 {
     public function inicial()
     {
-        $injuryReports = InjuryReport::latest()->paginate(10);
+        // Aislamiento por propiedad (auditoría #1): cada quien sólo lo que capturó (safety aislados
+        // entre sí, y el médico igual); la CONSOLIDACIÓN (safety.consolidate) ve todo.
+        $injuryReports = \App\Support\ReportVisibility::forCurrentUnit(InjuryReport::query(), auth()->user())
+            ->latest()->paginate(10);
         return view('admin.injuryreports', compact('injuryReports'));
     }
 
@@ -47,6 +51,9 @@ class InjuryReportController extends Controller
     public function edit($id)
     {
         $injuryReport = InjuryReport::findOrFail($id);
+        // Aislamiento por autor (auditoría #1): editar sólo el autor o la consolidación (leer es transversal).
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $injuryReport), 403,
+            'Solo el autor o la consolidación de seguridad pueden editar este reporte.');
         $user = auth()->user();
         $standards = \App\Models\SafetyStandard::orderBy('category_name', 'asc')->get();
         $hazardEvents = Schema::hasTable('hazard_events')
@@ -62,23 +69,11 @@ class InjuryReportController extends Controller
         return view('admin.injuryreportcreate', compact('user', 'standards', 'hazardEvents', 'departments', 'positions', 'isEdit', 'injuryReport'));
     }
 
-    public function store(Request $request)
+    public function store(InjuryReportRequest $request)
 {
-    // (2026-07-14) Pilar 1 — captura en 2 FASES. En Fase 1 (progressive ON, default)
-    // el store de móvil pide lo MÍNIMO (solo what_happened); todo lo demás es
-    // nullable y el compliance se completa luego en la edición (Fase 2). Si el flag
-    // está OFF se conservan las reglas ESTRICTAS de siempre.
-    $progressive = Features::enabled('progressive_capture');
-
-    // Fase 1 → reglas mínimas (strict = false); Fase 1 OFF → reglas estrictas.
-    $validatedData = $request->validate($this->validationRules($request, !$progressive));
-
-    // (2026-07-12) MÓDULO 10: la obligatoriedad de aviso a la autoridad (registrable)
-    // es carga "burocrática" → solo se exige en el flujo ESTRICTO. En Fase 1 (ágil) NO
-    // se bloquea: queda como pendiente de compliance para completarse en la edición.
-    if (!$progressive) {
-        $this->assertRecordableNotified($request);
-    }
+    // (2026-07-14) Pilar 1 — captura en 2 FASES. La validación (mínima en Fase 1, estricta con el
+    // flag apagado) + el aviso a la autoridad si es REGISTRABLE viven en InjuryReportRequest.
+    $validatedData = $request->validated();
 
     // Preparar datos para la base de datos (unsets defensivos, JSON, imágenes, autollenado).
     $dataForDb = $this->prepareDataForDb($request, $validatedData);
@@ -88,6 +83,10 @@ class InjuryReportController extends Controller
     $dataForDb['make_date'] = now()->toDateString();
     if (Schema::hasColumn('injury_reports', 'created_by_id')) {
         $dataForDb['created_by_id'] = auth()->id();
+    }
+    // (2026-09-07 · Unidades 2b) Unidad VIGENTE del contexto (null = principal → idéntico a hoy).
+    if (Schema::hasColumn('injury_reports', 'unit_id')) {
+        $dataForDb['unit_id'] = \App\Support\CurrentUnit::id();
     }
 
     // (2026-07-14) Pilar 1: si falta la matriz 5×5 (likelihood/consequence), el reporte
@@ -121,10 +120,20 @@ class InjuryReportController extends Controller
         $report->refresh();
         $report->signDocument(auth()->user(), $request);
 
-        // Redirigir a la vista del reporte recién creado con un mensaje de éxito
+        // (2026-08-11) BUG-INC-01: el crew tiene injury.create pero NO injury.view,
+        // así que redirigir SIEMPRE a injury_reports.show le daba un 403 al crear su
+        // propio accidente. Ramificamos por permiso: quien puede VER el expediente va
+        // al reporte; el resto aterriza en su home con un acuse, SIN exponer el
+        // documento (evita el 403 y protege la PII clínica).
+        if (auth()->user()->can('injury.view')) {
+            return redirect()
+                ->route('injury_reports.show', $report->id)
+                ->with('success', 'Reporte creado exitosamente.');
+        }
+
         return redirect()
-            ->route('injury_reports.show', $report->id)
-            ->with('success', 'Reporte creado exitosamente.');
+            ->route('home')
+            ->with('success', 'Tu reporte fue recibido. Gracias por notificarlo.');
 
     } catch (\Exception $e) {
         // Log del error para depuración
@@ -144,15 +153,13 @@ class InjuryReportController extends Controller
      * de compliance cuando la matriz 5×5 queda completa. NUNCA toca la autofirma
      * (make_by / make_date / created_by_id).
      */
-    public function update(Request $request, $id)
+    public function update(InjuryReportRequest $request, $id)
     {
+        // Aislamiento por autor (auditoría #1) + validación ESTRICTA + aviso a la autoridad viven en
+        // InjuryReportRequest: authorize() 403 ANTES de validar (conserva el orden), rules() estricto.
         $injuryReport = InjuryReport::findOrFail($id);
 
-        // Fase 2 SIEMPRE valida estricto (matriz 5×5, injury_type, causas, etc.).
-        $validatedData = $request->validate($this->validationRules($request, true));
-
-        // En Fase 2 la obligatoriedad de aviso a la autoridad (registrable) SÍ aplica.
-        $this->assertRecordableNotified($request);
+        $validatedData = $request->validated();
 
         // Reutiliza exactamente la misma preparación que store (unsets/JSON/imágenes).
         // Se pasa el reporte existente para APPEND (no reemplazo) de imágenes adicionales.
@@ -211,156 +218,8 @@ class InjuryReportController extends Controller
         }
     }
 
-    /**
-     * (2026-07-14) Reglas de validación compartidas por store()/update().
-     * $strict=true → set COMPLETO (matriz/injury_type/causas obligatorios), usado por
-     * update() y por store() con progressive OFF. $strict=false → Fase 1 (móvil ágil):
-     * SOLO what_happened es obligatorio; el resto se relaja a nullable conservando los
-     * formatos (date/numeric/in).
-     */
-    private function validationRules(Request $request, $strict)
-    {
-        // MÓDULO 11: la justificación manual solo se vuelve OBLIGATORIA (sin GPS) en el
-        // flujo estricto y si la columna existe (defensivo prod). En Fase 1 no bloquea.
-        $manualLocationRule = 'nullable|string|max:1000';
-        if ($strict && Schema::hasColumn('injury_reports', 'manual_location_justification')) {
-            $manualLocationRule .= '|required_without:latitude';
-        }
-
-        // Prefijo de obligatoriedad de los campos "de fondo".
-        $req = $strict ? 'required' : 'nullable';
-
-        return [
-            'production_title' => "{$req}|string|max:255",
-            'production_dates' => 'nullable|string|max:255',
-            'location' => 'nullable|string|max:255',
-            'department' => 'nullable|string|max:255',
-            'incident_date' => "{$req}|date|before_or_equal:today",
-            // El cross-field after_or_equal:incident_date solo aplica en estricto (en Fase 1
-            // incident_date puede venir vacío y rompería la comparación).
-            'reported_date' => $strict
-                ? 'required|date|after_or_equal:incident_date|before_or_equal:today'
-                : 'nullable|date|before_or_equal:today',
-            'time' => 'nullable|date_format:H:i',
-            'incident_location' => 'nullable|string|max:255',
-            // (2026-07-07) GPS opcional: coordenadas + dirección detectada (reverse geocoding).
-            'latitude' => 'nullable|numeric|between:-90,90',
-            'longitude' => 'nullable|numeric|between:-180,180',
-            'gps_address' => 'nullable|string|max:500',
-            'name' => "{$req}|string|max:255",
-            'position' => 'nullable|string|max:255',
-            'dob' => 'nullable|date|before:today',
-            'phone' => 'nullable|string|max:20',
-            'other' => 'nullable|string|max:255',
-            'body_part' => 'nullable|string|max:255',
-            'injury_type' => "{$req}|array",
-            'injury_type.*' => 'string|max:255',
-            'treatment_type' => 'nullable|string|max:255',
-            'treatment_by' => 'nullable|string|max:255',
-            'hospital' => 'nullable|string|max:255',
-            'treatment_comments' => 'nullable|string|max:1000',
-            // (2026-07-14) what_happened es el ÚNICO campo obligatorio también en Fase 1.
-            'what_happened' => 'required|string|max:2000',
-            'what_caused' => "{$req}|string|max:2000",
-            'preventions' => "{$req}|string|max:1000",
-            'further_comments' => 'nullable|string|max:1000',
-            'user_id' => 'nullable|exists:users,id',
-            // (2026-07-09) Límite de imagen subido a 12 MB (5 MB rechazaba fotos de celular en silencio).
-            'main_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:12288',
-            'additional_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:12288',
-            // (2026-06-28) Catálogo normativo legacy: nullable por compat con envíos viejos.
-            'category_name' => 'nullable|string',
-            // (2026-07-13) Catálogo ÚNICO de eventos. 'nullable|integer' (NO exists) para no
-            // romper PROD antes del SQL; applyHazardEvent() lo resuelve de forma defensiva.
-            'hazard_event_id' => 'nullable|integer',
-            // (2026-07-09) Datos laborales + fatiga.
-            'employer_name' => 'nullable|string|max:255',
-            'call_time' => 'nullable|date_format:H:i',
-            // (2026-07-09) Registrabilidad OSHA 300/301 (is_recordable se fuerza server-side).
-            'treatment_level' => 'nullable|in:first_aid,medical_treatment,hospitalization,fatality',
-            'days_away_from_work' => 'nullable|integer|min:0|max:9999',
-            'days_restricted_work' => 'nullable|integer|min:0|max:9999',
-            // (2026-07-13) Matriz 5×5: en estricto son OBLIGATORIOS; en Fase 1 nullable
-            // (si faltan, el reporte queda pending_compliance=1).
-            'likelihood' => $strict ? 'required|in:A,B,C,D,E' : 'nullable|in:A,B,C,D,E',
-            'consequence' => $strict ? 'required|integer|between:1,5' : 'nullable|integer|between:1,5',
-            // (2026-07-09) Causa raíz estructurada (JSON).
-            'root_cause_analysis' => 'nullable|array',
-            'root_cause_analysis.immediate' => 'nullable|string|max:2000',
-            'root_cause_analysis.contributing' => 'nullable|string|max:2000',
-            'root_cause_analysis.root' => 'nullable|string|max:2000',
-            // (2026-07-20) MECANISMO DE LA LESIÓN: cómo la persona entró en contacto con el
-            // daño. Vive DENTRO del JSON root_cause_analysis (llave nueva) a propósito: NO es
-            // una columna nueva en injury_reports, así que el sello SHA de lo ya firmado no
-            // cambia. Sólo afecta capturas nuevas.
-            'root_cause_analysis.mechanism' => 'nullable|string|max:2000',
-            // (2026-07-13) COHERENCIA: categorías de causa raíz (checkboxes) — additive.
-            'root_cause_analysis.categories' => 'nullable|array',
-            'root_cause_analysis.categories.*' => 'string|max:255',
-            // (2026-07-09) EPP estructurado (JSON).
-            'ppe_details' => 'nullable|array',
-            'ppe_details.worn' => 'nullable|in:si,no,na',
-            'ppe_details.types' => 'nullable|array',
-            'ppe_details.types.*' => 'nullable|string|max:100',
-            'ppe_details.condition' => 'nullable|string|max:255',
-            // (2026-07-09) Vínculo N:M a normas aplicables.
-            'standards' => 'nullable|array',
-            'standards.*' => 'integer|exists:safety_standards,id',
-            // (2026-07-12) MÓDULO 7: Testigos (1:N). Opcionales; si hay fila, el nombre es required.
-            'witnesses' => 'nullable|array',
-            'witnesses.*.name' => 'required_with:witnesses|string|max:255',
-            'witnesses.*.phone' => 'nullable|string|max:50',
-            'witnesses.*.statement' => 'nullable|string|max:2000',
-            // (2026-07-12) MÓDULO 10: Notificaciones a autoridad (JSON estructurado).
-            'authority_notifications' => 'nullable|array',
-            'authority_notifications.*.authority' => 'nullable|string|max:100',
-            'authority_notifications.*.notified_at' => 'nullable|date',
-            'authority_notifications.*.notified_by' => 'nullable|string|max:255',
-            'authority_notifications.*.folio_number' => 'nullable|string|max:100',
-            // (2026-07-12) MÓDULO 11: Justificación de ubicación manual (sin GPS).
-            'manual_location_justification' => $manualLocationRule,
-        ];
-    }
-
-    /**
-     * (2026-07-12) MÓDULO 10: si el incidente es REGISTRABLE (nivel médico/hospitalización/
-     * fatalidad o días perdidos/restringidos), exige al menos UN aviso a la autoridad con
-     * autoridad y folio no vacíos. No-op si la columna no existe (defensivo prod).
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
-    private function assertRecordableNotified(Request $request)
-    {
-        if (!Schema::hasColumn('injury_reports', 'authority_notifications')) {
-            return;
-        }
-
-        $treatmentLevel = $request->input('treatment_level');
-        $daysAway       = (int) $request->input('days_away_from_work', 0);
-        $daysRestricted = (int) $request->input('days_restricted_work', 0);
-        $isRecordable   = in_array($treatmentLevel, ['medical_treatment', 'hospitalization', 'fatality'], true)
-            || $daysAway > 0 || $daysRestricted > 0;
-
-        if (!$isRecordable) {
-            return;
-        }
-
-        $hasValidNotification = false;
-        foreach ((array) $request->input('authority_notifications', []) as $note) {
-            if (is_array($note)
-                && trim((string) ($note['authority'] ?? '')) !== ''
-                && trim((string) ($note['folio_number'] ?? '')) !== '') {
-                $hasValidNotification = true;
-                break;
-            }
-        }
-
-        if (!$hasValidNotification) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'authority_notifications' => 'Este incidente es REGISTRABLE: registra al menos una notificación a la autoridad con autoridad y número de folio.',
-            ]);
-        }
-    }
+    // La validación (reglas + aviso a la autoridad si es REGISTRABLE) + el aislamiento por autor
+    // viven ahora en App\Http\Requests\InjuryReportRequest (mismo comportamiento; higiene).
 
     /**
      * (2026-07-14) Preparación compartida de datos para BD (store + update). Aplica los
@@ -458,7 +317,8 @@ class InjuryReportController extends Controller
 
         // Imagen principal: solo se reemplaza si se sube una nueva (en edición conserva la actual).
         if ($request->hasFile('main_image')) {
-            $image = $request->file('main_image');
+            // HEIC (iPhone) → JPEG si el servidor puede; si no, la validación 'heic_ok' ya lo rechazó.
+            $image = \App\Support\ImageCompressor::normalizeForUpload($request->file('main_image'));
             // Nombre único (time()+uniqid()) para evitar colisiones en el mismo segundo.
             $filename = time() . '_' . uniqid() . '_main.' . \App\Support\ImageCompressor::safeExtensionOrBin($image);
             $path = $image->storeAs('injury_images', $filename, 'public');
@@ -471,6 +331,7 @@ class InjuryReportController extends Controller
                 ? $existing->additional_images_paths
                 : [];
             foreach ($request->file('additional_images') as $image) {
+                $image = \App\Support\ImageCompressor::normalizeForUpload($image);
                 $filename = time() . '_additional_' . uniqid() . '.' . \App\Support\ImageCompressor::safeExtensionOrBin($image);
                 $path = $image->storeAs('injury_images', $filename, 'public');
                 $additionalImagePaths[] = Storage::url($path);
@@ -540,7 +401,16 @@ public function show($id)
 
     $canComplete = \Illuminate\Support\Facades\Gate::allows('viewMedical', $injuryReport);
 
-    return view('admin.injuryreport-lite', compact('injuryReport', 'canComplete'));
+    // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+    // MISMA vista/datos y la pasa por Browsershot (Chrome headless) → descarga idéntica a
+    // window.print(). Márgenes 0 (el @page Oficio manda). Ver [[browsershot-pdf-pipeline]].
+    if (request()->boolean('pdf')) {
+        $html = view('admin.injuryreport-lite', compact('injuryReport', 'canComplete'))->render();
+        return \App\Support\PdfExporter::download($html, 'INJ-' . $injuryReport->id, [0, 0, 0, 0]);
+    }
+
+    return view('admin.injuryreport-lite', compact('injuryReport', 'canComplete')
+        + ['pdfUrl' => request()->fullUrlWithQuery(['pdf' => 1])]);
 }
 
 /**
@@ -558,6 +428,14 @@ public function showComplete($id)
 
     // GATE del expediente completo: mismo silo médico del reporte de lesión.
     $this->authorize('viewMedical', $injuryReport);
+
+    // (2026-08-30) BITÁCORA de lectura clínica (invisible): el expediente COMPLETO expone el silo
+    // médico de la lesión; se deja el rastro de quién lo abrió. Best-effort, nunca rompe la vista.
+    \App\Support\ClinicalReadLog::record(
+        \App\Support\ClinicalReadLog::T_INJURY_COMPLETO,
+        (int) $injuryReport->id,
+        (int) ($injuryReport->user_id ?: 0) ?: null
+    );
 
     // (2026-06-28) Catálogo normativo: si la fila trae un regulation_code, se resuelve la URL
     // del boletín desde safety_standards (reference_url vive ahí, NO en la tabla del reporte).
@@ -598,7 +476,16 @@ public function showComplete($id)
         $injuryReport->load($addendumRel);
     }
 
-    return view('admin.injuryreport', compact('injuryReport', 'standardUrl'));
+    // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. El GATE
+    // viewMedical de arriba también protege el export (no se sirve ni el PDF sin permiso).
+    // Márgenes 0 (el @page Oficio manda). Ver [[browsershot-pdf-pipeline]].
+    if (request()->boolean('pdf')) {
+        $html = view('admin.injuryreport', compact('injuryReport', 'standardUrl'))->render();
+        return \App\Support\PdfExporter::download($html, 'INJ-' . $injuryReport->id . '-completo', [0, 0, 0, 0]);
+    }
+
+    return view('admin.injuryreport', compact('injuryReport', 'standardUrl')
+        + ['pdfUrl' => request()->fullUrlWithQuery(['pdf' => 1])]);
 }
 
     public function searchUsers(Request $request)

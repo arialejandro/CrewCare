@@ -83,9 +83,15 @@
 
     // Folio / UUID.
     $folio   = 'INJ-' . str_pad((string) $injuryReport->id, 4, '0', STR_PAD_LEFT);
-    $footUuid = 'UUID: ' . $brandName . '-INJ-' . (16210 + $injuryReport->id) . '-' . \Carbon\Carbon::parse($injuryReport->created_at)->format('dmY') . ' | ' . config('crewcare.doc_version');
+    // UUID REAL del documento (el mismo del sello CFDI), no un código derivado del id.
+    $footUuid = 'UUID: ' . ($injuryReport->uuid ?: '—') . ' | ' . config('crewcare.doc_version');
 
-    $heroDate = $injuryReport->incident_date ? \Carbon\Carbon::parse($injuryReport->incident_date)->format('d M Y') : null;
+    // NOMBRE DE CRÉDITOS del reportante (card 1 de firmas + pie): autor por created_by_id →
+    // User::displayName. El lesionado y el testigo NO se tocan (son otras personas reales).
+    $__author = ! empty($injuryReport->created_by_id) ? \App\Models\User::find($injuryReport->created_by_id) : null;
+    $creditName = $__author ? \App\Models\User::displayName($__author) : ($injuryReport->make_by ?: '—');
+
+    $heroDate = $injuryReport->incident_date ? \Carbon\Carbon::parse($injuryReport->incident_date)->translatedFormat('d M Y') : null;
     $heroTime = $injuryReport->time ? \Carbon\Carbon::parse($injuryReport->time)->format('H:i') : null;
     $heroLoc  = $injuryReport->location ?: ($injuryReport->incident_location ?? '');
 @endphp
@@ -367,7 +373,7 @@
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:6px;font-size:.72rem;color:var(--muted)">
               <span><strong>{{ __('reports.label_responsible') }}:</strong> {{ $item->owner ? $item->owner->name : '—' }}</span>
-              <span class="{{ $ov ? '' : '' }}" style="{{ $ov ? 'color:var(--danger);font-weight:700' : '' }}"><strong>{{ __('reports.label_due') }}:</strong> {{ $item->due_date ? \Carbon\Carbon::parse($item->due_date)->format('d M Y') : '—' }}{{ $ov ? ' · ' . __('reports.label_overdue_caps') : '' }}</span>
+              <span class="{{ $ov ? '' : '' }}" style="{{ $ov ? 'color:var(--danger);font-weight:700' : '' }}"><strong>{{ __('reports.label_due') }}:</strong> {{ $item->due_date ? \Carbon\Carbon::parse($item->due_date)->translatedFormat('d M Y') : '—' }}{{ $ov ? ' · ' . __('reports.label_overdue_caps') : '' }}</span>
             </div>
           </div>
           @endforeach
@@ -416,7 +422,7 @@
             <thead><tr><th>{{ __('reports.label_authority') }}</th><th>{{ __('reports.label_date') }}</th><th>{{ __('reports.label_notified_by') }}</th><th>{{ __('reports.label_folio') }}</th></tr></thead>
             <tbody>
             @foreach($injuryReport->authority_notifications as $note)
-              <tr><td style="font-weight:700">{{ $note['authority'] ?? '—' }}</td><td>{{ !empty($note['notified_at']) ? \Carbon\Carbon::parse($note['notified_at'])->format('d M Y') : '—' }}</td><td>{{ $note['notified_by'] ?? '—' }}</td><td class="mono">{{ $note['folio_number'] ?? '—' }}</td></tr>
+              <tr><td style="font-weight:700">{{ $note['authority'] ?? '—' }}</td><td>{{ !empty($note['notified_at']) ? \Carbon\Carbon::parse($note['notified_at'])->translatedFormat('d M Y') : '—' }}</td><td>{{ $note['notified_by'] ?? '—' }}</td><td class="mono">{{ $note['folio_number'] ?? '—' }}</td></tr>
             @endforeach
             </tbody>
           </table>
@@ -449,8 +455,8 @@
       <section class="sec">
         <div class="sec-h"><span class="bar"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg><h2>{{ __('reports.label_signatures_integrity') }}</h2><span class="line"></span></div>
         <div class="sign">
-          {{-- Reportante (quien levantó el reporte). --}}
-          <div class="sig"><div class="who">{{ $injuryReport->make_by ?: '—' }}</div><div class="role">{{ __('reports.label_reporter') }}</div></div>
+          {{-- Reportante (quien levantó el reporte): NOMBRE DE CRÉDITOS. --}}
+          <div class="sig"><div class="who">{{ $creditName }}</div><div class="role">{{ __('reports.label_reporter') }}</div></div>
           {{-- Lesionado + ACEPTACIÓN DE LA NARRATIVA (item 4): la firma declara que reconoce que
                los hechos narrados son correctos (no sólo "fue notificado"). --}}
           <div class="sig"><div class="who">{{ $injFull }}</div><div class="role">{{ __('reports.label_injured_person') }}</div><div style="font-size:.68rem;color:var(--muted);margin-top:8px;font-style:italic">{{ __('reports.injury_acceptance_declaration') }}</div></div>
@@ -475,8 +481,8 @@
     </table>
 
     @include('componentes._report-v2-foot', [
-      'footPreparedName' => $injuryReport->make_by ?: '—',
-      'footPreparedMeta' => __('reports.label_reporter') . ($injuryReport->make_date ? ' · ' . \Carbon\Carbon::parse($injuryReport->make_date)->format('d M Y') : ''),
+      'footPreparedName' => $creditName,
+      'footPreparedMeta' => __('reports.label_reporter'), // pie SIN fecha (owner 2026-08)
       'footUuid'         => $footUuid,
     ])
 </body>

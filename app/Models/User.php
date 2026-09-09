@@ -49,6 +49,11 @@ class User extends Authenticatable
         'device_token',
         'daytest',
         'labn',
+        // EL INFOSHEET · no-crew como usuario ÚNICO (bandera de la PERSONA; NO otorga ni gatea
+        // acceso — solo distingue el tipo). El token de acceso (external_access_*) se asigna SÓLO
+        // en servidor: a propósito NO es mass-assignable (token de enlace = no debe elegirse).
+        'is_external',
+        'crewlist_visible',
         // COVID desacoplado (2026-07-07): lastpcr/enfermo/ultimatemperatura/inline/resultpcr/tested
         // salieron del $fillable y del schema (owner-apply 2026-07-07-users-covid-cleanup.sql). Nunca
         // se leían; solo se inicializaban en el alta. DIFERIDOS (siguen vivos): daytest (rol legacy →
@@ -72,6 +77,11 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'borndate' => 'date', // Añade esta línea para convertir a fecha
+        // EL INFOSHEET · no-crew
+        'is_external'                => 'boolean',
+        'crewlist_visible'           => 'boolean',
+        'external_access_used_at'    => 'datetime',
+        'external_access_expires_at' => 'datetime',
     ];
 
     /**
@@ -96,6 +106,17 @@ class User extends Authenticatable
     }
 
     /**
+     * Vehículos donde este usuario (crew) es el conductor asignado (Transportación, aditivo).
+     * Cierra el lado INVERSO de Vehicle::driver() para que la corrida pueda "proponer el otro"
+     * al elegir uno de los dos (§2 Bloque 2). Referencia BLANDA (sin FK dura).
+     */
+    public function drivenVehicles()
+    {
+        return $this->hasMany(Vehicle::class, 'driver_user_id', 'id')
+            ->where('vehicles.is_active', 1);
+    }
+
+    /**
      * IDs de departamento a los que pertenece este usuario (vía el pivote production_user).
      * Es la FUENTE DE VERDAD de "su departamento" para el scope del HOD. La etiqueta
      * desnormalizada users.puestodepartamento NO es una llave estable; el pivote sí.
@@ -108,6 +129,24 @@ class User extends Authenticatable
             ->unique()
             ->filter()
             ->values();
+    }
+
+    /**
+     * NOMBRE del departamento cuando el usuario tiene UN SOLO lente (un HOD de un depto): así el
+     * menú se personaliza ("Arte", "Transpo") en vez de un genérico "Crew". Devuelve null para
+     * quien ve TODOS los departamentos (line-producer/coordinator/super-admin → etiqueta genérica)
+     * o para quien no tiene exactamente un departamento. No otorga accesos: solo personaliza el título.
+     */
+    public function soleDepartmentName(): ?string
+    {
+        if ($this->can('crew.view.all-departments')) {
+            return null;   // ve todo → etiqueta genérica
+        }
+        $ids = $this->ownDepartmentIds();
+        if ($ids->count() !== 1) {
+            return null;
+        }
+        return optional(\App\Models\Department::find($ids->first()))->name;
     }
 
     /**
@@ -157,6 +196,70 @@ class User extends Authenticatable
             }
         }
         return ($legacy !== null && $legacy !== '') ? $legacy : null; // legacy (fallback ya era depto)
+    }
+
+    /**
+     * NOMBRE CORTO de un integrante de crew: 1ª palabra del `name` + 1er apellido (`lname`).
+     * P.ej. "Hugo Jacobo" + "Baus" → "Hugo Baus". Como `name`/`lname` están poblados en el 100%
+     * del crew, siempre da un resultado usable. NUNCA inventa: usa lo que hay. Si por alguna razón
+     * no hay apellido, cae al `name` tal cual.
+     *
+     * Acepta un modelo Eloquent o una fila cruda (stdClass): la lista itera `DB::table('users')`.
+     */
+    public static function shortName($user): string
+    {
+        $name  = trim((string) ($user->name ?? ''));
+        $first = $name === '' ? '' : preg_split('/\s+/', $name)[0];
+        $short = trim($first . ' ' . trim((string) ($user->lname ?? '')));
+
+        return $short !== '' ? $short : $name;
+    }
+
+    /**
+     * NOMBRE A MOSTRAR de un integrante de crew. Fuente única para las superficies que enseñan
+     * "cómo se llama" esta persona SIN un campo de crédito aparte (Crew List, gafete, organigrama
+     * del PAE…). Regla (owner 2026-08-07):
+     *   1) el **Nombre en Créditos** (`ncreditos`) cuando existe DE VERDAD —tiene al menos una
+     *      letra, para ignorar basura de semilla tipo "0" o "-"—;
+     *   2) si no, el **nombre corto** ([[shortName]]).
+     *
+     * ⚠ En superficies que YA muestran el crédito por separado (p. ej. la lista de gafetes lo pone
+     * de subtítulo) usar [[shortName]] para el nombre PRINCIPAL, no este método, o se duplicaría.
+     *
+     * NO usar en expedientes clínicos ni documentos sellados: ahí va el nombre COMPLETO/legal (o
+     * no va ningún nombre). Solo lee `ncreditos`, `name`, `lname`.
+     */
+    public static function displayName($user): string
+    {
+        $cred = trim((string) ($user->ncreditos ?? ''));
+        if ($cred !== '' && preg_match('/\p{L}/u', $cred)) {
+            return $cred;
+        }
+
+        return self::shortName($user);
+    }
+
+    /**
+     * Nombre para la MARCA DE AGUA (y cualquier crédito COMPACTO): el Nombre en Créditos si existe
+     * de verdad; si no, **PRIMER nombre + PRIMER apellido** (regla owner 2026-08-24 — el nombre
+     * completo "se ve largo" en la marca de agua diagonal). Difiere de [[shortName]], que arrastra el
+     * apellido COMPLETO ("Mariana Arismendi Castro" vs. aquí "Mariana Arismendi"). Solo lee
+     * `ncreditos`, `name`, `lname`.
+     */
+    public static function creditShortName($user): string
+    {
+        $cred = trim((string) ($user->ncreditos ?? ''));
+        if ($cred !== '' && preg_match('/\p{L}/u', $cred)) {
+            return $cred;
+        }
+
+        $name  = trim((string) ($user->name ?? ''));
+        $lname = trim((string) ($user->lname ?? ''));
+        $first = $name  === '' ? '' : preg_split('/\s+/', $name)[0];
+        $ap1   = $lname === '' ? '' : preg_split('/\s+/', $lname)[0];
+        $short = trim($first . ' ' . $ap1);
+
+        return $short !== '' ? $short : self::shortName($user);
     }
 
     /**
@@ -226,6 +329,76 @@ class User extends Authenticatable
             $sub->select(DB::raw(1))
                 ->from('production_user')
                 ->whereColumn('production_user.user_id', 'users.id')
+                ->whereIn('production_user.department_id', $ownDeptIds->all());
+        });
+    }
+
+    /**
+     * ORDEN JERÁRQUICO del listado de crew (2026-08-21): departamento por el `sort_order`
+     * del catálogo y, dentro de cada uno, el puesto por su `sort_order` (HOD primero) — el
+     * MISMO criterio del documento de export (CrewRosterBuilder), ahora también en las
+     * pantallas (antes: users.id DESC). Se resuelve con subconsultas ESCALARES en el ORDER
+     * BY (no JOINs) para NO multiplicar filas ni alterar el conteo de la paginación. Fuente
+     * de verdad: el pivote production_user de la producción vigente; fallback a las etiquetas
+     * legacy zone/puestodepartamento sólo cuando no hay fila pivote (igual que CrewRosterBuilder).
+     * Sin orden resoluble → al final (999999), desempate por apellido y luego id.
+     *
+     * @param  \Illuminate\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder  $query
+     */
+    public static function applyRosterOrder($query, ?int $productionId = null)
+    {
+        $pid = $productionId ?? \App\Support\CurrentProduction::id();
+        $prodFilterPivot = $pid ? ' AND pu.production_id = ' . (int) $pid : '';   // (int) → sin inyección
+        $prodFilterPivot2 = $pid ? ' AND pu2.production_id = ' . (int) $pid : '';
+
+        $deptSort = '(COALESCE('
+            . '(SELECT d.sort_order FROM production_user pu JOIN departments d ON d.id = pu.department_id'
+            . ' WHERE pu.user_id = users.id' . $prodFilterPivot . ' LIMIT 1),'
+            . '(SELECT d2.sort_order FROM departments d2 WHERE d2.name = users.zone LIMIT 1),'
+            . '999999))';
+
+        $posSort = '(COALESCE('
+            . '(SELECT p.sort_order FROM production_user pu2 JOIN positions p ON p.id = pu2.position_id'
+            . ' WHERE pu2.user_id = users.id' . $prodFilterPivot2 . ' LIMIT 1),'
+            . '(SELECT p2.sort_order FROM positions p2 WHERE p2.name = users.puestodepartamento LIMIT 1),'
+            . '999999))';
+
+        return $query
+            ->orderByRaw($deptSort . ' asc')
+            ->orderByRaw($posSort . ' asc')
+            ->orderBy('users.lname', 'asc')
+            ->orderBy('users.id', 'desc');
+    }
+
+    /**
+     * HERMANO de applyDepartmentScope para la BASE ÚNICA DE QUIEN COBRA. La original NO se
+     * toca (tiene 8 call sites: CrewList, bitácora médica, gafete, export…). Este usa el MISMO
+     * whereExists sobre production_user, pero correlacionado con la PARTE CONTRATANTE en vez de
+     * users.id: conserva solo las filas cuyo contratante comparte departamento con el viewer.
+     * "Quién contrata es quien ve" (Paso 4) se implementa enchufando esto en los listados de
+     * payees/contratos; aquí solo queda la capacidad del modelo, sin call sites todavía.
+     *
+     * OJO: el bypass reusa `crew.view.all-departments` por ahora; el Paso 4 decide el permiso
+     * apagable definitivo (p.ej. exclusividad de ambulancias para producción/safety).
+     *
+     * @param  string  $contractingUserIdColumn  columna a correlacionar (default: la del contrato).
+     */
+    public static function applyContractingScope($query, self $viewer, string $contractingUserIdColumn = 'payee_contracts.contracted_by_user_id')
+    {
+        if ($viewer->can('crew.view.all-departments')) {
+            return $query;
+        }
+
+        $ownDeptIds = $viewer->ownDepartmentIds();
+
+        if ($ownDeptIds->isEmpty()) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereExists(function ($sub) use ($ownDeptIds, $contractingUserIdColumn) {
+            $sub->select(DB::raw(1))
+                ->from('production_user')
+                ->whereColumn('production_user.user_id', $contractingUserIdColumn)
                 ->whereIn('production_user.department_id', $ownDeptIds->all());
         });
     }
@@ -351,6 +524,12 @@ class User extends Authenticatable
                 if ($this->can($p)) {
                     return true;
                 }
+            }
+            // Consulta de contratos: contabilidad / oficina de producción / producción (los que "ven
+            // todo") entran al panel aunque no tengan otro permiso. Los HOD de cada depto ya entran por
+            // sus permisos y ven lo suyo. Regla en App\Support\ContractVisibility.
+            if (\App\Support\ContractVisibility::seesAll($this)) {
+                return true;
             }
         } catch (\Throwable $e) {
             // Permiso inexistente en una instancia sin sembrar → no reventar el layout.

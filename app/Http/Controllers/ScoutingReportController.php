@@ -86,6 +86,12 @@ class ScoutingReportController extends Controller
             'crowd_action'      => 'Multitudes en escena / figuración de acción',
             'minors_physical'   => 'Menores en actividad física',
             'base_camp'         => 'Base camp / logística',
+            // --- 4 categorías del catálogo del owner (CSV medidas_control, 2026-08-17) ---
+            // Espejo de HazardEvent::categories() para no divergir de la taxonomía compartida.
+            'health'            => 'Salud ocupacional / ergonomía',
+            'security'          => 'Seguridad y protección (delitos / terceros)',
+            'tools_machinery'   => 'Herramientas y maquinaria de taller',
+            'safety_program'    => 'Programa de seguridad (gestión)',
         ];
     }
 
@@ -122,7 +128,9 @@ class ScoutingReportController extends Controller
     public function index()
     {
         // paginate(12): divisible entre las 1/2/3 columnas del grid de cards.
-        $reports = ScoutingReport::orderBy('id', 'desc')->paginate(12);
+        // Aislamiento por propiedad (auditoría #1): autor, con bypass safety.consolidate.
+        $reports = \App\Support\ReportVisibility::forCurrentUnit(ScoutingReport::query(), auth()->user())
+            ->orderBy('id', 'desc')->paginate(12);
         return view('admin.scoutings.index', compact('reports'));
     }
 
@@ -182,7 +190,8 @@ class ScoutingReportController extends Controller
                 if ($today->between($startDay, $endDay)) {
                     $dateScore = 0;
                 } else {
-                    $dateScore = min($today->diffInDays($startDay), $today->diffInDays($endDay));
+                    // Carbon 3: diffInDays es float con SIGNO → abs() para rankear por proximidad absoluta (como Carbon 2).
+                    $dateScore = min(abs($today->diffInDays($startDay)), abs($today->diffInDays($endDay)));
                 }
             }
 
@@ -267,6 +276,11 @@ class ScoutingReportController extends Controller
         $reportData['created_by_id'] = auth()->id();
         $reportData['make_date']     = now()->toDateString();
 
+        // (2026-09-07 · Unidades 2b) Unidad VIGENTE del contexto (null = principal → idéntico a hoy).
+        if (\Illuminate\Support\Facades\Schema::hasColumn('scouting_reports', 'unit_id')) {
+            $reportData['unit_id'] = \App\Support\CurrentUnit::id();
+        }
+
         // ---- Imágenes (mismo patrón que locationController@store) ----
         if ($request->hasFile('main_image')) {
             $reportData['main_image_path'] = $this->storeUploadedImage($request->file('main_image'), 'main');
@@ -333,7 +347,17 @@ class ScoutingReportController extends Controller
     public function show($id)
     {
         $report = ScoutingReport::findOrFail($id);
-        return view('admin.scoutings.show', compact('report'));
+
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+        // MISMA vista/datos y la pasa por Browsershot (Chrome headless) → descarga de un clic,
+        // idéntica a window.print(). Márgenes 0 (el @page Oficio manda). Ver [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = view('admin.scoutings.show', compact('report'))->render();
+            return \App\Support\PdfExporter::download($html, 'SCOUT-' . str_pad((string) $id, 4, '0', STR_PAD_LEFT), [0, 0, 0, 0]);
+        }
+
+        return view('admin.scoutings.show', compact('report')
+            + ['pdfUrl' => request()->fullUrlWithQuery(['pdf' => 1])]);
     }
 
     /**
@@ -353,6 +377,15 @@ class ScoutingReportController extends Controller
             ? $request->query('lang')
             : 'es';
 
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+        // MISMA vista/datos (conserva ?lang) y la pasa por Browsershot (Chrome headless) → descarga
+        // idéntica a window.print(). Formato CARTA (letter, márgenes 12mm); el botón vive en la
+        // propia vista (chrome propio, no _report-v2-foot). Ver [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = view('admin.scoutings.amazon', compact('report', 'lang'))->render();
+            return \App\Support\PdfExporter::download($html, 'SCOUT-' . $report->id . '-RA', [12, 12, 12, 12]);
+        }
+
         return view('admin.scoutings.amazon', compact('report', 'lang'));
     }
 
@@ -364,6 +397,9 @@ class ScoutingReportController extends Controller
     public function edit($id)
     {
         $report       = ScoutingReport::findOrFail($id);
+        // Aislamiento por autor (auditoría #1): editar sólo el autor o la consolidación (leer es transversal).
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $report), 403,
+            'Solo el autor o la consolidación de seguridad pueden editar este scouting.');
         $productions  = Production::orderBy('name')->get();
         $standards    = SafetyStandard::orderBy('category_name')->get();
         $categories   = $this->categories();
@@ -385,6 +421,10 @@ class ScoutingReportController extends Controller
     public function update(Request $request, $id)
     {
         $report = ScoutingReport::findOrFail($id);
+
+        // Aislamiento por autor (auditoría #1): sólo el autor o la consolidación pueden editar/re-sellar.
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $report), 403,
+            'Solo el autor o la consolidación de seguridad pueden editar este scouting.');
 
         $this->validateReport($request);
 
@@ -473,7 +513,15 @@ class ScoutingReportController extends Controller
             //       firmas duplicadas en cada guardado). Si SÍ cambió, se re-sella y esa firma nueva
             //       queda en el historial (digital_signatures) con su autor y fecha: el "final"
             //       siempre refleja el contenido actual, y cada re-sello queda registrado.
-            if ($report->status === 'final') {
+            // (2026-09-05 · Integridad) El re-sellado se guarda por "¿ya estaba SELLADO?", no solo por
+            // "¿está en final?". Un scouting con FIRMA PREVIA DEBE re-sellarse al editarse, quede en el
+            // estado que quede: antes, bajarlo de final dejaba su sello viejo sin que nadie se enterara
+            // (un documento sellado es un documento que no cambió). Se CONSERVA la doctrina "un borrador
+            // nunca sellado no se sella; 'final' siempre queda sellado" → por eso la condición también
+            // entra cuando el estado nuevo es final aunque no hubiera firma (primer sellado al pasar a
+            // final, igual que store()). hash_equals evita apilar firmas idénticas si nada cambió.
+            $tieneFirmaPrevia = Schema::hasTable('digital_signatures') && $report->signatures()->exists();
+            if ($report->status === 'final' || $tieneFirmaPrevia) {
                 $report->refresh();
                 $nuevoHash = $report->computeDocumentHash();
                 $ultima    = Schema::hasTable('digital_signatures')
@@ -824,6 +872,13 @@ class ScoutingReportController extends Controller
             $data['required_ppe'] = $this->buildRequiredPpe($request);
         }
 
+        // (2026-08-08 · Parte D) Bandera "¿habrá ambulancia?" — tri-estado (null/1/0). Guarda
+        // defensiva por columna (prod puede no tener el delta #54 aún). Vacío = sin declarar → null.
+        if (Schema::hasColumn('scouting_reports', 'has_ambulance')) {
+            $ha = $request->input('has_ambulance');
+            $data['has_ambulance'] = ($ha === null || $ha === '') ? null : (bool) $ha;
+        }
+
         return $data;
     }
 
@@ -923,6 +978,8 @@ class ScoutingReportController extends Controller
      */
     private function storeUploadedImage($image, $tag)
     {
+        // HEIC (iPhone) → JPEG si el servidor puede convertir; si no, la validación ya lo rechazó.
+        $image    = \App\Support\ImageCompressor::normalizeForUpload($image);
         $filename = time() . '_' . $tag . '_' . uniqid() . '.' . \App\Support\ImageCompressor::safeExtensionOrBin($image);
         $path     = $image->storeAs('scouting_images', $filename, 'public');
         return Storage::url($path);

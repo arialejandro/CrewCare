@@ -43,6 +43,7 @@
     $access    = trim((string) $p->pdata('emergency_access', ''));
     $emPhone   = trim((string) $p->pdata('emergency_phone', ''));
     $ambulance = trim((string) $p->pdata('ambulance_company', ''));
+    $hasAmb    = $p->pdata('has_ambulance', null);   // (Parte D) null = no declarada; true/false
 
     $dateStr   = $p->issued_at ? \Carbon\Carbon::parse($p->issued_at)->format('d/m/Y') : '';
     $mapImg    = trim((string) $p->pdata('map_image', ''));   // data-URI congelado (o vacío)
@@ -85,11 +86,9 @@
     // El UUID conserva la marca del cliente ($brandName) y la versión del documento, EXACTAMENTE con
     // la misma fórmula que DSR/scout/injury ({marca}-{TIPO}-{16210+id}-{ddmmaaaa} | VER x.x).
     $preparedName = trim((string) $p->issued_by_name) ?: '—';
-    $footDate     = $p->issued_at ? \Carbon\Carbon::parse($p->issued_at)->format('d M Y') : '';
-    $preparedMeta = __('reports.label_risk_assessment') . ($footDate !== '' ? ' · ' . $footDate : '');
-    $footUuid     = 'UUID: ' . $brandName . '-MDVC-' . (16210 + (int) $p->id) . '-'
-                  . ($p->created_at ? \Carbon\Carbon::parse($p->created_at)->format('dmY') : '')
-                  . ' | ' . config('crewcare.doc_version');
+    $preparedMeta = __('reports.label_risk_assessment'); // pie SIN fecha (owner 2026-08)
+    // UUID REAL del documento (el mismo del sello CFDI), no un código derivado del id.
+    $footUuid     = 'UUID: ' . ($p->uuid ?: '—') . ' | ' . config('crewcare.doc_version');
 @endphp
 <!DOCTYPE html>
 <html lang="{{ app()->getLocale() }}">
@@ -98,6 +97,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ $brandName }} · MEDEVAC · {{ $locName ?: 'Locación' }}</title>
 <link rel="stylesheet" href="/fonts/reports/report-fonts.css">
+{{-- CSP: oculta <img data-hide-on-error> rotas sin onerror inline (same-origin, en <head>). --}}
+<script src="/js/img-fallback.js"></script>
 <style>
     /* Tipografía de marca CrewCare (la misma que el logotipo del footer y el wordmark). */
     @font-face { font-family:'Aspire SC'; src:url('/fonts/aspire-sc/AspireSCLight-Regular.ttf') format('truetype'); font-weight:300; font-style:normal; font-display:swap; }
@@ -253,8 +254,19 @@
 <div class="mdv-toolbar">
     <a href="{{ route('scoutings.show', $p->scouting_report_id) }}">← Volver al scouting</a>
     <span class="sp"></span>
-    <button type="button" class="primary" onclick="window.print()">Imprimir / PDF</button>
+    {{-- Descarga server-side (Browsershot): idéntica a window.print() pero de un clic. --}}
+    <button type="button" class="primary" data-mv-pdf data-pdf-url="{{ request()->fullUrlWithQuery(['pdf' => 1]) }}">Descargar PDF</button>
+    <button type="button" data-mv-print>Imprimir</button>
 </div>
+
+{{-- Barra de acciones (CSP: sin onclick inline; nonce por la fuente única). --}}
+<script nonce="{{ $cspNonce }}">
+    document.addEventListener('click', function (e) {
+        var pdf = e.target.closest('[data-mv-pdf]');
+        if (pdf) { window.location.href = pdf.getAttribute('data-pdf-url'); return; }
+        if (e.target.closest('[data-mv-print]')) { window.print(); }
+    });
+</script>
 
 <div class="mdv-sheet">
 
@@ -264,7 +276,7 @@
         <div class="hd-r">
             <div class="logos">
                 @if($logo !== '')
-                    <img src="{{ $logo }}" alt="{{ $company }}" onerror="this.style.display='none'">
+                    <img src="{{ $logo }}" alt="{{ $company }}" data-hide-on-error>
                 @else
                     <span class="co">{{ $company }}</span>
                 @endif
@@ -298,6 +310,7 @@
             @if($hospName !== '')<div class="mdv-row"><span class="k">Hospital</span><span class="v">{{ $hospName }}</span></div>@endif
             @if($hospAddr !== '')<div class="mdv-row"><span class="k">Dirección</span><span class="v">{{ $hospAddr }}</span></div>@endif
             @if($hospMaps !== '')<div class="mdv-row"><span class="k">Link Google</span><span class="v"><a href="{{ $hospMaps }}" target="_blank" rel="noopener">Ruta locación → hospital (Google Maps)</a></span></div>@endif
+            @if($hasAmb !== null)<div class="mdv-row"><span class="k">Ambulancia prevista</span><span class="v">{{ $hasAmb ? 'Sí' : 'No' }}</span></div>@endif
             @if($ambulance !== '')<div class="mdv-row"><span class="k">Ambulancia</span><span class="v">{{ $ambulance }}</span></div>@endif
             @if($emPhone !== '')<div class="mdv-row"><span class="k">Tel. emergencia</span><span class="v">{{ $emPhone }}</span></div>@endif
         </div>
@@ -358,7 +371,7 @@
                 @if($verdict === false)<span class="bad-tag">· documento alterado</span>
                 @elseif($verdict === null)<span style="color:#9aa3b1">· sin sellar</span>@endif
             </div>
-            <div class="smeta">Folio {{ $p->folio() }}@if($sealedAt) · sellado {{ $sealedAt }}@endif@if($p->uuid) · verifica escaneando el QR@endif</div>
+            <div class="smeta">Folio {{ $p->folio() }}{{ $sealedAt ? ' · sellado '.$sealedAt : '' }}{{ $p->uuid ? ' · verifica escaneando el QR' : '' }}</div>
             @if($sig)<div class="shash">{{ $sig->document_hash }}</div>@endif
         </div>
         @if($identicon)<div class="idc">{!! $identicon !!}</div>@endif

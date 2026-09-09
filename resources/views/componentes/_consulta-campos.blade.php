@@ -231,13 +231,13 @@
                                     @endforeach
                                 </select>
                             </td>
-                            <td class="text-center"><button type="button" class="cc-med-del" onclick="removeMedRow(this)" title="{{ __('Quitar medicamento') }}" aria-label="{{ __('Quitar medicamento') }}">@include('componentes._icon', ['name' => 'x', 'class' => 'cc-ico-16', 'label' => null])</button></td>
+                            <td class="text-center"><button type="button" class="cc-med-del" data-med-del title="{{ __('Quitar medicamento') }}" aria-label="{{ __('Quitar medicamento') }}">@include('componentes._icon', ['name' => 'x', 'class' => 'cc-ico-16', 'label' => null])</button></td>
                         </tr>
                         @endfor
                     </tbody>
                 </table>
             </div>
-            <button type="button" class="cc-btn-ghost mt-2" onclick="addMedRow()">
+            <button type="button" class="cc-btn-ghost mt-2" data-med-add>
                 @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-ico-16', 'label' => null])
                 {{ __('Agregar medicamento') }}
             </button>
@@ -312,6 +312,14 @@
         btn.closest('tr').remove();
         renumberMedRows();
     }
+
+    // Delegación (CSP: sin on* en atributo). El botón "agregar" es único; los de borrar se clonan
+    // con cada fila nueva, por eso ambos se escuchan por delegación en el documento.
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('[data-med-add]')) { addMedRow(); return; }
+        var del = e.target.closest('[data-med-del]');
+        if (del) { removeMedRow(del); }
+    });
 </script>
 @endpush
 @endonce

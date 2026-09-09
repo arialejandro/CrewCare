@@ -83,6 +83,17 @@
         color: var(--brand-on-primary);
     }
 
+    /* Botón SECUNDARIO (p. ej. Exportar): una sola CTA primaria por pantalla → el resto
+       queda subordinado. Vidrio con borde, legible en claro y oscuro. */
+    .btn-crew-soft {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--text);
+    }
+    .btn-crew-soft:hover,
+    .btn-crew-soft:focus { background: var(--surface-2); color: var(--text); }
+    .btn-crew-soft .dropdown-toggle::after { vertical-align: middle; }
+
     /* Tabla --------------------------------------------------------------- */
     .crew-table { color: var(--text); }
     .crew-table thead th {
@@ -203,4 +214,80 @@
         color: var(--brand-on-primary);
     }
     .crew-page .page-item.disabled .page-link { background: var(--surface); border-color: var(--border); color: var(--text-muted); }
+
+    /* Listas dentro de las tarjetas (documentos, beneficiarios…): Bootstrap las pinta BLANCAS
+       (var(--bs-list-group-bg)) → en oscuro se ven rotas. Heredan el vidrio de la tarjeta. */
+    .crew-page .list-group,
+    .crew-page .list-group-flush,
+    .crew-page .list-group-item {
+        background: transparent;
+        color: var(--text);
+        border-color: var(--stroke, var(--border));
+    }
+    .crew-page .list-group-item .text-muted { color: var(--text-muted) !important; }
+
+    /* ── DENSIDAD MÓVIL (2026-08-07) ──────────────────────────────────────────────
+       El .cc-stack global apila cada campo en un renglón de ~.5rem+borde → con 6 datos
+       + acciones la tarjeta rondaba ~250px y solo cabían ~4 personas por pantalla. Quien
+       abre el Crew List busca teléfono/correo/F.Nac, así que NADA se esconde: se COMPACTA.
+       Todo va acotado a `.crew-page .crew-table.cc-stack` para NO tocar las demás tablas
+       que comparten .cc-stack (gafetes, catálogos, roles…). Solo <768px. */
+    @media (max-width: 767px) {
+        .crew-page .crew-table.cc-stack tr {
+            position: relative;
+            margin: 0 0 .5rem;
+            padding: 0 .1rem .2rem;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--surface-2);
+        }
+        /* Campos: etiqueta:valor en UNA línea compacta, tipografía y espaciado ajustados,
+           sin borde entre celdas (la tarjeta ya los agrupa). */
+        .crew-page .crew-table.cc-stack td {
+            padding: .11rem .7rem;
+            font-size: .82rem;
+            line-height: 1.32;
+            border-bottom: 0;
+            min-height: 0;
+        }
+        .crew-page .crew-table.cc-stack td::before {
+            font-size: .72rem;
+            font-weight: 600;
+        }
+        /* Cabecera de tarjeta = celda "Miembro": ancho completo, sin etiqueta, avatar chico,
+           deja hueco a la derecha para el kebab flotante. */
+        .crew-page .crew-table.cc-stack td[data-label="Miembro"] {
+            justify-content: flex-start;
+            text-align: left;
+            gap: .55rem;
+            padding: .4rem 2.6rem .35rem .6rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: .1rem;
+        }
+        .crew-page .crew-table.cc-stack td[data-label="Miembro"]::before { content: ""; margin: 0; }
+        .crew-page .crew-table.cc-stack td[data-label="Miembro"] .crew-avatar { width: 34px; height: 34px; }
+        .crew-page .crew-table.cc-stack td[data-label="Miembro"] .crew-name { font-size: .9rem; }
+        .crew-page .crew-table.cc-stack td[data-label="Miembro"] .crew-sub { font-size: .74rem; }
+        /* Acciones: kebab FLOTANTE en la esquina superior derecha → no gasta un renglón. */
+        .crew-page .crew-table.cc-stack td.text-end {
+            position: absolute;
+            top: .3rem;
+            right: .3rem;
+            width: auto;
+            padding: 0;
+        }
+        .crew-page .crew-table.cc-stack td.text-end::before { content: ""; }
+    }
+
+    /* ── Barra de acciones en TELÉFONO (2026-08-07) ────────────────────────────────
+       Antes el buscador compartía renglón con "Exportar" + "Nuevo miembro" y quedaba
+       aplastado a ~"Busc". Ahora el buscador toma su PROPIA fila (100%) y los dos
+       botones envuelven debajo al 50/50, con objetivos táctiles parejos. Solo <576px;
+       de sm en adelante la barra vuelve a ir en línea. */
+    @media (max-width: 575.98px) {
+        .crew-page .crew-actions-bar .crew-search { flex: 1 1 100%; }
+        .crew-page .crew-actions-bar > .dropdown { flex: 1 1 0; }
+        .crew-page .crew-actions-bar > .dropdown > .dropdown-toggle { width: 100%; justify-content: center; }
+        .crew-page .crew-actions-bar > .btn { flex: 1 1 0; justify-content: center; }
+    }
 </style>

@@ -9,15 +9,11 @@
     <thead>
         <tr>
             <th scope="col" class="ps-4">Miembro</th>
-            <th scope="col">Apellido</th>
             @if($canPersonal)
             <th scope="col">F.Nac.</th>
             @endif
             @if($canContact)
             <th scope="col">Teléfono</th>
-            @endif
-            @if($canPersonal)
-            <th scope="col">Sexo</th>
             @endif
             @if($canContact)
             <th scope="col">Email</th>
@@ -38,22 +34,17 @@
                             </span>
                         @endif
                         <div class="crew-name-cell">
-                            <span class="crew-name d-block">{{ $user->name }}</span>
+                            {{-- Nombre a mostrar: crédito o nombre corto (ver User::displayName). --}}
+                            <span class="crew-name d-block">{{ \App\Models\User::displayName($user) }}</span>
                             <span class="crew-sub d-block text-muted small">{{ \App\Models\User::positionNameFor($user->id ?? null, $user->puestodepartamento ?? null) }}</span>
                         </div>
                     </div>
                 </td>
-                <td data-label="Apellido">{{ $user->lname }}</td>
                 @if($canPersonal)
                 <td class="text-muted" data-label="F.Nac.">{{ $user->borndate }}</td>
                 @endif
                 @if($canContact)
                 <td class="text-muted" data-label="Teléfono">{{ $user->phone }}</td>
-                @endif
-                @if($canPersonal)
-                <td data-label="Sexo">
-                    <span class="badge rounded-pill crew-badge-soft">{{ $user->sex }}</span>
-                </td>
                 @endif
                 @if($canContact)
                 <td class="text-muted" data-label="Email">{{ $user->email }}</td>
@@ -81,17 +72,9 @@
                                 </a>
                             </li>
                             @endcan
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                @if($user->admin === 0)
-                                    <form method="POST" action="{{ url('/activaradmin/'.$user->id) }}">@csrf<button type="submit" title="Activar encuesta" class="dropdown-item">@include('componentes._icon', ['name' => 'shield', 'class' => 'cc-ico', 'label' => null]) Convertir Admin</button></form>
-                                @else
-                                    <form method="POST" action="{{ url('/desactivaradmin/'.$user->id) }}">@csrf<button type="submit" title="Quit admin" class="dropdown-item">@include('componentes._icon', ['name' => 'shield-alert', 'class' => 'cc-ico', 'label' => null]) Quitar Admin</button></form>
-                                @endif
-                            </li>
-
-                            @include('componentes._group-toggles', ['user' => $user])
-
+                            {{-- (2026-08-07) Retiradas: "Convertir/Quitar Admin" (admin sigue viva,
+                                 solo fuera del menú) y "Supervisor" (daytest, código muerto borrado).
+                                 Ver nota en admin/usuarioscrud.blade.php. --}}
                             <li>
                                 @if($user->encuestadiaria === 1)
                                     <form method="post" action="{{ url('/activarencuesta/'.$user->id) }}">
@@ -105,9 +88,9 @@
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 @if($user->activo === 1)
-                                    <form method="post" action="{{ url('/desactivarusuario/'.$user->id) }}">
+                                    <form method="post" action="{{ url('/desactivarusuario/'.$user->id) }}" data-confirm="¿Desea desactivar el usuario?">
                                         {{ csrf_field() }}
-                                        <button type="submit" title="Deactivate" class="dropdown-item text-danger" onclick="return confirm('¿Desea desactivar el usuario?');">
+                                        <button type="submit" title="Deactivate" class="dropdown-item text-danger">
                                             @include('componentes._icon', ['name' => 'x-circle', 'class' => 'cc-ico', 'label' => null]) Desactivar
                                         </button>
                                     </form>
@@ -126,7 +109,7 @@
             </tr>
         @empty
             <tr>
-                <td colspan="7">
+                <td colspan="5">
                     <div class="crew-empty text-center py-5">
                         <div class="crew-empty-icon mx-auto mb-3 d-inline-flex align-items-center justify-content-center rounded-circle">
                             @include('componentes._icon', ['name' => 'users', 'class' => 'cc-ico', 'label' => null])

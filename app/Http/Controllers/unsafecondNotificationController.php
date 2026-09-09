@@ -134,7 +134,7 @@ class unsafecondNotificationController extends Controller
 
         // Procesar la imagen principal
         if ($request->hasFile('main_image')) {
-            $image = $request->file('main_image');
+            $image = \App\Support\ImageCompressor::normalizeForUpload($request->file('main_image'));
             // breadcrumb (nombre de archivo): antes time().'_main' (predecible/colisionable). Ahora único con uniqid().
             $filename = time() . '_' . uniqid() . '_main.' . $image->getClientOriginalExtension();
             $path = $image->storeAs('unsafe_images', $filename, 'public');
@@ -145,6 +145,7 @@ class unsafecondNotificationController extends Controller
         if ($request->hasFile('additional_images')) {
             $additionalImagePaths = [];
             foreach ($request->file('additional_images') as $image) {
+                $image = \App\Support\ImageCompressor::normalizeForUpload($image);
                 $filename = time() . '_additional_' . uniqid() . '.' . $image->getClientOriginalExtension();
                 $path = $image->storeAs('unsafe_images', $filename, 'public');
                 $additionalImagePaths[] = Storage::url($path);
@@ -159,6 +160,10 @@ class unsafecondNotificationController extends Controller
         $data['make_date'] = now()->toDateString();
         if (\Illuminate\Support\Facades\Schema::hasColumn('unsafeconds', 'created_by_id')) {
             $data['created_by_id'] = auth()->id();
+        }
+        // (2026-09-07 · Unidades 2b) Unidad VIGENTE del contexto (null = principal → idéntico a hoy).
+        if (\Illuminate\Support\Facades\Schema::hasColumn('unsafeconds', 'unit_id')) {
+            $data['unit_id'] = \App\Support\CurrentUnit::id();
         }
 
         // (2026-06-28) Lectura rápida: se fijan risk_level + action_status (default 'Abierto').
@@ -225,6 +230,9 @@ class unsafecondNotificationController extends Controller
     public function edit($id)
     {
         $report = unsafecond::findOrFail($id);
+        // Aislamiento por autor (auditoría #1): editar sólo el autor o la consolidación (leer es transversal).
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $report), 403,
+            'Solo el autor o la consolidación de seguridad pueden editar este reporte.');
         // (2026-07-24) Para prellenar el responsable/fecha de la acción correctiva en el form.
         if (\Illuminate\Support\Facades\Schema::hasTable('action_items')) {
             $report->load('actionItems');
@@ -245,6 +253,10 @@ class unsafecondNotificationController extends Controller
     public function update(Request $request, $id)
     {
         $report = unsafecond::findOrFail($id);
+
+        // Aislamiento por autor (auditoría #1): sólo el autor o la consolidación pueden editar/re-sellar.
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $report), 403,
+            'Solo el autor o la consolidación de seguridad pueden editar este reporte.');
 
         // (2026-07-23) Blindaje anti-"solo espacios" (Fase 2 no pasa por el FormRequest, así que
         // se replica el trim de prepareForValidation): "   " → "" → dispara el obligatorio.
@@ -309,7 +321,7 @@ class unsafecondNotificationController extends Controller
 
         // Reemplazo de la imagen principal (sólo si suben una nueva; si no, se conserva).
         if ($request->hasFile('main_image')) {
-            $image = $request->file('main_image');
+            $image = \App\Support\ImageCompressor::normalizeForUpload($request->file('main_image'));
             $filename = time() . '_' . uniqid() . '_main.' . $image->getClientOriginalExtension();
             $path = $image->storeAs('unsafe_images', $filename, 'public');
             $data['main_image_path'] = Storage::url($path);
@@ -319,6 +331,7 @@ class unsafecondNotificationController extends Controller
         if ($request->hasFile('additional_images')) {
             $additionalImagePaths = [];
             foreach ($request->file('additional_images') as $image) {
+                $image = \App\Support\ImageCompressor::normalizeForUpload($image);
                 $filename = time() . '_additional_' . uniqid() . '.' . $image->getClientOriginalExtension();
                 $path = $image->storeAs('unsafe_images', $filename, 'public');
                 $additionalImagePaths[] = Storage::url($path);
@@ -385,7 +398,9 @@ class unsafecondNotificationController extends Controller
    public function index()
     {
         // breadcrumb: antes 'unsafecond::all()' (sin paginar). Ahora paginado de 15 en 15, más reciente primero.
-        $unsafenotifications = unsafecond::orderBy('id', 'desc')->paginate(15);
+        // Aislamiento por propiedad (auditoría #1): autor, con bypass safety.consolidate.
+        $unsafenotifications = \App\Support\ReportVisibility::forCurrentUnit(unsafecond::query(), auth()->user())
+            ->orderBy('id', 'desc')->paginate(15);
         return View::make('admin.unsafeconds', compact('unsafenotifications'));
     }
 
@@ -418,9 +433,18 @@ class unsafecondNotificationController extends Controller
             $unsafenotification->load('scoutingReport');
         }
 
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+        // MISMA vista/datos y la pasa por Browsershot (Chrome headless) → descarga idéntica a
+        // window.print(). Márgenes 0 (el @page Oficio manda). Ver [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = View::make('admin.unsafecond', compact('unsafenotification', 'standardUrl'))->render();
+            return \App\Support\PdfExporter::download($html, 'UNS-' . $unsafenotification->id, [0, 0, 0, 0]);
+        }
+
         // (2026-07-24) La Condición NO tiene involucrado: se ancla al lugar. No se calcula contexto
         // de persona ni se pasa a la vista.
-        return View::make('admin.unsafecond', compact('unsafenotification', 'standardUrl'));
+        return View::make('admin.unsafecond', compact('unsafenotification', 'standardUrl'))
+            ->with('pdfUrl', request()->fullUrlWithQuery(['pdf' => 1]));
     }
 
     // (2026-06-28) Cierre del ciclo: actualizar el estado de la acción correctiva
@@ -429,6 +453,9 @@ class unsafecondNotificationController extends Controller
     {
         $request->validate(['action_status' => 'required|in:Abierto,En proceso,Cerrado']);
         $n = unsafecond::findOrFail($id);
+        // Aislamiento por autor (auditoría #1): cambiar el estado / cerrar = autor o consolidación.
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $n), 403,
+            'Solo el autor o la consolidación de seguridad pueden cambiar el estado de este reporte.');
         // (2026-07-09) Bloqueo de estado PDCA: no se puede "Cerrar" con acciones abiertas.
         if ($request->input('action_status') === 'Cerrado') {
             $n->assertActionItemsClosed('action_status');

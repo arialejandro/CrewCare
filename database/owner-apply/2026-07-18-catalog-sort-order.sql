@@ -1,3 +1,17 @@
+-- ############################################################################
+-- ⛔ SUPERSEDED (2026-08-28) por el DELTA #114 + `CatalogFusionSeeder`. NO CORRER.
+--
+--   El bloque de PUESTOS de abajo pisaría el `sort_order` que ya pobló la FUSIÓN
+--   (semilla declarada) → volverían los ceros y se perdería el orden por rank del
+--   catálogo fusionado. La jerarquía y el sort_order ahora vienen del seeder, no de
+--   este CASE por id.
+--
+--   El bloque de DEPARTAMENTOS ya se aplicó en su momento (su historia importa) —
+--   por eso el archivo NO se borra. Pero NADA de aquí debe re-ejecutarse: el estado
+--   correcto lo dejan el delta #114 (esquema) + `db:seed --class=CatalogFusionSeeder`.
+--   Ver [[catalog-fusion-module]] y DEPLOY-RUNBOOK §10 (#114).
+-- ############################################################################
+--
 -- ============================================================================
 -- CrewCare — POBLAR sort_order de departments/positions con el orden del CALL SHEET
 -- (2026-07-18, Paso 1 — orden de producción Amazon-MGM). OWNER-APPLY, idempotente.

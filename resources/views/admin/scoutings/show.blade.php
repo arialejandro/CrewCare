@@ -85,18 +85,37 @@
 
     // ---- Folio / UUID ----
     $folio    = 'SCOUT-' . str_pad((string) $report->id, 4, '0', STR_PAD_LEFT);
-    $footUuid = 'UUID: ' . $brandName . '-SCOUT-' . (16210 + $report->id) . '-' . \Carbon\Carbon::parse($report->created_at)->format('dmY') . ' | ' . config('crewcare.doc_version');
+    // (2026-08-12) El pie muestra el UUID REAL del documento (el mismo que el sello CFDI y el QR),
+    // no un código derivado del id: tener dos "UUID" distintos en la misma hoja confundía.
+    $footUuid = 'UUID: ' . ($report->uuid ?: '—') . ' | ' . config('crewcare.doc_version');
+
+    // (2026-08-12) NOMBRE DE CRÉDITOS de quien elaboró: el mismo que va en firmas, pie y sello.
+    // Se resuelve del AUTOR (created_by_id) → User::displayName (ncreditos; si vacío, nombre corto).
+    // Si no hay autor (reportes viejos), cae al snapshot make_by.
+    $__author = ! empty($report->created_by_id) ? \App\Models\User::find($report->created_by_id) : null;
+    $creditName = $__author ? \App\Models\User::displayName($__author) : ($report->make_by ?: '—');
 
     // ---- Hero: proyecto = nombre canónico de marca (branding global, NO el production_name libre
     //      que es inconsistente/vacío); locación = nombre; fecha = shoot ----
     $heroProject = $brandName;
-    $heroDate    = $report->date_shoot ? $report->date_shoot->format('d M Y') : null;
+    // translatedFormat (no format) para que el mes salga en el idioma de la app (es/en).
+    $heroDate    = $report->date_shoot ? $report->date_shoot->translatedFormat('d M Y') : null;
+
+    // ---- Sub-línea del LLAMADO en el hero (homologada con el PAE): tipo Int./Ext. · día/noche · escenas ----
+    $heroCallType = implode(' · ', array_filter([
+        $report->loc_setting ? ($report->loc_setting === 'Mixto' ? 'Int./Ext.' : $report->loc_setting) : '',
+        trim((string) $report->shoot_time),
+    ]));
+    $heroMeta = implode('   |   ', array_filter([
+        $heroCallType,
+        trim((string) $report->scene) !== '' ? ('Esc. ' . trim((string) $report->scene)) : '',
+    ])) ?: null;
 
     // ---- Rango de fechas (prep · shoot · wrap) para la banda y la ficha ----
     $dtParts = [];
-    if ($report->date_prep)  { $dtParts[] = $report->date_prep->format('d M'); }
-    if ($report->date_shoot) { $dtParts[] = $report->date_shoot->format('d M Y'); }
-    if ($report->date_wrap)  { $dtParts[] = $report->date_wrap->format('d M'); }
+    if ($report->date_prep)  { $dtParts[] = $report->date_prep->translatedFormat('d M'); }
+    if ($report->date_shoot) { $dtParts[] = $report->date_shoot->translatedFormat('d M Y'); }
+    if ($report->date_wrap)  { $dtParts[] = $report->date_wrap->translatedFormat('d M'); }
     $dtRange = count($dtParts) ? implode(' · ', $dtParts) : null;
 
     // ---- Sub-rótulo de la banda: escenario (el proyecto ya vive en el hero; no se repite aquí) ----
@@ -259,6 +278,10 @@
         'heroLocation' => $report->location_name,
         'heroDate'     => $heroDate,
         'heroTime'     => null,
+        'heroMeta'     => $heroMeta,
+        {{-- La locación se OCULTA del cuadro negro: ya vive abajo en el cintillo (UBICACIÓN) y
+             repetirla aquí era redundante. La caja negra queda como "llamado": fecha + escenas/tipo. --}}
+        'heroHideCallLoc' => true,
         'heroModule'   => __('reports.scouting_title'),
       ])
       @if($report->status !== 'final')
@@ -486,7 +509,7 @@
       </section>
 
       {{-- PLAN DE EMERGENCIA --}}
-      @php $hasEmergency = $report->nearest_hospital || $report->hospital_address || $report->hospital_eta || $report->emergency_access || $report->assembly_point || $report->ambulance_company || $report->emergency_phone; @endphp
+      @php $hasEmergency = $report->nearest_hospital || $report->hospital_address || $report->hospital_eta || $report->emergency_access || $report->assembly_point || $report->ambulance_company || $report->has_ambulance !== null || $report->emergency_phone; @endphp
       @if($hasEmergency)
       <section class="sec">
         <div class="sec-h"><span class="bar"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2v2M5 2v2M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/></svg><h2>{{ __('reports.scouting_section_emergency') }}</h2></div>
@@ -494,6 +517,9 @@
           <div class="fact"><div class="k">{{ __('reports.label_hospital') }}</div><div class="v">{{ $report->nearest_hospital ?: '—' }}{{ $report->hospital_eta ? ' · ETA ' . $report->hospital_eta : '' }}</div></div>
           @if($report->hospital_address)
           <div class="fact"><div class="k">{{ __('reports.scouting_label_address') }}</div><div class="v">{{ $report->hospital_address }}</div></div>
+          @endif
+          @if($report->has_ambulance !== null)
+          <div class="fact"><div class="k">{{ __('reports.scouting_label_has_ambulance') }}</div><div class="v">{{ $report->has_ambulance ? __('reports.scouting_yes') : __('reports.scouting_no') }}</div></div>
           @endif
           @if($report->ambulance_company)
           <div class="fact"><div class="k">{{ __('reports.scouting_label_support') }}</div><div class="v">{{ $report->ambulance_company }}</div></div>
@@ -683,9 +709,12 @@
            antes reusaba label_risk_assessment ("Risk Assessment" por 2ª vez). --}}
       <section class="sec">
         <div class="sec-h"><span class="bar"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg><h2>{{ __('reports.label_signatures_integrity') }}</h2><span class="line"></span></div>
+        {{-- (2026-08-12) Casilla 1 = NOMBRE DE CRÉDITOS de quien elaboró, sobre la LÍNEA de firma
+             autógrafa (mismo nombre que el pie y el sello). Casilla 2 = FECHA como dato, SIN línea
+             de firma (`sig--plain`): la fecha no se firma. --}}
         <div class="sign">
-          <div class="sig"><div class="who">{{ $report->make_by ?: '—' }}</div><div class="role">{{ __('reports.label_prepared_by') }}</div></div>
-          <div class="sig"><div class="who">{{ $report->make_date ? \Carbon\Carbon::parse($report->make_date)->format('d M Y') : '—' }}</div><div class="role">{{ __('reports.label_date') }}</div></div>
+          <div class="sig"><div class="who">{{ $creditName }}</div><div class="role">{{ __('reports.label_prepared_by') }}</div></div>
+          <div class="sig sig--plain"><div class="who">{{ $report->make_date ? \Carbon\Carbon::parse($report->make_date)->translatedFormat('d M Y') : '—' }}</div><div class="role">{{ __('reports.label_date') }}</div></div>
         </div>
         {{-- (2026-07-23) El sello es del acto de FINALIZAR: un 'final' lleva su cadena CFDI y su
              verificación; un borrador NO lleva sello vigente. Sin este gate, reabrir un final a
@@ -704,8 +733,8 @@
     </table>
 
     @include('componentes._report-v2-foot', [
-      'footPreparedName' => $report->make_by ?: '—',
-      'footPreparedMeta' => __('reports.label_risk_assessment') . ($report->make_date ? ' · ' . \Carbon\Carbon::parse($report->make_date)->format('d M Y') : ''),
+      'footPreparedName' => $creditName,
+      'footPreparedMeta' => __('reports.label_risk_assessment'), // pie SIN fecha (owner 2026-08)
       'footUuid'         => $footUuid,
     ])
 

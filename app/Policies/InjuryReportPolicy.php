@@ -8,13 +8,9 @@ use Illuminate\Auth\Access\HandlesAuthorization;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * InjuryReportPolicy — RBAC / silos médicos (MÓDULO 13).
+ * InjuryReportPolicy — RBAC / silo médico (MÓDULO 13).
  *
- * Distingue DOS niveles de acceso sobre un reporte de lesión:
- *
- *   - view()        acceso a la FICHA general del reporte. Laxo: cualquier
- *                   usuario autenticado que ya pasó el gate de ruta
- *                   (permission:injury.view) puede consultarla.
+ * Un solo nivel de acceso a nivel de fila:
  *
  *   - viewMedical() acceso al SILO MÉDICO/sensible (nivel de atención, causa
  *                   raíz, EPP, tratamiento/hospital, teléfono y declaración de
@@ -22,22 +18,18 @@ use Illuminate\Support\Facades\Schema;
  *                   H&S (permiso hazards.manage) y el médico (rol Spatie `medic`,
  *                   comprobado vía User::isMedic() — NO escribir el literal aquí).
  *
+ * (2026-08-11) Se retiró el método view() (la "ficha general"): era CÓDIGO MUERTO
+ * —ningún authorize('view')/can('view')/@can('view') en la app— porque la ficha
+ * general la gatea el middleware de ruta permission:injury.view, no una policy. El
+ * acceso del crew a su propio reporte se resolvió redirigiéndolo a /home tras crear
+ * (BUG-INC-01), no cableando ownership aquí.
+ *
  * El super-admin NO se maneja aquí: pasa por el Gate::before global
  * (AuthServiceProvider) que corta a true antes de llegar a la policy.
  */
 class InjuryReportPolicy
 {
     use HandlesAuthorization;
-
-    /**
-     * Ver la ficha general del reporte (no sensible).
-     */
-    public function view(User $user, InjuryReport $report): bool
-    {
-        // El acceso base ya lo controla el middleware permission:injury.view en la
-        // ruta; a nivel de fila no restringimos la ficha general.
-        return true;
-    }
 
     /**
      * Ver la información médica sensible del reporte.

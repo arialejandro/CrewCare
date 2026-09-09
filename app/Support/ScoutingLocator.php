@@ -68,7 +68,8 @@ class ScoutingLocator
                     if ($today->between($startDay, $endDay)) {
                         $dateScore = 0;
                     } else {
-                        $dateScore = min($today->diffInDays($startDay), $today->diffInDays($endDay));
+                        // Carbon 3: diffInDays es float con SIGNO → abs() para puntuar por proximidad absoluta (como Carbon 2).
+                        $dateScore = min(abs($today->diffInDays($startDay)), abs($today->diffInDays($endDay)));
                     }
                 }
 

@@ -56,9 +56,14 @@
     $sigRecord = Schema::hasTable('digital_signatures') ? $injuryReport->signatures()->latest('id')->first() : null;
 
     $folio    = 'INJ-' . str_pad((string) $injuryReport->id, 4, '0', STR_PAD_LEFT);
-    $footUuid = 'UUID: ' . $brandName . '-INJ-' . (16210 + $injuryReport->id) . '-' . \Carbon\Carbon::parse($injuryReport->created_at)->format('dmY') . ' | NOTIFICACIÓN';
+    // UUID REAL (el mismo del sello); conserva el sufijo NOTIFICACIÓN que distingue a la salida lite.
+    $footUuid = 'UUID: ' . ($injuryReport->uuid ?: '—') . ' | NOTIFICACIÓN';
 
-    $heroDate = $injuryReport->incident_date ? \Carbon\Carbon::parse($injuryReport->incident_date)->format('d M Y') : null;
+    // NOMBRE DE CRÉDITOS del reportante (card 1 + pie): autor por created_by_id → displayName.
+    $__author = ! empty($injuryReport->created_by_id) ? \App\Models\User::find($injuryReport->created_by_id) : null;
+    $creditName = $__author ? \App\Models\User::displayName($__author) : ($injuryReport->make_by ?: '—');
+
+    $heroDate = $injuryReport->incident_date ? \Carbon\Carbon::parse($injuryReport->incident_date)->translatedFormat('d M Y') : null;
     $heroTime = $injuryReport->time ? \Carbon\Carbon::parse($injuryReport->time)->format('H:i') : null;
     $heroLoc  = $injuryReport->location ?: ($injuryReport->incident_location ?? '');
 @endphp
@@ -172,7 +177,7 @@
       <section class="sec">
         <div class="sec-h"><span class="bar"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg><h2>{{ __('reports.label_signatures_integrity') }}</h2><span class="line"></span></div>
         <div class="sign">
-          <div class="sig"><div class="who">{{ $injuryReport->make_by ?: '—' }}</div><div class="role">{{ __('reports.label_reporter') }}</div></div>
+          <div class="sig"><div class="who">{{ $creditName }}</div><div class="role">{{ __('reports.label_reporter') }}</div></div>
           <div class="sig"><div class="who">{{ $injFull }}</div><div class="role">{{ __('reports.label_injured_person') }}</div></div>
         </div>
         {{-- Integridad + sello estilo CFDI (mismo partial que la completa). --}}
@@ -185,7 +190,7 @@
 
     @include('componentes._report-v2-foot', [
       'footPreparedName' => $injuryReport->make_by ?: '—',
-      'footPreparedMeta' => __('reports.label_reporter') . ($injuryReport->make_date ? ' · ' . \Carbon\Carbon::parse($injuryReport->make_date)->format('d M Y') : ''),
+      'footPreparedMeta' => __('reports.label_reporter'), // pie SIN fecha (owner 2026-08)
       'footUuid'         => $footUuid,
     ])
 </body>

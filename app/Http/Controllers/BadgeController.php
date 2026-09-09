@@ -40,9 +40,9 @@ class BadgeController extends Controller
         $data = $r->validate([
             'project_name'          => ['nullable', 'string', 'max:60'],
             'card_bg'               => ['nullable', 'string', 'max:255'],
-            'card_bg_file'          => ['nullable', 'image', 'max:8192'],
+            'card_bg_file'          => ['nullable', 'mimes:jpg,jpeg,png,gif,bmp,svg,webp,heic,heif', 'heic_ok', 'max:8192'],
             'production_logo'       => ['nullable', 'string', 'max:255'],
-            'production_logo_file'  => ['nullable', 'mimes:png,jpg,jpeg,webp,svg', 'max:8192'],
+            'production_logo_file'  => ['nullable', 'mimes:png,jpg,jpeg,webp,svg,heic,heif', 'heic_ok', 'max:8192'],
             'font_family'           => ['required', 'in:' . implode(',', BadgeTemplate::FONTS)],
             'text_color'            => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'photo_shape'           => ['required', 'in:' . implode(',', BadgeTemplate::PHOTO_SHAPES)],
@@ -162,6 +162,8 @@ class BadgeController extends Controller
         // DENTRO de public/ y el servidor lo entrega tal cual: con la extensión del cliente, un
         // JPEG válido llamado "poc.html" quedaba servido como text/html desde el propio dominio
         // = XSS almacenado. Misma corrección que ya tenían el DSR y la mitigación pública.
+        // HEIC (iPhone) → JPEG si el servidor puede convertir; si no, la validación ya lo rechazó.
+        $file = \App\Support\ImageCompressor::normalizeForUpload($file);
         $ext = \App\Support\ImageCompressor::safeExtensionOrBin($file);
         $name = $prefix . '-' . time() . '-' . substr(md5(uniqid('', true)), 0, 8) . '.' . $ext;
         $file->move($dir, $name);

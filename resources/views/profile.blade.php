@@ -8,8 +8,21 @@
 @push('styles')
     <meta name="_token" content="{{ csrf_token() }}">
     <link rel="stylesheet" href="{{ asset('css/profile.css') }}">
-    {{-- Cropper.js styles (load-bearing: profile-photo cropper). --}}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.6/cropper.css"/>
+    {{-- CSP/local: Cropper.js CSS servido desde 'self' (antes cdnjs). --}}
+    <link rel="stylesheet" href="{{ asset('vendor/cropper/cropper-1.5.6.min.css') }}"/>
+    <style>
+        /* El gafete acompaña el scroll de la columna de acciones en escritorio. */
+        @media (min-width: 992px) { .profile-page .profile-sticky { position: sticky; top: 88px; } }
+        /* Input de archivo con botón de MARCA (antes: "Examinar…" gris del navegador). */
+        .profile-page input[type="file"].cc-control { padding: 7px 12px; line-height: 1.35; cursor: pointer; }
+        .profile-page input[type="file"].cc-control::file-selector-button {
+            margin: -1px 12px -1px -2px; padding: 8px 14px; border: 0; border-radius: 10px;
+            font: 700 .82rem/1 inherit; cursor: pointer;
+            background: var(--brand-primary); color: var(--brand-on-primary, #111);
+            transition: filter .15s ease;
+        }
+        .profile-page input[type="file"].cc-control::file-selector-button:hover { filter: brightness(1.06); }
+    </style>
 @endpush
 
 @section('content')
@@ -33,24 +46,17 @@
             <h1 class="h4 fw-bold mb-0">{{ __('Mi perfil') }}</h1>
             <div class="cc-muted small">{{ $users->name }} {{ $users->lname }}</div>
         </div>
+        {{-- (2026-08-30) Sesiones activas: ver y cerrar sesiones (teléfono perdido) sin cambiar contraseña. --}}
+        <a class="btn btn-outline-secondary btn-sm ms-auto" href="{{ route('perfil.sesiones') }}">
+            {{ __('Sesiones activas') }}
+        </a>
     </div>
 
     <div class="row g-4">
-        {{-- ===== Tarjeta visual de perfil (widget con estilos de profile.css) ===== --}}
-        <div class="col-12 col-lg-5 d-flex justify-content-center">
-            {{-- Avatar::url = fuente única (2026-07-24): si el archivo no está en disco cae a la
-                 silueta genérica. Antes esta tarjeta pintaba el icono roto del navegador. --}}
-            <div class="profile-card-2"><img src="{{ \App\Support\Avatar::url($users) }}" class="img img-fluid" alt="{{ $users->name }}">
-                <div class="profile-logo-container"></div>
-                <div class="profile-logo"><img src="{{ URL::asset('img/logo-cc-usrs.svg') }}" width="100" alt=""></div>
-                <div class="profile-logo-client"><img src="{{ ($branding['client_logo'] ?? '') ?: URL::asset('img/redrum.png') }}" width="80" alt=""></div>
-                <div class="profile-text-container"></div>
-                <div class="profile-name">{{$users->name}} {{$users->lname}}</div>
-                <div class="profile-username">{{ $users->departmentName() }}</div>
-                <div class="profile-icons">
-                    <span class="data-basic">{{ $users->positionName() }} |
-                    {{ \Carbon\Carbon::parse($users->borndate)->age }}</span>
-                </div>
+        {{-- ===== Gafete visual de perfil (parcial compartido con /inicio) ===== --}}
+        <div class="col-12 col-lg-5">
+            <div class="profile-sticky">
+                @include('componentes._profile-badge', ['user' => $users])
             </div>
         </div>
 
@@ -72,7 +78,7 @@
                         <div class="cc-field">
                             <label for="imgperfil" class="cc-label">{{ __('Cambia tu foto de perfil') }}</label>
                             {{-- class `image` es LOAD-BEARING: profile.js abre el recortador al cambiar este input. --}}
-                            <input id="imgperfil" type="file" name="imgperfil" accept="image/*" class="form-control image cc-control">
+                            <input id="imgperfil" type="file" name="imgperfil" accept="image/*,.heic,.heif" class="form-control image cc-control">
                             <span class="cc-help">{{ __('Formatos de imagen. Se recorta a 1:1 (800×800).') }}</span>
                         </div>
                     </form>
@@ -105,6 +111,9 @@
                     @endif
                 </div>
             </div>
+
+            {{-- ===== Hoja de información (Infosheet): mitad personal (intake) + mitad del trato ===== --}}
+            @include('componentes._infosheet-card', ['user' => $users, 'payee' => $payee, 'intakeSteps' => $intakeSteps, 'intakeUrl' => $intakeUrl, 'deal' => $dealContract])
         </div>
     </div>
 </div>
@@ -125,7 +134,9 @@
         <div class="img-container">
             <div class="row">
                 <div class="col-md-8 imgs">
-                    <img class="imgs" id="image" src="https://avatars0.githubusercontent.com/u/3456749">
+                    {{-- CSP/local: era un avatar de la demo de Cropper (avatars0.githubusercontent.com).
+                         Placeholder transparente same-origin (data:); public/js/profile.js reemplaza el src al elegir foto. --}}
+                    <img class="imgs" id="image" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
                 </div>
                 <div class="col-md-4">
                     <div class="preview"></div>
@@ -149,7 +160,8 @@
          Bootstrap 4 CDN CSS/JS + Popper 1.x were REMOVED (modal ported to BS5,
          which the layout already provides). The duplicate jQuery was REMOVED
          (the layout already loads jQuery). --}}
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.6/cropper.js"></script>
+    {{-- CSP/local: Cropper.js 1.5.6 servido desde 'self' (antes cdnjs). --}}
+    <script src="{{ asset('js/vendor/cropper-1.5.6.min.js') }}"></script>
 
     {{-- Expose the upload route to the external JS (which can't use Blade). --}}
     <script>

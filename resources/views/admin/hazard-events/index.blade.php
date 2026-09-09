@@ -188,6 +188,30 @@
         </div>
     @endif
 
+    @can('hazardevents.manage')
+        {{-- (captura fluida · Paso 3) Medidas de control por hoja de cálculo: descarga, edita
+             las columnas de medida en Excel y vuelve a subir. El archivo llega ordenado por los
+             eventos que más se usan. Subir no borra lo ya escrito. --}}
+        <div class="he-csv" style="border:1px solid var(--stroke,#dee2e6);border-radius:14px;padding:1rem 1.1rem;margin-bottom:1.5rem;background:var(--glass,rgba(0,0,0,.02));display:flex;gap:1rem;flex-wrap:wrap;align-items:center;">
+            <div style="min-width:220px;flex:1 1 260px;">
+                <div style="font-weight:800;font-size:.95rem;">Medidas de control por hoja de cálculo</div>
+                <div style="color:var(--text-muted,#6c757d);font-size:.82rem;margin-top:.15rem;">
+                    Descarga, edita las columnas de medida en Excel y vuelve a subir. Llega ordenado por los eventos más usados.
+                </div>
+            </div>
+            <a href="{{ route('hazardevents.control.export') }}" class="btn btn-outline-primary">
+                @include('componentes._icon', ['name' => 'download', 'class' => 'cc-ico me-1']) Descargar CSV
+            </a>
+            <form action="{{ route('hazardevents.control.import') }}" method="POST" enctype="multipart/form-data" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+                @csrf
+                <input type="file" name="csv" accept=".csv,text/csv" required class="form-control" style="max-width:240px;">
+                <button type="submit" class="btn btn-primary">
+                    @include('componentes._icon', ['name' => 'upload', 'class' => 'cc-ico me-1']) Subir
+                </button>
+            </form>
+        </div>
+    @endcan
+
     @if($total)
         {{-- Filtrado EN CLIENTE: el catálogo cabe entero en la página (hoy ~120 eventos) y el
              filtro es instantáneo sin tocar el backend. UMBRAL: si pasa de unos cientos de

@@ -28,7 +28,11 @@ class DailyReportController extends Controller
         // mostraba los días desordenados (Día 2, 3, 5, 6, 8…). Ahora que el número de día lo
         // DERIVA la fecha, el listado tiene que seguir esa misma fecha o se contradice solo.
         // `id` sólo desempata dos reportes del mismo día.
-        $dailyReports = DailyReport::orderBy('report_date', 'desc')
+        // Aislamiento por propiedad (auditoría #1): cada quien ve sólo los DSR que capturó
+        // (safety aislados entre sí); la CONSOLIDACIÓN (safety.consolidate = LP/coord/auditor/
+        // super-admin) ve todo.
+        $dailyReports = \App\Support\ReportVisibility::forCurrentUnit(DailyReport::query(), auth()->user())
+            ->orderBy('report_date', 'desc')
             ->orderBy('id', 'desc')
             ->paginate(10);
         return view('admin.dailyreports.index', compact('dailyReports'));
@@ -146,6 +150,13 @@ class DailyReportController extends Controller
             $data['created_by_id'] = auth()->id();
         }
 
+        // (2026-09-07 · Unidades 2b) UNIDAD del documento: hereda la unidad VIGENTE del contexto si el
+        // request no la trae explícita. NULL = principal → idéntico a hoy. Debe ir ANTES de
+        // resolveShootDay para que el día se selle contra la unidad correcta (irreversible).
+        if (! array_key_exists('unit_id', $data) || $data['unit_id'] === null || $data['unit_id'] === '') {
+            $data['unit_id'] = \App\Support\CurrentUnit::id();
+        }
+
         // (2026-07-25) DÍA DE RODAJE — captura manual PRELLENADA (arranque en frío). resolveShootDay()
         // RESPETA el número tecleado (el formulario lo prellena con la derivación y el usuario lo
         // ajusta); sin número lo DERIVA de la fecha del reporte (primer día con DSR = 1, siguiente
@@ -173,6 +184,8 @@ class DailyReportController extends Controller
             'safety_meeting_held', 'safety_meeting_photo_path',
             // (2026-07-25) vínculo con el scouting de origen del hospital (prod aún sin la columna)
             'scouting_report_id',
+            // (2026-09-07 · Unidades 2b) unidad del DSR; guard por si una instancia no aplicó P1.
+            'unit_id',
         ] as $col) {
             if (array_key_exists($col, $data) && !Schema::hasColumn('daily_reports', $col)) {
                 unset($data[$col]);
@@ -220,8 +233,16 @@ class DailyReportController extends Controller
         if (isset($data['shoot_day']) && $data['shoot_day'] !== null && $data['shoot_day'] !== '') {
             return (int) $data['shoot_day'];
         }
+        // (2026-09-07 · Unidades 2b) 🔴 EL NÚMERO SE DERIVA CONTRA LA UNIDAD DEL DOCUMENTO, no contra la
+        // principal. Un DSR de la 2ª unidad sella SU día (día 1 el primero, etc.), no el de la principal
+        // — y como shoot_day se sella y no se reescribe, sellar el de la principal quedaría mal PARA
+        // SIEMPRE. NULL = principal → idéntico a hoy mientras no exista contexto de unidad (§4).
+        $unitId = (isset($data['unit_id']) && $data['unit_id'] !== null && $data['unit_id'] !== '')
+            ? (int) $data['unit_id']
+            : null;
         $derivado = \App\Support\ProductionCalendar::shootDayFor(
-            isset($data['report_date']) ? $data['report_date'] : null
+            isset($data['report_date']) ? $data['report_date'] : null,
+            $unitId
         );
         return $derivado !== null ? (int) $derivado : 1;
     }
@@ -279,10 +300,22 @@ class DailyReportController extends Controller
         $ccHasActionItems = Schema::hasTable('action_items');
         $ccHasMitCol      = $ccHasActionItems && Schema::hasColumn('action_items', 'mitigation_image_path');
 
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa
+        // la MISMA vista con los MISMOS datos y la pasa por Browsershot (Chrome headless) → descarga
+        // de un clic, idéntica a window.print(). Márgenes 0 (el @page Oficio manda). Ver
+        // [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = view('admin.dailyreports.show', compact(
+                'report', 'standards', 'heatmap', 'isLocked', 'hazardEvents',
+                'ccHasStdPivot', 'ccHasActionItems', 'ccHasMitCol'
+            ))->render();
+            return \App\Support\PdfExporter::download($html, 'DSR-' . str_pad((string) $id, 4, '0', STR_PAD_LEFT), [0, 0, 0, 0]);
+        }
+
         return view('admin.dailyreports.show', compact(
             'report', 'standards', 'heatmap', 'isLocked', 'hazardEvents',
             'ccHasStdPivot', 'ccHasActionItems', 'ccHasMitCol'
-        ));
+        ) + ['pdfUrl' => request()->fullUrlWithQuery(['pdf' => 1])]);
     }
 
     /**
@@ -291,6 +324,12 @@ class DailyReportController extends Controller
     public function storeLog(Request $request, $id)
     {
         $report = DailyReport::findOrFail($id);
+
+        // Aislamiento por autor (auditoría #1): agregar una entrada de bitácora es ESCRIBIR en el
+        // DSR de alguien más → sólo el autor o la consolidación (safety.consolidate). No existe el
+        // caso de que otro safety agregue bitácora al DSR ajeno. Leer la ficha SÍ es transversal.
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $report), 403,
+            'Solo el autor o la consolidación de seguridad pueden agregar bitácora a este reporte.');
 
         // Candado de cumplimiento PRIMERO (fail-fast, igual que update()): si el reporte está
         // sellado (>24 h) ni siquiera validamos ni procesamos el upload — se rechaza de una.
@@ -301,14 +340,16 @@ class DailyReportController extends Controller
         $request->validate([
             'log_time' => 'required',
             'description' => 'required|string',
-            'action_taken' => 'nullable|string',
+            // (2026-09-08) max explícito: la columna es TEXT, pero sin tope un texto enorme daría 500
+            // (SQLSTATE 22001) que hace perder lo capturado. Con esto es un error de campo en pantalla.
+            'action_taken' => 'nullable|string|max:5000',
             // (2026-07-13) Catálogo único de eventos: el Daily EXIGE el evento (como antes exigía
             // category_name). 'nullable'→'required|integer' sin 'exists:' para no romper PROD antes
             // del SQL de hazard_events. applyHazardEvent() (más abajo) resuelve la norma.
             'hazard_event_id' => 'required|integer',
             // 12 MB: las fotos de celular (capture="environment") superan fácil los 5 MB; el límite
             // viejo (5120) rechazaba la subida en silencio. PHP admite hasta 2G, así que 12 MB va sobrado.
-            'photo' => 'nullable|image|max:12288'
+            'photo' => 'nullable|mimes:jpg,jpeg,png,gif,bmp,svg,webp,heic,heif|heic_ok|max:12288'
         ]);
 
         // Manejo de imagen. (2026-07-21) Pasa por ImageCompressor: es la foto que más pesa
@@ -376,6 +417,11 @@ class DailyReportController extends Controller
     {
         $report = DailyReport::findOrFail($id);
 
+        // Aislamiento por autor (auditoría #1): editar/cerrar/re-sellar sólo el autor o la
+        // consolidación (safety.consolidate). Un safety no toca el DSR de otro. Leer es transversal.
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $report), 403,
+            'Solo el autor o la consolidación de seguridad pueden editar este reporte.');
+
         // Candado de seguridad en Backend
         if ($report->created_at->diffInHours(now()) >= 24) {
             return redirect()->back()->with('error', 'Por cumplimiento normativo, el reporte está sellado y no puede ser modificado después de 24 horas.');
@@ -383,11 +429,11 @@ class DailyReportController extends Controller
 
         $data = $request->validate([
             'executive_summary' => 'nullable|string',
-            'hero_image' => 'nullable|image|max:12288', // 12 MB (foto de celular); ver nota en storeLog()
+            'hero_image' => 'nullable|mimes:jpg,jpeg,png,gif,bmp,svg,webp,heic,heif|heic_ok|max:12288', // 12 MB (foto de celular); ver nota en storeLog()
             // (2026-07-21) La foto del safety meeting también se puede subir en el cierre de
             // día: el DSR se crea al arrancar la jornada y la junta ocurre al call time, así
             // que muchas veces la foto llega después. Mismo mecanismo que el hero.
-            'safety_meeting_photo' => 'nullable|image|max:12288',
+            'safety_meeting_photo' => 'nullable|mimes:jpg,jpeg,png,gif,bmp,svg,webp,heic,heif|heic_ok|max:12288',
         ]);
 
         // 1. Procesamos y subimos las imágenes (comprimidas; ver ImageCompressor).

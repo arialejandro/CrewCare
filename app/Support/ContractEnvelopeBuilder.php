@@ -1,0 +1,374 @@
+<?php
+
+namespace App\Support;
+
+use App\Exceptions\ContractEnvelopeException;
+use App\Models\ContractAnnex;
+use App\Models\ContractEnvelope;
+use App\Models\ContractEnvelopeEvent;
+use App\Models\ContractEnvelopeRecipient;
+use App\Models\PayeeContract;
+use App\Models\Position;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+
+/**
+ * EL CONTRATO · PASO C — crear el SOBRE. Agrupa el paquete (carátula+clausulado+anexos), resuelve
+ * los TRES papeles POR PUESTO (el puesto define; el sobre CONGELA a la persona), y sella la
+ * integridad del paquete. Vacante/duplicado en un puesto → error claro (no se elige por cuenta
+ * propia). Un contrato debe estar EMITIDO (con su carátula) antes de crear el sobre.
+ */
+class ContractEnvelopeBuilder
+{
+    /**
+     * PRE-VUELO de la ruta de firma (2026-08-25) — comprueba que la ruta se pueda armar SIN emitir
+     * ni escribir nada: que cada puesto firmante tenga a UNA persona en la producción y que el
+     * contratado no acabe firmando de los dos lados.
+     *
+     * Existe por el medio-estado: {@see \App\Support\InfosheetSigning::fire()} EMITE el contrato y
+     * DESPUÉS arma el sobre; si el sobre truena (puesto vacante), el contrato queda emitido —y por
+     * tanto congelado— sin sobre y sin salida. Validando antes, o sale todo o no sale nada.
+     *
+     * @throws ContractEnvelopeException mismo mensaje que daría build()
+     */
+    public static function preflight(PayeeContract $contract): void
+    {
+        $prod  = (int) $contract->production_id;
+        $payee = $contract->payee;
+        if (! $payee) {
+            throw new ContractEnvelopeException('El contrato no tiene una identidad de pago asociada.');
+        }
+
+        // Los mismos resolvedores que usa build(): truenan con "vacante"/"duplicado" si no cuadran.
+        $signers = [];
+        if (SignaturePositions::hasSignerList()) {
+            $entries = SignaturePositions::signerEntries();
+        } else {
+            $signers[] = SignaturePositions::soleUserForPosition($prod, SignaturePositions::preparerPositionId(), 'Preparador');
+            $signers[] = SignaturePositions::soleUserForPosition($prod, SignaturePositions::binderPositionId(), 'Obliga');
+            $entries = [];
+        }
+        foreach (array_merge($entries, SignaturePositions::conditionalSignerEntries((float) $contract->fee_amount)) as $entry) {
+            $label  = SignaturePositions::entryLabel($entry);
+            $signer = $entry === SignaturePositions::DEPT_HOD
+                ? SignaturePositions::departmentHodUser($prod, $contract->department_id, $label)
+                : SignaturePositions::soleUserForPosition($prod, (int) $entry, $label);
+            // El HOD que ES el contratado se omite (ver self::hodIsContracted); no es un error.
+            if ($entry === SignaturePositions::DEPT_HOD && self::isContractedPerson($contract, $signer)) {
+                continue;
+            }
+            $signers[] = $signer;
+        }
+
+        if (empty($signers)) {
+            throw new ContractEnvelopeException(
+                'La ruta se quedó sin firmantes de la productora para este contrato.'
+                . ' Agrega al menos un puesto firmante en Firmas Prod.'
+            );
+        }
+
+        // Nadie firma su propio contrato de los dos lados (mismo cotejo que build: id o correo).
+        foreach ($signers as $s) {
+            if (self::isContractedPerson($contract, $s)) {
+                throw new ContractEnvelopeException(
+                    'La misma persona no puede firmar como contratado y como firmante de la productora:'
+                    . ' sería aprobar su propio contrato. Asigna a otra persona en ese rol y reintenta.'
+                );
+            }
+        }
+    }
+
+    /**
+     * ¿Este firmante ES la persona contratada? Se coteja por id de usuario y por CORREO, porque un
+     * payee no-crew suele no tener usuario ligado y el candado por id solo se saltaría.
+     */
+    private static function isContractedPerson(PayeeContract $contract, $signer): bool
+    {
+        $payee = $contract->payee;
+        if (! $payee || ! $signer) {
+            return false;
+        }
+
+        $contractedUser = $payee->user;
+        if ($contractedUser && (int) $signer->id === (int) $contractedUser->id) {
+            return true;
+        }
+
+        $email = mb_strtolower(trim((string) ($signer->email ?? '')));
+        if ($email === '') {
+            return false;
+        }
+        $emails = array_filter(array_map(
+            fn ($e) => mb_strtolower(trim((string) $e)),
+            [
+                optional($contractedUser)->email,
+                method_exists($payee, 'contactEmail') ? $payee->contactEmail() : null,
+                $payee->email ?? null,
+            ]
+        ));
+
+        return in_array($email, $emails, true);
+    }
+
+    /**
+     * ¿Hay que OMITIR el casillero `dept_hod` en este contrato? (decisión del owner 2026-08-25)
+     *
+     * El jefe de departamento firma los contratos de SU gente, pero en su PROPIO contrato quedaría
+     * aprobándose a sí mismo. Antes eso trababa la emisión y obligaba a mover jefaturas a mano; ahora
+     * ese casillero simplemente no aplica a ese contrato — los demás firmantes quedan igual.
+     */
+    private static function hodIsContracted(PayeeContract $contract, int $prod, string $label): bool
+    {
+        try {
+            $hod = SignaturePositions::departmentHodUser($prod, $contract->department_id, $label);
+        } catch (\Throwable $e) {
+            return false;   // vacante/duplicado: que lo reporte el resolvedor, no lo tapamos aquí.
+        }
+
+        return self::isContractedPerson($contract, $hod);
+    }
+
+    public static function build(PayeeContract $contract, ?User $actor = null, ?string $contractedEmail = null): ContractEnvelope
+    {
+        if (! $contract->isEmitted()) {
+            throw new ContractEnvelopeException('Emite el contrato (genera su carátula) antes de crear el sobre.');
+        }
+
+        $prod  = (int) $contract->production_id;
+        $payee = $contract->payee;
+        abort_unless($payee, 404);
+
+        $roles   = ContractEnvelopeRecipient::roleLabels();
+        $company = trim((string) (Branding::get('company_name', '')));
+
+        $contractedUser = $payee->user;
+
+        // El CONTRATADO se resuelve solo (la persona del contrato). Nombre LEGAL, no el de créditos.
+        // `anchor_key` congela a qué `[[firma:...]]` de la plantilla corresponde este destinatario.
+        $contractedSpec = [
+            'role'       => ContractEnvelopeRecipient::ROLE_CONTRACTED,
+            'name'       => $payee->name,
+            'email'      => $contractedEmail ?: optional($contractedUser)->email,
+            'cargo'      => 'Contratista',
+            'anchor_key' => 'contratado',
+            'empresa'    => $payee->isMoral() ? $payee->name : null,
+            'user_id'    => optional($contractedUser)->id,
+            'payee_id'   => $payee->id,
+        ];
+
+        // ── LA RUTA (módulo de firma, config global). Dos caminos: ──
+        if (SignaturePositions::hasSignerList()) {
+            // NUEVO · lista configurable de N firmantes: contratado + cada PUESTO firmante en orden.
+            // El puesto DEFINE quién firma; el sobre CONGELA a la persona. Vacante/duplicado → error.
+            $route = [$contractedSpec];
+            foreach (SignaturePositions::signerEntries() as $entry) {
+                $label = SignaturePositions::entryLabel($entry);
+                // El jefe del depto NO firma su propio contrato: ese casillero no aplica aquí.
+                if ($entry === SignaturePositions::DEPT_HOD && self::hodIsContracted($contract, $prod, $label)) {
+                    continue;
+                }
+                $signer = $entry === SignaturePositions::DEPT_HOD
+                    ? SignaturePositions::departmentHodUser($prod, $contract->department_id, $label)
+                    : SignaturePositions::soleUserForPosition($prod, (int) $entry, $label);
+                $route[] = [
+                    'role'       => ContractEnvelopeRecipient::ROLE_SIGNER,
+                    'name'       => trim($signer->name . ' ' . $signer->lname),
+                    'email'      => $signer->email,
+                    'cargo'      => $label,
+                    // Ancla de la plantilla: 'dept_hod' o 'puesto:ID' (espeja anchorCatalog()).
+                    'anchor_key' => $entry === SignaturePositions::DEPT_HOD ? 'dept_hod' : 'puesto:' . (int) $entry,
+                    'empresa'    => $company,
+                    'user_id'    => $signer->id,
+                    'payee_id'   => null,
+                ];
+            }
+        } else {
+            // CLÁSICO (compat) · preparador / contratado / obliga, en el orden configurable.
+            $prepUser = SignaturePositions::soleUserForPosition($prod, SignaturePositions::preparerPositionId(), $roles[ContractEnvelopeRecipient::ROLE_PREPARER]);
+            $bindUser = SignaturePositions::soleUserForPosition($prod, SignaturePositions::binderPositionId(),   $roles[ContractEnvelopeRecipient::ROLE_BINDER]);
+            $frozen = [
+                ContractEnvelopeRecipient::ROLE_CONTRACTED => $contractedSpec,
+                ContractEnvelopeRecipient::ROLE_PREPARER => [
+                    'role'     => ContractEnvelopeRecipient::ROLE_PREPARER,
+                    'name'     => trim($prepUser->name . ' ' . $prepUser->lname),
+                    'email'    => $prepUser->email,
+                    'cargo'    => optional(Position::find(SignaturePositions::preparerPositionId()))->name ?: $roles[ContractEnvelopeRecipient::ROLE_PREPARER],
+                    'empresa'  => $company,
+                    'user_id'  => $prepUser->id,
+                    'payee_id' => null,
+                ],
+                ContractEnvelopeRecipient::ROLE_BINDER => [
+                    'role'     => ContractEnvelopeRecipient::ROLE_BINDER,
+                    'name'     => trim($bindUser->name . ' ' . $bindUser->lname),
+                    'email'    => $bindUser->email,
+                    'cargo'    => optional(Position::find(SignaturePositions::binderPositionId()))->name ?: $roles[ContractEnvelopeRecipient::ROLE_BINDER],
+                    'empresa'  => $company,
+                    'user_id'  => $bindUser->id,
+                    'payee_id' => null,
+                ],
+            ];
+            $route = [];
+            foreach (SignaturePositions::routeOrder() as $role) {
+                $route[] = $frozen[$role];
+            }
+        }
+
+        // ── B5 · RESOLVEDOR CONDICIONAL — reglas por IMPORTE agregan firmante(s) EXTRA al final de la
+        //    ruta (p.ej. "arriba de $X firma también el Line Producer"). Se resuelve AL CONSTRUIR (la
+        //    persona se congela como cualquier firmante) y se DEDUPLICA por ancla: si el puesto ya está
+        //    en la ruta base, no se duplica su firma. Vacante/duplicado → error claro (como el resto). ──
+        $anchors = array_values(array_filter(array_map(fn ($s) => $s['anchor_key'] ?? null, $route)));
+        foreach (SignaturePositions::conditionalSignerEntries((float) $contract->fee_amount) as $entry) {
+            $anchor = $entry === SignaturePositions::DEPT_HOD ? 'dept_hod' : 'puesto:' . (int) $entry;
+            if (in_array($anchor, $anchors, true)) {
+                continue;   // ya firma en la ruta base
+            }
+            $label = SignaturePositions::entryLabel($entry);
+            // Mismo criterio que la ruta base: el jefe del depto no firma su propio contrato.
+            if ($entry === SignaturePositions::DEPT_HOD && self::hodIsContracted($contract, $prod, $label)) {
+                continue;
+            }
+            $signer = $entry === SignaturePositions::DEPT_HOD
+                ? SignaturePositions::departmentHodUser($prod, $contract->department_id, $label)
+                : SignaturePositions::soleUserForPosition($prod, (int) $entry, $label);
+            $route[] = [
+                'role'       => ContractEnvelopeRecipient::ROLE_SIGNER,
+                'name'       => trim($signer->name . ' ' . $signer->lname),
+                'email'      => $signer->email,
+                'cargo'      => $label,
+                'anchor_key' => $anchor,
+                'empresa'    => $company,
+                'user_id'    => $signer->id,
+                'payee_id'   => null,
+            ];
+            $anchors[] = $anchor;
+        }
+
+        // ── GOBERNANZA · NADIE FIRMA SU PROPIO CONTRATO EN AMBOS LADOS. Si la persona del CONTRATADO
+        //    también quedó como firmante de la PRODUCTORA (HOD del depto, preparador, obliga, un
+        //    puesto de la lista…), estaría APROBANDO SU PROPIO CONTRATO. No se auto-firma ni se deja
+        //    pasar: se corta AQUÍ con un error claro, como vacante/duplicado (mismo principio que
+        //    "nadie valida su propia cédula"). Hay que asignar a OTRA persona en ese rol.
+        //
+        //    El cotejo NO puede depender solo de `user_id`: un payee no-crew (proveedor/renta/servicio)
+        //    normalmente NO tiene usuario ligado y firma con su RFC → el candado por id se saltaría por
+        //    completo. Se coteja también por CORREO (único identificador compartido entre el payee y el
+        //    User firmante; los Users no guardan RFC). ──
+        // Si al omitir al HOD-contratado la ruta se quedó SOLO con el contratado, no hay contrato que
+        // valga: alguien de la productora tiene que firmar. Se corta con un error accionable.
+        $productora = array_filter($route, fn ($s) => ($s['role'] ?? null) !== ContractEnvelopeRecipient::ROLE_CONTRACTED);
+        if (empty($productora)) {
+            throw new ContractEnvelopeException(
+                'La ruta se quedó sin firmantes de la productora para este contrato.'
+                . ' Agrega al menos un puesto firmante en Firmas Prod.'
+            );
+        }
+
+        $contractedUid    = (int) optional($contractedUser)->id;
+        $contractedEmails = array_values(array_unique(array_filter(array_map(
+            fn ($e) => mb_strtolower(trim((string) $e)),
+            [
+                $contractedSpec['email'] ?? null,
+                method_exists($payee, 'contactEmail') ? $payee->contactEmail() : null,
+                $payee->email ?? null,
+                optional($contractedUser)->email,
+            ]
+        ))));
+        foreach ($route as $spec) {
+            if (($spec['role'] ?? null) === ContractEnvelopeRecipient::ROLE_CONTRACTED) {
+                continue;
+            }
+            $sameUser    = $contractedUid > 0 && (int) ($spec['user_id'] ?? 0) === $contractedUid;
+            $signerEmail = mb_strtolower(trim((string) ($spec['email'] ?? '')));
+            $sameEmail   = $signerEmail !== '' && in_array($signerEmail, $contractedEmails, true);
+            if ($sameUser || $sameEmail) {
+                throw new ContractEnvelopeException(
+                    'La misma persona no puede firmar como contratado y como «'
+                    . ($spec['cargo'] ?: 'firmante de la productora')
+                    . '»: sería aprobar su propio contrato. Asigna a otra persona en ese rol y reintenta.'
+                );
+            }
+        }
+
+        // ── Snapshot del paquete (byte-intact): carátula + clausulado + anexos activos ──
+        $documents = self::snapshotDocuments($contract, $prod);
+
+        return DB::transaction(function () use ($contract, $prod, $documents, $route, $actor) {
+            // FASE 5 — UN SOLO SOBRE EN CURSO por contrato (un contrato por persona). Lock de la fila del
+            // contrato para serializar dos creaciones concurrentes (doble clic / doble submit); dentro del
+            // lock, si ya hay un sobre no terminal, se rechaza → no se duplica la ruta de firma.
+            PayeeContract::whereKey($contract->id)->lockForUpdate()->first();
+            $active = $contract->envelopes()
+                ->whereIn('status', [ContractEnvelope::STATUS_DRAFT, ContractEnvelope::STATUS_SENT])
+                ->first();
+            if ($active) {
+                throw new ContractEnvelopeException(
+                    'Ya hay un sobre en curso para este contrato (#' . $active->id . '). Anúlalo antes de crear otro.'
+                );
+            }
+
+            $envelope = ContractEnvelope::create([
+                'payee_contract_id' => $contract->id,
+                'production_id'     => $prod,
+                'status'            => ContractEnvelope::STATUS_DRAFT,
+                'documents'         => $documents,
+                'created_by_id'     => optional($actor)->id,
+            ]);
+
+            // Destinatarios en el ORDEN de la ruta.
+            foreach ($route as $i => $spec) {
+                $envelope->recipients()->create(array_merge($spec, [
+                    'sort_order' => $i,
+                    'status'     => ContractEnvelopeRecipient::STATUS_PENDING,
+                ]));
+            }
+
+            // Sella la INTEGRIDAD del paquete sobre el modelo RE-CONSULTADO (tipos de BD), no el de
+            // memoria: así el sello es REPRODUCIBLE al reverificar desde una consulta fresca (el
+            // verificador público /verificar/cenv/{uuid}). Sellar en memoria dejaría columnas sin
+            // cast (int vs string tras el round-trip) sin casar → "alterado" falso. (FASE 3)
+            $envelope = $envelope->fresh();
+            $envelope->signDocumentAsSystem('sobre creado');
+
+            // Primer eslabón de la bitácora: el sobre nace registrado.
+            ContractEventLog::record($envelope, ContractEnvelopeEvent::CREATED, [
+                'actor_id' => optional($actor)->id,
+                'payload'  => ['recipients' => count($route), 'documents' => count($documents)],
+            ]);
+
+            return $envelope->fresh('recipients');
+        });
+    }
+
+    private static function snapshotDocuments(PayeeContract $contract, int $prod): array
+    {
+        $docs = [];
+        $hash = fn ($path) => ($path && Storage::disk('local')->exists($path))
+            ? hash('sha256', Storage::disk('local')->get($path)) : null;
+
+        if ($contract->caratula_path) {
+            $docs[] = ['kind' => 'caratula', 'name' => 'Carátula', 'path' => $contract->caratula_path, 'hash' => $hash($contract->caratula_path)];
+        }
+        if ($clause = $contract->clause) {
+            $docs[] = ['kind' => 'clause', 'name' => $clause->name, 'path' => $clause->file_path, 'hash' => $clause->file_hash];
+        }
+        foreach (ContractAnnex::forProduction($prod)->active()->orderBy('sort_order')->get() as $a) {
+            $docs[] = ['kind' => 'annex', 'name' => $a->name, 'path' => $a->file_path, 'hash' => $a->file_hash, 'annex_id' => $a->id];
+        }
+
+        // LA HOJA DE INFORMACIÓN del trato: va en el paquete para que el CONTRATADO la firme junto al
+        // contrato + anexos (firma COMPLETA del sobre). Best-effort: si el motor PDF falla, NO se rompe
+        // la emisión del sobre (el resto del paquete igual se firma).
+        try {
+            $sheet     = \App\Support\InfosheetSheet::renderPdf($contract);
+            $sheetPath = 'contracts/infosheet/' . $contract->id . '_' . uniqid() . '.pdf';
+            Storage::disk('local')->put($sheetPath, $sheet);
+            $docs[] = ['kind' => 'infosheet', 'name' => 'Hoja de información', 'path' => $sheetPath, 'hash' => hash('sha256', $sheet)];
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('snapshotDocuments: no se pudo generar la Hoja de Información — ' . $e->getMessage());
+        }
+
+        return $docs;
+    }
+}

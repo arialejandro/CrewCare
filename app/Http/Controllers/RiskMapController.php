@@ -28,7 +28,7 @@ use Illuminate\Support\Facades\Storage;
 class RiskMapController extends Controller
 {
     /** Imagen aceptada (el navegador ya comprime/convierte HEIC vía CCPhoto). */
-    const IMG_RULES = 'image|mimes:jpeg,jpg,png,webp|max:12288'; // 12 MB
+    const IMG_RULES = 'mimes:jpeg,jpg,png,webp,heic,heif|heic_ok|max:12288'; // 12 MB (heic/heif de iPhone; ver ImageCompressor)
 
     /* ================================================================== */
     /* Índice + alta                                                       */
@@ -116,6 +116,7 @@ class RiskMapController extends Controller
             'views'          => $views,
             'current'        => $current,
             'eligibleEvents' => $map->eligibleEvents(),
+            'orphanMarkers'  => $map->orphanHazardMarkers(), // pines de peligro que el scouting ya no evalúa
             'scoutingPhotos' => $this->scoutingPhotos($map->scouting),
             'viewTypes'      => RiskMapView::VIEW_TYPES,
             'resourceTypes'  => RiskMapMarker::RESOURCE_TYPES,
@@ -303,6 +304,17 @@ class RiskMapController extends Controller
             return back()->withErrors(['seal' => 'Agrega al menos una vista antes de sellar.']);
         }
 
+        // Pines de peligro COLGANTES: el scouting quitó ese peligro después de mapearlo.
+        // No se sella un documento que certificaría un peligro que el scouting ya no
+        // evalúa. NO se borran pines por nuestra cuenta: lo resuelve el safety (corrige
+        // la evaluación del scouting o retira el pin en el editor). Ver RiskMap::orphanHazardMarkers().
+        $orphans = $map->orphanHazardMarkers();
+        if ($orphans->isNotEmpty()) {
+            return back()->withErrors(['seal' =>
+                'Hay ' . $orphans->count() . ' señal(es) de peligro que el scouting ya no evalúa. '
+                . 'Corrige la evaluación del scouting o retira esos pines en el editor antes de sellar.']);
+        }
+
         $map->status    = 'sealed';
         $map->folio     = 'RMAP-' . str_pad((string) $map->id, 4, '0', STR_PAD_LEFT);
         $map->sealed_at = now();
@@ -324,9 +336,21 @@ class RiskMapController extends Controller
     {
         $map = RiskMap::with(['views.markers', 'scouting'])->findOrFail($id);
 
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+        // MISMA vista/datos y la pasa por Browsershot (Chrome headless) → descarga idéntica a
+        // window.print(). Márgenes 0 (el @page Oficio manda). Ver [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = view('admin.riskmaps.document', [
+                'map'            => $map,
+                'eligibleEvents' => $map->eligibleEvents(),
+            ])->render();
+            return \App\Support\PdfExporter::download($html, 'RMAP-' . $map->id, [0, 0, 0, 0]);
+        }
+
         return view('admin.riskmaps.document', [
             'map'            => $map,
             'eligibleEvents' => $map->eligibleEvents(),
+            'pdfUrl'         => request()->fullUrlWithQuery(['pdf' => 1]),
         ]);
     }
 
@@ -483,6 +507,8 @@ class RiskMapController extends Controller
     /** Guarda una imagen subida en disco 'public' y devuelve su URL RELATIVA. */
     private function storeUpload($image): string
     {
+        // HEIC (iPhone) → JPEG si el servidor puede convertir; si no, la validación ya lo rechazó.
+        $image    = ImageCompressor::normalizeForUpload($image);
         $filename = time() . '_rmap_' . uniqid() . '.' . ImageCompressor::safeExtensionOrBin($image);
         $path = $image->storeAs('riskmaps', $filename, 'public');
         return Storage::url($path);

@@ -46,8 +46,13 @@ class RolesAndPermissionsSeeder extends Seeder
             'crew.view.contact',          // ver teléfono/email en resultados de búsqueda
             'crew.view.personal',         // ver fecha de nacimiento / sexo
             'crew.view.all-departments',  // alcance: ver TODOS los departamentos (ausencia ⇒ solo su propio departamento)
+            // LLAMADO — armar/editar el back del día (motor de horarios). Herramienta de OFICINA DE
+            // PRODUCCIÓN: super-admin/line-producer/coordinator. NO el HOD (usa el roster de lectura),
+            // NI medic/safety-officer/auditor (que tienen all-departments pero no arman llamados). 2026-08-23.
+            'callsheet.manage',
             // Catalogs (departments / positions / notifications)
             'catalogs.view', 'catalogs.manage',
+            'catalogs.manage.own-department', // crear/editar puestos SOLO del depto propio (HOD/coordinador)
             // H&S — Injuries
             'injury.view', 'injury.create', 'injury.manage',
             // H&S — Hazards / unsafe conditions
@@ -58,6 +63,10 @@ class RolesAndPermissionsSeeder extends Seeder
             'dsr.view', 'dsr.create', 'dsr.update', 'dsr.export',
             // Reports (cross-cutting view/export — auditor relevant)
             'reports.view', 'reports.export',
+            // Consolidación de reportes de seguridad: ver TODOS los DSR/Injury/Actos/Condiciones
+            // sin importar el autor. Espejo de medical.consolidate (KEY MEDIC). Aísla a los safety
+            // entre sí: el safety-officer NO lo tiene → solo ve lo suyo (2026-08-21, auditoría #1).
+            'safety.consolidate',
             // Medical (sensitive)
             'medical.view', 'medical.create', 'medical.update',
             'medical.materials', // conteo interno de medicamentos (presupuesto/materialidad) — 2026-07-06
@@ -73,6 +82,10 @@ class RolesAndPermissionsSeeder extends Seeder
             // Documents (future module — vocabulary fixed from day 1)
             'documents.view', 'documents.create', 'documents.assign', 'documents.sign',
             'documents.manage-templates',
+            // Contract Builder — REDACTAR/ensamblar plantillas de contrato. Gate del builder; NO es
+            // settings.manage. Solo Line Producer / representante legal: el contenido LEGAL es de la
+            // PRODUCTORA (CrewCare solo ensambla, numera y estampa firmas; no redacta). 2026-08-14
+            'contracts.author',
             // Self profile
             'profile.update-own',
             // RBAC self-management — editar la matriz rol→permiso EN VIVO desde la UI.
@@ -92,10 +105,13 @@ class RolesAndPermissionsSeeder extends Seeder
             Permission::firstOrCreate(['name' => $p, 'guard_name' => $guard]);
         }
 
-        // ---- 2. Roles (8: 7 org-chart roles + auditor) ----
+        // ---- 2. Roles (9: 7 org-chart roles + auditor + representante-legal) ----
+        // representante-legal (2026-08-14): figura LEGAL de la productora — FIRMA documentos y
+        // CREA/ensambla contratos (Contract Builder). Roles son DATA: un rol nuevo = una fila + su set
+        // de permisos, sin cambio de esquema.
         $roleNames = [
             'super-admin', 'line-producer', 'coordinator', 'hod',
-            'medic', 'safety-officer', 'crew', 'auditor',
+            'medic', 'safety-officer', 'crew', 'auditor', 'representante-legal',
         ];
         $roles = [];
         foreach ($roleNames as $r) {
@@ -131,16 +147,19 @@ class RolesAndPermissionsSeeder extends Seeder
             'users.assign-role', 'users.assign-department',
             'crew.register', 'crew.view',
             'crew.view.contact', 'crew.view.all-departments',
+            'callsheet.manage', // arma el back del día (oficina de producción)
             'catalogs.view', 'catalogs.manage',
             'injury.view', 'injury.create', 'injury.manage',
             'hazards.view', 'hazards.create', 'hazards.manage',
             'locations.view', 'locations.create', 'locations.manage',
             'dsr.view', 'dsr.create', 'dsr.update', 'dsr.export',
             'reports.view', 'reports.export',
+            'safety.consolidate', // ve TODOS los reportes de seguridad (consolidación de producción)
             'medical.view', // ve consultas médicas (matriz de menú, owner 2026-06-24) — dato sensible
             'medical.materials', // conteo interno de medicamentos (presupuesto/materialidad) — 2026-07-06
             'documents.view', 'documents.create', 'documents.assign', 'documents.sign',
             'documents.manage-templates',
+            'contracts.author', // redactar/ensamblar plantillas de contrato (2026-08-14)
             'badge.design', // diseñar plantilla de gafete (2026-07-06)
             'sds.view', 'sds.create', 'sds.manage', // SDS/consumibles SFX: autoridad verificadora (2026-07-16)
             'profile.update-own',
@@ -152,11 +171,13 @@ class RolesAndPermissionsSeeder extends Seeder
             'users.view', 'users.create', 'users.update', 'users.assign-department',
             'crew.register', 'crew.view',
             'crew.view.contact', 'crew.view.all-departments',
-            'catalogs.view',
+            'callsheet.manage', // arma el back del día (oficina de producción)
+            'catalogs.view', 'catalogs.manage.own-department', // crea puestos de SU depto en el alta
             'injury.view', 'hazards.view',
             'locations.view', 'locations.create', // Scoutings / crear scouting (matriz de menú, owner 2026-06-24)
             'dsr.view',
             'reports.view',
+            'safety.consolidate', // Coord de Prod: ve TODOS los reportes de seguridad (consolidación)
             'medical.view', // ve consultas médicas / expediente (grant de menú médico, 2026-07-06) — dato sensible
             'documents.view', 'documents.create', 'documents.assign', 'documents.sign',
             'badge.design', // diseñar plantilla de gafete (2026-07-06)
@@ -168,7 +189,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'productions.view',
             'users.view', 'users.create', 'crew.view', // + alta de crew de su área (matriz de menú, owner 2026-06-24)
             'crew.view.contact', // HOD restringido a su propio departamento (sin all-departments)
-            'catalogs.view',
+            'catalogs.view', 'catalogs.manage.own-department', // crea puestos de SU depto en el alta
             'injury.view', 'hazards.view',
             'dsr.view',
             'reports.view',
@@ -182,6 +203,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'crew.view',
             'crew.view.contact', 'crew.view.personal', 'crew.view.all-departments',
             'injury.view', 'injury.create', // reportar accidentes (requisito del owner)
+            'hazards.create', 'hazards.manage', // gestiona peligros (grant historico de MedicRolePermissionsSeeder, unificado al base 2026-08-11; sin .view, igual que el vivo)
             'medical.view', 'medical.create', 'medical.update', 'medical.materials',
             'documents.view', 'documents.sign',
             'reports.view',
@@ -211,9 +233,21 @@ class RolesAndPermissionsSeeder extends Seeder
             'profile.update-own',
         ]);
 
-        // crew (self-service; can file own injury/hazard reports — ownership checked in Policy)
+        // crew (self-service; can file own injury/hazard reports. Tras crear, aterriza en /home
+        // —NO ve la ficha, que exige injury.view— ver BUG-INC-01. El silo médico lo gatea
+        // InjuryReportPolicy::viewMedical.)
         $roles['crew']->syncPermissions([
             'injury.create', 'hazards.create',
+            'documents.view', 'documents.sign',
+            'profile.update-own',
+        ]);
+
+        // representante-legal — figura LEGAL de la productora: FIRMA documentos y CREA/ensambla
+        // contratos (Contract Builder). NO es producción operativa: su acceso se acota a eso + su
+        // perfil. (Quién FIRMA cada sobre lo define el PUESTO en la ruta, no este rol; el rol solo da
+        // acceso a la app.) Si además debe ORIGINAR sobres para un payee, se le suma payees.view/capture.
+        $roles['representante-legal']->syncPermissions([
+            'contracts.author',
             'documents.view', 'documents.sign',
             'profile.update-own',
         ]);
@@ -223,8 +257,9 @@ class RolesAndPermissionsSeeder extends Seeder
         $viewOnly = Permission::where('name', 'like', '%.view')
             ->where('name', '!=', 'medical.view')
             ->pluck('name')->all();
-        // Auditor read-only: + ver TODOS los departamentos, pero SIN PII (contact/personal).
-        $roles['auditor']->syncPermissions(array_merge($viewOnly, ['crew.view.all-departments']));
+        // Auditor read-only: + ver TODOS los departamentos, pero SIN PII (contact/personal),
+        // + consolidación de reportes de seguridad (compliance ve todos los DSR/Injury/Actos/Cond.).
+        $roles['auditor']->syncPermissions(array_merge($viewOnly, ['crew.view.all-departments', 'safety.consolidate']));
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 

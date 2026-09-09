@@ -7,15 +7,17 @@
 @push('styles')
     <meta name="_token" content="{{ csrf_token() }}">
     <link rel="stylesheet" href="{{ asset('css/inicio.css') }}">
-    {{-- Cropper.js styles (load-bearing: profile-photo cropper, crew branch). --}}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.6/cropper.css"/>
+    {{-- CSP/local: Cropper.js CSS servido desde 'self' (antes cdnjs). Cropper de la foto de perfil. --}}
+    <link rel="stylesheet" href="{{ asset('vendor/cropper/cropper-1.5.6.min.css') }}"/>
 
-    {{-- Tailwind por CDN — igual que las vistas de reporte. Se carga en <head> (no en el
-         body) para REDUCIR el FOUC/CLS: los estilos están disponibles antes del primer
-         paint del contenido. preflight OFF para no pisar Bootstrap del resto de la app. --}}
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>tailwind.config = { corePlugins: { preflight: false } };</script>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,400;0,700;0,900;1,900&display=swap" rel="stylesheet">
+    {{-- CSP/local: se retiró el Play CDN de Tailwind (cdn.tailwindcss.com, que Tailwind mismo
+         desaconseja en producción y además era un <script> externo que rompía script-src).
+         Las utilidades que usa /home se PRECOMPILARON con el CLI de Tailwind 3.4.17 (la misma
+         versión que servía el Play CDN), escaneando el código fuente, con preflight OFF (igual
+         que el runtime, para no pisar el reset de Bootstrap). Servido desde 'self'. --}}
+    <link rel="stylesheet" href="{{ asset('css/inicio-tw.css') }}">
+    {{-- CSP/local: Roboto Condensed (el .font-poster usa 900) ya se autoaloja en ui-fonts.css,
+         heredado del layout app. Se retiró el <link> a Google Fonts. --}}
     <style>
         .font-poster { font-family: 'Roboto Condensed', sans-serif; font-weight: 900; text-transform: uppercase; letter-spacing: .02em; }
 
@@ -96,6 +98,12 @@
         }
         .cc-kpi__spark { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 28px; opacity: .8; pointer-events: none; }
 
+        /* ===== "Te toca a ti": pendientes accionables (firma / autorización) ===== */
+        .cc-todo { background: var(--surface-3); border: 1px solid var(--stroke); color: var(--text); text-decoration: none; }
+        .cc-todo:hover { border-color: color-mix(in srgb, var(--brand-primary) 45%, var(--stroke)); transform: translateY(-1px); }
+        .cc-todo__ico { color: var(--brand-primary); display: inline-flex; }
+        .cc-todo__hint { color: var(--text-muted); }
+
         /* ===== Empty state honesto (actividad reciente) ===== */
         .cc-empty { color: var(--text-muted); }
         .cc-empty__ico { color: var(--text-muted); opacity: .7; }
@@ -131,7 +139,8 @@
         <div class="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
                 <p class="cc-hero__eyebrow text-[11px] uppercase tracking-[0.3em] font-bold mb-1">{{ __('dashboard.banner_eyebrow') }}</p>
-                <h1 class="font-poster text-2xl sm:text-3xl leading-none">{{ __('dashboard.greeting') }}, {{ auth()->user()->name }}</h1>
+                {{-- Nombre en CRÉDITOS (ncreditos → 1er nombre + 1er apellido), igual que el saludo del sidebar. --}}
+                <h1 class="font-poster text-2xl sm:text-3xl leading-none">{{ __('dashboard.greeting') }}, {{ \App\Models\User::displayName(auth()->user()) }}</h1>
                 <p class="cc-hero__sub text-sm mt-2">
                     @if(auth()->user()->encuestadiaria)
                         {{ __('dashboard.survey_thanks') }}
@@ -148,6 +157,44 @@
             @endunless
         </div>
     </div>
+
+    {{-- ===== LO QUE TE TOCA A TI (2026-08-25) =====
+         El sidebar ya llevaba badge, pero vive plegado y se pierde: un Infosheet esperando la
+         autorización del Line Producer podía quedarse días sin que nadie se enterara. Aquí sale a
+         la cara, con el mismo criterio de las bandejas (solo lo que ESTE usuario puede accionar).
+         Si no hay nada pendiente, el bloque no existe — no se pinta un cero. --}}
+    @php
+        $__uPend    = auth()->user();
+        $__pendSign = \App\Support\PendingSignatures::countForUser((int) $__uPend->id);
+        $__pendAuth = \App\Support\InfosheetSigning::countForUser($__uPend);
+        $__todo = [];
+        if ($__pendAuth > 0) {
+            $__todo[] = ['icon' => 'clipboard-list', 'n' => $__pendAuth, 'route' => route('infosheet.pending'),
+                'label' => trans_choice('Hoja de información por autorizar|Hojas de información por autorizar', $__pendAuth),
+                'hint'  => __('Al autorizarla se emite el contrato y se manda a firma.')];
+        }
+        if ($__pendSign > 0) {
+            $__todo[] = ['icon' => 'pencil', 'n' => $__pendSign, 'route' => route('contracts.pending.index'),
+                'label' => trans_choice('Contrato por firmar|Contratos por firmar', $__pendSign),
+                'hint'  => __('Documentos esperando tu firma.')];
+        }
+    @endphp
+    @if(count($__todo))
+        <div class="cc-panel p-4 sm:p-5 mb-6">
+            <h2 class="cc-panel__title font-poster text-base sm:text-lg mb-3">{{ __('Te toca a ti') }}</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                @foreach($__todo as $t)
+                    <a href="{{ $t['route'] }}" class="cc-todo flex items-center gap-3 rounded-xl p-3 transition">
+                        <span class="cc-todo__ico shrink-0">@include('componentes._icon', ['name' => $t['icon'], 'class' => 'cc-ico-20', 'label' => null])</span>
+                        <span class="min-w-0">
+                            <span class="cc-todo__label block font-bold text-sm">{{ $t['n'] }} {{ $t['label'] }}</span>
+                            <span class="cc-todo__hint block text-xs">{{ $t['hint'] }}</span>
+                        </span>
+                    </a>
+                @endforeach
+            </div>
+        </div>
+    @endif
 
     {{-- ===== Grid de KPIs (2 → 3 → 6) — DATA-DRIVEN =====
          Cada widget: icono (_icon), etiqueta i18n, valor, ruta (hover con sentido) y
@@ -264,26 +311,10 @@
                     @include('componentes._icon', ['name' => 'camera', 'class' => 'cc-ico-18', 'label' => null])
                     {{ __('dashboard.change_photo') }}
                 </label>
-                <input type="file" id="imgperfil" name="imgperfil" class="form-control image" accept="image/*">
+                <input type="file" id="imgperfil" name="imgperfil" class="form-control image" accept="image/*,.heic,.heif">
             </form>
             <hr style="border-color: var(--border);">
-            <div class="profile-card-2">
-                <img src="{{ \App\Support\Avatar::url(auth()->user()) }}" class="img img-fluid" alt="{{ auth()->user()->name }}">
-                <div class="profile-logo-container"></div>
-                <div class="profile-logo">
-                    <img src="{{ URL::asset('img/logo-cc-usrs.svg') }}" width="100" alt="CrewCare">
-                </div>
-                <div class="profile-logo-client">
-                    <img src="{{ ($branding['client_logo'] ?? '') ?: URL::asset('img/redrum.png') }}" width="80" alt="">
-                </div>
-                <div class="profile-text-container"></div>
-                <div class="profile-name">{{ auth()->user()->name }} {{ auth()->user()->lname }}</div>
-                <div class="profile-username">{{ auth()->user()->departmentName() }}</div>
-                <div class="profile-icons">
-                    <span class="data-basic">{{ auth()->user()->positionName() }} |
-                    {{ \Carbon\Carbon::parse(auth()->user()->borndate)->age }}</span>
-                </div>
-            </div>
+            @include('componentes._profile-badge', ['user' => auth()->user()])
         </div>
 
         <div class="col-lg-8 col-md-8 col-12">
@@ -317,7 +348,9 @@
                 <div class="img-container">
                     <div class="row">
                         <div class="col-md-8 imgs">
-                            <img class="imgs" id="image" src="https://avatars0.githubusercontent.com/u/3456749">
+                            {{-- CSP/local: era un avatar de la demo de Cropper (avatars0.githubusercontent.com).
+                                 Placeholder transparente same-origin (data:); public/js/inicio.js reemplaza el src al elegir foto. --}}
+                            <img class="imgs" id="image" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
                         </div>
                         <div class="col-md-4">
                             <div class="preview"></div>
@@ -342,8 +375,9 @@
          Bootstrap 4 CDN CSS/JS + Popper 1.x were REMOVED (modal ported to BS5,
          which the layout already provides). The duplicate jQuery was REMOVED
          (the layout already loads jQuery). --}}
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.6/cropper.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-trendline"></script>
+    {{-- CSP/local: Cropper.js 1.5.6 y el plugin trendline servidos desde 'self' (antes cdnjs/jsdelivr). --}}
+    <script src="{{ asset('js/vendor/cropper-1.5.6.min.js') }}"></script>
+    <script src="{{ asset('js/vendor/chartjs-plugin-trendline-3.2.12.min.js') }}"></script>
 
     {{-- Expose the upload route to the external JS (which can't use Blade). --}}
     <script>

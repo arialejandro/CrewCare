@@ -1,0 +1,504 @@
+{{-- ============================================================================================
+     ACTA DE VERIFICACIÓN DE RECURSO DE EMERGENCIA EN SITIO (ambulancia). Documento SELLADO,
+     hermano del PAE / DSR / MEDEVAC: MISMO chrome v2 (_report-v2-head/-toolbar/-foot + _doc-hero
+     + banda + .sec) y los MISMOS tokens. Lo único propio son las secciones .amb-*.
+
+     ENCUADRE: es CONSTANCIA DE VERIFICACIÓN EN SITIO, NO inspección sanitaria (eso lo hace la
+     autoridad). El sello SHA se calcula sobre el DATO, no sobre este render.
+
+     Se PRESERVA todo el contenido y la lógica de la versión anterior:
+       veredicto (paro/actividad_no_ejecutable/apta) con su color · datos congelados
+       (tipo/rama/nivel/capacidad/proveedor/placas/N.º económico/inspector/cédula/fecha) ·
+       correspondencia tipo↔riesgo (day_risk_level) · tripulación con folio CONOCER + estado
+       "cotejado/sin cotejar" + glosa TAMP · foto de la unidad + galería de evidencia · checklist
+       congelado · observaciones · estado RETIRADO · desbloqueo del PARO (form) · action item
+       (form de cierre) · sello CFDI.
+     Los controles operativos (desbloqueo, cerrar action item) NO se imprimen; el resto sí.
+============================================================================================ --}}
+@php
+    use App\Support\Branding;
+
+    $en        = app()->getLocale() === 'en';
+    $brand     = isset($branding) && is_array($branding) ? $branding : [];
+    $brandName = ($brand['brand_name'] ?? Branding::get('brand_name', 'CrewCare')) ?: 'CrewCare';
+    $primary   = $brand['primary_color'] ?? (Branding::get('primary_color', '#ff9900') ?: '#ff9900');
+
+    $snap     = is_array($inspection->checklist_snapshot) ? $inspection->checklist_snapshot : [];
+    $crewSnap = is_array($inspection->crew_snapshot) ? $inspection->crew_snapshot : [];
+    // Composición MÍNIMA de tripulación (operador + clínico): el mismo criterio que sella el veredicto.
+    $crewReq  = \App\Support\AmbulanceVerdict::crewSummary($crewSnap);
+    $evidence = $inspection->evidencePhotoUrls();
+
+    // Veredicto DERIVADO del dato. 'ck' = clase de color de la banda; 'band' = color de la
+    // celda de vistazo (rojo/verde; la banda de la celda no tiene ámbar → no_exec queda neutro).
+    $verdictMap = [
+        'paro'                    => ['ck' => 'paro',   'band' => 'warn', 'icon' => 'octagon-alert',  'title' => 'PARO INMEDIATO',          'sub' => 'La unidad no se usa.'],
+        'actividad_no_ejecutable' => ['ck' => 'noexec', 'band' => '',     'icon' => 'alert-triangle', 'title' => 'ACTIVIDAD NO EJECUTABLE', 'sub' => 'El recurso no alcanza para la actividad prevista.'],
+        'apta'                    => ['ck' => 'apta',   'band' => 'ok',   'icon' => 'shield-check',   'title' => 'APTA',                    'sub' => 'El recurso queda disponible.'],
+    ];
+    $v = $verdictMap[$inspection->verdict] ?? $verdictMap['apta'];
+
+    // ESTADO INTERMEDIO (derivado, NO sellado): la UNIDAD quedó apta por checklist, pero falta la
+    // tripulación mínima (uno o ambos roles) → se presenta en ÁMBAR con signo de advertencia. La
+    // ambulancia está lista; el problema es de personal. NO altera el veredicto sellado de la unidad.
+    $crewWarn = ($inspection->verdict === 'apta' && ! $crewReq['sufficient']);
+    if ($crewWarn) {
+        $v = [
+            'ck'    => 'noexec', // reusa el ámbar de la banda de veredicto
+            'band'  => '',
+            'icon'  => 'alert-triangle',
+            'title' => 'APTA · SIN TRIPULACIÓN CALIFICADA',
+            'sub'   => 'La unidad está lista, pero no puede operar sin tripulación calificada a bordo (NOM-034).',
+        ];
+    }
+
+    $pathLabel = [
+        'reemplazo'            => 'Fuera de servicio: la unidad sale y se reemplaza.',
+        'correccion_mismo_dia' => 'Corrección el mismo día; vuelve si se corrige y se reverifica.',
+    ];
+    $triggerLabels = [
+        'completa'  => 'Verificación completa',
+        'identidad' => 'Identidad',
+        'persona'   => 'Persona / tripulación',
+        'unidad'    => 'Unidad',
+        'consumo'   => 'Consumo / botiquín',
+        'riesgo'    => 'Riesgo del día',
+    ];
+    $riskLabels = [1 => 'Muy bajo', 2 => 'Bajo', 3 => 'Medio', 4 => 'Alto', 5 => 'Muy alto'];
+
+    // Display del tipo (nombre + código) y de rama/nivel. La rama viene en minúscula del catálogo.
+    $ramaNivel = ($inspection->rama ? ucfirst($inspection->rama) : '—') . ($inspection->type_level ? ' · Nivel ' . $inspection->type_level : '');
+
+    // Hero + pie. El pie del hero ya antepone "CrewCare"; el módulo NO lo repite.
+    $heroModule = 'Verificación de ambulancia';
+    // Pie SIN fecha/hora (decisión owner 2026-08): el sello ya la registra y el hero la muestra.
+    $footMeta   = implode(' · ', array_filter([
+        $inspection->inspector_role ?: null,
+    ]));
+    $appVersion = config('crewcare.doc_version');
+    $footUuid   = 'UUID: ' . ($inspection->uuid ?: '—') . ($appVersion ? ' | ' . $appVersion : '');
+@endphp
+<!DOCTYPE html>
+<html lang="{{ $en ? 'en' : 'es' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ $inspection->folio() }} — {{ $brandName }}</title>
+@include('componentes._report-v2-head')
+<style>
+  /* Contenido propio del acta (scoped .amb-*). Hereda los tokens del chrome (claro/oscuro/print). */
+  .amb-note{ font-size:.74rem; color:var(--muted); margin:0 0 16px; line-height:1.5; }
+  .amb-note.tight{ margin:9px 0 0; }
+
+  /* El owner marcó el borde IZQUIERDO amarillo del cintillo como defecto: se retira SOLO en el
+     acta (este <style> va después del chrome → gana sin tocar los demás documentos). */
+  .band .lead{ border-left:0; }
+
+  /* Veredicto — banda de color DERIVADA del dato (paro/no-exec/apta). Imprimible. */
+  .amb-verdict{ display:flex; align-items:center; gap:14px; margin:0 0 8px; padding:15px 18px;
+    border:1px solid var(--stroke); border-left:5px solid var(--vc); border-radius:var(--radius-sm);
+    background:color-mix(in srgb, var(--vc) 9%, var(--panel)); break-inside:avoid;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .amb-verdict.paro{ --vc:var(--danger); }
+  .amb-verdict.noexec{ --vc:var(--warn); }
+  .amb-verdict.apta{ --vc:var(--ok); }
+  /* Nota de advertencia de tripulación (estado intermedio) en ámbar, a juego con el banner del
+     veredicto. Los chips de requisito usan el .chip.warn (rojo) del chrome, que el owner aprobó. */
+  .amb-crewwarn{ color:var(--warn); }
+
+  /* Tripulación en CARDS con jerarquía (nombre > rol > folio/estado), para que la información
+     respire y no se vea amontonada en pastillas largas. */
+  .cc-req{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 12px; }
+  .cc-req-lbl{ font-size:.78rem; font-weight:700; color:var(--muted); }
+  .amb-crew-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin:0 0 10px; }
+  .crewcard{ border:1px solid var(--stroke); border-left:3px solid var(--stroke-2); border-radius:var(--radius-sm);
+    background:var(--panel); padding:11px 13px; break-inside:avoid;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .crewcard.ok{ border-left-color:var(--ok); }
+  .crewcard .cc-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+  .crewcard .cc-name{ font-weight:800; font-size:.92rem; color:var(--text); line-height:1.2; }
+  .crewcard .cc-role{ margin-top:3px; font-size:.8rem; color:var(--muted); }
+  .crewcard .cc-meta{ margin-top:6px; font-size:.72rem; color:var(--faint); font-family:var(--mono); }
+  .cc-badge{ flex:none; display:inline-flex; align-items:center; gap:4px; font-size:.66rem; font-weight:700;
+    padding:2px 8px; border-radius:20px; border:1px solid var(--stroke); color:var(--muted);
+    text-transform:uppercase; letter-spacing:.03em; white-space:nowrap; }
+  .cc-badge svg{ width:12px; height:12px; }
+  .cc-badge.ok{ color:var(--ok); border-color:color-mix(in srgb,var(--ok) 40%,transparent); }
+  @media (max-width:720px){ .amb-crew-grid{ grid-template-columns:1fr; } }
+  .amb-verdict .vic{ flex:none; width:34px; height:34px; color:var(--vc); }
+  .amb-verdict .vic svg{ width:34px; height:34px; }
+  .amb-verdict h2{ margin:0; font-family:var(--poster); font-weight:900; font-style:italic;
+    text-transform:uppercase; font-size:1.3rem; letter-spacing:.01em; color:var(--vc); line-height:1.05; }
+  .amb-verdict p{ margin:4px 0 0; font-size:.85rem; color:var(--text); }
+
+  .amb-lifted{ display:flex; align-items:center; gap:8px; margin:0 0 18px; font-size:.8rem; color:var(--ok); }
+  .amb-lifted svg{ width:16px; height:16px; flex:none; }
+
+  /* Estado RETIRADO — imprimible (el sello sigue válido; solo cambió el estado). */
+  .amb-retired{ display:flex; align-items:flex-start; gap:10px; margin:0 0 16px; padding:12px 15px;
+    border:1px solid var(--stroke-2); border-left:4px solid var(--muted); border-radius:var(--radius-sm);
+    background:var(--panel); font-size:.82rem; color:var(--text); break-inside:avoid; }
+  .amb-retired svg{ flex:none; width:20px; height:20px; color:var(--muted); }
+  .amb-retired a{ color:var(--brand); }
+
+  /* Acción correctiva (obligación PDCA): panel IMPRIMIBLE; el botón de cierre NO se imprime. */
+  .amb-ai{ border:1px solid var(--stroke); border-left:4px solid var(--warn); border-radius:var(--radius-sm);
+    padding:13px 15px; background:var(--panel); break-inside:avoid; }
+  .amb-ai.closed{ border-left-color:var(--ok); }
+  .amb-ai .ai-h{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .amb-ai .ai-h svg{ width:16px; height:16px; color:var(--brand); }
+  .amb-ai .ai-h strong{ font-size:.92rem; }
+  .amb-ai .ai-desc{ font-size:.84rem; margin-top:6px; color:var(--text); }
+  .amb-ai .ai-due{ font-size:.74rem; color:var(--muted); margin-top:3px; }
+  .amb-ai .ai-close{ margin-top:10px; }
+
+  .amb-state{ display:inline-block; font-size:.58rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em;
+    padding:2px 9px; border-radius:20px; border:1px solid var(--stroke); }
+  .amb-state.open{ color:var(--warn); border-color:color-mix(in srgb, var(--warn) 40%, transparent); }
+  .amb-state.closed{ color:var(--ok); border-color:color-mix(in srgb, var(--ok) 40%, transparent); }
+
+  /* ===== PAGINACIÓN A PRUEBA DE CORTES (2026-08-08) =====
+     Todo el cuerpo va como FILAS de la tabla report-wrap: una <tr> por sección y una <tr> por
+     punto del checklist. Chrome NUNCA parte una fila de tabla entre hojas (pero SÍ ignora
+     break-inside dentro de una celda paginada — por eso ni divs ni overflow lo arreglaban).
+     .acell da el padding horizontal del cuerpo; el hero (thead) y el pie (tfoot) siguen
+     repitiéndose por hoja igual que antes. */
+  .report-wrap>tbody>tr{ break-inside:avoid; page-break-inside:avoid; }
+  .report-wrap td.acell{ padding:0 var(--pad); }
+  .report-wrap td.acell-top{ padding-top:var(--pad); }
+  @media print{ .report-wrap td.acell{ padding:0 12mm; } .report-wrap td.acell-top{ padding-top:10mm; } }
+
+  /* Checklist: cada punto es una celda .chkcell (padding horizontal del cuerpo) con el grid dentro. */
+  .amb-chk-row{ display:grid; grid-template-columns:1fr 132px 82px; gap:10px; align-items:start;
+    padding:8px 0; border-bottom:1px solid var(--stroke); font-size:.8rem; color:var(--text); }
+  .amb-chk-row.head{ font-size:.58rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); font-weight:700; }
+  .report-wrap td.chkcell.gate{ background:color-mix(in srgb, var(--brand) 6%, transparent);
+    -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .amb-chk-row .c2{ font-family:var(--mono); font-size:.74rem; }
+  .amb-chk-row .c3{ text-align:right; }
+  .amb-tag{ display:inline-block; font-size:.58rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--muted); border:1px solid var(--stroke); border-radius:20px; padding:2px 8px; margin:2px 4px 0 0; }
+  .amb-tag.gate{ color:var(--brand); border-color:color-mix(in srgb, var(--brand) 40%, transparent); }
+  .amb-res{ display:inline-block; font-weight:800; font-size:.6rem; text-transform:uppercase; letter-spacing:.04em;
+    padding:3px 9px; border-radius:5px; white-space:nowrap; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .amb-res.ok{ background:color-mix(in srgb, var(--ok) 15%, transparent); color:var(--ok); }
+  .amb-res.bad{ background:color-mix(in srgb, var(--danger) 15%, transparent); color:var(--danger); }
+
+  .amb-photos .photo a{ display:block; width:100%; height:100%; }
+
+  @media (max-width:720px){
+    .amb-verdict h2{ font-size:1.1rem; }
+  }
+</style>
+</head>
+<body>
+
+@include('componentes._report-v2-toolbar', [
+    'backRoute'   => route('ambulance.index'),
+    'backLabel'   => 'Recursos',
+    'exportLabel' => $en ? 'Export PDF' : 'Imprimir / PDF',
+])
+
+<div class="stage">
+  <article class="sheet">
+    <table class="report-wrap">
+    <thead><tr><td>
+      @include('componentes._doc-hero', [
+        'heroImage'       => $inspection->unitPhotoUrl(),
+        'heroProject'     => $brandName,
+        'heroHideCallbox' => true,
+        'heroModule'      => $heroModule,
+      ])
+    </td></tr></thead>
+    <tbody>
+
+    {{-- BANDA (full-bleed): el PROVEEDOR va aquí (el proyecto está en el hero); el veredicto NO
+         se repite aquí (sale grande abajo); el tipo tampoco (está en Datos). --}}
+    <tr><td>
+      <div class="band">
+        <div class="lead">
+          <span class="ic">@include('componentes._icon', ['name' => 'ambulance'])</span>
+          <span class="who">
+            <span class="lbl">Verificación de recurso de emergencia</span>
+            <span class="val">{{ $inspection->provider_name ?: '—' }}</span>
+            <span class="sub">{{ $inspection->folio() }}</span>
+          </span>
+        </div>
+        <div class="stats">
+          <div class="cell"><span class="lbl">Fecha y hora</span><span class="v">{{ optional($inspection->created_at)->format('d/m/Y | H:i') ?: '—' }}</span></div>
+          <div class="cell"><span class="lbl">Locación</span><span class="v">{{ $inspection->location_label ?: '—' }}</span></div>
+        </div>
+      </div>
+    </td></tr>
+
+    {{-- Encabezado a11y + mensajes de sesión + estado RETIRADO + encuadre. --}}
+    <tr><td class="acell acell-top">
+      <h1 class="restricted" style="position:absolute;left:-9999px">{{ $brandName }} — Constancia de verificación de recurso de emergencia en sitio — {{ $inspection->folio() }}</h1>
+
+      {{-- Mensajes de sesión (no se imprimen). --}}
+      @if (session('success'))<div class="alert ok no-print">{{ session('success') }}</div>@endif
+      @if (session('error'))<div class="alert bad no-print">{{ session('error') }}</div>@endif
+
+      {{-- Estado RETIRADO: el sello sigue válido; el documento ya no está vigente (imprimible). --}}
+      @if ($inspection->isRetired())
+      <div class="amb-retired">
+        @include('componentes._icon', ['name' => 'lock', 'label' => null])
+        <div>
+          <strong>Acta RETIRADA</strong> — el sello sigue siendo válido; solo cambió de estado.
+          @if ($inspection->retired_at)<br><span style="color:var(--muted)">Retirada el {{ optional($inspection->retired_at)->format('d/m/Y H:i') }}@if($inspection->retired_reason) · {{ $inspection->retired_reason }}@endif</span>@endif
+          @if ($inspection->supersededBy)<br>Sustituida por <a href="{{ route('ambulance.acta', $inspection->supersededBy->uuid) }}">{{ $inspection->supersededBy->folio() }}</a>@endif
+        </div>
+      </div>
+      @endif
+
+      {{-- Encuadre: constancia de verificación en sitio, NO inspección sanitaria. --}}
+      <p class="amb-note" style="margin-bottom:0">Registra que el recurso de emergencia se verificó en sitio. No sustituye el dictamen de la autoridad sanitaria.</p>
+    </td></tr>
+
+      {{-- ============ VEREDICTO (derivado del dato) ============ --}}
+      <tr><td class="acell">
+      <section class="sec">
+        <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => $v['icon']])<h2>Veredicto</h2><span class="line"></span></div>
+        <div class="amb-verdict {{ $v['ck'] }}">
+          <span class="vic">@include('componentes._icon', ['name' => $v['icon'], 'label' => null])</span>
+          <div>
+            <h2>{{ $v['title'] }}</h2>
+            <p>{{ $v['sub'] }}
+              @if ($inspection->verdict === 'paro' && $inspection->resolution_path)
+                — {{ $pathLabel[$inspection->resolution_path] ?? $inspection->resolution_path }}
+              @endif
+            </p>
+          </div>
+        </div>
+
+        {{-- Motivo de tripulación en el veredicto: sin la composición mínima el recurso NO puede
+             operar (NOM-034). Se explicita para que el acta diga POR QUÉ, no solo el veredicto. --}}
+        @if (! $crewReq['sufficient'])
+          @php
+            $miss = [];
+            if (in_array('operador', $crewReq['missing'], true)) { $miss[] = 'un operador de ambulancia'; }
+            if (in_array('clinico', $crewReq['missing'], true))  { $miss[] = 'un clínico prehospitalario (TAMP o médico)'; }
+          @endphp
+          <p class="amb-note tight amb-crewwarn"><strong>Sin tripulación calificada:</strong> falta {{ implode(' y ', $miss) }}. La unidad está apta, pero no puede operar sin personal calificado a bordo (NOM-034-SSA3-2013).</p>
+        @elseif ($crewReq['clinical_unverified'])
+          <p class="amb-note tight"><strong>Advertencia:</strong> el personal clínico está registrado pero su certificación CONOCER no se cotejó (folio + foto del certificado y de la persona). El recurso queda apto; conviene cotejar la certificación.</p>
+        @endif
+
+        {{-- Paro ya levantado: acto con autor (unblocked_* SÍ entra al hash). Imprimible. --}}
+        @if ($inspection->isParo() && $inspection->unblocked_at)
+        <div class="amb-lifted">
+          @include('componentes._icon', ['name' => 'circle-check', 'label' => null])
+          <span>Paro levantado por <strong>{{ $inspection->unblocked_by_name }}</strong> · {{ optional($inspection->unblocked_at)->format('d/m/Y H:i') }}</span>
+        </div>
+        @endif
+
+        {{-- Desbloqueo del PARO (control operativo: NO se imprime). Solo quien gestiona
+             (producción con ambulance.view ve el acta, no levanta el paro). --}}
+        @if ($inspection->isParo() && ! $inspection->unblocked_at && auth()->check() && auth()->user()->can('ambulance.manage'))
+        <div class="ops no-print">
+          <span class="ops-note">El paro dura minutos: levántalo cuando la vía de salida esté cumplida.</span>
+          <form method="post" action="{{ route('ambulance.unblock', $inspection->uuid) }}"
+                data-confirm="¿Levantar el paro? Queda registrado con tu nombre y hora, y el acta se re-sella.">
+            @csrf
+            <button class="btn brand" type="submit">
+              @include('componentes._icon', ['name' => 'lock', 'label' => null])
+              Levantar el paro
+            </button>
+          </form>
+        </div>
+        @endif
+      </section>
+      </td></tr>
+
+      {{-- ============ ACCIÓN CORRECTIVA (obligación PDCA ligada al acta) ============ --}}
+      @if (! empty($actionItem))
+        @php $aiClosed = $actionItem->status === \App\Models\ActionItem::STATUS_CLOSED; @endphp
+        <tr><td class="acell">
+        <section class="sec">
+          <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => $aiClosed ? 'clipboard-check' : 'clipboard-list'])<h2>Acción correctiva</h2><span class="line"></span></div>
+          <div class="amb-ai {{ $aiClosed ? 'closed' : '' }}">
+            <div class="ai-h">
+              @include('componentes._icon', ['name' => $aiClosed ? 'clipboard-check' : 'clipboard-list', 'label' => null])
+              <strong>Acción correctiva</strong>
+              <span class="amb-state {{ $aiClosed ? 'closed' : 'open' }}">{{ $aiClosed ? 'Cerrada' : 'Abierta' }}</span>
+            </div>
+            <div class="ai-desc">{{ $actionItem->description }}</div>
+            @if ($actionItem->due_date)<div class="ai-due">Compromiso: {{ optional($actionItem->due_date)->format('d/m/Y H:i') }}</div>@endif
+            @if (! $aiClosed)
+              @can('hazards.manage')
+                <div class="ai-close no-print">
+                  <form method="post" action="{{ url('/action-items/'.$actionItem->id.'/close') }}"
+                        data-confirm="¿Cerrar la acción? Si es un PARO, se levanta y el acta se re-sella.">
+                    @csrf
+                    <button class="btn ok sm" type="submit">
+                      @include('componentes._icon', ['name' => 'circle-check', 'label' => null])
+                      Cerrar y levantar paro
+                    </button>
+                  </form>
+                </div>
+              @endcan
+            @endif
+          </div>
+        </section>
+        </td></tr>
+      @endif
+
+      {{-- ============ DATOS CONGELADOS ============ --}}
+      <tr><td class="acell">
+      <section class="sec">
+        <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'file-check'])<h2>Datos de la verificación</h2><span class="line"></span></div>
+        <div class="facts">
+          <div class="fact"><div class="k">Tipo</div><div class="v">{{ $inspection->type_name }}@if($inspection->type_code) <span style="font-weight:400;color:var(--muted)">({{ $inspection->type_code }})</span>@endif</div></div>
+          <div class="fact"><div class="k">Rama / nivel</div><div class="v">{{ $ramaNivel }}</div></div>
+          @if ($inspection->capacity_level)
+            <div class="fact"><div class="k">Capacidad</div><div class="v">{{ $inspection->capacity_level }}</div></div>
+          @endif
+          <div class="fact"><div class="k">Proveedor</div><div class="v">{{ $inspection->provider_name ?: '—' }}</div></div>
+          <div class="fact"><div class="k">Verificación</div><div class="v">{{ $triggerLabels[$inspection->trigger_scope] ?? ($inspection->trigger_scope ?: '—') }}</div></div>
+          <div class="fact"><div class="k">Placas</div><div class="v">{{ $inspection->plates ?: '—' }}</div></div>
+          <div class="fact"><div class="k">N.º económico</div><div class="v">{{ $inspection->economic_number ?: '—' }}</div></div>
+          @if ($inspection->day_risk_level !== null)
+            <div class="fact"><div class="k">Riesgo del día</div><div class="v">{{ $inspection->day_risk_level }} · {{ $riskLabels[$inspection->day_risk_level] ?? '' }}</div></div>
+            <div class="fact"><div class="k">¿Corresponde al riesgo?</div><div class="v" style="color:{{ $inspection->correspondence_ok ? 'var(--ok)' : 'var(--danger)' }}">{{ $inspection->correspondence_ok ? 'Sí' : 'No' }}</div></div>
+          @endif
+          <div class="fact"><div class="k">Inspector</div><div class="v">{{ $inspection->inspector_name ?: '—' }}@if($inspection->inspector_role)<br><span style="font-weight:400;color:var(--muted);font-size:.78rem">{{ $inspection->inspector_role }}</span>@endif</div></div>
+          @if ($inspection->inspector_cedula)
+            <div class="fact"><div class="k">Cédula</div><div class="v mono">{{ $inspection->inspector_cedula }}</div></div>
+          @endif
+          {{-- La fecha/hora ya vive en el cintillo (arriba): no se repite aquí. --}}
+        </div>
+      </section>
+      </td></tr>
+
+      {{-- ============ TRIPULACIÓN CONGELADA + composición mínima ============ --}}
+      <tr><td class="acell">
+      <section class="sec">
+        <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'heart-pulse'])<h2>Tripulación</h2><span class="line"></span></div>
+
+        {{-- Requisito para operar (NOM-034): ≥1 operador + ≥1 clínico. Estado compacto de cada uno. --}}
+        <div class="cc-req">
+          <span class="cc-req-lbl">Requisito para operar:</span>
+          <span class="chip {{ $crewReq['has_operador'] ? 'ok' : 'warn' }}">
+            @include('componentes._icon', ['name' => $crewReq['has_operador'] ? 'circle-check' : 'alert-triangle', 'label' => null])
+            Operador{{ $crewReq['has_operador'] ? '' : ' — falta' }}
+          </span>
+          <span class="chip {{ $crewReq['has_clinical'] ? 'ok' : 'warn' }}">
+            @include('componentes._icon', ['name' => $crewReq['has_clinical'] ? 'circle-check' : 'alert-triangle', 'label' => null])
+            Clínico{{ $crewReq['has_clinical'] ? '' : ' — falta' }}
+          </span>
+        </div>
+
+        {{-- Cada tripulante en su CARD con jerarquía: nombre (destacado) › rol › folio/estado. --}}
+        @if (count($crewSnap))
+        <div class="amb-crew-grid">
+          @foreach ($crewSnap as $m)
+            @php
+              $ver   = ! empty($m['verified']);
+              $r     = $m['role'] ?? ($m['crew_role'] ?? null);
+              $folio = $m['conocer_folio'] ?? null;
+              $nm    = $m['name'] ?? ($m['full_name'] ?? '—');
+            @endphp
+            <div class="crewcard {{ $ver ? 'ok' : '' }}">
+              <div class="cc-top">
+                <span class="cc-name">{{ $nm }}</span>
+                @if ($ver)
+                  <span class="cc-badge ok">@include('componentes._icon', ['name' => 'circle-check', 'label' => null]) Cotejado</span>
+                @elseif ($folio)
+                  <span class="cc-badge">Sin cotejar</span>
+                @endif
+              </div>
+              @if ($r)<div class="cc-role">{{ $r }}</div>@endif
+              @if ($folio)<div class="cc-meta">CONOCER · <span class="mono">{{ $folio }}</span></div>@endif
+            </div>
+          @endforeach
+        </div>
+        @else
+        <p class="amb-note tight">No se registró tripulación en esta verificación.</p>
+        @endif
+        <p class="amb-note tight">TAMP = Técnico en Atención Médica Prehospitalaria. «Cotejado» = folio CONOCER con foto del certificado y de la persona. Una ambulancia requiere al menos un operador y un clínico a bordo para operar (NOM-034).</p>
+      </section>
+      </td></tr>
+
+      {{-- ============ CHECKLIST EJECUTADO (congelado) — título + una <tr> POR PUNTO ============ --}}
+      @if (count($snap))
+      <tr><td class="acell">
+        <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'clipboard-check'])<h2>Checklist ejecutado</h2><span class="line"></span></div>
+        <div class="amb-chk-row head">
+          <div class="c1">Punto</div><div class="c2">Norma</div><div class="c3">Resultado</div>
+        </div>
+      </td></tr>
+      @foreach ($snap as $s)
+        @php $isGate = ! empty($s['is_gate']); $fail = ($s['answer'] ?? '') === 'fail'; @endphp
+        <tr><td class="acell chkcell {{ $isGate ? 'gate' : '' }}">
+          <div class="amb-chk-row">
+            <div class="c1">
+              {{ $s['text'] ?? '' }}
+              @if ($isGate)<span class="amb-tag gate">Compuerta</span>@endif
+              @if (! empty($s['requires_document']))<span class="amb-tag">Documento</span>@endif
+            </div>
+            <div class="c2">
+              {{ $s['code'] ?? '' }}
+              @if (! empty($s['norm']))<span class="amb-tag">{{ $s['norm'] }}</span>@endif
+            </div>
+            <div class="c3">
+              @if ($fail)<span class="amb-res bad">FALLA</span>@else<span class="amb-res ok">Cumple</span>@endif
+            </div>
+          </div>
+        </td></tr>
+      @endforeach
+      <tr><td class="acell" style="padding-top:14px"></td></tr>
+      @endif
+
+      {{-- ============ FOTO DE LA UNIDAD + EVIDENCIA (sellada) ============ --}}
+      @if ($inspection->unitPhotoUrl() || count($evidence))
+      <tr><td class="acell">
+      <section class="sec amb-photos">
+        <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'camera'])<h2>Foto de la unidad y evidencia</h2><span class="line"></span></div>
+        <div class="photos">
+          @if ($inspection->unitPhotoUrl())
+            <div class="photo">
+              <a href="{{ $inspection->unitPhotoUrl() }}" target="_blank" rel="noopener">
+                <img src="{{ $inspection->unitPhotoUrl() }}" alt="{{ $inspection->type_name }}">
+              </a>
+            </div>
+          @endif
+          @foreach ($evidence as $i => $url)
+            <div class="photo">
+              <a href="{{ $url }}" target="_blank" rel="noopener">
+                <img src="{{ $url }}" alt="Evidencia {{ $i + 1 }}">
+              </a>
+            </div>
+          @endforeach
+        </div>
+      </section>
+      </td></tr>
+      @endif
+
+      {{-- ============ OBSERVACIONES ============ --}}
+      @if ($inspection->observations)
+      <tr><td class="acell">
+      <section class="sec">
+        <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'info'])<h2>Observaciones</h2><span class="line"></span></div>
+        <p class="desc" style="white-space:pre-line">{{ $inspection->observations }}</p>
+      </section>
+      </td></tr>
+      @endif
+
+      {{-- ============ SELLO SHA + QR + CADENA CFDI ============ --}}
+      <tr><td class="acell">
+      <section class="sec">
+        <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'shield-check'])<h2>Sello digital</h2><span class="line"></span></div>
+        @include('componentes._seal-cfdi', ['doc' => $inspection, 'folio' => $inspection->folio(), 'prefix' => 'CREWCARE-AMBU'])
+      </section>
+      </td></tr>
+
+    </tbody>
+    <tfoot><tr><td><div class="footer-spacer"></div></td></tr></tfoot>
+    </table>
+@include('componentes._report-v2-foot', [
+    'footPreparedName' => ($inspection->inspector_name ?: '—'),
+    'footPreparedMeta' => $footMeta,
+    'footUuid'         => $footUuid,
+])
+</body>
+</html>

@@ -9,7 +9,9 @@
     $hasPhoto = \App\Support\Avatar::has($user) && $user->imgperfil !== 'nofoto';
     $printed = (int) ($user->badge_print_count ?? 0) > 0;
     $credits = trim((string) ($user->ncreditos ?? ''));
-    $displayName = trim(($user->name ?? '') . ' ' . ($user->lname ?? ''));
+    // Nombre PRINCIPAL = nombre corto (1ª palabra + 1er apellido). Aquí NO usamos displayName
+    // porque el crédito ya se muestra de subtítulo abajo → se duplicaría. Ver User::shortName.
+    $displayName = \App\Models\User::shortName($user);
     $initials = strtoupper(mb_substr($user->name ?? '', 0, 1)) . strtoupper(mb_substr($user->lname ?? '', 0, 1));
     $zone = \App\Models\User::departmentNameFor($user->id ?? null, $user->zone ?? null) ?? '';
 @endphp

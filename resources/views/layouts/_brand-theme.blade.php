@@ -167,6 +167,19 @@
     .text-info-emphasis      { color: #055160 !important; }
     .text-light-emphasis     { color: #495057 !important; }
     .text-dark-emphasis      { color: #495057 !important; }
+
+    /* ===== Backport Bootstrap 5.2 `.text-bg-*` (esta app corre 5.1.3, que SOLO tiene `.bg-*`; las
+       `.text-bg-*` llegaron en 5.2 → sin ellas los badges quedaban SIN FONDO y con texto base =
+       ilegibles / "pelados", sobre todo en oscuro). Colores SÓLIDOS con texto contrastante: cada pill
+       trae su propio fondo, así se lee igual en claro y oscuro (no depende de la superficie). El
+       `text-bg-primary` de marca ya está arriba y NO se toca. ===== */
+    .text-bg-secondary { color: #fff !important; background-color: #6c757d !important; }
+    .text-bg-success   { color: #fff !important; background-color: #198754 !important; }
+    .text-bg-danger    { color: #fff !important; background-color: #dc3545 !important; }
+    .text-bg-warning   { color: #000 !important; background-color: #ffc107 !important; }
+    .text-bg-info      { color: #000 !important; background-color: #0dcaf0 !important; }
+    .text-bg-light     { color: #212529 !important; background-color: #f1f3f5 !important; }
+    .text-bg-dark      { color: #fff !important; background-color: #343a40 !important; }
     .form-check-input:checked { background-color: var(--brand-primary); border-color: var(--brand-primary); }
     .form-control:focus, .form-select:focus, .form-check-input:focus {
         border-color: var(--brand-primary);
@@ -187,6 +200,16 @@
     .border-brand-accent { border-color: var(--brand-accent) !important; }
     .btn-brand { background-color: var(--brand-primary); border: 1px solid var(--brand-primary); color: var(--brand-on-primary); }
     .btn-brand:hover, .btn-brand:focus { background-color: var(--brand-primary-dark); border-color: var(--brand-primary-dark); color: var(--brand-on-primary); }
+
+    /* ===== .btn-crew / .btn-crew-soft — botones primario y secundario del "crew design system".
+       Se usan en TODA la app (contratos, safety, etc.) pero su base sólo vivía en parciales por-página
+       (_crew-list-styles), así que en las pantallas que no los cargan quedaban SIN ESTILO = texto
+       invisible en oscuro. Aquí van a la base GLOBAL (tokens → claro y oscuro); los parciales que ya
+       los definen ganan por ser más tardíos/específicos. ===== */
+    .btn-crew { background-color: var(--brand-primary); border: 1px solid var(--brand-primary); color: var(--brand-on-primary); }
+    .btn-crew:hover, .btn-crew:focus { background-color: var(--brand-primary-dark); border-color: var(--brand-primary-dark); color: var(--brand-on-primary); }
+    .btn-crew-soft { background-color: var(--surface-2); border: 1px solid var(--border); color: var(--text); }
+    .btn-crew-soft:hover, .btn-crew-soft:focus { background-color: var(--surface-3); border-color: var(--brand-primary); color: var(--text); }
     .badge-brand { display: inline-block; background-color: var(--brand-primary); color: var(--brand-on-primary); padding: .35em .6em; border-radius: .375rem; font-size: .75em; font-weight: 600; }
     .badge-accent { display: inline-block; background-color: var(--brand-accent); color: {{ $__aOn }}; padding: .35em .6em; border-radius: .375rem; font-size: .75em; font-weight: 600; }
 

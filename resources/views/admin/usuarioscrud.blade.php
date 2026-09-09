@@ -1,5 +1,7 @@
 @extends('layouts.app')
 @section('content')
+{{-- Confirmación de submits destructivos por delegación (data-confirm), sin onclick inline (CSP). --}}
+@include('componentes._confirm-submit')
 
 {{--
     Crew List — listado interno de gestión de crew (LA JOYA: se conserva íntegra).
@@ -12,7 +14,7 @@
     invisible. Flags de visibilidad true = la lista completa muestra todas las columnas.
 --}}
 @php
-    $canPersonal = true;   // F.Nac. / Sexo — la lista completa siempre los muestra
+    $canPersonal = true;   // F.Nac. — la lista completa siempre lo muestra (Sexo retirado 2026-08-07: 1 letra, se veía mal en móvil)
     $canContact  = true;   // Teléfono / Email — la lista completa siempre los muestra
 @endphp
 
@@ -31,10 +33,10 @@
                 </div>
             </div>
 
-            <div class="d-flex align-items-center gap-2 flex-grow-1 flex-lg-grow-0">
+            <div class="crew-actions-bar d-flex align-items-center gap-2 flex-grow-1 flex-lg-grow-0 flex-wrap">
                 <div class="crew-search flex-grow-1">
                     <label for="search" class="visually-hidden">Buscar por nombre, apellido o email</label>
-                    <form onsubmit="return false;">
+                    <form data-search-noop>
                         <div class="input-group">
                             <span class="input-group-text border-end-0">
                                 @include('componentes._icon', ['name' => 'search', 'class' => 'cc-ico', 'label' => null])
@@ -43,10 +45,36 @@
                         </div>
                     </form>
                 </div>
-                <a href="/nophoto" class="btn btn-crew-accent text-nowrap d-inline-flex align-items-center gap-1">
-                    @include('componentes._icon', ['name' => 'download', 'class' => 'cc-ico', 'label' => null])
-                    <span>Exportar</span>
+
+                {{-- Exportar como DOCUMENTO (crew list vertical, no CSV). Menú con propósito
+                     opcional de marca de agua elegido al exportar. --}}
+                <div class="dropdown">
+                    <button class="btn btn-crew-soft text-nowrap d-inline-flex align-items-center gap-1 dropdown-toggle"
+                            type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                        @include('componentes._icon', ['name' => 'download', 'class' => 'cc-ico', 'label' => null])
+                        <span>Exportar</span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end shadow-sm p-3" style="min-width: 15rem;" aria-label="Exportar Crew List">
+                        <form method="GET" action="{{ route('crew.export') }}" target="_blank">
+                            <label for="crew-export-purpose" class="form-label small fw-semibold mb-1">Propósito (opcional)</label>
+                            <input type="text" name="purpose" id="crew-export-purpose" class="form-control form-control-sm mb-1"
+                                   maxlength="60" autocomplete="off" placeholder="p. ej. Crew List para créditos">
+                            <div class="form-text small mb-2">Si lo escribes, aparece como marca de agua en el documento.</div>
+                            <button type="submit" class="btn btn-crew-accent btn-sm w-100 d-inline-flex align-items-center justify-content-center gap-1">
+                                @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-ico', 'label' => null])
+                                <span>Abrir documento</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                {{-- ACCIÓN PRIMARIA: crear miembro (antes vivía duplicada en el sidebar). --}}
+                @can('users.create')
+                <a href="/adduser" class="btn btn-crew-accent text-nowrap d-inline-flex align-items-center gap-1">
+                    @include('componentes._icon', ['name' => 'user', 'class' => 'cc-ico', 'label' => null])
+                    <span>Nuevo miembro</span>
                 </a>
+                @endcan
             </div>
         </div>
 
@@ -57,15 +85,11 @@
                     <thead>
                         <tr>
                             <th scope="col" class="ps-4">Miembro</th>
-                            <th scope="col">Apellido</th>
                             @if($canPersonal)
                             <th scope="col">F.Nac.</th>
                             @endif
                             @if($canContact)
                             <th scope="col">Teléfono</th>
-                            @endif
-                            @if($canPersonal)
-                            <th scope="col">Sexo</th>
                             @endif
                             @if($canContact)
                             <th scope="col">Email</th>
@@ -89,22 +113,18 @@
                                             </span>
                                         @endif
                                         <div class="crew-name-cell">
-                                            <span class="crew-name d-block">{{ $user->name }}</span>
+                                            {{-- Nombre a mostrar: crédito o nombre corto (1ª palabra + 1er apellido).
+                                                 Sustituye a `name` (parcial) y hace redundante la columna "Apellido". --}}
+                                            <span class="crew-name d-block">{{ \App\Models\User::displayName($user) }}</span>
                                             <span class="crew-sub d-block text-muted small">{{ \App\Models\User::positionNameFor($user->id ?? null, $user->puestodepartamento ?? null) }}</span>
                                         </div>
                                     </div>
                                 </td>
-                                <td data-label="Apellido">{{ $user->lname }}</td>
                                 @if($canPersonal)
                                 <td class="text-muted" data-label="F.Nac.">{{ $user->borndate }}</td>
                                 @endif
                                 @if($canContact)
                                 <td class="text-muted" data-label="Teléfono">{{ $user->phone }}</td>
-                                @endif
-                                @if($canPersonal)
-                                <td data-label="Sexo">
-                                    <span class="badge rounded-pill crew-badge-soft">{{ $user->sex }}</span>
-                                </td>
                                 @endif
                                 @if($canContact)
                                 <td class="text-muted" data-label="Email">{{ $user->email }}</td>
@@ -132,17 +152,13 @@
                                                 </a>
                                             </li>
                                             @endcan
-                                            <li><hr class="dropdown-divider"></li>
-                                            <li>
-                                                @if($user->admin === 0)
-                                                    <form method="POST" action="{{ url('/activaradmin/'.$user->id) }}">@csrf<button type="submit" title="Activar encuesta" class="dropdown-item">@include('componentes._icon', ['name' => 'shield', 'class' => 'cc-ico', 'label' => null]) Convertir Admin</button></form>
-                                                @else
-                                                    <form method="POST" action="{{ url('/desactivaradmin/'.$user->id) }}">@csrf<button type="submit" title="Quit admin" class="dropdown-item">@include('componentes._icon', ['name' => 'shield-alert', 'class' => 'cc-ico', 'label' => null]) Quitar Admin</button></form>
-                                                @endif
-                                            </li>
-
-                                            @include('componentes._group-toggles', ['user' => $user])
-
+                                            {{-- (2026-08-07) RETIRADAS del menú de acciones: "Convertir/Quitar Admin"
+                                                 y "Supervisor" (banderas legacy).
+                                                 · admin (users.admin) SIGUE VIVA — gatea /importcrew (AdminMiddleware),
+                                                   User::canSeePanel() y el rótulo del sidebar; se quitó SOLO del menú, su
+                                                   ruta/controlador/columna se conservan intactos.
+                                                 · "Supervisor" (users.daytest) era bandera MUERTA (nadie leía el valor):
+                                                   se borró su parcial, sus rutas (putsup/putadm) y sus métodos. --}}
                                             <li>
                                                 @if($user->encuestadiaria === 1)
                                                     <form method="post" action="{{ url('/activarencuesta/'.$user->id) }}">
@@ -156,9 +172,9 @@
                                             <li><hr class="dropdown-divider"></li>
                                             <li>
                                                 @if($user->activo === 1)
-                                                    <form method="post" action="{{ url('/desactivarusuario/'.$user->id) }}">
+                                                    <form method="post" action="{{ url('/desactivarusuario/'.$user->id) }}" data-confirm="¿Desea desactivar el usuario?">
                                                         {{ csrf_field() }}
-                                                        <button type="submit" title="Deactivate" class="dropdown-item text-danger" onclick="return confirm('¿Desea desactivar el usuario?');">
+                                                        <button type="submit" title="Deactivate" class="dropdown-item text-danger">
                                                             @include('componentes._icon', ['name' => 'x-circle', 'class' => 'cc-ico', 'label' => null]) Desactivar
                                                         </button>
                                                     </form>
@@ -177,7 +193,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7">
+                                <td colspan="5">
                                     <div class="crew-empty text-center py-5">
                                         <div class="crew-empty-icon mx-auto mb-3 d-inline-flex align-items-center justify-content-center rounded-circle">
                                             @include('componentes._icon', ['name' => 'users', 'class' => 'cc-ico', 'label' => null])
@@ -202,6 +218,10 @@
 </div>
 
 <script>
+    // El buscador NO envía el form (búsqueda por keyup/AJAX): veta el submit sin on* (CSP).
+    document.addEventListener('submit', function (e) {
+        if (e.target.closest('[data-search-noop]')) { e.preventDefault(); }
+    });
     $( document ).ready(function() {
         var searchTimer = null;
         function runSearch() {

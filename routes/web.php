@@ -38,6 +38,11 @@ Route::get('/offline', function () {
     return view('/vendor/laravelpwa/offline');
 });
 
+// (2026-08-30 · estabilidad) HEALTHCHECK público y mínimo (app/base/cola/cron) para el monitor
+// externo: 200 sano, 503 degradado. Exento de la redirección https (SecurityHeaders). El latido
+// del cron lo escribe el schedule cada minuto; si `schedule:run` muere, aquí sale 'stale' → 503.
+Route::get('/healthz', [App\Http\Controllers\HealthController::class, 'check'])->name('healthz')->middleware('throttle:60,1');
+
 // SEGURIDAD/LIMPIEZA (2026-06-26): `/newdayRep` y `/newWR` ELIMINADOS — eran DUPLICADOS GET-sin-auth
 // del comando programado `encuestas:task`, que reseteaba `encuestadiaria=0` de TODOS los activos.
 // Cualquiera con la URL podía dispararlo.
@@ -48,9 +53,37 @@ Route::get('/offline', function () {
 // A petición del owner se REIMPLEMENTARÁ como comando programado `badge:reminder` (pendiente en PROGRESS.md).
 // --- /newTD, /Nresult (resets de cola PCR, COVID) ELIMINADOS — Lote 3b (2026-06-25) ---
 
+// (2026-08-30 · endurecimiento) Sumidero de reportes de la CSP (modo observación). El navegador
+// manda aquí las violaciones (sin CSRF: es el navegador, no un form). Se registra qué se rompería
+// para medir el alcance ANTES de activar el bloqueo. Público + throttle; exento de CSRF (ver VerifyCsrfToken).
+Route::post('/csp-report', function (\Illuminate\Http\Request $request) {
+    // Canal DEDICADO y ACOTADO (csp.log, rota diario, 3 días de retención). En modo REPORTE cada
+    // script en línea genera un reporte → si esto fuera al log principal lo INUNDA y la app pierde
+    // la capacidad de loguear sus propios errores (fue justo lo que tiró la app). Nunca revienta.
+    try {
+        \Illuminate\Support\Facades\Log::build([
+            'driver' => 'daily', 'path' => storage_path('logs/csp.log'), 'days' => 3, 'level' => 'info',
+        ])->info('CSP', ['report' => mb_substr((string) $request->getContent(), 0, 2000)]);
+    } catch (\Throwable $e) {
+        // un reporte de CSP JAMÁS debe afectar a nadie.
+    }
+    return response()->noContent();
+})->name('csp.report')->middleware('throttle:60,1');
+
 // SEGURIDAD (2026-07-06): sistema CERRADO — las cuentas las crea un admin vía /adduser.
 // Se deshabilita el auto-registro público (rutas GET/POST /register) para no exponer alta libre.
 Auth::routes(['register' => false]);
+
+// (2026-08-30 · endurecimiento) RATE-LIMIT en login y recuperación de contraseña. Se registran
+// DESPUÉS de Auth::routes() para GANAR el match por URI: RouteCollection indexa por método+URI y
+// la ÚLTIMA definición sustituye a la anterior, así que estas (con throttle por IP) reemplazan a
+// las de Auth::routes(). Van sin nombre → no tocan el nameList (route('password.email') sigue
+// resolviendo la misma URI). El login ya tiene el lockout de ThrottlesLogins (5/min por email+IP);
+// esto añade un techo por IP contra rotación de correos. La RECUPERACIÓN no tenía NINGÚN límite de
+// request. Límites holgados: un usuario real nunca los toca (no agrega fricción).
+Route::post('login', [App\Http\Controllers\Auth\LoginController::class, 'login'])->middleware('throttle:30,1');
+Route::post('password/email', [App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetLinkEmail'])->middleware('throttle:6,1');
+Route::post('password/reset', [App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])->middleware('throttle:6,1');
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 // SEGURIDAD (2026-06-26): `/dailyreport` estaba SIN `auth`. `viewencuesta()` usa
 // `auth()->user()->encuestadiaria` y `auth()->user()->id` → sin sesión era null-deref (500)
@@ -72,6 +105,11 @@ Route::middleware(['auth', 'privacidad'])->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('/aviso-privacidad',[App\Http\Controllers\PrivacyConsentController::class,'show'])->name('privacidad.aviso');
     Route::post('/aviso-privacidad',[App\Http\Controllers\PrivacyConsentController::class,'store'])->name('privacidad.aceptar');
+
+    // UNIDADES 2b · cambiar la UNIDAD VIGENTE (preferencia por sesión). Cualquier usuario autenticado:
+    // trabajar en una unidad no es un permiso de gestión. NULL = principal. El selector sólo aparece
+    // cuando hay más de una unidad; con una sola, esta ruta nunca se dispara.
+    Route::post('/unidad/cambiar', [App\Http\Controllers\UnitContextController::class, 'switch'])->name('unit.switch');
 });
 
 // --- /negative-mail (MailController@sendMail, COVID) ELIMINADO — Lote 3 COVID-DECOMMISSION (2026-06-25), respaldo en _legacy_backup/ ---
@@ -115,6 +153,11 @@ Route::middleware(['auth','permission:users.view'])->group(function () {
     Route::get('/idcardscrud',[App\Http\Controllers\CrewListController::class,'idcardscrud'])->name('idcardscrud');
     Route::get('/idcard/{id}',[App\Http\Controllers\CrewListController::class,'idcard'])->name('idcard');
 
+    // DADOS DE BAJA (2026-09-08): lista de crew INACTIVO por departamento (activo=0), junto al crew —
+    // es gente, no ajuste. Distingue baja individual de "apagado con una unidad". Solo lectura; el mismo
+    // scope por depto que el crew list (users.view). Reintegrar vive en el grupo users.update (abajo).
+    Route::get('/crew/dados-de-baja',[App\Http\Controllers\CrewInactiveController::class,'index'])->name('crew.inactive');
+
     // ===== Gafetes configurables (ID-Badge) =====
     // Descargas (individual PDF, bulk PDF, bulk JPG-ZIP) → mismo permiso que ver la lista de gafetes.
     Route::get('/idcard/{id}/pdf',[App\Http\Controllers\BadgeController::class,'pdf'])->name('badge.pdf');
@@ -138,6 +181,10 @@ Route::middleware(['auth','permission:users.update'])->group(function () {
     Route::post('/uncheckgft/{id}',[App\Http\Controllers\CrewStatusController::class,'uncheckgft'])->name('uncheckgft');
     Route::post('/activarusuario/{id}',[App\Http\Controllers\CrewStatusController::class,'activarusuario'])->name('activarusuario');
     Route::post('/activarencuesta/{id}',[App\Http\Controllers\CrewStatusController::class,'activarencuesta'])->name('activarencuesta');
+    // REINTEGRACIÓN (2026-09-08): acto propio desde la lista de dados de baja. Reactiva a la persona
+    // (activo=1) y la saca del ciclo de la unidad; EVIDENCIA que falta contrato y condiciones nuevas
+    // (no las emite — la ceremonia va aparte). Mismo permiso que reactivar (users.update) + guarda de scope.
+    Route::post('/crew/{id}/reintegrar',[App\Http\Controllers\CrewInactiveController::class,'reintegrate'])->name('crew.reintegrate')->whereNumber('id');
 
     // ---- Cédula profesional del médico (PASO B, 2026-07-19) ----
     // Viven en el grupo `users.update` porque su UI es la ficha de edición de crew
@@ -154,14 +201,15 @@ Route::middleware(['auth','permission:users.deactivate'])->group(function () {
     Route::post('/desactivarusuario/{id}',[App\Http\Controllers\CrewStatusController::class,'desactivarusuario'])->name('desactivarusuario');
 });
 Route::middleware(['auth','permission:users.assign-role'])->group(function () {
-    // Rol legacy `admin` + grupos legacy `daytest` → CrewStatusController (corte #6, 2026-06-28).
+    // Rol legacy `admin` → CrewStatusController (corte #6, 2026-06-28). SIGUE VIVO: la columna
+    // users.admin gatea /importcrew (AdminMiddleware), User::canSeePanel() y el rótulo del sidebar.
+    // Su toggle salió del menú (2026-08-07) pero la ruta se conserva para no romper contrato.
     Route::post('/activaradmin/{id}',[App\Http\Controllers\CrewStatusController::class,'activaradmin'])->name('activaradmin');
     Route::post('/desactivaradmin/{id}',[App\Http\Controllers\CrewStatusController::class,'desactivaradmin'])->name('desactivaradmin');
-    Route::post('/putadm/{id}',[App\Http\Controllers\CrewStatusController::class,'putga'])->name('putga');
-    // PASO A (2026-07-19): ELIMINADA `POST /putmed/{id}` (name 'putgb' → CrewStatusController@putgb,
-    // escribía daytest = 2 como falso marcador de "médico"). "Ser médico" es ahora solo el rol
-    // Spatie `medic` (User::isMedic()); se asigna desde /rolescrud.
-    Route::post('/putsup/{id}',[App\Http\Controllers\CrewStatusController::class,'putgg'])->name('putgg');
+    // (2026-08-07) ELIMINADAS `POST /putadm` (putga) y `POST /putsup` (putgg): escribían el grupo
+    // legacy `daytest`, bandera MUERTA que ningún código leía para decidir nada. Se borraron sus
+    // métodos en CrewStatusController y el parcial componentes/_group-toggles. La columna daytest
+    // se conserva (dato), pendiente de un DROP en owner-apply. (`putgb`/daytest=2 ya se había ido.)
 });
 // LIMPIEZA (2026-07-06): ruta `POST /selectpuesto/{id}` ELIMINADA junto con el método muerto
 // CrewStatusController@selectpuesto (único lector de los modelos legacy puesto/departamento/
@@ -169,6 +217,59 @@ Route::middleware(['auth','permission:users.assign-role'])->group(function () {
 Route::middleware(['auth','permission:crew.view'])->group(function () {
     Route::get('/searchusers/{valor}/',[App\Http\Controllers\SearchController::class,'users'])->name('searchusers');
     Route::get('/searchidcard/{valor}/',[App\Http\Controllers\SearchController::class,'idcards'])->name('searchidcard');
+    // ROSTER "¿quién trabaja hoy?" (2026-08-22): SOLO LECTURA, navegable por fecha. El HOD lo ve
+    // acotado a su depto (applyDepartmentScope); producción/coordinación ven todo.
+    Route::get('/roster',[App\Http\Controllers\RosterController::class,'index'])->name('roster.index');
+});
+
+// ---- LLAMADO · motor de horarios + back exportable (PARTES D/E/F) ----
+// Herramienta de OFICINA DE PRODUCCIÓN → gate callsheet.manage (super-admin/line-producer/coordinator;
+// el HOD usa el roster de solo-lectura). {date} = Y-m-d. Todo se guarda como OFFSET (CallSheetEngine).
+Route::middleware(['auth','permission:callsheet.manage'])->group(function () {
+    $cs = App\Http\Controllers\CallSheetController::class;
+    Route::get('/llamado', [$cs, 'landing'])->name('callsheet.landing');
+    Route::get('/llamado/lugares',  [$cs, 'places'])->name('callsheet.places');
+    Route::post('/llamado/lugares', [$cs, 'savePlaces'])->name('callsheet.places.save');
+    Route::get('/llamado/notas',  [$cs, 'notes'])->name('callsheet.notes');
+    Route::post('/llamado/notas', [$cs, 'saveNotes'])->name('callsheet.notes.save');
+    Route::get('/llamado/formato',  [$cs, 'format'])->name('callsheet.format');
+    Route::post('/llamado/formato', [$cs, 'saveFormat'])->name('callsheet.format.save');
+    Route::get('/llamado/{date}/paquete',            [$cs, 'package'])->name('callsheet.package')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/paquete/front',     [$cs, 'uploadFront'])->name('callsheet.package.front')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/paquete/front/off', [$cs, 'removeFront'])->name('callsheet.package.front.remove')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/paquete/pdf',        [$cs, 'packageMerged'])->name('callsheet.package.pdf')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/paquete/back',       [$cs, 'downloadBack'])->name('callsheet.package.back')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/paquete/front-pdf',  [$cs, 'frontFile'])->name('callsheet.package.front.file')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/paquete/firmas',     [$cs, 'signLayout'])->name('callsheet.package.layout')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/paquete/firmas',    [$cs, 'saveSignLayout'])->name('callsheet.package.layout.save')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/paquete/enviar',    [$cs, 'sendForApproval'])->name('callsheet.package.send')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/paquete/firmar',     [$cs, 'signScreen'])->name('callsheet.package.sign')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/paquete/firmar',    [$cs, 'sign'])->name('callsheet.package.sign.do')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/paquete/estado',     [$cs, 'packageState'])->name('callsheet.package.state')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/paquete/reabrir',   [$cs, 'reopenPackage'])->name('callsheet.package.reopen')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/paquete/adicional',     [$cs, 'uploadExtra'])->name('callsheet.package.extra')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/paquete/adicional/off', [$cs, 'removeExtra'])->name('callsheet.package.extra.remove')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/paquete/enviar-crew', [$cs, 'sendToCrew'])->name('callsheet.package.send.crew')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/paquete/envio-estado', [$cs, 'packageDeliveryState'])->name('callsheet.package.delivery.state')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/comidas/restablecer', [$cs, 'regenMeals'])->name('callsheet.meals.regen')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/config',  [$cs, 'config'])->name('callsheet.config')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/config', [$cs, 'saveConfig'])->name('callsheet.config.save')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/departamentos',  [$cs, 'departments'])->name('callsheet.departments')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/departamentos', [$cs, 'saveDepartments'])->name('callsheet.departments.save')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/personas',  [$cs, 'people'])->name('callsheet.people')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::post('/llamado/{date}/personas', [$cs, 'savePeople'])->name('callsheet.people.save')->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('/llamado/{date}/back', [$cs, 'back'])->name('callsheet.back')->where('date', '\d{4}-\d{2}-\d{2}');
+});
+
+// ---- DISTRIBUCIÓN · envío de documentos con marca de agua por persona (reusa el outbox del llamado) ----
+// Mandar a todo el sitio es acción de administración → gate settings.manage. El cron drena el outbox.
+Route::middleware(['auth','permission:settings.manage'])->group(function () {
+    $fd = App\Http\Controllers\FileDeliveryController::class;
+    Route::get('/distribucion',              [$fd, 'index'])->name('deliveries.index');
+    Route::get('/distribucion/nuevo',        [$fd, 'create'])->name('deliveries.create');
+    Route::post('/distribucion',             [$fd, 'store'])->name('deliveries.store');
+    Route::get('/distribucion/{delivery}',   [$fd, 'show'])->name('deliveries.show')->whereNumber('delivery');
+    Route::get('/distribucion/{delivery}/estado', [$fd, 'state'])->name('deliveries.state')->whereNumber('delivery');
 });
 
 // ---- RBAC: asignación de rol + departamento (pantalla #3) ----
@@ -198,6 +299,10 @@ Route::middleware(['auth','permission:medical.view'])->group(function () {
     // flag binario admin=1; ahora el permiso medical.view. Los enlaces en vistas no-médicas se
     // envuelven en @can('medical.view') para no mostrar un link que daría 403.
     Route::get('/historialWR/{id}/',[App\Http\Controllers\cmedicController::class,'historialWR'])->name('historialwr');
+    // (2026-08-09) La "vista de impresión" standalone chrome-v2 se RETIRÓ: el owner pidió que el
+    // historial médico NO se imprimiera como los demás documentos, sino conservando el formato de
+    // la propia pantalla (componentes/historiamr) ajustado para imprimir. La impresión ahora es
+    // window.print() sobre esa vista (su @media print aísla el reporte). Ver [[health-record-module]].
     // (2026-07-25) DOCUMENTO SELLADO de UNA consulta (crew o lite) + PDF (window.print). El gate de
     // ruta es medical.view; el candado DOCTOR-ONLY (isClinician, igual que la consulta) lo pone el
     // controlador — un HOD/producción con medical.view NO abre expedientes clínicos individuales.
@@ -207,10 +312,18 @@ Route::middleware(['auth','permission:medical.view'])->group(function () {
     // crew.view.contact — y el médico lo tiene, así que buscar exponía contacto que la lista
     // médica no muestra. Preset propio = proyección explícita sin PII de contacto.
     Route::get('/searchmedico/{valor}/',[App\Http\Controllers\SearchController::class,'medical'])->name('searchmedico');
-    // Bitácora médica semanal (2026-07-06) — reporte estilo "medical log", agrupado por día + PDF.
+    // --- /historial (PCR history, COVID) ELIMINADO — Lote 3 COVID-DECOMMISSION (2026-06-25) ---
+});
+
+// (2026-08-11 · BUG-01, opción B) BITÁCORA CONSOLIDADA — grupo PROPIO gateado SÓLO por
+// `medical.consolidate` (NO medical.view). La bitácora concentra las consultas de TODOS los
+// médicos con su nota privada, así que la ve/emite únicamente el KEY MEDIC. El permiso es DIRECTO
+// y el super-admin lo otorga desde /rolescrud a médico, safety-officer o producción (él mismo pasa
+// por Gate::before). Va en grupo aparte para NO exigir además medical.view: un consolidador
+// safety-officer/producción puede no tenerlo.
+Route::middleware(['auth','permission:medical.consolidate'])->group(function () {
     Route::get('/medico/bitacora',[App\Http\Controllers\MedicalReportController::class,'weekly'])->name('medical.bitacora');
     Route::get('/medico/bitacora/pdf',[App\Http\Controllers\MedicalReportController::class,'weeklyPdf'])->name('medical.bitacora.pdf');
-    // --- /historial (PCR history, COVID) ELIMINADO — Lote 3 COVID-DECOMMISSION (2026-06-25) ---
 });
 Route::middleware(['auth','permission:medical.create'])->group(function () {
     Route::get('/consulta/{id}',[App\Http\Controllers\cmedicController::class,'create'])->name('cmedica.create');
@@ -261,7 +374,7 @@ Route::middleware(['auth','permission:medical.create'])->group(function () {
 // `/scoutings/{id}`. Requiere tabla `scouting_reports` (el owner aplica el CREATE TABLE).
 Route::middleware(['auth','permission:locations.create'])->group(function () {
     Route::get('/scoutings/create', [App\Http\Controllers\ScoutingReportController::class, 'create'])->name('scoutings.create');
-    Route::post('/scoutings', [App\Http\Controllers\ScoutingReportController::class, 'store'])->name('scoutings.store');
+    Route::post('/scoutings', [App\Http\Controllers\ScoutingReportController::class, 'store'])->middleware('idempotent')->name('scoutings.store');
     // Edición: mismo nivel de permiso que crear (no existe locations.edit y NO se
     // crean permisos nuevos). Se declara ANTES del show `/scoutings/{id}` de abajo
     // para que `{id}/edit` nunca sea capturado por el patrón del show.
@@ -316,9 +429,9 @@ Route::middleware(['auth'])->get('/geo/scoutings-nearby', [App\Http\Controllers\
 // ---- HAZARDS (Actos inseguros + Condiciones inseguras) ----
 Route::middleware(['auth','permission:hazards.create'])->group(function () {
     Route::get('/hazardnotification', [App\Http\Controllers\HazardNotificationController::class, 'create'])->name('hazard_notifications.create');
-    Route::post('/hazard-notifications', [App\Http\Controllers\HazardNotificationController::class, 'store'])->name('hazard_notifications.store');
+    Route::post('/hazard-notifications', [App\Http\Controllers\HazardNotificationController::class, 'store'])->middleware('idempotent')->name('hazard_notifications.store');
     Route::get('/unsafenotifications/create', [App\Http\Controllers\unsafecondNotificationController::class, 'create'])->name('unsafenotifications.create');
-    Route::post('/unsafenotifications/store', [App\Http\Controllers\unsafecondNotificationController::class, 'store'])->name('unsafenotifications.store');
+    Route::post('/unsafenotifications/store', [App\Http\Controllers\unsafecondNotificationController::class, 'store'])->middleware('idempotent')->name('unsafenotifications.store');
 });
 Route::middleware(['auth','permission:hazards.view'])->group(function () {
     Route::get('/unsafeacts', [App\Http\Controllers\HazardNotificationController::class, 'index'])->name('hazard_notifications.index');
@@ -341,7 +454,7 @@ Route::post('/action-items/{id}/reopen', [App\Http\Controllers\ActionItemControl
 // OJO orden: `/dsr-reports/create` (fijo) va ANTES que `/dsr-reports/{id}`.
 Route::middleware(['auth','permission:dsr.create'])->group(function () {
     Route::get('/dsr-reports/create', [App\Http\Controllers\DailyReportController::class, 'create'])->name('daily_reports.create');
-    Route::post('/dsr-reports', [App\Http\Controllers\DailyReportController::class, 'store'])->name('daily_reports.store');
+    Route::post('/dsr-reports', [App\Http\Controllers\DailyReportController::class, 'store'])->middleware('idempotent')->name('daily_reports.store');
     Route::post('/dsr-reports/{id}/log', [App\Http\Controllers\DailyReportController::class, 'storeLog'])->name('daily_logs.store');
 });
 Route::middleware(['auth','permission:dsr.update'])->group(function () {
@@ -360,12 +473,17 @@ Route::middleware(['auth','permission:dsr.view'])->group(function () {
 Route::middleware(['auth','permission:tools.inspect'])->group(function () {
     Route::get('/inspeccion', [App\Http\Controllers\InspectionController::class, 'index'])->name('tools.index');
     Route::get('/inspeccion/buscar/{q?}', [App\Http\Controllers\InspectionController::class, 'search'])->name('tools.search');
+    // Consulta del histórico de actas (delta #47) + admin de imágenes genéricas del tipo.
+    // Prefijos fijos → van ANTES de las rutas herramienta/{tool} numéricas (mismo criterio del grupo).
+    Route::get('/inspeccion/actas', [App\Http\Controllers\InspectionController::class, 'records'])->name('tools.records');
+    Route::get('/inspeccion/imagenes', [App\Http\Controllers\InspectionController::class, 'toolImages'])->name('tools.images');
     Route::get('/inspeccion/acta/{inspection:uuid}', [App\Http\Controllers\InspectionController::class, 'acta'])->name('tools.inspection.show');
     Route::post('/inspeccion/acta/{inspection:uuid}/desbloquear', [App\Http\Controllers\InspectionController::class, 'unblock'])->name('tools.inspection.unblock');
     Route::post('/inspeccion/acta/{inspection:uuid}/retirar', [App\Http\Controllers\InspectionController::class, 'retire'])->name('tools.inspection.retire');
     Route::get('/inspeccion/herramienta/{tool}', [App\Http\Controllers\InspectionController::class, 'show'])->name('tools.show')->whereNumber('tool');
     Route::get('/inspeccion/herramienta/{tool}/inspeccionar', [App\Http\Controllers\InspectionController::class, 'create'])->name('tools.inspect.form')->whereNumber('tool');
     Route::post('/inspeccion/herramienta/{tool}/inspeccionar', [App\Http\Controllers\InspectionController::class, 'store'])->name('tools.inspect.store')->whereNumber('tool');
+    Route::post('/inspeccion/herramienta/{tool}/imagen', [App\Http\Controllers\InspectionController::class, 'storeToolImage'])->name('tools.image.store')->whereNumber('tool');
 });
 
 // ---- EMISIÓN DE PERMISOS DE TRABAJO (2026-07-30 · delta #44) ----
@@ -382,6 +500,121 @@ Route::middleware(['auth','permission:permits.issue'])->group(function () {
     Route::post('/permisos/{issued:uuid}/reverificar', [App\Http\Controllers\PermitController::class, 'reverify'])->name('permits.reverify')->where('issued', '[0-9a-fA-F-]{36}');
     Route::post('/permisos/{issued:uuid}/cerrar', [App\Http\Controllers\PermitController::class, 'close'])->name('permits.close')->where('issued', '[0-9a-fA-F-]{36}');
     Route::post('/permisos/{issued:uuid}/suspender', [App\Http\Controllers\PermitController::class, 'suspend'])->name('permits.suspend')->where('issued', '[0-9a-fA-F-]{36}');
+});
+
+// ---- VERIFICACIÓN DE AMBULANCIAS (2026-08-08 · deltas #51/#52) ----
+// Recurso de traslado del DÍA (3 estados; solo el 1 lleva badge) + proveedor/padrón/documentos
+// (validación MANUAL con quién-validó, como la cédula) + ACTA sellada en sitio (verificador PÚBLICO
+// 'ambu', cuya ruta va sin sesión más abajo). TODO POR EL SAFETY: gate único ambulance.manage.
+// Los prefijos fijos van ANTES de los {param} para desambiguar; el acta se liga por uuid.
+// LECTURA (hub, actas, proveedores): visible para producción y safety → `ambulance.manage|ambulance.view`.
+// Transpo (HOD de transporte) no tiene ninguno → 403 hasta por URL directa.
+Route::middleware(['auth','permission:ambulance.manage|ambulance.view'])->group(function () {
+    Route::get('/ambulancia', [App\Http\Controllers\AmbulanceController::class, 'index'])->name('ambulance.index');
+    Route::get('/ambulancia/actas', [App\Http\Controllers\AmbulanceController::class, 'records'])->name('ambulance.records');
+    Route::get('/ambulancia/acta/{inspection:uuid}', [App\Http\Controllers\AmbulanceController::class, 'actaShow'])->name('ambulance.acta')->where('inspection', '[0-9a-fA-F-]{36}');
+    Route::get('/ambulancia/proveedores', [App\Http\Controllers\AmbulanceController::class, 'providers'])->name('ambulance.providers');
+    Route::get('/ambulancia/proveedor/{provider}', [App\Http\Controllers\AmbulanceController::class, 'providerShow'])->name('ambulance.provider.show')->whereNumber('provider');
+});
+
+// ESCRITURA (verificar, sellar, validar, padrón): SOLO el safety → `ambulance.manage`.
+Route::middleware(['auth','permission:ambulance.manage'])->group(function () {
+    // Recurso del día (Parte A)
+    Route::get('/ambulancia/recurso', [App\Http\Controllers\AmbulanceController::class, 'dayResourceForm'])->name('ambulance.day.form');
+    Route::post('/ambulancia/recurso', [App\Http\Controllers\AmbulanceController::class, 'storeDayResource'])->name('ambulance.day.store');
+    // Verificación en sitio + acta (Parte C)
+    Route::get('/ambulancia/verificar', [App\Http\Controllers\AmbulanceController::class, 'inspectForm'])->name('ambulance.inspect.form');
+    Route::post('/ambulancia/verificar', [App\Http\Controllers\AmbulanceController::class, 'storeInspection'])->name('ambulance.inspect.store');
+    Route::post('/ambulancia/acta/{inspection:uuid}/desbloquear', [App\Http\Controllers\AmbulanceController::class, 'unblock'])->name('ambulance.unblock')->where('inspection', '[0-9a-fA-F-]{36}');
+    // Proveedor / padrón / documentos (Parte B)
+    Route::post('/ambulancia/proveedores', [App\Http\Controllers\AmbulanceController::class, 'storeProvider'])->name('ambulance.provider.store');
+    Route::post('/ambulancia/documento', [App\Http\Controllers\AmbulanceController::class, 'storeDocument'])->name('ambulance.document.store');
+    Route::post('/ambulancia/documento/{doc}/validar', [App\Http\Controllers\AmbulanceController::class, 'validateDocument'])->name('ambulance.document.validate')->whereNumber('doc');
+    Route::post('/ambulancia/proveedor/{provider}/tripulante', [App\Http\Controllers\AmbulanceController::class, 'storeCrew'])->name('ambulance.crew.store')->whereNumber('provider');
+});
+
+// ---- TRANSPORTACIÓN · Bloque 1 — verificación de vehículos (2026-08-24) ----
+// Entidad Vehículo + checklist GRADUADO (critical/major/minor) + acta sellada (verificador público
+// 'veh', ruta sin sesión más abajo). AUTORIZACIÓN HÍBRIDA en el controlador ({@see TransportAccess}):
+// `transport.manage` O pertenencia al departamento de Transportación = gestión (canFull); `transport.view`
+// = solo la vista LITE de producción (canLite). Por eso el grupo va solo con `auth` y cada acción
+// hace su propio abort_unless. Los prefijos fijos van antes de los {param}; el acta se liga por uuid.
+Route::middleware(['auth'])->group(function () {
+    // Vista LITE de producción (tarjeta/placas/licencia/conductor; sin nivel, puntos ni acta).
+    Route::get('/transportacion/flota', [App\Http\Controllers\VehicleController::class, 'lite'])->name('transport.lite');
+
+    // HUB + flota + verificación + actas (canFull).
+    Route::get('/transportacion', [App\Http\Controllers\VehicleController::class, 'index'])->name('transport.index');
+    Route::get('/transportacion/vehiculos', [App\Http\Controllers\VehicleController::class, 'vehicles'])->name('transport.vehicles');
+    Route::post('/transportacion/vehiculos', [App\Http\Controllers\VehicleController::class, 'storeVehicle'])->name('transport.vehicle.store');
+    Route::get('/transportacion/verificar', [App\Http\Controllers\VehicleController::class, 'inspectForm'])->name('transport.inspect.form');
+    Route::post('/transportacion/verificar', [App\Http\Controllers\VehicleController::class, 'storeInspection'])->name('transport.inspect.store');
+    Route::post('/transportacion/verificar/borrador', [App\Http\Controllers\VehicleController::class, 'saveDraft'])->name('transport.inspect.draft');
+    Route::post('/transportacion/vehiculo/{vehicle}/borrador/descartar', [App\Http\Controllers\VehicleController::class, 'discardDraft'])->name('transport.inspect.draft.discard')->whereNumber('vehicle');
+    Route::get('/transportacion/actas', [App\Http\Controllers\VehicleController::class, 'records'])->name('transport.records');
+    Route::get('/transportacion/acta/{inspection:uuid}', [App\Http\Controllers\VehicleController::class, 'actaShow'])->name('transport.acta')->where('inspection', '[0-9a-fA-F-]{36}');
+    Route::get('/transportacion/acta/{inspection:uuid}/rechazo', [App\Http\Controllers\VehicleController::class, 'rejectionPdf'])->name('transport.acta.rejection')->where('inspection', '[0-9a-fA-F-]{36}');
+    Route::get('/transportacion/vehiculo/{vehicle}', [App\Http\Controllers\VehicleController::class, 'vehicleShow'])->name('transport.vehicle.show')->whereNumber('vehicle');
+    Route::get('/transportacion/vehiculo/{vehicle}/editar', [App\Http\Controllers\VehicleController::class, 'editVehicle'])->name('transport.vehicle.edit')->whereNumber('vehicle');
+    Route::post('/transportacion/vehiculo/{vehicle}', [App\Http\Controllers\VehicleController::class, 'updateVehicle'])->name('transport.vehicle.update')->whereNumber('vehicle');
+    Route::post('/transportacion/vehiculo/{vehicle}/documento', [App\Http\Controllers\VehicleController::class, 'storeDocument'])->name('transport.document.store')->whereNumber('vehicle');
+    Route::post('/transportacion/vehiculo/{vehicle}/licencia', [App\Http\Controllers\VehicleController::class, 'storeDriverLicense'])->name('transport.driver.license.store')->whereNumber('vehicle');
+    Route::post('/transportacion/documento/{doc}/validar', [App\Http\Controllers\VehicleController::class, 'validateDocument'])->name('transport.document.validate')->whereNumber('doc');
+
+    // ---- Bloque 2 — ORDEN de transportación (por día; se CONGELA, NO se sella ni firma) ----
+    // canLite (producción) consulta; canFull construye/edita. La orden congelada es inmutable.
+    Route::get('/transportacion/ordenes', [App\Http\Controllers\TransportOrderController::class, 'index'])->name('transport.order.index');
+    Route::post('/transportacion/ordenes', [App\Http\Controllers\TransportOrderController::class, 'create'])->name('transport.order.create');
+    // Alta INLINE de vehículo desde el editor (day player): busca por PLACA y reúsa antes de crear. canFull.
+    Route::post('/transportacion/ordenes/vehiculo-rapido', [App\Http\Controllers\TransportOrderController::class, 'quickStoreVehicle'])->name('transport.order.vehicle.quick');
+    Route::get('/transportacion/orden/{order}', [App\Http\Controllers\TransportOrderController::class, 'show'])->name('transport.order.show')->whereNumber('order');
+    Route::post('/transportacion/orden/{order}/corrida', [App\Http\Controllers\TransportOrderController::class, 'storeRun'])->name('transport.order.run.store')->whereNumber('order');
+    Route::post('/transportacion/orden/{order}/corrida/{run}', [App\Http\Controllers\TransportOrderController::class, 'updateRun'])->name('transport.order.run.update')->whereNumber('order')->whereNumber('run');
+    Route::post('/transportacion/orden/{order}/corrida/{run}/eliminar', [App\Http\Controllers\TransportOrderController::class, 'destroyRun'])->name('transport.order.run.destroy')->whereNumber('order')->whereNumber('run');
+    Route::post('/transportacion/orden/{order}/corrida/{run}/discreto', [App\Http\Controllers\TransportOrderController::class, 'toggleDiscreet'])->name('transport.order.run.discreet')->whereNumber('order')->whereNumber('run');
+    Route::post('/transportacion/orden/{order}/corrida/{run}/ocupante', [App\Http\Controllers\TransportOrderController::class, 'storeOccupant'])->name('transport.order.occupant.store')->whereNumber('order')->whereNumber('run');
+    Route::post('/transportacion/orden/{order}/ocupante/{occupant}/eliminar', [App\Http\Controllers\TransportOrderController::class, 'destroyOccupant'])->name('transport.order.occupant.destroy')->whereNumber('order')->whereNumber('occupant');
+    Route::post('/transportacion/orden/{order}/notas', [App\Http\Controllers\TransportOrderController::class, 'updateOrder'])->name('transport.order.update')->whereNumber('order');
+    Route::post('/transportacion/orden/{order}/congelar', [App\Http\Controllers\TransportOrderController::class, 'freeze'])->name('transport.order.freeze')->whereNumber('order');
+    // PDF congelado (§1 Capa 4): sólo una versión congelada; UUID al pie de todas las páginas; privadas → 'CASA'.
+    Route::get('/transportacion/orden/{order}/pdf', [App\Http\Controllers\TransportOrderController::class, 'pdf'])->name('transport.order.pdf')->whereNumber('order');
+    // Agenda por vehículo (Fase 4): timeline por unidad + qué podría adelantarse (informa, no mueve). canLite.
+    Route::get('/transportacion/orden/{order}/agenda', [App\Http\Controllers\TransportOrderController::class, 'agenda'])->name('transport.order.agenda')->whereNumber('order');
+    // Fase 5: aceptar la PROPUESTA (marcados en el back que faltan → corridas por vehículo). canFull.
+    Route::post('/transportacion/orden/{order}/propuesta', [App\Http\Controllers\TransportOrderController::class, 'acceptProposal'])->name('transport.order.proposal.accept')->whereNumber('order');
+    // Fase 5: conteo de atención (JSON) para el contador del topbar + poll del toast.
+    Route::get('/transportacion/atencion', [App\Http\Controllers\TransportOrderController::class, 'attentionCount'])->name('transport.attention.count');
+
+    // Pantalla del DRIVER (§2 Capa 4): "mis corridas" del día — SIN gate de transpo (cualquiera ve las suyas).
+    Route::get('/transportacion/mis-corridas', [App\Http\Controllers\TransportOrderController::class, 'driverRuns'])->name('transport.driver.runs');
+
+    // Direcciones privadas (§3 Capa 4): CRUD + allowlist. canFull (transpo decide quién ve la calle).
+    Route::get('/transportacion/direcciones', [App\Http\Controllers\TransportAddressController::class, 'index'])->name('transport.address.index');
+    Route::post('/transportacion/direcciones', [App\Http\Controllers\TransportAddressController::class, 'store'])->name('transport.address.store');
+    Route::post('/transportacion/direccion/{address}', [App\Http\Controllers\TransportAddressController::class, 'update'])->name('transport.address.update')->whereNumber('address');
+    Route::post('/transportacion/direccion/{address}/baja', [App\Http\Controllers\TransportAddressController::class, 'destroy'])->name('transport.address.destroy')->whereNumber('address');
+    Route::post('/transportacion/direccion/{address}/viewer', [App\Http\Controllers\TransportAddressController::class, 'addViewer'])->name('transport.address.viewer.add')->whereNumber('address');
+    Route::post('/transportacion/direccion/{address}/viewer/{user}/quitar', [App\Http\Controllers\TransportAddressController::class, 'removeViewer'])->name('transport.address.viewer.remove')->whereNumber('address')->whereNumber('user');
+
+    // Editor del catálogo de TIPOS (§5 Capa 4): alta/edición/baja. canFull. Baja = desactivar (no borra).
+    Route::get('/transportacion/tipos', [App\Http\Controllers\VehicleTypeController::class, 'index'])->name('transport.type.index');
+    Route::post('/transportacion/tipos', [App\Http\Controllers\VehicleTypeController::class, 'store'])->name('transport.type.store');
+    Route::post('/transportacion/tipo/{type}', [App\Http\Controllers\VehicleTypeController::class, 'update'])->name('transport.type.update')->whereNumber('type');
+    Route::post('/transportacion/tipo/{type}/baja', [App\Http\Controllers\VehicleTypeController::class, 'destroy'])->name('transport.type.destroy')->whereNumber('type');
+    Route::post('/transportacion/tipo/{type}/reactivar', [App\Http\Controllers\VehicleTypeController::class, 'restore'])->name('transport.type.restore')->whereNumber('type');
+
+    // Pick up derivado · FASE 1 — puntos de pickup + matriz de traslado (canFull). OSRM propone, transpo corrige.
+    Route::get('/transportacion/traslados', [App\Http\Controllers\TransportMatrixController::class, 'index'])->name('transport.matrix.index');
+    Route::post('/transportacion/punto', [App\Http\Controllers\TransportMatrixController::class, 'storePoint'])->name('transport.point.store');
+    Route::post('/transportacion/punto/{point}', [App\Http\Controllers\TransportMatrixController::class, 'updatePoint'])->name('transport.point.update')->whereNumber('point');
+    Route::post('/transportacion/punto/{point}/baja', [App\Http\Controllers\TransportMatrixController::class, 'destroyPoint'])->name('transport.point.destroy')->whereNumber('point');
+    Route::post('/transportacion/traslado', [App\Http\Controllers\TransportMatrixController::class, 'saveTime'])->name('transport.time.save');
+
+    // Config de transpo · FASE 2 — jefatura/pickup-siempre por puesto + asignación fija de vehículos (canFull).
+    Route::get('/transportacion/config', [App\Http\Controllers\TransportConfigController::class, 'index'])->name('transport.config.index');
+    Route::post('/transportacion/config/puestos', [App\Http\Controllers\TransportConfigController::class, 'savePositions'])->name('transport.config.positions');
+    Route::post('/transportacion/config/asignacion', [App\Http\Controllers\TransportConfigController::class, 'storeAssignment'])->name('transport.config.assign.store');
+    Route::post('/transportacion/config/asignacion/{assignment}/baja', [App\Http\Controllers\TransportConfigController::class, 'destroyAssignment'])->name('transport.config.assign.destroy')->whereNumber('assignment');
 });
 
 // ---- VIGILANCIA EPIDEMIOLÓGICA: panel silencioso + estudio de brote (2026-07-31 · delta #45) ----
@@ -408,6 +641,26 @@ Route::middleware(['auth','permission:medevac.issue'])->group(function () {
     Route::get('/medevac/emitir/{scouting}', [App\Http\Controllers\MedevacController::class, 'create'])->name('medevac.create')->whereNumber('scouting');
     Route::post('/medevac/emitir/{scouting}', [App\Http\Controllers\MedevacController::class, 'store'])->name('medevac.store')->whereNumber('scouting');
     Route::get('/medevac/{poster:uuid}', [App\Http\Controllers\MedevacController::class, 'show'])->name('medevac.show')->where('poster', '[0-9a-fA-F-]{36}');
+});
+
+// ---- PAE · PLAN DE ATENCIÓN A EMERGENCIAS (2026-08-06) ----
+// Documento UNO por llamado (día de rodaje), puede cubrir DOS locaciones (company move).
+// RENDERIZADO desde el/los scouting elegidos (no captura nueva): organigrama del crew + riesgos
+// evaluados + hospital por locación. Cada emisión CONGELA su payload y se sella; entra al
+// verificador PÚBLICO (SealVerifier 'pae'), cuya ruta va sin sesión más abajo. EMITE SÓLO EL
+// SAFETY: permiso PROPIO `pae.issue`, que también blinda la URL directa. Requiere la tabla
+// `emergency_action_plans` (owner-apply 2026-08-06); sin ella EmergencyActionPlan::supported()
+// hace que el controlador responda 404. Orden: /pae/emitir (fijo) antes de /pae/{uuid}; el PAE se
+// liga por uuid, no expone id secuencial.
+Route::middleware(['auth','permission:pae.issue'])->group(function () {
+    Route::get('/pae', [App\Http\Controllers\PaeController::class, 'index'])->name('pae.index');
+    Route::get('/pae/emitir', [App\Http\Controllers\PaeController::class, 'create'])->name('pae.create');
+    Route::post('/pae', [App\Http\Controllers\PaeController::class, 'store'])->name('pae.store');
+    // Previsualización editable (patrón Wrap): construye el documento SIN sellar; el sellado sigue en store.
+    Route::post('/pae/borrador', [App\Http\Controllers\PaeController::class, 'preview'])->name('pae.preview');
+    // Editar = emitir una REVISIÓN nueva que supersede a la anterior. /editar antes de /{uuid}.
+    Route::get('/pae/{pae:uuid}/editar', [App\Http\Controllers\PaeController::class, 'edit'])->name('pae.edit')->where('pae', '[0-9a-fA-F-]{36}');
+    Route::get('/pae/{pae:uuid}', [App\Http\Controllers\PaeController::class, 'show'])->name('pae.show')->where('pae', '[0-9a-fA-F-]{36}');
 });
 
 // ---- REPORTE FINAL DE WRAP (2026-07-24) ----
@@ -440,7 +693,7 @@ Route::middleware(['auth', 'permission:dsr.view'])->group(function () {
 // ---- INJURIES (Accidentes) ----
 Route::middleware(['auth','permission:injury.create'])->group(function () {
     Route::get('/accident', [App\Http\Controllers\InjuryReportController::class, 'create'])->name('injury_reports.create');
-    Route::post('/accidentCreate', [App\Http\Controllers\InjuryReportController::class, 'store'])->name('injury_reports.store');
+    Route::post('/accidentCreate', [App\Http\Controllers\InjuryReportController::class, 'store'])->middleware('idempotent')->name('injury_reports.store');
 });
 Route::middleware(['auth','permission:injury.view'])->group(function () {
     Route::get('/accidents', [App\Http\Controllers\InjuryReportController::class, 'inicial'])->name('injury_reports.index');
@@ -488,6 +741,29 @@ Route::middleware(['auth','permission:injury.view'])->group(function () {
 Route::middleware(['auth','permission:settings.manage'])->group(function () {
     Route::get('/settings/branding', [App\Http\Controllers\BrandingController::class, 'edit'])->name('settings.branding.edit');
     Route::post('/settings/branding', [App\Http\Controllers\BrandingController::class, 'update'])->name('settings.branding.update');
+
+    // PARTE A · CALENDARIO DE RODAJE: inicio + semanas + días/semana → total y wrap estimado.
+    Route::get('/settings/calendario',  [App\Http\Controllers\ProductionCalendarController::class, 'edit'])->name('production.calendar.edit');
+    Route::post('/settings/calendario', [App\Http\Controllers\ProductionCalendarController::class, 'update'])->name('production.calendar.update');
+
+    // CALENDARIO DE RODAJE DINÁMICO: producción marca qué días se trabajan (shoot_days). El calendario
+    // manda, el DSR confirma. Solo captura manual — nada de importación de planes.
+    Route::get('/settings/dias-rodaje',          [App\Http\Controllers\ShootCalendarController::class, 'edit'])->name('production.shootdays.edit');
+    Route::post('/settings/dias-rodaje/generar', [App\Http\Controllers\ShootCalendarController::class, 'generate'])->name('production.shootdays.generate');
+    Route::post('/settings/dias-rodaje/dia',     [App\Http\Controllers\ShootCalendarController::class, 'toggleDay'])->name('production.shootdays.toggle');
+    Route::post('/settings/dias-rodaje/luz',     [App\Http\Controllers\ShootCalendarController::class, 'setSlug'])->name('production.shootdays.light');
+
+    // UNIDADES: CRUD de la 2ª unidad y siguientes (la principal = unit_id NULL, no tiene fila). Baja por
+    // desactivación, nunca borrado.
+    Route::get('/settings/unidades',                 [App\Http\Controllers\UnitController::class, 'index'])->name('production.units.index');
+    Route::post('/settings/unidades',                [App\Http\Controllers\UnitController::class, 'store'])->name('production.units.store');
+    Route::put('/settings/unidades/{unit}',          [App\Http\Controllers\UnitController::class, 'update'])->name('production.units.update')->whereNumber('unit');
+    Route::post('/settings/unidades/{unit}/toggle',  [App\Http\Controllers\UnitController::class, 'toggle'])->name('production.units.toggle')->whereNumber('unit');
+
+    // UNIDADES · 2c — EL CONSTRUCTOR: arma una unidad adicional marcando quién está en ella (pivote
+    // unit_members). Comparación de CrewList por departamento; el mismo control sirve para el switch.
+    Route::get('/settings/unidades/{unit}/constructor',  [App\Http\Controllers\UnitBuilderController::class, 'show'])->name('production.units.builder')->whereNumber('unit');
+    Route::post('/settings/unidades/{unit}/constructor', [App\Http\Controllers\UnitBuilderController::class, 'save'])->name('production.units.builder.save')->whereNumber('unit');
 });
 
 // ---- CATÁLOGOS (departamentos / puestos / notificaciones) ----
@@ -501,6 +777,31 @@ Route::middleware(['auth','permission:catalogs.view'])->group(function () {
     Route::get('/departamentocrud',[App\Http\Controllers\DepartmentController::class,'departamentocrud'])->name('departamentocrud');
     Route::get('/positionscrud',[App\Http\Controllers\PositionController::class,'positionscrud'])->name('positionscrud');
     Route::get('/notificacioncrud',[App\Http\Controllers\NotificationController::class,'notificacioncrud'])->name('notificacioncrud');
+});
+
+// ---- CATÁLOGO ORGANIZACIONAL · vista de administración FUSIONADA (delta #114) ----
+// Corrige el catálogo sin tocar la base: lista por depto (puestos por rango), toggle is_hod inline
+// (marca operativa, varias por depto), alta/edición de puesto y departamento, baja por desactivación.
+Route::middleware(['auth','permission:catalogs.view'])->group(function () {
+    Route::get('/catalogo', [App\Http\Controllers\CatalogAdminController::class, 'index'])->name('catalogo.index');
+});
+Route::middleware(['auth','permission:catalogs.manage'])->group(function () {
+    Route::post('/catalogo/puesto',               [App\Http\Controllers\CatalogAdminController::class, 'storePosition'])->name('catalogo.position.store');
+    Route::get ('/catalogo/puesto/{id}/editar',   [App\Http\Controllers\CatalogAdminController::class, 'editPosition'])->name('catalogo.position.edit')->whereNumber('id');
+    Route::post('/catalogo/puesto/{id}',          [App\Http\Controllers\CatalogAdminController::class, 'updatePosition'])->name('catalogo.position.update')->whereNumber('id');
+    Route::post('/catalogo/puesto/{id}/hod',      [App\Http\Controllers\CatalogAdminController::class, 'toggleHod'])->name('catalogo.position.hod')->whereNumber('id');
+    Route::post('/catalogo/puesto/{id}/baja',     [App\Http\Controllers\CatalogAdminController::class, 'deactivatePosition'])->name('catalogo.position.deactivate')->whereNumber('id');
+    Route::post('/catalogo/puesto/{id}/alta',     [App\Http\Controllers\CatalogAdminController::class, 'activatePosition'])->name('catalogo.position.activate')->whereNumber('id');
+    Route::post('/catalogo/departamento',             [App\Http\Controllers\CatalogAdminController::class, 'storeDepartment'])->name('catalogo.dept.store');
+    Route::get ('/catalogo/departamento/{id}/editar', [App\Http\Controllers\CatalogAdminController::class, 'editDepartment'])->name('catalogo.dept.edit')->whereNumber('id');
+    Route::post('/catalogo/departamento/{id}',        [App\Http\Controllers\CatalogAdminController::class, 'updateDepartment'])->name('catalogo.dept.update')->whereNumber('id');
+    Route::post('/catalogo/departamento/{id}/baja',   [App\Http\Controllers\CatalogAdminController::class, 'deactivateDepartment'])->name('catalogo.dept.deactivate')->whereNumber('id');
+    Route::post('/catalogo/departamento/{id}/alta',   [App\Http\Controllers\CatalogAdminController::class, 'activateDepartment'])->name('catalogo.dept.activate')->whereNumber('id');
+});
+// Creación rápida de puesto desde el alta de crew (Opción B). Gate abierto a `.own-department`;
+// el alcance por departamento se resuelve en el controlador (canManageDept).
+Route::middleware(['auth', 'permission:catalogs.manage|catalogs.manage.own-department'])->group(function () {
+    Route::post('/catalogo/puesto-rapido', [App\Http\Controllers\CatalogAdminController::class, 'quickStorePosition'])->name('catalogo.position.quick');
 });
 Route::middleware(['auth','permission:catalogs.manage'])->group(function () {
     // Departamentos
@@ -574,6 +875,9 @@ Route::group(['middleware' => 'admin'], function () {
 // aplica el scope por departamento (super-admin ve todo; roles acotados solo su depto). Mismo URI/nombre.
 Route::middleware(['auth','permission:reports.export'])->group(function () {
     Route::get('/nophoto',[App\Http\Controllers\ExportController::class,'expCsv'])->name('expCsv');
+    // (2026-08-07) Export del Crew List como DOCUMENTO vertical (bandas de departamento en orden
+    // canónico). Reemplaza al CSV en la UI; el CSV /nophoto se conserva como endpoint sin enlace.
+    Route::get('/crew/export',[App\Http\Controllers\CrewListController::class,'crewExport'])->name('crew.export');
 });
 
 // SEGURIDAD (2026-06-25): estas rutas estaban SIN `auth` — cualquiera podía cambiar la
@@ -593,24 +897,32 @@ Route::middleware(['auth'])->group(function () {
     // alguien la posteara. Su único "cliente" era un fetch() de formulario.blade.php a
     // `/registrarformulario/…`, ruta que nunca existió (404). Ambos se retiraron.
     Route::get('/profile',[App\Http\Controllers\PerfilController::class,'indexb'])->name('perfil');
+    // (2026-08-30 · endurecimiento) SESIONES ACTIVAS: ver y cerrar sesiones desde el perfil (sesión
+    // larga pero REVOCABLE; caso del teléfono perdido). Requiere SESSION_DRIVER=database (la vista
+    // lo explica si no lo está). Sobre auth()->user() → sin IDOR.
+    Route::get('/profile/sesiones',[App\Http\Controllers\SessionController::class,'index'])->name('perfil.sesiones');
+    Route::post('/profile/sesiones/cerrar-otras',[App\Http\Controllers\SessionController::class,'destroyOthers'])->name('perfil.sesiones.cerrar');
     // SEGURIDAD (2026-07-06): subida del avatar (cropper) — ahora exige sesión (antes iba SIN auth).
     Route::post('/crop-image-upload',[App\Http\Controllers\cropimageController::class,'uploadCropImage'])->name('uploadCropImage');
+
+    // (2026-08-30 · endurecimiento) VISOR de la bitácora de lectura clínica. SOLO super-admin (el
+    // controlador aborta 403 para cualquier otro rol, auditor incluido). Es el REGISTRO de quién
+    // abrió qué expediente — NO el expediente (ese sigue como estaba).
+    Route::get('/bitacora-clinica',[App\Http\Controllers\ClinicalReadLogController::class,'index'])->name('clinical_log.index');
 });
 // SEGURIDAD/LIMPIEZA (2026-06-26): `/pruebachedule` ELIMINADO — era otro DUPLICADO GET-sin-auth del
 // reset de `encuestadiaria` (nombre de prueba, ni retornaba). (2026-07-24) Ya no hay reset automático.
 // SEGURIDAD/LIMPIEZA (2026-07-06): `GET /crop-image` ELIMINADO (renderizaba una vista inexistente
 // y su método index() se retiró); `POST /crop-image-upload` movido al grupo `auth` de arriba.
 
-// ---- SYNC / API (Módulo 12 — offline-first, UPSERT idempotente por uuid) ----
-// El PWA/Service Worker envía un LOTE de reportes creados offline (cada uno con su
-// uuid generado en el cliente); SyncController@up hace UPSERT por uuid, así que un
-// reintento del SW ACTUALIZA en vez de DUPLICAR. Va en routes/WEB (no en api.php) a
-// propósito: usa el middleware 'auth' de SESIÓN (mismo origen, cookie ya presente),
-// evitando el guard `auth:sanctum` que aún NO está configurado en este proyecto.
-// CSRF: al vivir en 'web', el POST exige token CSRF → el PWA mismo-origen debe mandar
-// el X-CSRF-TOKEN (meta) en el fetch. PRODUCCIÓN: endurecer a token Bearer (Sanctum)
-// para clientes que sincronicen sin sesión web viva (ver comentario del controlador).
-Route::post('/api/sync/up', [\App\Http\Controllers\Api\SyncController::class, 'up'])->middleware('auth')->name('api.sync.up');
+// ---- SYNC / API (Módulo 12) — RETIRADO (2026-08-29) ----
+// El endpoint POST /api/sync/up (SyncController@up) SE RETIRÓ. Hacía un upsert directo a
+// $fillable que se SALTABA el Form Request, el ensamblado y signDocument → producía
+// documentos SIN VALIDAR y SIN SELLAR. No tenía llamadores en runtime (solo docs y un
+// comentario viejo en cc-drafts.js). Lo reemplaza el ENVÍO DIFERIDO (Camino A): el
+// borrador offline se reproduce por la MISMA ruta store() del formulario (valida + sella
+// una sola vez), con idempotencia vía el middleware 'idempotent' (App\Http\Middleware\
+// IdempotentReplay) y la cabecera X-Idempotency-Key. El controlador quedó como stub 410.
 
 // ============================================================================
 // (2026-07-13) PILARES 3 / 4 / 1b / 5 — módulos nuevos. Controladores/vistas
@@ -656,6 +968,8 @@ Route::middleware(['auth'])->group(function () {
         // son IDEMPOTENTES (ver el controlador): repetirlas no duplica ni truena.
         Route::post('/sfx-effects/{id}/consumables', [\App\Http\Controllers\SfxEffectTypeController::class, 'attach'])->name('sfx-effects.consumables.attach')->whereNumber('id');
         Route::delete('/sfx-effects/{id}/consumables/{consumable}', [\App\Http\Controllers\SfxEffectTypeController::class, 'detach'])->name('sfx-effects.consumables.detach')->whereNumber('id')->whereNumber('consumable');
+        // Imagen principal del TIPO de efecto (referencia visual de la card). Misma autoridad.
+        Route::post('/sfx-effects/{id}/imagen', [\App\Http\Controllers\SfxEffectTypeController::class, 'storeImage'])->name('sfx-effects.image.store')->whereNumber('id');
     });
 
     // Papelera de consumibles RETIRADOS (Paso 1b, soft delete). Conservar el registro es
@@ -739,6 +1053,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/hazard-events/{id}/verify',     [\App\Http\Controllers\HazardEventController::class, 'verify'])->name('hazardevents.verify')->whereNumber('id');
         Route::put('/hazard-events/{id}/deactivate',  [\App\Http\Controllers\HazardEventController::class, 'deactivate'])->name('hazardevents.deactivate')->whereNumber('id');
         Route::put('/hazard-events/{id}/reactivate',  [\App\Http\Controllers\HazardEventController::class, 'reactivate'])->name('hazardevents.reactivate')->whereNumber('id');
+
+        // (captura fluida · Paso 3) Medidas de control por CSV: descarga editable (ordenada por
+        // uso real) e importa idempotente. Segmentos estáticos → no chocan con {id} (whereNumber).
+        Route::get('/hazard-events/control-measures/export',  [\App\Http\Controllers\HazardEventController::class, 'exportControlCsv'])->name('hazardevents.control.export');
+        Route::post('/hazard-events/control-measures/import', [\App\Http\Controllers\HazardEventController::class, 'importControlCsv'])->name('hazardevents.control.import');
     });
 });
 
@@ -764,6 +1083,12 @@ Route::middleware(['throttle:20,1'])->group(function () {
         ->name('seal.verify')
         ->where('tipo', '[a-z]{3,6}')
         ->where('uuid', '[0-9a-fA-F-]{36}');
+    // Descarga del TOKEN de sello de tiempo (.tsr) — público, sin sesión: es justo lo que un
+    // tercero necesita para verificar el timbre por su cuenta (con OpenSSL, sin CrewCare).
+    Route::get('/verificar/{tipo}/{uuid}/timbre', [\App\Http\Controllers\SealVerificationController::class, 'timbre'])
+        ->name('seal.verify.timbre')
+        ->where('tipo', '[a-z]{3,6}')
+        ->where('uuid', '[0-9a-fA-F-]{36}');
 });
 
 // ---- Pilar 1b: Magic Links (PÚBLICO, firmado + expirable + rate-limit) ----
@@ -775,6 +1100,177 @@ Route::middleware(['throttle:20,1'])->group(function () {
 Route::middleware(['signed','throttle:6,1'])->group(function () {
     Route::get('/mitigation/{action}',  [\App\Http\Controllers\MitigationController::class, 'show'])->name('mitigation.show')->whereNumber('action');
     Route::post('/mitigation/{action}', [\App\Http\Controllers\MitigationController::class, 'store'])->name('mitigation.store')->whereNumber('action');
+});
+
+// ---- Quien cobra · PASO 3: INTAKE AUTOSERVICIO (PÚBLICO, firmado + expirable) ----
+// La persona invitada abre su link firmado y llena su intake. La firma es su llave (no login).
+Route::middleware(['signed','throttle:20,1'])->group(function () {
+    Route::get('/intake/{user}',  [\App\Http\Controllers\IntakeController::class, 'show'])->name('intake.show')->whereNumber('user');
+    Route::post('/intake/{user}', [\App\Http\Controllers\IntakeController::class, 'store'])->name('intake.store')->whereNumber('user');
+    // Segundo factor: coteja fecha de nacimiento antes de abrir el asistente (no es muro; intentos limitados).
+    Route::post('/intake/{user}/verify', [\App\Http\Controllers\IntakeController::class, 'verify'])->name('intake.verify')->whereNumber('user');
+});
+
+// ---- Quien cobra · PASO 3: captura por QUIEN CONTRATA (autenticado; guarda de depto en el ctrl) ----
+Route::middleware(['auth'])->group(function () {
+    Route::get('/payees/{payee}/intake',  [\App\Http\Controllers\IntakeController::class, 'contractorForm'])->name('payee.intake.form')->whereNumber('payee');
+    Route::post('/payees/{payee}/intake', [\App\Http\Controllers\IntakeController::class, 'contractorStore'])->name('payee.intake.store')->whereNumber('payee');
+
+    // EL INFOSHEET · FASE 2 · captura del TRATO (crew_work). La guarda de auto-edición (can:capture,
+    // mismo criterio que el intake del contratante) va DENTRO del controlador. {step} = role|fees|dates.
+    Route::get('/payees/{payee}/infosheet/{step?}', [\App\Http\Controllers\InfosheetController::class, 'edit'])->name('infosheet.edit')->whereNumber('payee');
+    Route::post('/payees/{payee}/infosheet',        [\App\Http\Controllers\InfosheetController::class, 'save'])->name('infosheet.save')->whereNumber('payee');
+    // EL INFOSHEET · FASE 2b · ENVIAR A AUTORIZACIÓN (disparador): avisa a los autorizadores + entra a su bandeja.
+    Route::post('/payees/{payee}/infosheet/enviar', [\App\Http\Controllers\InfosheetController::class, 'submit'])->name('infosheet.submit')->whereNumber('payee');
+    // EL INFOSHEET · FASE 3 · autorización (paso 2): un autorizador aprueba con su firma autógrafa.
+    Route::post('/payees/{payee}/infosheet/autorizar', [\App\Http\Controllers\InfosheetController::class, 'approve'])->name('infosheet.authorize')->whereNumber('payee');
+    // EL INFOSHEET · FASE 3 · BANDEJA "por autorizar" (cola de descubrimiento del autorizador).
+    Route::get('/infosheets/por-autorizar', [\App\Http\Controllers\InfosheetController::class, 'pending'])->name('infosheet.pending');
+    // EL INFOSHEET · FASE 4 · contratado no-crew: crea/reusa su usuario externo lite + enlace de un solo uso.
+    Route::post('/payees/{payee}/acceso-externo', [\App\Http\Controllers\ExternalAccessController::class, 'provision'])->name('external.provision')->whereNumber('payee');
+});
+
+// ---- Quien cobra · PASO 4: VISIBILIDAD (SOLO LECTURA) ----
+// Gate de módulo `payees.view`; el SCOPE fino ("quien contrata es quien ve") lo pone
+// Payee::scopeVisibleTo + PayeePolicy. El serve de PDF va GATEADO por la misma visibilidad
+// (privado, nunca /storage). Las rutas fijas van ANTES del {payee} para no ser sombreadas.
+Route::middleware(['auth','permission:payees.view'])->group(function () {
+    Route::get('/payees',                          [\App\Http\Controllers\PayeeController::class, 'index'])->name('payees.index');
+    // ALTA DE PROVEEDOR (carril proveedor puro, fuera del llamado). Antes del {payee} numérico.
+    Route::get('/payees/proveedor/nuevo',          [\App\Http\Controllers\ProviderController::class, 'create'])->name('providers.create');
+    Route::post('/payees/proveedor',               [\App\Http\Controllers\ProviderController::class, 'store'])->name('providers.store');
+    // CARRIL 2 · agregar un contrato de renta/servicio a una identidad existente (reusa el payee).
+    Route::post('/payees/{payee}/contrato',        [\App\Http\Controllers\ProviderController::class, 'addContract'])->name('payees.contract.store')->whereNumber('payee');
+    Route::get('/payees/carpetas',                 [\App\Http\Controllers\PayeeController::class, 'folders'])->name('payees.folders');
+    Route::get('/payees/descargas.zip',            [\App\Http\Controllers\PayeeController::class, 'downloadBulk'])->name('payees.documents.bulk');
+    Route::get('/payees/{payee}',                  [\App\Http\Controllers\PayeeController::class, 'show'])->name('payees.show')->whereNumber('payee');
+    Route::get('/payees/{payee}/documento/{doc}',  [\App\Http\Controllers\PayeeController::class, 'document'])->name('payees.document')->whereNumber('payee')->whereNumber('doc');
+    Route::get('/payees/{payee}/documentos.zip',   [\App\Http\Controllers\PayeeController::class, 'downloadDocuments'])->name('payees.documents.zip')->whereNumber('payee');
+    // Captura del folio de la 32-D desde el tablero (contabilidad) → arma el enlace del SAT.
+    Route::post('/payees/{payee}/documento/{doc}/sat-folio', [\App\Http\Controllers\PayeeController::class, 'setSatFolio'])->name('payees.document.satfolio')->whereNumber('payee')->whereNumber('doc');
+});
+
+// ---- Quien cobra · VENTANA DE RECEPCIÓN POR PERIODO DE PAGO ----
+// VER el tablero de "quién falta" (periods.view; el scope fino lo pone PeriodBoard vía
+// applyContractingScope). ADMINISTRAR la ventana (periods.manage; contabilidad): abrir/cerrar/
+// reabrir + asignar la frecuencia del contrato. La ruta fija va ANTES del {period} numérico.
+Route::middleware(['auth','permission:periods.view'])->group(function () {
+    Route::get('/periodos',           [\App\Http\Controllers\PaymentPeriodController::class, 'index'])->name('periods.index');
+    Route::get('/periodos/{period}',  [\App\Http\Controllers\PaymentPeriodController::class, 'show'])->name('periods.show')->whereNumber('period');
+    Route::get('/periodos/{period}/export', [\App\Http\Controllers\PaymentPeriodController::class, 'export'])->name('periods.export')->whereNumber('period');
+});
+Route::middleware(['auth','permission:periods.manage'])->group(function () {
+    // Recordatorio manual a quienes faltan (contabilidad; un clic por persona, WhatsApp).
+    Route::get('/periodos/{period}/recordatorios', [\App\Http\Controllers\PaymentPeriodController::class, 'reminders'])->name('periods.reminders')->whereNumber('period');
+    Route::post('/periodos',                    [\App\Http\Controllers\PaymentPeriodController::class, 'store'])->name('periods.store');
+    // Generación EN LOTE (N semanas de una) + catálogo editable de CONCEPTOS de pago (SEM/CA/Box…).
+    Route::post('/periodos/lote',               [\App\Http\Controllers\PaymentPeriodController::class, 'storeBatch'])->name('periods.batch');
+    Route::get('/conceptos',                     [\App\Http\Controllers\PaymentConceptController::class, 'index'])->name('payment-concepts.index');
+    Route::post('/conceptos',                    [\App\Http\Controllers\PaymentConceptController::class, 'store'])->name('payment-concepts.store');
+    Route::put('/conceptos/{concept}',           [\App\Http\Controllers\PaymentConceptController::class, 'update'])->name('payment-concepts.update')->whereNumber('concept');
+    Route::delete('/conceptos/{concept}',        [\App\Http\Controllers\PaymentConceptController::class, 'destroy'])->name('payment-concepts.destroy')->whereNumber('concept');
+    Route::post('/periodos/{period}/cerrar',    [\App\Http\Controllers\PaymentPeriodController::class, 'close'])->name('periods.close')->whereNumber('period');
+    Route::post('/periodos/{period}/reabrir',   [\App\Http\Controllers\PaymentPeriodController::class, 'reopen'])->name('periods.reopen')->whereNumber('period');
+    // Editar / borrar un periodo (corregir o quitar uno abierto por error). Borrar solo si está vacío.
+    Route::get('/periodos/{period}/editar',     [\App\Http\Controllers\PaymentPeriodController::class, 'edit'])->name('periods.edit')->whereNumber('period');
+    Route::put('/periodos/{period}',            [\App\Http\Controllers\PaymentPeriodController::class, 'update'])->name('periods.update')->whereNumber('period');
+    Route::delete('/periodos/{period}',         [\App\Http\Controllers\PaymentPeriodController::class, 'destroy'])->name('periods.destroy')->whereNumber('period');
+    Route::post('/payees/contratos/{contract}/frecuencia', [\App\Http\Controllers\PaymentPeriodController::class, 'setFrequency'])->name('periods.contract.frequency')->whereNumber('contract');
+});
+
+// ---- EL CONTRATO · PASO B: EL DOCUMENTO ----
+// Biblioteca de clausulados (config de la productora → settings.manage, SIN permiso nuevo).
+Route::middleware(['auth','permission:settings.manage'])->group(function () {
+    Route::get('/contratos/clausulados',                       [\App\Http\Controllers\ContractClauseController::class, 'index'])->name('contracts.clauses.index');
+    Route::post('/contratos/clausulados',                      [\App\Http\Controllers\ContractClauseController::class, 'store'])->name('contracts.clauses.store');
+    Route::post('/contratos/clausulados/{clause}/toggle',      [\App\Http\Controllers\ContractClauseController::class, 'toggle'])->name('contracts.clauses.toggle')->whereNumber('clause');
+    Route::get('/contratos/clausulados/{clause}/descargar',    [\App\Http\Controllers\ContractClauseController::class, 'download'])->name('contracts.clauses.download')->whereNumber('clause');
+});
+// Emitir + carátula: MISMA guarda del payee (PayeePolicy capture/view, dentro del controlador). Sin permiso nuevo.
+Route::middleware(['auth'])->group(function () {
+    Route::post('/contratos/{contract}/emitir',   [\App\Http\Controllers\ContractController::class, 'emit'])->name('contracts.emit')->whereNumber('contract');
+    Route::get('/contratos/{contract}/caratula',  [\App\Http\Controllers\ContractController::class, 'caratula'])->name('contracts.caratula')->whereNumber('contract');
+});
+
+// ---- EL CONTRATO · PASO C: EL SOBRE Y LA RUTA DE FIRMA ----
+// Biblioteca de anexos + config de la ruta (config de la productora → settings.manage).
+Route::middleware(['auth','permission:settings.manage'])->group(function () {
+    Route::get('/contratos/anexos',                     [\App\Http\Controllers\ContractAnnexController::class, 'index'])->name('contracts.annexes.index');
+    Route::post('/contratos/anexos',                    [\App\Http\Controllers\ContractAnnexController::class, 'store'])->name('contracts.annexes.store');
+    Route::post('/contratos/anexos/{annex}/toggle',     [\App\Http\Controllers\ContractAnnexController::class, 'toggle'])->name('contracts.annexes.toggle')->whereNumber('annex');
+    Route::get('/contratos/anexos/{annex}/descargar',   [\App\Http\Controllers\ContractAnnexController::class, 'download'])->name('contracts.annexes.download')->whereNumber('annex');
+    Route::get('/contratos/ruta-config',                [\App\Http\Controllers\ContractEnvelopeController::class, 'editConfig'])->name('contracts.route.config');
+    Route::post('/contratos/ruta-config',               [\App\Http\Controllers\ContractEnvelopeController::class, 'updateConfig'])->name('contracts.route.config.update');
+
+});
+
+// CONTRACT BUILDER · editor de plantillas — gated a `contracts.author` (Line Producer / representante
+// legal), NO a settings.manage: el contenido LEGAL del contrato es de la productora; CrewCare solo
+// ensambla, numera y estampa firmas (ver contract-builder-legal-boundary).
+Route::middleware(['auth', 'permission:contracts.author'])->group(function () {
+    Route::get('/contratos/plantillas',                    [\App\Http\Controllers\ContractTemplateController::class, 'index'])->name('contracts.templates.index');
+    Route::get('/contratos/plantillas/nueva',              [\App\Http\Controllers\ContractTemplateController::class, 'create'])->name('contracts.templates.create');
+    Route::post('/contratos/plantillas',                   [\App\Http\Controllers\ContractTemplateController::class, 'store'])->name('contracts.templates.store');
+    Route::post('/contratos/plantillas-preview',           [\App\Http\Controllers\ContractTemplateController::class, 'preview'])->name('contracts.templates.preview');
+    // PDF FILLABLE — segundo modo: subir el PDF ya redactado y colocar las etiquetas (firmas + datos).
+    Route::get('/contratos/plantillas/nueva-pdf',          [\App\Http\Controllers\ContractTemplateController::class, 'createPdf'])->name('contracts.templates.create_pdf');
+    Route::post('/contratos/plantillas-pdf',               [\App\Http\Controllers\ContractTemplateController::class, 'storePdf'])->name('contracts.templates.store_pdf');
+    Route::get('/contratos/plantillas/{template}/archivo', [\App\Http\Controllers\ContractTemplateController::class, 'pdfFile'])->name('contracts.templates.pdf_file')->whereNumber('template');
+    Route::post('/contratos/plantillas/{template}/preview', [\App\Http\Controllers\ContractTemplateController::class, 'pdfPreview'])->name('contracts.templates.pdf_preview')->whereNumber('template');
+    Route::get('/contratos/plantillas/{template}',         [\App\Http\Controllers\ContractTemplateController::class, 'edit'])->name('contracts.templates.edit')->whereNumber('template');
+    Route::put('/contratos/plantillas/{template}',         [\App\Http\Controllers\ContractTemplateController::class, 'update'])->name('contracts.templates.update')->whereNumber('template');
+    Route::post('/contratos/plantillas/{template}/toggle', [\App\Http\Controllers\ContractTemplateController::class, 'toggle'])->name('contracts.templates.toggle')->whereNumber('template');
+});
+// PREVISUALIZACIÓN de correos transaccionales (100% código → revisar el render antes de enviar). No envía nada.
+Route::middleware(['auth','permission:settings.manage'])->group(function () {
+    Route::get('/correos/preview',        [\App\Http\Controllers\EmailPreviewController::class, 'index'])->name('emails.preview.index');
+    Route::get('/correos/preview/{view}', [\App\Http\Controllers\EmailPreviewController::class, 'show'])->name('emails.preview.show')->where('view', '[a-z0-9-]+');
+});
+// El SOBRE: crear/enviar/ver/cancelar/servir doc — misma guarda del payee (dentro del controlador).
+Route::middleware(['auth'])->group(function () {
+    Route::post('/contratos/{contract}/sobre',          [\App\Http\Controllers\ContractEnvelopeController::class, 'store'])->name('contracts.envelope.store')->whereNumber('contract');
+    Route::get('/contratos/sobre/{envelope}',           [\App\Http\Controllers\ContractEnvelopeController::class, 'show'])->name('contracts.envelope.show')->whereNumber('envelope');
+    Route::post('/contratos/sobre/{envelope}/enviar',   [\App\Http\Controllers\ContractEnvelopeController::class, 'send'])->name('contracts.envelope.send')->whereNumber('envelope');
+    Route::post('/contratos/sobre/{envelope}/reenviar', [\App\Http\Controllers\ContractEnvelopeController::class, 'resend'])->name('contracts.envelope.resend')->whereNumber('envelope');
+    Route::post('/contratos/sobre/{envelope}/cancelar', [\App\Http\Controllers\ContractEnvelopeController::class, 'cancel'])->name('contracts.envelope.cancel')->whereNumber('envelope');
+    Route::post('/contratos/sobre/{envelope}/copia',              [\App\Http\Controllers\ContractEnvelopeController::class, 'addCopy'])->name('contracts.envelope.copy.add')->whereNumber('envelope');
+    Route::delete('/contratos/sobre/{envelope}/copia/{recipient}', [\App\Http\Controllers\ContractEnvelopeController::class, 'removeCopy'])->name('contracts.envelope.copy.remove')->whereNumber('envelope')->whereNumber('recipient');
+    Route::get('/contratos/sobre/{envelope}/doc/{index}', [\App\Http\Controllers\ContractEnvelopeController::class, 'document'])->name('contracts.envelope.document')->whereNumber('envelope')->whereNumber('index');
+    // FASE 1c — el contrato ARMADO con la plantilla activa + las firmas reales del sobre (estampadas).
+    Route::get('/contratos/sobre/{envelope}/plantilla', [\App\Http\Controllers\ContractEnvelopeController::class, 'templateDocument'])->name('contracts.envelope.template')->whereNumber('envelope');
+    // FASE 3 — el CONTRATO FIRMADO congelado (PDF con autógrafas), servido byte-intact del disco.
+    Route::get('/contratos/sobre/{envelope}/firmado',   [\App\Http\Controllers\ContractEnvelopeController::class, 'signedDocument'])->name('contracts.envelope.signed')->whereNumber('envelope');
+    // Cada ANEXO firmado del sobre (plantilla-anexo estampada), servido del disco privado.
+    Route::get('/contratos/sobre/{envelope}/anexo-firmado/{index}', [\App\Http\Controllers\ContractEnvelopeController::class, 'signedAnnex'])->name('contracts.envelope.signed_annex')->whereNumber('envelope')->whereNumber('index');
+    // FASE 3c — el CERTIFICADO DE CIERRE (constancia del proceso de firma). HTML, o ?pdf=1 para PDF.
+    Route::get('/contratos/sobre/{envelope}/certificado', [\App\Http\Controllers\ContractEnvelopeController::class, 'certificate'])->name('contracts.envelope.certificate')->whereNumber('envelope');
+
+    // CONSULTA de contratos (SOLO LECTURA), por departamento. Prod/Oficina de Prod/Contabilidad ven
+    // todo; cada depto ve lo suyo (App\Support\ContractVisibility). Sin acciones de administración.
+    Route::get('/contratos/consultar', [\App\Http\Controllers\ContractConsultController::class, 'index'])->name('contracts.consult.index');
+
+    // FIRMAS PENDIENTES (la "cola" de firmas a escala). Bandeja personal (auto-limitada al propio
+    // usuario) + lote detrás del flag; el TABLERO por figura es de administración (settings.manage).
+    Route::get('/contratos/firmas-pendientes',       [\App\Http\Controllers\PendingSignatureController::class, 'index'])->name('contracts.pending.index');
+    Route::post('/contratos/firmas-pendientes/lote', [\App\Http\Controllers\PendingSignatureController::class, 'batch'])->name('contracts.pending.batch');
+    Route::get('/contratos/firmas-por-figura',       [\App\Http\Controllers\PendingSignatureController::class, 'board'])->middleware('permission:settings.manage')->name('contracts.pending.board');
+});
+// FIRMAR: enlace FIRMADO por destinatario (el contratado firma sin sesión, con 2º factor).
+Route::middleware(['signed','throttle:30,1'])->group(function () {
+    Route::get('/contratos/firma/{recipient}',              [\App\Http\Controllers\ContractSignController::class, 'show'])->name('contracts.sign.show')->whereNumber('recipient');
+    Route::post('/contratos/firma/{recipient}/verificar',   [\App\Http\Controllers\ContractSignController::class, 'verify'])->name('contracts.sign.verify')->whereNumber('recipient');
+    Route::post('/contratos/firma/{recipient}/firmar',      [\App\Http\Controllers\ContractSignController::class, 'sign'])->name('contracts.sign.do')->whereNumber('recipient');
+    Route::post('/contratos/firma/{recipient}/rechazar',    [\App\Http\Controllers\ContractSignController::class, 'decline'])->name('contracts.sign.decline')->whereNumber('recipient');
+    Route::get('/contratos/firma/{recipient}/doc/{index}',  [\App\Http\Controllers\ContractSignController::class, 'document'])->name('contracts.sign.document')->whereNumber('recipient')->whereNumber('index');
+    // CEREMONIA DocuSign-like: UNA plantilla (contrato o anexo) PDF ARMADA (estampada) para renderizar + firmar en pantalla.
+    Route::get('/contratos/firma/{recipient}/plantilla/{template}', [\App\Http\Controllers\ContractSignController::class, 'template'])->name('contracts.sign.template')->whereNumber('recipient')->whereNumber('template');
+});
+
+// ACCESO EXTERNO (no-crew): enlace de UN SOLO USO (hash) que lleva al contratado externo a su firma.
+// El token ES la credencial → público (sin sesión), acotado por throttle.
+Route::middleware(['throttle:30,1'])->group(function () {
+    Route::get('/acceso/{token}', [\App\Http\Controllers\ExternalAccessController::class, 'enter'])
+        ->name('external.access')->where('token', '[A-Za-z0-9]{16,64}');
 });
 
 // ---- Pilar 1: Progressive Disclosure — Fase 2 (edit/update de compliance en back-office) ----

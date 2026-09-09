@@ -1,0 +1,280 @@
+<?php
+
+namespace Tests\Feature\Contract;
+
+use App\Models\ContractTemplate;
+use App\Support\CurrentProduction;
+use Illuminate\Support\Facades\DB;
+use Tests\QaTestCase;
+
+/**
+ * CONTRACT BUILDER · editor de plantillas. Gating, persistencia y el PREVIEW (campos llenos +
+ * anclas estampadas con firma de muestra).
+ */
+class ContractTemplateTest extends QaTestCase
+{
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $pid = DB::table('productions')->min('id');
+        DB::table('productions')->where('id', $pid)->update(['active' => 1]);
+        CurrentProduction::forget();
+    }
+
+    public function test_builder_gated_to_contracts_author(): void
+    {
+        // Abierto a quien REDACTA contratos: Line Producer y representante-legal.
+        $this->actingAs($this->makeUser('line-producer'));
+        $this->get(route('contracts.templates.index'))->assertOk();
+
+        $repLegal = $this->makeUser('representante-legal');
+        $this->actingAs($repLegal);
+        $this->get(route('contracts.templates.index'))->assertOk();
+        // La figura legal también FIRMA documentos (requisito del owner).
+        $this->assertTrue($repLegal->can('documents.sign'), 'representante-legal firma documentos');
+
+        // Cerrado a los demás: crew y coordinator NO tienen contracts.author.
+        $this->actingAs($this->makeUser('crew'));
+        $this->get(route('contracts.templates.index'))->assertForbidden();
+
+        $this->actingAs($this->makeUser('coordinator'));
+        $this->get(route('contracts.templates.index'))->assertForbidden();
+    }
+
+    public function test_store_and_update_persist(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        $this->post(route('contracts.templates.store'), [
+            'name' => 'Contrato crew', 'applies_to' => ['crew_work'],
+            'body' => '<p>Hola {{payee_nombre}}</p>', 'is_active' => 1,
+        ])->assertRedirect();
+
+        $tpl = ContractTemplate::firstWhere('name', 'Contrato crew');
+        $this->assertNotNull($tpl);
+        $this->assertTrue($tpl->is_active);
+        $this->assertEqualsCanonicalizing(['crew_work'], $tpl->applies_to);
+
+        $this->put(route('contracts.templates.update', $tpl), [
+            'name' => 'Contrato crew v2', 'applies_to' => ['crew_work', 'service'], 'body' => '<p>x</p>',
+        ])->assertRedirect();
+
+        $fresh = $tpl->fresh();
+        $this->assertSame('Contrato crew v2', $fresh->name);
+        $this->assertFalse($fresh->is_active, 'sin is_active en el PUT → queda inactiva');
+        $this->assertEqualsCanonicalizing(['crew_work', 'service'], $fresh->applies_to);
+    }
+
+    public function test_html_template_persists_sanitized_field_map(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        $fieldMap = json_encode([
+            ['page' => 1, 'x_pct' => 66, 'y_pct' => 6,  'w_pct' => 24, 'type' => 'sign', 'key' => 'rubrica'],
+            ['page' => 1, 'x_pct' => 15, 'y_pct' => 62, 'w_pct' => 30, 'type' => 'sign', 'key' => 'contratado'],
+            ['page' => 1, 'x_pct' => 62, 'y_pct' => 64, 'w_pct' => 28, 'type' => 'data', 'key' => 'fecha_hoy'],
+            ['page' => 1, 'x_pct' => 5,  'y_pct' => 5,  'w_pct' => 20, 'type' => 'sign', 'key' => 'inventado'],   // inválida → se descarta
+        ]);
+
+        $this->post(route('contracts.templates.store'), [
+            'name' => 'Contrato con campos', 'applies_to' => ['crew_work'],
+            'body' => '<p>{{payee_nombre}}</p>', 'field_map' => $fieldMap, 'is_active' => 1,
+        ])->assertRedirect();
+
+        $tpl = ContractTemplate::firstWhere('name', 'Contrato con campos');
+        $this->assertNotNull($tpl);
+        $this->assertCount(3, $tpl->field_map, 'guarda las 3 válidas, descarta la clave inventada');
+        $keys = collect($tpl->field_map)->pluck('key')->all();
+        $this->assertContains('rubrica', $keys);
+        $this->assertContains('contratado', $keys);
+        $this->assertContains('fecha_hoy', $keys);
+        $this->assertNotContains('inventado', $keys);
+    }
+
+    public function test_preview_fills_fields_and_stamps_signatures(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        $body = '<p>{{payee_nombre}} — {{honorarios}}</p><div>[[firma:contratado]]</div>';
+        $res  = $this->post(route('contracts.templates.preview'), ['body' => $body]);
+        $res->assertOk();
+        $html = $res->getContent();
+
+        $this->assertStringContainsString('Juan Pérez López', $html, 'el campo se llenó');
+        $this->assertStringNotContainsString('{{payee_nombre}}', $html, 'no queda token crudo');
+        $this->assertStringNotContainsString('[[firma:contratado]]', $html, 'no queda ancla cruda');
+        $this->assertStringContainsString('cc-sig-stamp', $html, 'la firma se estampó');
+    }
+
+    public function test_create_preloads_scaffold_for_chosen_format(): void
+    {
+        $this->actingAs($this->makeUser('line-producer'));
+
+        $res = $this->get(route('contracts.templates.create', ['arch' => 'field_sheet']));
+        $res->assertOk();
+        $res->assertSee('actividades empresariales');          // andamiaje real de la ficha (C)
+        $res->assertSee('id="tplArch"', false);                // el selector de formato existe
+        $res->assertSee('id="tplCanvas"', false);              // canvas Word-lite (WYSIWYG)
+        $res->assertSee('cc-toolbar', false);                  // barra de formato
+        $res->assertSee('cc-page', false);                     // la hoja (modo documento)
+        $res->assertSee('id="tplPageSize"', false);            // selector de tamaño de página
+    }
+
+    public function test_store_persists_page_size(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        $this->post(route('contracts.templates.store'), [
+            'name' => 'Contrato oficio', 'applies_to' => ['crew_work'],
+            'page_size' => 'legal', 'body' => '<p>x</p>', 'is_active' => 1,
+        ])->assertRedirect();
+
+        $this->assertSame('legal', ContractTemplate::firstWhere('name', 'Contrato oficio')->page_size);
+    }
+
+    public function test_preview_sets_page_size(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        $legal = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>', 'page_size' => 'legal']);
+        $legal->assertOk();
+        $this->assertStringContainsString('size:216mm 356mm', $legal->getContent(), 'Oficio/Legal');
+
+        // tamaño inválido -> se normaliza a carta
+        $carta = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>', 'page_size' => 'bogus']);
+        $this->assertStringContainsString('size:216mm 279mm', $carta->getContent(), 'default Carta');
+    }
+
+    public function test_store_persists_architecture(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        $this->post(route('contracts.templates.store'), [
+            'name' => 'Ficha K&K', 'applies_to' => ['crew_work'],
+            'architecture' => 'field_sheet', 'body' => '<p>{{payee_nombre}}</p>', 'is_active' => 1,
+        ])->assertRedirect();
+
+        $tpl = ContractTemplate::firstWhere('name', 'Ficha K&K');
+        $this->assertSame('field_sheet', $tpl->architecture);
+        $this->assertFalse($tpl->bilingual);
+    }
+
+    public function test_initials_each_page_persists_but_render_defers_to_coordinates(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        // La bandera SIGUE persistiendo (la usará inc.3c-2 para las iniciales por coordenadas).
+        $this->post(route('contracts.templates.store'), [
+            'name' => 'Con rúbrica', 'applies_to' => ['crew_work'],
+            'initials_each_page' => 1, 'body' => '<p>x</p>', 'is_active' => 1,
+        ])->assertRedirect();
+        $this->assertTrue(ContractTemplate::firstWhere('name', 'Con rúbrica')->initials_each_page);
+
+        // …pero el render base YA NO pinta la rúbrica fija: en impresión de Chrome un position:fixed
+        // tapa el texto y se repite en la hoja de Firmas (duplicado). Se difiere a inc.3c-2.
+        $on = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>', 'initials_each_page' => 1]);
+        $on->assertOk();
+        $this->assertStringNotContainsString('cc-rubrica', $on->getContent(), 'sin rúbrica fija (diferida a 3c-2)');
+    }
+
+    public function test_rubrica_is_an_anchor_placed_by_hand_and_renders_compact(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        // El redactor la encuentra en el menú "Insertar firma".
+        $this->get(route('contracts.templates.create'))->assertSee('Rúbrica');
+
+        // Colocada a mano, se estampa COMPACTA (no el sello grande) y se resuelve.
+        $res  = $this->post(route('contracts.templates.preview'), ['body' => '<p>[[firma:rubrica]]</p>']);
+        $res->assertOk();
+        $html = $res->getContent();
+        $this->assertStringContainsString('cc-rubrica-stamp', $html, 'rúbrica compacta');
+        $this->assertStringNotContainsString('cc-sig-stamp', $html, 'la rúbrica NO usa el sello grande con hash');
+        $this->assertStringNotContainsString('[[firma:rubrica]]', $html, 'ancla resuelta');
+
+        // Movida libremente: [[firma:rubrica|dx,dy]] → transform:translate en el estampado.
+        $moved = $this->post(route('contracts.templates.preview'), ['body' => '<p>[[firma:rubrica|70,-45]]</p>']);
+        $moved->assertOk();
+        $this->assertStringContainsString('transform:translate(70px,-45px)', $moved->getContent(), 'la rúbrica conserva su desplazamiento');
+        // Sin offset no debe meter transform.
+        $this->assertStringNotContainsString('transform:translate', $html, 'sin offset, sin transform');
+    }
+
+    public function test_font_family_persists_and_preview_applies_it(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        // Fuentes UNIVERSALES nombradas (Arial/…/Georgia/Courier New/…). 'georgia' persiste tal cual.
+        $this->post(route('contracts.templates.store'), [
+            'name' => 'Con fuente', 'applies_to' => ['crew_work'],
+            'font_family' => 'georgia', 'font_size' => '10', 'body' => '<p>x</p>', 'is_active' => 1,
+        ])->assertRedirect();
+        $tpl = ContractTemplate::firstWhere('name', 'Con fuente');
+        $this->assertSame('georgia', $tpl->font_family);
+        $this->assertSame('10', $tpl->font_size);
+
+        // georgia+10pt → Georgia y 10pt; default (Courier New, 9pt) → Courier New y 9pt.
+        $g = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>', 'font_family' => 'georgia', 'font_size' => '10']);
+        $this->assertStringContainsString('font-family:Georgia', $g->getContent());
+        $this->assertStringContainsString('font-size:10pt', $g->getContent());
+        $mono = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>']);
+        $this->assertStringContainsString('Courier New', $mono->getContent(), 'default = Courier New');
+        $this->assertStringContainsString('font-size:9pt', $mono->getContent(), 'default 9pt (corpus)');
+        $this->assertStringNotContainsString('font-family:Georgia', $mono->getContent());
+
+        // Compat: el valor viejo 'mono' se resuelve a Courier New (alias).
+        $legacy = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>', 'font_family' => 'mono']);
+        $this->assertStringContainsString('Courier New', $legacy->getContent(), 'alias mono→Courier New');
+    }
+
+    public function test_preview_fragment_returns_inner_only(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        // fragment=1 → el paginador del cliente mide ESTO (sin `<style>`/`@page`).
+        $res = $this->post(route('contracts.templates.preview'), ['body' => '<p>{{payee_nombre}}</p>', 'fragment' => 1]);
+        $res->assertOk();
+        $html = $res->getContent();
+        $this->assertStringContainsString('Juan Pérez López', $html, 'campo lleno');
+        $this->assertStringNotContainsString('@page', $html, 'el fragmento no lleva @page');
+        $this->assertStringNotContainsString('<style', $html, 'el fragmento no lleva estilos');
+    }
+
+    public function test_preview_applies_format_css(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        // declarations → CSS justificado (distintivo de ese formato)
+        $res = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>', 'architecture' => 'declarations']);
+        $res->assertOk();
+        $this->assertStringContainsString('text-align:justify', $res->getContent());
+
+        // formato inválido → se normaliza al default (carátula), sin el CSS de declaraciones
+        $res2 = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>', 'architecture' => 'bogus']);
+        $res2->assertOk();
+        $this->assertStringNotContainsString('text-align:justify', $res2->getContent());
+    }
+
+    public function test_bilingual_architectures_load_scaffold_persist_and_apply_css(): void
+    {
+        $this->actingAs($this->makeUser('super-admin'));
+
+        // create con ?arch= precarga el andamiaje bilingüe (doble columna EN|ES).
+        $res = $this->get(route('contracts.templates.create', ['arch' => 'bilingual_crew']));
+        $res->assertOk();
+        $res->assertSee('FRONT PAGE');   // encabezado EN del andamiaje bilingüe
+        $res->assertSee('CARÁTULA');     // encabezado ES
+
+        // El preview aplica el CSS del formato bilingüe (clase .bili de doble columna).
+        $prev = $this->post(route('contracts.templates.preview'), ['body' => '<p>x</p>', 'architecture' => 'bilingual_vendor']);
+        $prev->assertOk();
+        $this->assertStringContainsString('.bili', $prev->getContent());
+
+        // Persiste como arquitectura válida (no cae al default).
+        $this->post(route('contracts.templates.store'), [
+            'name' => 'Bilingüe crew', 'applies_to' => ['crew_work'],
+            'architecture' => 'bilingual_crew', 'body' => '<p>x</p>', 'is_active' => 1,
+        ])->assertRedirect();
+        $this->assertSame('bilingual_crew', ContractTemplate::firstWhere('name', 'Bilingüe crew')->architecture);
+    }
+}

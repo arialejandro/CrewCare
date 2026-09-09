@@ -25,6 +25,36 @@ use Illuminate\Support\Facades\Schema;
 trait HasDigitalSignatures
 {
     /**
+     * (2026-09-05 · Integridad) INVARIANTE: un documento SELLADO no se borra en duro. La firma es la
+     * evidencia de que el documento no cambió; borrar el documento la dejaría huérfana (y borrarla en
+     * cascada destruiría la evidencia). La doctrina del owner (append-only) deja de ser costumbre y pasa
+     * a ser regla del código: si tiene firma, el borrado se NIEGA con un mensaje claro. Quien de verdad
+     * tenga que borrarlo tendrá que hacerlo a mano en la base — justo donde debe costar trabajo.
+     *
+     * Solo bloquea el HARD delete: un modelo con SoftDeletes puede ARCHIVARSE (soft-delete), porque ahí
+     * la fila y su firma sobreviven; solo el forceDelete se niega. NO alcanza los borrados MASIVOS por
+     * query (`Model::where(...)->delete()` / `$rel->delete()`): Eloquent no dispara `deleting` en esos.
+     * Es a propósito acotado al borrado de una INSTANCIA, que es por donde la app borra documentos sueltos.
+     */
+    protected static function bootHasDigitalSignatures(): void
+    {
+        static::deleting(function ($model) {
+            // Con SoftDeletes: permitir el archivado (soft); negar solo el hard/force delete.
+            if (method_exists($model, 'isForceDeleting') && ! $model->isForceDeleting()) {
+                return;
+            }
+            if (Schema::hasTable('digital_signatures') && $model->signatures()->exists()) {
+                throw new \RuntimeException(
+                    'No se puede borrar en duro un documento SELLADO (' . class_basename($model) . ' #' . $model->getKey()
+                    . '): su firma digital es evidencia de integridad y quedaría huérfana. La doctrina es append-only'
+                    . ' — retíralo con su bandera de estado (is_active / cierre) o, si de verdad hay que borrarlo,'
+                    . ' hazlo directo en la base.'
+                );
+            }
+        });
+    }
+
+    /**
      * Firmas digitales de este documento (morphMany polimórfica).
      */
     public function signatures()
@@ -35,7 +65,8 @@ trait HasDigitalSignatures
     /**
      * Payload DETERMINISTA para hashear. Toma attributesToArray(), elimina claves
      * volátiles (created_at/updated_at/uuid) y cualquier clave de $signatureExcludes,
-     * luego ordena recursivamente por clave (ksort recursivo). Sobreescribible.
+     * aplica las exclusiones CONDICIONALES EN NULL (const NULLABLE_HASH_EXCLUDES del
+     * modelo), luego ordena recursivamente por clave (ksort recursivo). Sobreescribible.
      *
      * @return array
      */
@@ -43,6 +74,7 @@ trait HasDigitalSignatures
     {
         $payload = $this->attributesToArray();
 
+        // Exclusiones INCONDICIONALES: volátiles + $signatureExcludes (fuera SIEMPRE).
         $volatile = ['created_at', 'updated_at', 'uuid'];
         if (isset($this->signatureExcludes) && is_array($this->signatureExcludes)) {
             $volatile = array_merge($volatile, $this->signatureExcludes);
@@ -51,21 +83,62 @@ trait HasDigitalSignatures
             unset($payload[$key]);
         }
 
+        // Exclusiones CONDICIONALES EN NULL (const NULLABLE_HASH_EXCLUDES del modelo): la columna
+        // sale del hash SOLO cuando su valor es null. Así una columna añadida DESPUÉS de que ya
+        // había filas selladas no mueve su hash (la traían en null → se excluye), pero en cuanto
+        // lleva valor SÍ se sella (queda cubierta contra manipulación). Patrón PROMOVIDO a la base
+        // (2026-09-05, Unidades P1) desde el override que ya vivía en DailyReport / unsafecond /
+        // hazardnotification / HealthRecordAddendum. Esos modelos SOBRESCRIBEN este método y aplican
+        // su propia const en su override, así que NO pasan por aquí (no hay doble exclusión);
+        // IssuedPermit sí pasa, porque su override delega en este método vía alias.
+        foreach ($this->nullableHashExcludes() as $key) {
+            if (array_key_exists($key, $payload) && $payload[$key] === null) {
+                unset($payload[$key]);
+            }
+        }
+
         $this->ksortRecursive($payload);
 
         return $payload;
     }
 
     /**
-     * SHA-256 del payload canónico (JSON estable).
+     * Columnas a excluir del hash SOLO cuando son null. Fuente: la const NULLABLE_HASH_EXCLUDES del
+     * modelo si la declara; [] si no. Sin la const este método es no-op y el hash NO cambia — por eso
+     * promover el patrón al trait no altera el sello de ningún modelo que no declare la const.
+     *
+     * @return array
+     */
+    protected function nullableHashExcludes(): array
+    {
+        if (defined(static::class . '::NULLABLE_HASH_EXCLUDES')) {
+            $list = constant(static::class . '::NULLABLE_HASH_EXCLUDES');
+
+            return is_array($list) ? $list : [];
+        }
+
+        return [];
+    }
+
+    /**
+     * HMAC-SHA256 (clave dedicada) del payload canónico (JSON estable).
+     *
+     * Antes era hash('sha256', ...) SIN clave: el sello era reproducible por
+     * cualquiera que conociera el payload → se podía fabricar. Ahora es HMAC con
+     * `config('crewcare.seal.key')` (CREWCARE_SEAL_KEY). Fallback a app.key (siempre
+     * presente) si la clave dedicada no está configurada, para no volver NUNCA a un
+     * hash sin clave. Verificar y sellar usan este mismo método → misma clave, casan.
      *
      * @return string
      */
     public function computeDocumentHash(): string
     {
-        return hash(
+        $key = (string) (config('crewcare.seal.key') ?: config('app.key'));
+
+        return hash_hmac(
             'sha256',
-            json_encode($this->canonicalSignaturePayload(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+            json_encode($this->canonicalSignaturePayload(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            $key
         );
     }
 

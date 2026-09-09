@@ -14,6 +14,10 @@ class Kernel extends ConsoleKernel
      */
     protected $commands = [
         Commands\CrewWelcomeResend::class,
+        Commands\DispatchFileDeliveries::class,
+        Commands\StampSignatureTimestamps::class,
+        Commands\PruneClinicalReadLogs::class,
+        Commands\AnnouncePeriodOpenings::class,
     ];
 
     /**
@@ -36,6 +40,32 @@ class Kernel extends ConsoleKernel
         //
         // ⚠ DEPLOY: el VPS puede seguir corriendo `php artisan schedule:run`; ya no hace nada.
         // No lo quites por si mañana se agenda algo aquí.
+
+        // (2026-08-24) ENVÍO DE ARCHIVOS CON MARCA DE AGUA — drena el outbox cada minuto. El request
+        // solo ENCOLA (más una ráfaga inline chica); este cron manda el resto FLUIDO y sin perderse.
+        // `withoutOverlapping` evita que dos corridas pisen las mismas filas (además del reclamo
+        // atómico del despachador). Inofensivo si no hay nada encolado.
+        $schedule->command('deliveries:dispatch')->everyMinute()->withoutOverlapping();
+
+        // (2026-08-30) SELLO DE TIEMPO TSA (RFC 3161). Timbra en freeTSA los sellos que aún no
+        // tienen token, best-effort. NO bloquea el sellado (eso ya ocurrió); si freeTSA no
+        // responde, reintenta en la siguiente corrida. Cubre sellos nuevos Y viejos (retroactivo).
+        $schedule->command('tsa:stamp')->everyFiveMinutes()->withoutOverlapping();
+
+        // (2026-08-30) Retención de la bitácora de lectura clínica: poda mensual lo mayor a 3 años.
+        $schedule->command('clinical-log:prune')->monthlyOn(1, '03:30');
+
+        // (2026-09-05) CALENDARIO · aviso de apertura de ventana — una vez al día avisa por correo los
+        // periodos cuya ventana abre HOY (idempotente por announced_at). El "doble en cambio de mes"
+        // lo resuelve el propio comando. NO sustituye el recordatorio manual del tablero.
+        $schedule->command('periods:announce')->dailyAt('07:00')->withoutOverlapping();
+
+        // (2026-08-30 · estabilidad) LATIDO del cron: cada minuto deja una marca fresca que el
+        // healthcheck (/healthz) lee. Si `schedule:run` deja de correr, la marca envejece y /healthz
+        // reporta 'stale' → el monitor alerta. Es la forma de saber que el cron sigue vivo.
+        $schedule->call(function () {
+            \Illuminate\Support\Facades\Cache::put('cron_heartbeat', now()->timestamp, 3600);
+        })->everyMinute()->name('cron-heartbeat');
     }
 
     /**

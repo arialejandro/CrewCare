@@ -32,6 +32,7 @@ class hazardnotification extends Model
     ];
 
     protected $fillable = [
+        'unit_id',   // (2026-09-07 · Unidades 2b) unidad del acto inseguro; NULL = principal
         'production_name',
         'name_loc',
         // (2026-07-07) GPS opcional: coordenadas + dirección detectada (reverse geocoding).
@@ -93,7 +94,10 @@ class hazardnotification extends Model
      * cambia y el reporte NO se marca "ALTERADO" (req 7). Cuando llevan valor (reportes nuevos)
      * SÍ entran al hash → quedan protegidas contra manipulación.
      */
-    const NULLABLE_HASH_EXCLUDES = ['scouting_report_id', 'involved_user_id', 'related_unsafecond_id', 'human_factor'];
+    // (2026-09-05 · Unidades P1) `unit_id` y `production_id` se suman a la exclusión-en-null. Esta tabla
+    // NO tenía `production_id` (se aislaba solo por autor): se siembra en la misma pasada, en null para
+    // todo lo existente → fuera del hash → los 6 sellos no cambian. El filtro por autor NO se toca.
+    const NULLABLE_HASH_EXCLUDES = ['scouting_report_id', 'involved_user_id', 'related_unsafecond_id', 'human_factor', 'unit_id', 'production_id'];
 
     /**
      * (2026-07-24) FACTOR HUMANO del acto inseguro — el "por qué" de la conducta. Fuente ÚNICA

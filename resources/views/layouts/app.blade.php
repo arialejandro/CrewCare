@@ -13,40 +13,40 @@
 
     <!-- Scripts -->
     <link rel="stylesheet" href="{{ asset("css/form-register.css") }}">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
+    {{-- CSP/local: Bootstrap 5.1.3 CSS servido desde 'self' (antes jsdelivr). Misma versión. --}}
+    <link href="{{ asset('vendor/bootstrap/css/bootstrap-5.1.3.min.css') }}" rel="stylesheet">
+    {{-- bootstrap-icons RETIRADO: 0 usos de `bi-*` en vistas vivas (era una carga de CDN muerta). --}}
+    {{-- CSP/local: Bootstrap 5.1.3 bundle (incluye Popper) servido desde 'self' (antes jsdelivr). Misma versión. --}}
+    <script src="{{ asset('js/vendor/bootstrap-5.1.3.bundle.min.js') }}"></script>
     <script src="{{ asset('js/app.js') }}"></script>
+    {{-- CSP: oculta <img data-hide-on-error> rotas sin onerror inline (same-origin, en <head>). --}}
+    <script src="/js/img-fallback.js"></script>
     {{-- TinyMCE removido temporalmente (se reintroduce con el módulo de correos masivos) --}}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {{-- CSP/local: Chart.js servido desde 'self' (antes jsdelivr sin pin → 4.5.x). Fijado a 4.5.1. --}}
+    <script src="{{ asset('js/vendor/chart-4.5.1.umd.min.js') }}"></script>
 
 
 
 
     <script src="{{ asset('js/a2hs.js') }}"></script>
 
-    <!-- Fonts -->
-    <link rel="dns-prefetch" href="//fonts.gstatic.com">
-    <link href="https://fonts.googleapis.com/css?family=Nunito" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <!-- Fonts · CSP/local: autoalojadas desde 'self' (antes Google Fonts). ui-fonts.css declara
+         Poppins (fuente de la UI) + Roboto Condensed (pósters/hero) + Roboto + las fuentes de firma;
+         reusa los .woff2 de /fonts/reports. Se RETIRARON Nunito, Lato y Material Icons: ningún CSS
+         cargado los aplicaba (fuentes muertas, verificado con document.fonts); el full-range de
+         Roboto tampoco se usaba. gstatic/googleapis quedan FUERA de la política. -->
+    <link rel="stylesheet" href="{{ asset('fonts/ui/ui-fonts.css') }}">
+    {{-- CSP/local: Font Awesome 6.7.2 (CSS + webfonts en ../webfonts) servido desde 'self' (antes cdnjs). --}}
+    <link href="{{ asset('vendor/fontawesome/css/all-6.7.2.min.css') }}" rel="stylesheet">
     
-    <script src="https://code.jquery.com/jquery-3.3.1.min.js"
-    integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
-    crossorigin="anonymous"></script>
-<!-- -------------- Fonts -------------- -->
+    {{-- CSP/local: jQuery servido desde 'self' (antes code.jquery.com 3.3.1). Actualizado a 3.7.1
+         (el 3.3.1 era de 2018). Misma posición de carga para no alterar el orden. --}}
+    <script src="{{ asset('js/vendor/jquery-3.7.1.min.js') }}"></script>
+{{-- Lato y los preconnect a Google Fonts ELIMINADOS: Lato no lo aplicaba ningún CSS cargado
+     (sólo el legado main.css, que no se enlaza) y las fuentes ya se autoalojan en ui-fonts.css. --}}
 
-<link href='https://fonts.googleapis.com/css?family=Lato:400,300,300italic,400italic,700,700italic' rel='stylesheet'
-          type='text/css'>
-          <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-{{-- Poppins duplicado ELIMINADO: ya se importa (junto con Roboto y display=swap) en el
-     <link> de arriba. Los preconnect se conservan para acelerar la carga de fuentes. --}}
-
-<!-- -------------- PWA -------------- -->
-@laravelPWA
-    <!-- PWA -->
+{{-- PWA: el paquete silviolleite/laravelpwa se retiró en el upgrade (era sólo el cascarón;
+     ver [[pwa-push-native-strategy]]). Una PWA propia (manifest + service worker) llegará después. --}}
 
     {{-- TEMA GLOBAL DE MARCA: variables CSS + puente a Bootstrap + utilidades .*-brand.
          Se incluye ANTES de @stack('styles') para que sea la base de toda la app y las
@@ -80,6 +80,10 @@
     @include('componentes._ambient')
 
             @include('layouts.header')
+
+        {{-- Franja de UNIDAD VIGENTE (Unidades 2b): grita cuando se trabaja fuera de la principal.
+             Sólo se pinta con más de una unidad y estando fuera de la principal → idéntico a hoy si no. --}}
+        @include('layouts._unit-banner')
 
         <div class="container-fluid">
             <div class="row">
@@ -118,9 +122,21 @@
              sidebar ya esté renderizado cuando su JS recolecte los enlaces (RBAC). --}}
         @include('componentes._command-palette')
 
+        {{-- Transportación (Fase 5): poll liviano + toast del contador de atención (self-guarded). --}}
+        @auth @include('layouts._transport-notify') @endauth
+
         {{-- Per-page scripts (additive): views push their JS here, after the layout's
              own JS (Bootstrap 5 bundle, jQuery, Chart.js, app.js) so dependencies exist. --}}
         @stack('scripts')
+
+        {{-- (2026-08-24) CONVERSIÓN HEIC EN CLIENTE, GLOBAL. Antes se incluía por página; ahora
+             engancha CUALQUIER <input type=file accept*=image> del sitio (idempotente: si una vista
+             vieja también lo incluye, no se duplica el listener). Un iPhone convierte su HEIC a JPEG
+             ANTES de subir → el servidor no lo ve. Los flujos con cableado manual (scouting/riskmap)
+             marcan sus inputs con data-cc-noauto. El servidor conserva su conversión (Imagick+libheif)
+             como respaldo y el rechazo accionable como último recurso. --}}
+        <script src="{{ asset('js/cc-photo.js') }}"></script>
+        <script src="{{ asset('js/cc-photo-auto.js') }}"></script>
     </body>
 
 </html>

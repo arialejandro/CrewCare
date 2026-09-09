@@ -21,6 +21,15 @@
     // EN DISCO, no sólo que la columna venga llena — hay filas que apuntan a un archivo que
     // ya no existe y ésas eran justo las que pintaban el icono roto.
     $__foto = \App\Support\Avatar::url($__u);
+    // FIRMAS PENDIENTES · conteo de la cola personal (badge). Cualquier firmante lo tiene, sin permiso
+    // especial; se auto-limita a lo que le toca. Cacheado por-request en PendingSignatures.
+    $__pendingSign = \Auth::check() ? \App\Support\PendingSignatures::countForUser((int) \Auth::id()) : 0;
+    // INFOSHEETS POR AUTORIZAR · conteo de la bandeja del autorizador (badge). Se auto-limita a lo que
+    // este usuario puede autorizar (canAuthorize); sin permiso especial. Cacheado por-request.
+    $__pendingAuth = \Auth::check() ? \App\Support\InfosheetSigning::countForUser(\Auth::user()) : 0;
+    // CONSULTA DE CONTRATOS · quién ve la entrada "Contratos" (por departamento). Producción / Oficina
+    // de Producción / Contabilidad y super-admin ven todo; cada depto ve lo suyo. Ver ContractVisibility.
+    $__seesContracts = \Auth::check() ? \App\Support\ContractVisibility::seesAny($__u) : false;
 @endphp
 
 <style>
@@ -182,7 +191,7 @@
     body.cc-rail .sidebar-expanded .cc-sec:hover > .cc-flyout { display: block; opacity: 1; transform: translateX(0); pointer-events: auto; }
 
     /* ---------- Pie: usuario + botón rail ---------- */
-    .cc-sb__foot { padding: .7rem .75rem; border-top: 1px solid var(--stroke); display: flex; align-items: center; gap: .6rem; }
+    .cc-sb__foot { padding: .7rem .75rem; border-top: 1px solid var(--stroke); display: flex; align-items: center; justify-content: flex-end; gap: .6rem; }
     .cc-sb__avatar {
         width: 34px; height: 34px; border-radius: 10px; flex: none; display: grid; place-items: center;
         font-weight: 700; font-size: .8rem;
@@ -226,7 +235,8 @@
                 <img src="{{ $__foto }}" alt="">
             </span>
             <span class="cc-sb__brand-txt">
-                <b>{{ __('nav.greeting') }} {{ $__u->name }}</b>
+                {{-- Nombre en CRÉDITOS (ncreditos); si faltara, cae a 1er nombre + 1er apellido. NUNCA el legal aquí. --}}
+                <b>{{ __('nav.greeting') }} {{ \App\Models\User::displayName($__u) }}</b>
                 <small>{{ $branding['app_title'] ?? 'CrewCare' }}</small>
             </span>
         </a>
@@ -252,29 +262,73 @@
                         @include('componentes._icon', ['name' => 'layout-dashboard', 'class' => 'cc-item__ico', 'label' => null])
                         <span>{{ __('nav.home') }}</span>
                     </a>
+                    @if(($__pendingSign ?? 0) > 0)
+                    <a href="{{ route('contracts.pending.index') }}" class="cc-item">
+                        @include('componentes._icon', ['name' => 'pencil', 'class' => 'cc-item__ico', 'label' => null])
+                        <span>{{ __('Contratos por firmar') }}</span>
+                        <span class="badge rounded-pill text-bg-primary ms-auto">{{ $__pendingSign }}</span>
+                    </a>
+                    @endif
+                    @if(($__pendingAuth ?? 0) > 0)
+                    <a href="{{ route('infosheet.pending') }}" class="cc-item">
+                        @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
+                        <span>{{ __('Infosheets por autorizar') }}</span>
+                        <span class="badge rounded-pill text-bg-warning ms-auto">{{ $__pendingAuth }}</span>
+                    </a>
+                    @endif
+                    @if($__seesContracts)
+                    <a href="{{ route('contracts.consult.index') }}" class="cc-item">
+                        @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
+                        <span>{{ __('Contratos') }}</span>
+                    </a>
+                    @endif
                 </div></div>
             </div>
 
-            {{-- ===== CREW ===== --}}
+            {{-- ===== CREW · etiqueta CONTEXTUAL: para un HOD de un solo depto muestra su departamento
+                 ("Arte", "Transpo"…) en vez del genérico; para quien ve todo, genérico. ===== --}}
             @canany(['users.create', 'users.view'])
                 <div class="cc-sec" data-open="false">
                     <button type="button" class="cc-sec-head" aria-expanded="false">
                         @include('componentes._icon', ['name' => 'users', 'class' => 'cc-sec-head__ico', 'label' => null])
-                        <span class="cc-sec-head__label">{{ __('nav.sec_crew') }}</span>
+                        <span class="cc-sec-head__label">{{ $__u->soleDepartmentName() ?? __('nav.sec_crew') }}</span>
                         <span class="cc-sec-head__count" aria-hidden="true"></span>
                         @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
                     </button>
                     <div class="cc-sec-body"><div class="cc-sec-body__inner">
-                        @can('users.create')
-                            <a href="/adduser" class="cc-item cc-item--new">
-                                @include('componentes._icon', ['name' => 'user', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ __('nav.crew_new') }}</span>
+                        {{-- (2026-08-07) El "nuevo" se movió a la ACCIÓN PRIMARIA de cada lista
+                             (arriba a la derecha). El menú deja UNA entrada por módulo: la lista. --}}
+                        {{-- (2026-08-23) Roster RETIRADO por el owner (redundante con el llamado): detrás
+                             del flag roster_day_view, apagado por default. --}}
+                        @feature('roster_day_view')
+                        @can('crew.view')
+                            <a href="{{ route('roster.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'calendar', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Roster del día') }}</span>
+                            </a>
+                        @endcan
+                        @endfeature
+                        {{-- (2026-08-23) Llamado: motor de horarios + back exportable (oficina de producción). --}}
+                        @can('callsheet.manage')
+                            <a href="{{ route('callsheet.landing') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'clapperboard', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Llamado del día') }}</span>
+                            </a>
+                        @endcan
+                        @can('settings.manage')
+                            <a href="{{ route('deliveries.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'send', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Distribución') }}</span>
                             </a>
                         @endcan
                         @can('users.view')
                             <a href="{{ route('usuarioscrud') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'users', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.crew_list') }}</span>
+                            </a>
+                            <a href="{{ route('crew.inactive') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'x-circle', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Dados de baja') }}</span>
                             </a>
                             <a href="/idcardscrud" class="cc-item">
                                 @include('componentes._icon', ['name' => 'id-card', 'class' => 'cc-item__ico', 'label' => null])
@@ -286,6 +340,65 @@
                                     <span>{{ __('nav.crew_badge_design') }}</span>
                                 </a>
                             @endcan
+                        @endcan
+                    </div></div>
+                </div>
+            @endcanany
+
+            {{-- ===== CONTABILIDAD · todo lo de PAGOS ===== --}}
+            @canany(['payees.view', 'periods.view'])
+                <div class="cc-sec" data-open="false">
+                    <button type="button" class="cc-sec-head" aria-expanded="false">
+                        @include('componentes._icon', ['name' => 'wallet', 'class' => 'cc-sec-head__ico', 'label' => null])
+                        <span class="cc-sec-head__label">{{ __('Contabilidad') }}</span>
+                        <span class="cc-sec-head__count" aria-hidden="true"></span>
+                        @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
+                    </button>
+                    <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                        @can('payees.view')
+                            <a href="{{ route('payees.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'wallet', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Padrón de pago') }}</span>
+                            </a>
+                        @endcan
+                        @can('periods.view')
+                            <a href="{{ route('periods.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'calendar', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Periodos de pago') }}</span>
+                            </a>
+                        @endcan
+                    </div></div>
+                </div>
+            @endcanany
+
+            {{-- ===== PRODUCCIÓN · contratos ===== --}}
+            @canany(['settings.manage', 'contracts.author'])
+                <div class="cc-sec" data-open="false">
+                    <button type="button" class="cc-sec-head" aria-expanded="false">
+                        @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-sec-head__ico', 'label' => null])
+                        <span class="cc-sec-head__label">{{ __('Producción') }}</span>
+                        <span class="cc-sec-head__count" aria-hidden="true"></span>
+                        @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
+                    </button>
+                    <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                        @can('settings.manage')
+                        {{-- Clausulados y Anexos-estáticos RETIRADOS: superados por Plantillas (categoría
+                             Contrato/Anexo, con auto-llenado y tags). Rutas/controladores/datos siguen
+                             vivos para contratos ya emitidos; solo se ocultó el menú. --}}
+                        <a href="{{ route('contracts.route.config') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Roles de firma') }}</span>
+                        </a>
+                        <a href="{{ route('contracts.pending.board') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'users', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Seguimiento de firmas') }}</span>
+                        </a>
+                        @endcan
+                        @can('contracts.author')
+                        <a href="{{ route('contracts.templates.index') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Plantillas de contrato') }}</span>
+                        </a>
                         @endcan
                     </div></div>
                 </div>
@@ -313,18 +426,12 @@
                                 <span>Mapeo de riesgos</span>
                             </a>
                         @endcan
-                        @can('locations.create')
-                            <a href="{{ route('scoutings.create') }}" class="cc-item cc-item--new">
-                                @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ __('nav.loc_new') }}</span>
-                            </a>
-                        @endcan
                     </div></div>
                 </div>
             @endcanany
 
             {{-- ===== SEGURIDAD (H&S) ===== --}}
-            @canany(['dsr.view', 'dsr.create', 'hazards.view', 'hazards.create', 'injury.view', 'injury.create', 'tools.inspect', 'permits.issue', 'epi.view'])
+            @canany(['dsr.view', 'dsr.create', 'hazards.view', 'hazards.create', 'injury.view', 'injury.create', 'tools.inspect', 'permits.issue', 'pae.issue', 'epi.view', 'ambulance.manage', 'ambulance.view'])
                 <div class="cc-sec" data-open="false">
                     <button type="button" class="cc-sec-head" aria-expanded="false">
                         @include('componentes._icon', ['name' => 'shield-alert', 'class' => 'cc-sec-head__ico', 'label' => null])
@@ -339,22 +446,10 @@
                                 <span>{{ __('nav.safety_daily_reports') }}</span>
                             </a>
                         @endcan
-                        @can('dsr.create')
-                            <a href="{{ route('daily_reports.create') }}" class="cc-item cc-item--new">
-                                @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ __('nav.safety_daily_new') }}</span>
-                            </a>
-                        @endcan
                         @can('hazards.view')
                             <a href="/unsafeconds" class="cc-item">
                                 @include('componentes._icon', ['name' => 'alert-triangle', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.safety_unsafe_conds') }}</span>
-                            </a>
-                        @endcan
-                        @can('hazards.create')
-                            <a href="/unsafenotifications/create" class="cc-item cc-item--new">
-                                @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ __('nav.safety_unsafe_cond') }}</span>
                             </a>
                         @endcan
                         @can('hazards.view')
@@ -363,22 +458,10 @@
                                 <span>{{ __('nav.safety_unsafe_acts') }}</span>
                             </a>
                         @endcan
-                        @can('hazards.create')
-                            <a href="/hazardnotification" class="cc-item cc-item--new">
-                                @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ __('nav.safety_unsafe_act') }}</span>
-                            </a>
-                        @endcan
                         @can('injury.view')
                             <a href="/accidents" class="cc-item">
                                 @include('componentes._icon', ['name' => 'ambulance', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.safety_accidents') }}</span>
-                            </a>
-                        @endcan
-                        @can('injury.create')
-                            <a href="/accident" class="cc-item cc-item--new">
-                                @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>{{ __('nav.safety_accident') }}</span>
                             </a>
                         @endcan
                         {{-- Inspección preventiva de herramienta: entrada PRINCIPAL (no atajo). --}}
@@ -395,6 +478,21 @@
                                 <span>{{ __('nav.permits') }}</span>
                             </a>
                         @endcan
+                        {{-- PAE · Plan de Atención a Emergencias (2026-08-06): entrada PRINCIPAL. --}}
+                        @can('pae.issue')
+                            <a href="{{ route('pae.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'ambulance', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>PAE · Emergencias</span>
+                            </a>
+                        @endcan
+                        {{-- Verificación de ambulancias (deltas #51/#52): recurso del día, docs del proveedor, acta sellada.
+                             Visible para producción y safety (manage|view); transpo NO tiene ninguno. --}}
+                        @canany(['ambulance.manage', 'ambulance.view'])
+                            <a href="{{ route('ambulance.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'heart-pulse', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>Ambulancias</span>
+                            </a>
+                        @endcanany
                         {{-- Vigilancia epidemiológica (delta #45): panel silencioso, safety + médico. --}}
                         @can('epi.view')
                             <a href="{{ route('epi.index') }}" class="cc-item">
@@ -438,6 +536,59 @@
                 </div>
             @endcanany
 
+            {{-- ===== TRANSPORTACIÓN (departamento PROPIO, distinto de Seguridad — aun el checklist) ===== --}}
+            @php
+                $ccFull = \App\Support\TransportAccess::canFull(auth()->user());
+                $ccLite = \App\Support\TransportAccess::canLite(auth()->user());
+                $ccDrv  = \App\Support\TransportAccess::isAssignedDriver(auth()->user());
+            @endphp
+            @if($ccLite || $ccDrv)
+                <div class="cc-sec" data-open="false">
+                    <button type="button" class="cc-sec-head" aria-expanded="false">
+                        @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-sec-head__ico', 'label' => null])
+                        <span class="cc-sec-head__label">{{ __('Transportación') }}</span>
+                        <span class="cc-sec-head__count" aria-hidden="true"></span>
+                        @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
+                    </button>
+                    <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                        @if($ccLite)
+                            <a href="{{ $ccFull ? route('transport.index') : route('transport.lite') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ $ccFull ? __('Verificación de vehículos') : __('Flota') }}</span>
+                            </a>
+                            <a href="{{ route('transport.order.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Orden de transportación') }}</span>
+                            </a>
+                            @if($ccFull)
+                                <a href="{{ route('transport.address.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Direcciones privadas') }}</span>
+                                </a>
+                                <a href="{{ route('transport.type.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Tipos de vehículo') }}</span>
+                                </a>
+                                <a href="{{ route('transport.matrix.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Puntos y traslados') }}</span>
+                                </a>
+                                <a href="{{ route('transport.config.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Configuración') }}</span>
+                                </a>
+                            @endif
+                        @endif
+                        @if($ccDrv)
+                            <a href="{{ route('transport.driver.runs') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Mis corridas') }}</span>
+                            </a>
+                        @endif
+                    </div></div>
+                </div>
+            @endif
+
             {{-- ===== LLAMADOS (Call Sheet) — EN PAUSA: se reconstruye "con dirección" ===== --}}
 
             {{-- ===== MÉDICO ===== --}}
@@ -456,10 +607,12 @@
                             @include('componentes._icon', ['name' => 'stethoscope', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('nav.med_consults') }}</span>
                         </a>
+                        @can('medical.consolidate')
                         <a href="{{ route('medical.bitacora') }}" class="cc-item">
                             @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('nav.med_logbook') }}</span>
                         </a>
+                        @endcan
                         @can('medical.materials')
                             <a href="{{ route('medical.materials') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'package', 'class' => 'cc-item__ico', 'label' => null])
@@ -480,6 +633,10 @@
                         @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
                     </button>
                     <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                        <a href="{{ route('catalogo.index') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'building-2', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Catálogo organizacional') }}</span>
+                        </a>
                         <a href="{{ route('departamentocrud') }}" class="cc-item">
                             @include('componentes._icon', ['name' => 'building-2', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('nav.cat_departments') }}</span>
@@ -544,6 +701,14 @@
                         @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
                     </button>
                     <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                        <a href="{{ route('production.calendar.edit') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'calendar', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>Calendario de rodaje</span>
+                        </a>
+                        <a href="{{ route('production.units.index') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'folder', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>Unidades</span>
+                        </a>
                         <a href="{{ route('settings.branding.edit') }}" class="cc-item">
                             @include('componentes._icon', ['name' => 'settings', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('nav.settings_branding') }}</span>
@@ -552,6 +717,10 @@
                             @include('componentes._icon', ['name' => 'activity', 'class' => 'cc-item__ico', 'label' => null])
                             <span>Feature Flags</span>
                         </a>
+                        <a href="{{ route('emails.preview.index') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'mail', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Correos') }}</span>
+                        </a>
                     </div></div>
                 </div>
             @endcan
@@ -559,14 +728,8 @@
         </nav>
 
         <div class="cc-sb__foot">
-            {{-- Mismo criterio que arriba: el pie no puede seguir mostrando iniciales cuando la
-                 cabecera ya muestra la cara — sería la misma persona representada de dos
-                 maneras en la misma columna. Las iniciales quedan de reserva por si algún día
-                 no hay ni silueta. --}}
-            <span class="cc-sb__avatar cc-sb__avatar--photo" aria-hidden="true">
-                @if($__foto)<img src="{{ $__foto }}" alt="">@else{{ $__ini }}@endif
-            </span>
-            <span class="cc-sb__who"><b>{{ $__u->name }}</b><small>{{ $__role }}</small></span>
+            {{-- El pie deja SOLO el control de contraer. Nombre, foto y rol ya viven arriba
+                 (saludo con el nombre en créditos) y en el perfil; repetirlos aquí sobra. --}}
             <button type="button" class="cc-sb__rail" id="ccRailBtn"
                     aria-label="{{ __('nav.collapse') }}" title="{{ __('nav.collapse') }}">
                 @include('componentes._icon', ['name' => 'chevron-left', 'class' => '', 'label' => null])
@@ -604,29 +767,68 @@
                             @include('componentes._icon', ['name' => 'layout-dashboard', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('nav.home') }}</span>
                         </a>
+                        @if(($__pendingSign ?? 0) > 0)
+                        <a href="{{ route('contracts.pending.index') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'pencil', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Contratos por firmar') }}</span>
+                            <span class="badge rounded-pill text-bg-primary ms-auto">{{ $__pendingSign }}</span>
+                        </a>
+                        @endif
+                        @if(($__pendingAuth ?? 0) > 0)
+                        <a href="{{ route('infosheet.pending') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Infosheets por autorizar') }}</span>
+                            <span class="badge rounded-pill text-bg-warning ms-auto">{{ $__pendingAuth }}</span>
+                        </a>
+                        @endif
+                        @if($__seesContracts)
+                        <a href="{{ route('contracts.consult.index') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Contratos') }}</span>
+                        </a>
+                        @endif
                     </div></div>
                 </div>
 
-                {{-- ===== CREW ===== --}}
+                {{-- ===== CREW · etiqueta CONTEXTUAL (depto del HOD) ===== --}}
                 @canany(['users.create', 'users.view'])
                     <div class="cc-sec" data-open="false">
                         <button type="button" class="cc-sec-head" aria-expanded="false">
                             @include('componentes._icon', ['name' => 'users', 'class' => 'cc-sec-head__ico', 'label' => null])
-                            <span class="cc-sec-head__label">{{ __('nav.sec_crew') }}</span>
+                            <span class="cc-sec-head__label">{{ $__u->soleDepartmentName() ?? __('nav.sec_crew') }}</span>
                             <span class="cc-sec-head__count" aria-hidden="true"></span>
                             @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
                         </button>
                         <div class="cc-sec-body"><div class="cc-sec-body__inner">
-                            @can('users.create')
-                                <a href="/adduser" class="cc-item cc-item--new">
-                                    @include('componentes._icon', ['name' => 'user', 'class' => 'cc-item__ico', 'label' => null])
-                                    <span>{{ __('nav.crew_new') }}</span>
+                            {{-- (2026-08-07) El "nuevo" es la acción primaria de cada lista. --}}
+                            @feature('roster_day_view')
+                            @can('crew.view')
+                                <a href="{{ route('roster.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'calendar', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Roster del día') }}</span>
+                                </a>
+                            @endcan
+                            @endfeature
+                            @can('callsheet.manage')
+                                <a href="{{ route('callsheet.landing') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'clapperboard', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Llamado del día') }}</span>
+                                </a>
+                            @endcan
+                            @can('settings.manage')
+                                <a href="{{ route('deliveries.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'send', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Distribución') }}</span>
                                 </a>
                             @endcan
                             @can('users.view')
                                 <a href="{{ route('usuarioscrud') }}" class="cc-item">
                                     @include('componentes._icon', ['name' => 'users', 'class' => 'cc-item__ico', 'label' => null])
                                     <span>{{ __('nav.crew_list') }}</span>
+                                </a>
+                                <a href="{{ route('crew.inactive') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'x-circle', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Dados de baja') }}</span>
                                 </a>
                                 <a href="/idcardscrud" class="cc-item">
                                     @include('componentes._icon', ['name' => 'id-card', 'class' => 'cc-item__ico', 'label' => null])
@@ -638,6 +840,65 @@
                                         <span>{{ __('nav.crew_badge_design') }}</span>
                                     </a>
                                 @endcan
+                            @endcan
+                        </div></div>
+                    </div>
+                @endcanany
+
+                {{-- ===== CONTABILIDAD · pagos ===== --}}
+                @canany(['payees.view', 'periods.view'])
+                    <div class="cc-sec" data-open="false">
+                        <button type="button" class="cc-sec-head" aria-expanded="false">
+                            @include('componentes._icon', ['name' => 'wallet', 'class' => 'cc-sec-head__ico', 'label' => null])
+                            <span class="cc-sec-head__label">{{ __('Contabilidad') }}</span>
+                            <span class="cc-sec-head__count" aria-hidden="true"></span>
+                            @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
+                        </button>
+                        <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                            @can('payees.view')
+                                <a href="{{ route('payees.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'wallet', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Padrón de pago') }}</span>
+                                </a>
+                            @endcan
+                            @can('periods.view')
+                                <a href="{{ route('periods.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'calendar', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Periodos de pago') }}</span>
+                                </a>
+                            @endcan
+                        </div></div>
+                    </div>
+                @endcanany
+
+                {{-- ===== PRODUCCIÓN · contratos ===== --}}
+                @canany(['settings.manage', 'contracts.author'])
+                    <div class="cc-sec" data-open="false">
+                        <button type="button" class="cc-sec-head" aria-expanded="false">
+                            @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-sec-head__ico', 'label' => null])
+                            <span class="cc-sec-head__label">{{ __('Producción') }}</span>
+                            <span class="cc-sec-head__count" aria-hidden="true"></span>
+                            @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
+                        </button>
+                        <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                            @can('settings.manage')
+                            {{-- Clausulados y Anexos-estáticos RETIRADOS: superados por Plantillas (categoría
+                                 Contrato/Anexo, con auto-llenado y tags). Rutas/controladores/datos siguen
+                                 vivos para contratos ya emitidos; solo se ocultó el menú. --}}
+                            <a href="{{ route('contracts.route.config') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Roles de firma') }}</span>
+                            </a>
+                            <a href="{{ route('contracts.pending.board') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'users', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Seguimiento de firmas') }}</span>
+                            </a>
+                            @endcan
+                            @can('contracts.author')
+                            <a href="{{ route('contracts.templates.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Plantillas de contrato') }}</span>
+                            </a>
                             @endcan
                         </div></div>
                     </div>
@@ -665,18 +926,12 @@
                                     <span>Mapeo de riesgos</span>
                                 </a>
                             @endcan
-                            @can('locations.create')
-                                <a href="{{ route('scoutings.create') }}" class="cc-item cc-item--new">
-                                    @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                    <span>{{ __('nav.loc_new') }}</span>
-                                </a>
-                            @endcan
                         </div></div>
                     </div>
                 @endcanany
 
                 {{-- ===== SEGURIDAD (H&S) ===== --}}
-                @canany(['dsr.view', 'dsr.create', 'hazards.view', 'hazards.create', 'injury.view', 'injury.create', 'tools.inspect', 'permits.issue', 'epi.view'])
+                @canany(['dsr.view', 'dsr.create', 'hazards.view', 'hazards.create', 'injury.view', 'injury.create', 'tools.inspect', 'permits.issue', 'pae.issue', 'epi.view', 'ambulance.manage', 'ambulance.view'])
                     <div class="cc-sec" data-open="false">
                         <button type="button" class="cc-sec-head" aria-expanded="false">
                             @include('componentes._icon', ['name' => 'shield-alert', 'class' => 'cc-sec-head__ico', 'label' => null])
@@ -691,22 +946,10 @@
                                     <span>{{ __('nav.safety_daily_reports') }}</span>
                                 </a>
                             @endcan
-                            @can('dsr.create')
-                                <a href="{{ route('daily_reports.create') }}" class="cc-item cc-item--new">
-                                    @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                    <span>{{ __('nav.safety_daily_new') }}</span>
-                                </a>
-                            @endcan
                             @can('hazards.view')
                                 <a href="/unsafeconds" class="cc-item">
                                     @include('componentes._icon', ['name' => 'alert-triangle', 'class' => 'cc-item__ico', 'label' => null])
                                     <span>{{ __('nav.safety_unsafe_conds') }}</span>
-                                </a>
-                            @endcan
-                            @can('hazards.create')
-                                <a href="/unsafenotifications/create" class="cc-item cc-item--new">
-                                    @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                    <span>{{ __('nav.safety_unsafe_cond') }}</span>
                                 </a>
                             @endcan
                             @can('hazards.view')
@@ -715,22 +958,10 @@
                                     <span>{{ __('nav.safety_unsafe_acts') }}</span>
                                 </a>
                             @endcan
-                            @can('hazards.create')
-                                <a href="/hazardnotification" class="cc-item cc-item--new">
-                                    @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                    <span>{{ __('nav.safety_unsafe_act') }}</span>
-                                </a>
-                            @endcan
                             @can('injury.view')
                                 <a href="/accidents" class="cc-item">
                                     @include('componentes._icon', ['name' => 'ambulance', 'class' => 'cc-item__ico', 'label' => null])
                                     <span>{{ __('nav.safety_accidents') }}</span>
-                                </a>
-                            @endcan
-                            @can('injury.create')
-                                <a href="/accident" class="cc-item cc-item--new">
-                                    @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-item__ico', 'label' => null])
-                                    <span>{{ __('nav.safety_accident') }}</span>
                                 </a>
                             @endcan
                             {{-- Inspección preventiva de herramienta: entrada PRINCIPAL (no atajo). --}}
@@ -747,7 +978,22 @@
                                     <span>{{ __('nav.permits') }}</span>
                                 </a>
                             @endcan
-                            {{-- Vigilancia epidemiológica (delta #45): panel silencioso, safety + médico. --}}
+                            {{-- PAE · Plan de Atención a Emergencias (2026-08-06): entrada PRINCIPAL. --}}
+                            @can('pae.issue')
+                                <a href="{{ route('pae.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'ambulance', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>PAE · Emergencias</span>
+                                </a>
+                            @endcan
+                            {{-- Verificación de ambulancias (deltas #51/#52): recurso del día, docs del proveedor, acta sellada.
+                             Visible para producción y safety (manage|view); transpo NO tiene ninguno. --}}
+                        @canany(['ambulance.manage', 'ambulance.view'])
+                            <a href="{{ route('ambulance.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'heart-pulse', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>Ambulancias</span>
+                            </a>
+                        @endcanany
+                        {{-- Vigilancia epidemiológica (delta #45): panel silencioso, safety + médico. --}}
                             @can('epi.view')
                                 <a href="{{ route('epi.index') }}" class="cc-item">
                                     @include('componentes._icon', ['name' => 'activity', 'class' => 'cc-item__ico', 'label' => null])
@@ -787,6 +1033,59 @@
                     </div>
                 @endcanany
 
+                {{-- ===== TRANSPORTACIÓN (departamento PROPIO, distinto de Seguridad — aun el checklist) ===== --}}
+                @php
+                    $ccFull = \App\Support\TransportAccess::canFull(auth()->user());
+                    $ccLite = \App\Support\TransportAccess::canLite(auth()->user());
+                    $ccDrv  = \App\Support\TransportAccess::isAssignedDriver(auth()->user());
+                @endphp
+                @if($ccLite || $ccDrv)
+                    <div class="cc-sec" data-open="false">
+                        <button type="button" class="cc-sec-head" aria-expanded="false">
+                            @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-sec-head__ico', 'label' => null])
+                            <span class="cc-sec-head__label">{{ __('Transportación') }}</span>
+                            <span class="cc-sec-head__count" aria-hidden="true"></span>
+                            @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
+                        </button>
+                        <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                            @if($ccLite)
+                                <a href="{{ $ccFull ? route('transport.index') : route('transport.lite') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ $ccFull ? __('Verificación de vehículos') : __('Flota') }}</span>
+                                </a>
+                                <a href="{{ route('transport.order.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Orden de transportación') }}</span>
+                                </a>
+                                @if($ccFull)
+                                    <a href="{{ route('transport.address.index') }}" class="cc-item">
+                                        @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-item__ico', 'label' => null])
+                                        <span>{{ __('Direcciones privadas') }}</span>
+                                    </a>
+                                    <a href="{{ route('transport.type.index') }}" class="cc-item">
+                                        @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-item__ico', 'label' => null])
+                                        <span>{{ __('Tipos de vehículo') }}</span>
+                                    </a>
+                                    <a href="{{ route('transport.matrix.index') }}" class="cc-item">
+                                        @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-item__ico', 'label' => null])
+                                        <span>{{ __('Puntos y traslados') }}</span>
+                                    </a>
+                                    <a href="{{ route('transport.config.index') }}" class="cc-item">
+                                        @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-item__ico', 'label' => null])
+                                        <span>{{ __('Configuración') }}</span>
+                                    </a>
+                                @endif
+                            @endif
+                            @if($ccDrv)
+                                <a href="{{ route('transport.driver.runs') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Mis corridas') }}</span>
+                                </a>
+                            @endif
+                        </div></div>
+                    </div>
+                @endif
+
                 {{-- ===== MÉDICO ===== --}}
                 @can('medical.view')
                     <div class="cc-sec" data-open="false">
@@ -803,10 +1102,12 @@
                                 @include('componentes._icon', ['name' => 'stethoscope', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.med_consults') }}</span>
                             </a>
+                            @can('medical.consolidate')
                             <a href="{{ route('medical.bitacora') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.med_logbook') }}</span>
                             </a>
+                            @endcan
                             @can('medical.materials')
                                 <a href="{{ route('medical.materials') }}" class="cc-item">
                                     @include('componentes._icon', ['name' => 'package', 'class' => 'cc-item__ico', 'label' => null])
@@ -827,6 +1128,10 @@
                             @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
                         </button>
                         <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                            <a href="{{ route('catalogo.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'building-2', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Catálogo organizacional') }}</span>
+                            </a>
                             <a href="{{ route('departamentocrud') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'building-2', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.cat_departments') }}</span>
@@ -891,6 +1196,14 @@
                             @include('componentes._icon', ['name' => 'chevron-right', 'class' => 'cc-sec-head__caret', 'label' => null])
                         </button>
                         <div class="cc-sec-body"><div class="cc-sec-body__inner">
+                            <a href="{{ route('production.calendar.edit') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'calendar', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>Calendario de rodaje</span>
+                            </a>
+                            <a href="{{ route('production.units.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'folder', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>Unidades</span>
+                            </a>
                             <a href="{{ route('settings.branding.edit') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'settings', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.settings_branding') }}</span>
@@ -898,6 +1211,10 @@
                             <a href="{{ route('features.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'activity', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>Feature Flags</span>
+                            </a>
+                            <a href="{{ route('emails.preview.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'mail', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Correos') }}</span>
                             </a>
                         </div></div>
                     </div>
@@ -950,6 +1267,42 @@
             });
         }
 
+        // ---- 6) MEMORIA de secciones plegables en MÓVIL (localStorage) ----
+        // El escritorio conserva su comportamiento (solo la activa abierta al entrar). En el
+        // offcanvas móvil, en cambio, recordamos qué secciones dejó abiertas el usuario para que
+        // al reabrir el menú no tenga que volver a desplegarlas. Clave = etiqueta de la sección
+        // (respeta el RBAC: si una sección no se renderiza, su clave simplemente no aplica).
+        var MOBILE_KEY = 'cc-sb-open-mobile';
+        function secKey(sec) {
+            var l = sec.querySelector('.cc-sec-head__label');
+            return l ? (l.textContent || '').trim().toLowerCase() : '';
+        }
+        function isMobileSec(sec) { return !!sec.closest('#mobileSidebar'); }
+        function loadMobileState() {
+            try { return JSON.parse(localStorage.getItem(MOBILE_KEY) || '{}') || {}; }
+            catch (e) { return {}; }
+        }
+        function saveMobileSec(sec, open) {
+            if (!isMobileSec(sec)) { return; }
+            var k = secKey(sec); if (!k) { return; }
+            var m = loadMobileState(); m[k] = open;
+            try { localStorage.setItem(MOBILE_KEY, JSON.stringify(m)); } catch (e) {}
+        }
+        // Restaura el estado guardado en las secciones móviles (antes del matcher activo, que
+        // puede reabrir la sección de la pantalla actual por encima de lo guardado).
+        (function () {
+            var saved = loadMobileState();
+            Array.prototype.forEach.call(document.querySelectorAll('#mobileSidebar .cc-sec'), function (sec) {
+                var k = secKey(sec);
+                if (k && Object.prototype.hasOwnProperty.call(saved, k)) {
+                    var open = !!saved[k];
+                    sec.setAttribute('data-open', open.toString());
+                    var h = sec.querySelector('.cc-sec-head');
+                    if (h) { h.setAttribute('aria-expanded', open.toString()); }
+                }
+            });
+        })();
+
         // ---- 1) Colapso/expansión de secciones (ambas superficies) ----
         Array.prototype.forEach.call(document.querySelectorAll('.cc-sec-head'), function (head) {
             head.addEventListener('click', function () {
@@ -958,6 +1311,7 @@
                 var open = sec.getAttribute('data-open') === 'true';
                 sec.setAttribute('data-open', (!open).toString());
                 head.setAttribute('aria-expanded', (!open).toString());
+                saveMobileSec(sec, !open);   // solo persiste en el offcanvas móvil
             });
         });
 

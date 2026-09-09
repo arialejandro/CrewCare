@@ -25,6 +25,11 @@ class Branding
         // Datos de producción para el encabezado del formato Amazon MGM (opcionales).
         'company_name'    => '',           // "Production Company"; vacío => se usa brand_name
         'office_address'  => '',           // "Production Office Address"; vacío => se muestra "—"
+        // Datos del CONTRATANTE para la carátula del contrato (Paso B). company_name = razón social,
+        // office_address = domicilio; estos tres los agrega B5. La carátula CONGELA lo que use al emitir.
+        'rfc'                 => '',        // RFC del contratante
+        'representante_legal' => '',        // representante legal
+        'correo_contratante'  => '',        // correo del contratante
     ];
 
     const CACHE_KEY = 'branding.settings';

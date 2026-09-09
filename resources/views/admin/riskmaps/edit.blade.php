@@ -1,5 +1,6 @@
 @extends('layouts.app')
 @section('title', 'Editar mapeo · ' . $map->locationName() . ' - ' . ($branding['brand_name'] ?? 'CrewCare'))
+@include('componentes._confirm-submit')
 
 @push('styles')
 <style>
@@ -77,10 +78,15 @@
     .rm-pin{position:absolute;transform:translate(-50%,-100%);z-index:2;cursor:grab;touch-action:none}
     .rm-pin.sel{z-index:5}
     .rm-pin.sel .rm-pin__drop{outline:2px solid #fff;outline-offset:1px}
+    .rm-pin.sel .rm-pin__sign{outline:2px solid #fff;outline-offset:1px;border-radius:7px}
     /* área de toque ampliada (>=44px) para arrastrar en iPad sin precisión */
     .rm-pin::before,.rm-chip::before{content:'';position:absolute;inset:-9px}
     .rm-pin__drop{width:var(--pin,32px);height:var(--pin,32px);border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 2px 5px rgba(0,0,0,.45),inset 0 1.5px 1px rgba(255,255,255,.4);border:1.5px solid rgba(255,255,255,.95)}
     .rm-pin__drop svg{width:calc(var(--pin,32px)*.62);height:calc(var(--pin,32px)*.62);transform:rotate(45deg)}
+    /* Señal a color (ISO/hazmat/EPP/clima): upright, sin gota, sobre PLATE blanco para
+       que resalte sobre la foto (el contorno/línea-arte se pierde sin fondo). */
+    .rm-pin__sign{width:calc(var(--pin,32px)*1.35);height:calc(var(--pin,32px)*1.35);display:flex;align-items:center;justify-content:center;background:#fff;border-radius:7px;padding:3px;box-sizing:border-box;border:1.5px solid rgba(255,255,255,.95);box-shadow:0 2px 5px rgba(0,0,0,.5)}
+    .rm-pin__sign img,.rm-sign{width:100%;height:100%;object-fit:contain;display:block}
     .rm-chip{position:absolute;transform:translate(-50%,-50%);z-index:3;cursor:grab;touch-action:none;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:700;color:#fff;border-radius:6px;padding:3px 8px;line-height:1.3;box-shadow:0 1px 3px rgba(0,0,0,.35);text-transform:uppercase;letter-spacing:.02em}
     .rm-chip.sel{outline:2px solid #fff;outline-offset:1px;z-index:6}
     .rm-leaders{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
@@ -131,6 +137,27 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
     @endif
 
+    {{-- Pines de peligro COLGANTES: el scouting quitó ese peligro después de mapearlo.
+         Se avisa aquí (antes del sello) para que el safety decida; el sellado queda
+         bloqueado hasta resolverlos. NO se borran pines automáticamente. --}}
+    @if(!empty($orphanMarkers) && $orphanMarkers->count())
+        <div class="alert alert-warning" role="alert" style="border-left:4px solid var(--warning,#d97706)">
+            <strong>Atención:</strong> {{ $orphanMarkers->count() }}
+            {{ $orphanMarkers->count() === 1 ? 'señal de peligro ya no está' : 'señales de peligro ya no están' }}
+            evaluada{{ $orphanMarkers->count() === 1 ? '' : 's' }} en el scouting de origen
+            @php
+                $orphanViews = collect($orphanMarkers)
+                    ->map(fn($m) => optional($views->firstWhere('id', $m->view_id))->displayLabel())
+                    ->filter()->unique()->values();
+            @endphp
+            @if($orphanViews->count())
+                (en: {{ $orphanViews->implode(', ') }})
+            @endif.
+            Corrige la evaluación del scouting o retira {{ $orphanMarkers->count() === 1 ? 'ese pin' : 'esos pines' }}
+            antes de sellar. <strong>No se sellará</strong> mientras haya peligros colgantes.
+        </div>
+    @endif
+
     <div class="rm-ed-top">
         <div class="titlewrap">
             <div class="rm-ed-eyebrow">@include('componentes._icon', ['name' => 'map-pin']) <span>{{ $map->locationName() }}</span></div>
@@ -146,7 +173,7 @@
                 </select>
             </div>
             <a href="{{ route('riskmaps.document', $map->id) }}" class="rm-btn">@include('componentes._icon', ['name' => 'eye']) Vista previa</a>
-            <form action="{{ route('riskmaps.seal', $map->id) }}" method="POST" onsubmit="return confirm('Sellar el mapeo lo vuelve INMUTABLE. ¿Continuar?');" style="display:inline">
+            <form action="{{ route('riskmaps.seal', $map->id) }}" method="POST" data-confirm="Sellar el mapeo lo vuelve INMUTABLE. ¿Continuar?" style="display:inline">
                 @csrf
                 <button type="submit" class="rm-btn rm-btn--accent">@include('componentes._icon', ['name' => 'shield-check']) Sellar</button>
             </form>
@@ -165,7 +192,7 @@
                             <img src="{{ $v->imageUrl() }}" alt="">
                             <span class="rm-ed-view__lbl">{{ $v->displayLabel() }}</span>
                         </a>
-                        <form action="{{ route('riskmaps.views.destroy', ['id' => $map->id, 'view' => $v->id]) }}" method="POST" onsubmit="return confirm('¿Quitar esta vista?');">
+                        <form action="{{ route('riskmaps.views.destroy', ['id' => $map->id, 'view' => $v->id]) }}" method="POST" data-confirm="¿Quitar esta vista?">
                             @csrf @method('DELETE')
                             <button type="submit" class="rm-ed-view__del" title="Quitar">×</button>
                         </form>
@@ -201,7 +228,7 @@
 
                 <div id="rm-src-upload" style="display:none">
                     <label>Imagen</label>
-                    <input type="file" name="image" id="rm-file" accept="image/*" data-cc-photo>
+                    <input type="file" name="image" id="rm-file" accept="image/*,.heic,.heif" data-cc-photo data-cc-noauto>
                 </div>
 
                 <label>Tipo de vista</label>
@@ -298,7 +325,11 @@
 
 {{-- Datos para el editor (sin {{ }} dentro de <script>: van por JSON) --}}
 @php
-    $__iconKeys = \App\Models\RiskMap::ICON_KEYS; // TODAS las claves (peligros incluidos) o el pin caía a 'area'
+    $__iconKeys = \App\Models\RiskMap::ICON_KEYS; // claves dibujadas (peligros/recursos) o el pin caía a 'area'
+    // + señales realmente alcanzables: el icono de cada evento elegible (incluye un
+    //   override risk_icon que apunte a un slug de la biblioteca, p. ej. 'adr_3b').
+    foreach ($eligibleEvents as $__ev) { $__iconKeys[] = $__ev['icon']; }
+    $__iconKeys = array_values(array_unique($__iconKeys));
     $__icons = [];
     foreach ($__iconKeys as $k) { $__icons[$k] = trim(view('componentes._rm-icon', ['key' => $k])->render()); }
     $__markers = $current ? $current->markers->map(function ($m) use ($map) {
@@ -510,11 +541,20 @@
         pin.setAttribute('data-id', m.id);
         pin.style.left = m.x_pct + '%';
         pin.style.top = m.y_pct + '%';
+        var html = iconFor(m.icon);
+        var isSign = html.indexOf('rm-sign') !== -1; // señal a color → sin gota
+        // Coherencia: si el pin es señal a color, la etiqueta/guía van NEUTRAS (no el ámbar
+        // de peligro, que peleaba con el tono de la señal); si es glifo, color semántico.
+        var lblColor = isSign ? '#334155' : (m.color || '#c0392b');
         var drop = document.createElement('div');
-        drop.className = 'rm-pin__drop';
-        drop.style.background = m.color || '#c0392b';
-        drop.style.color = m.ink || '#fff';
-        drop.innerHTML = iconFor(m.icon);
+        if (isSign) {
+            drop.className = 'rm-pin__sign';
+        } else {
+            drop.className = 'rm-pin__drop';
+            drop.style.background = m.color || '#c0392b';
+            drop.style.color = m.ink || '#fff';
+        }
+        drop.innerHTML = html;
         pin.appendChild(drop);
         pin.title = (m.label || '') + (m.reference_text ? ' — ' + m.reference_text : '');
 
@@ -524,12 +564,12 @@
         chip.setAttribute('data-id', m.id);
         chip.style.left = lp.x + '%';
         chip.style.top = lp.y + '%';
-        chip.style.background = m.color || '#c0392b';
+        chip.style.background = lblColor;
         chip.textContent = m.short || m.label || '';
 
         var line = svgEl('line');
         line.setAttribute('vector-effect', 'non-scaling-stroke');
-        line.setAttribute('stroke', m.color || '#c0392b');
+        line.setAttribute('stroke', lblColor);
         line.setAttribute('stroke-width', '1.4');
         line.setAttribute('x1', m.x_pct); line.setAttribute('y1', m.y_pct);
         line.setAttribute('x2', lp.x); line.setAttribute('y2', lp.y);

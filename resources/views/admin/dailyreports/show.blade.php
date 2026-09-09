@@ -18,7 +18,7 @@
     $r = $report;
 
     // ---- Hero: nombre de proyecto + "llamado" (setting · locación · time) + fecha/CALL ----
-    $heroDate = $r->report_date ? \Carbon\Carbon::parse($r->report_date)->format('d M Y') : null;
+    $heroDate = $r->report_date ? \Carbon\Carbon::parse($r->report_date)->translatedFormat('d M Y') : null;
     $callTime = $r->call_time ? \Carbon\Carbon::parse($r->call_time)->format('H:i') : null;
     $locParts = array_filter([$r->slug_setting, $r->location_name, $r->slug_time], function ($v) { return trim((string) $v) !== ''; });
     $heroLoc  = count($locParts) ? implode(' · ', $locParts) : (string) $r->location_name;
@@ -128,7 +128,19 @@
     $stdUrls = $standards->pluck('reference_url', 'regulation_code');
 
     // ---- Folio / UUID del pie ----
-    $footUuid = 'UUID: ' . $brandName . '-DSR-' . (16210 + $r->id) . '-' . \Carbon\Carbon::parse($r->created_at)->format('dmY') . ' | ' . config('crewcare.doc_version');
+    // UUID REAL del documento (el mismo del sello CFDI), no un código derivado del id.
+    $footUuid = 'UUID: ' . ($r->uuid ?: '—') . ' | ' . config('crewcare.doc_version');
+
+    // NOMBRE DE CRÉDITOS de quien elaboró (firmas + pie): autor por created_by_id → displayName;
+    // si no hay autor, cae al author_name guardado.
+    $__author = ! empty($r->created_by_id) ? \App\Models\User::find($r->created_by_id) : null;
+    $creditName = $__author ? \App\Models\User::displayName($__author) : ($r->author_name ?: '—');
+    // PUESTO real de quien elaboró, bajo la línea de firma. Antes ahí iba la etiqueta FIJA
+    // `label_risk_assessment` ("Risk Assessment"), que es el nombre del formato de Amazon MGM y no
+    // el cargo de nadie: firmara quien firmara, el documento decía lo mismo. Lo que identifica a
+    // quien responde por un reporte de seguridad es su PUESTO en la producción. Si no tiene puesto
+    // registrado se queda solo el nombre (regla: lo que no existe, no se muestra).
+    $creditRole = $__author ? $__author->positionName() : null;
 
     // ---- RISK HEATMAP: SOLO los iconos de los riesgos REALMENTE presentes (sin ausentes, sin radios).
     //      Un riesgo está presente si (a) un log del día lo disparó vía su boletín ($heatmap del ctrl),
@@ -214,19 +226,10 @@
   /* Controles de cierre: fuera del papel (el PDF firmable no lleva botones). */
   .dsr-pdca-ops{margin-top:6px;padding-top:6px;border-top:1px dashed var(--stroke);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 
-  /* ===== NORMAS DEL HALLAZGO (N:M) — ver componentes/_standards-chips =====
-     Estas reglas viven AQUÍ y no en el chrome compartido a propósito: hoy el parcial
-     sólo lo usa el DSR y el chrome lo comparten los 5 reportes. Cuando los otros 4
-     adopten el parcial, MOVER este bloque a _report-v2-head y borrarlo de aquí. */
-  .std-row{display:flex;flex-wrap:wrap;gap:6px}
-  .std-stack{display:flex;flex-direction:column;gap:5px;align-items:flex-end}
-  .std-one{display:inline-flex;align-items:center;gap:6px;font-size:.62rem;line-height:1.25;
-    border:1px solid var(--stroke);border-radius:7px;padding:3px 7px;max-width:100%}
-  .std-code{font-family:var(--mono);color:var(--muted);white-space:nowrap}
-  .std-cat{color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .std-link{font-weight:700;color:var(--brand);text-decoration:none;white-space:nowrap}
-  /* En la tarjeta basta marco + código: el nombre de la categoría satura la rejilla. */
-  .std-row .std-cat{display:none}
+  /* ===== NORMAS DEL HALLAZGO (N:M) — componentes/_standards-chips =====
+     (2026-08-06) Las reglas .std-* se MOVIERON al chrome compartido (_report-v2-head) al
+     adoptar el parcial un 2º reporte (el PAE). El DSR las recibe ahí, con valores idénticos:
+     su render no cambia. Aquí sólo queda esta nota; no dupliques el bloque. */
 
   /* EPP heredado del evento, dentro de la tarjeta del hallazgo. Discreto: es contexto,
      no el titular — el titular es qué pasó. */
@@ -326,7 +329,7 @@
          El nombre del proyecto NO se repite aquí (vive en el hero); las 4 celdas ocupan todo el ancho. --}}
     <div class="band">
       <div class="stats">
-        <div class="cell"><span class="lbl">{{ __('reports.dsr_shoot_day') }}</span><span class="v">{{ \App\Support\ProductionCalendar::labelForReport($r) }}</span></div>
+        <div class="cell"><span class="lbl">{{ __('reports.dsr_shoot_day') }}</span><span class="v">{{ \App\Support\ProductionCalendar::documentDayLabel($r) }}</span></div>
         <div class="cell"><span class="lbl">{{ __('reports.dsr_crew') }}</span><span class="v">{{ ($r->crew_count !== null && $r->crew_count !== '') ? $r->crew_count : '—' }}</span></div>
         <div class="cell"><span class="lbl">{{ __('reports.dsr_logs') }}</span><span class="v ok">{{ $r->logs->count() }}</span></div>
         <div class="cell"><span class="lbl">{{ __('reports.dsr_min_max') }}</span><span class="v">{{ $wxEmoji }} {{ $tempRange }}</span></div>
@@ -434,7 +437,12 @@
               </div>
               <div>
                 <span class="lbl">Foto evidencia</span>
-                <input type="file" name="photo" class="field" accept="image/*" capture="environment">
+                {{-- SIN `capture`: el atributo FUERZA la app de Cámara y, en iOS, ELIMINA la opción
+                     "Fototeca" del menú — o sea, obliga a tomar la foto en el momento. En set hace falta
+                     lo contrario: poder tomarla Y poder elegir una que ya tienes (o una ligera, cuando la
+                     red no da). Sin el atributo, iOS ofrece Fototeca / Tomar foto / Elegir archivo y
+                     Android su selector equivalente: las DOS opciones en las DOS plataformas. --}}
+                <input type="file" name="photo" class="field" accept="image/*,.heic,.heif" data-cc-photo>
               </div>
               <button class="btn brand" type="submit" style="align-self:flex-start">@include('componentes._icon', ['name' => 'check-circle']) Guardar hallazgo</button>
             </form>
@@ -453,7 +461,7 @@
               </div>
               <div>
                 <span class="lbl">Hero image (foto de portada)</span>
-                <input type="file" name="hero_image" class="field" accept="image/*">
+                <input type="file" name="hero_image" class="field" accept="image/*,.heic,.heif" data-cc-photo>
               </div>
               {{-- La foto del safety meeting también se puede subir aquí: el DSR se crea al
                    arrancar la jornada y la junta ocurre al call time, así que muchas veces
@@ -461,7 +469,8 @@
               @if($ccHasMeetPhoto && !$meetDenied)
               <div>
                 <span class="lbl">{{ __('reports.dsr_meeting_photo_label') }}</span>
-                <input type="file" name="safety_meeting_photo" class="field" accept="image/*" capture="environment">
+                {{-- Sin `capture`, por lo mismo que la foto del hallazgo (ver arriba): tomar O elegir. --}}
+                <input type="file" name="safety_meeting_photo" class="field" accept="image/*,.heic,.heif" data-cc-photo>
                 <div style="font-size:.68rem;color:var(--faint);margin-top:4px">{{ __('reports.dsr_meeting_photo_hint') }}</div>
               </div>
               @endif
@@ -652,9 +661,10 @@
       {{-- VALIDACIÓN / SELLO DE INTEGRIDAD --}}
       <section class="sec">
         <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'shield'])<h2>{{ __('reports.label_prepared_by') }}</h2><span class="line"></span></div>
+        {{-- Casilla 1 = nombre de créditos sobre la línea de firma; casilla 2 = fecha SIN línea. --}}
         <div class="sign">
-          <div class="sig"><div class="who">{{ $r->author_name ?: '—' }}</div><div class="role">{{ __('reports.label_risk_assessment') }}</div></div>
-          <div class="sig"><div class="who">{{ $heroDate ?: '—' }}</div><div class="role">{{ __('reports.label_date') }}</div></div>
+          <div class="sig"><div class="who">{{ $creditName }}</div>@if($creditRole)<div class="role">{{ $creditRole }}</div>@endif</div>
+          <div class="sig sig--plain"><div class="who">{{ $heroDate ?: '—' }}</div><div class="role">{{ __('reports.label_date') }}</div></div>
         </div>
         {{-- Hueco de la firma autógrafa (ver la nota equivalente en el Injury): el espacio
              en blanco sobre la línea ya se imprime y ya se puede firmar a mano. --}}
@@ -676,10 +686,16 @@
     <tfoot><tr><td><div class="footer-spacer"></div></td></tr></tfoot>
     </table>
     @include('componentes._report-v2-foot', [
-      'footPreparedName' => $r->author_name ?: '—',
-      'footPreparedMeta' => __('reports.label_risk_assessment') . ($heroDate ? ' · ' . $heroDate : ''),
+      'footPreparedName' => $creditName,
+      'footPreparedMeta' => $creditRole ?: '', // PUESTO real, no la etiqueta fija; pie SIN fecha (owner 2026-08)
       'footUuid'         => $footUuid,
     ])
+
+@push('scripts')
+{{-- HEIC (iPhone): conversión a JPEG en el navegador antes de subir (el servidor no decodifica HEIC). --}}
+<script src="/js/cc-photo.js"></script>
+<script src="/js/cc-photo-auto.js"></script>
+@endpush
 
 {{-- Render del stack de scripts. Este documento es STANDALONE (su propio <!DOCTYPE>, sin
      @extends layouts.app) y por eso NO heredaba ningún @stack('scripts'). Sin él, todo lo

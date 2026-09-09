@@ -31,6 +31,14 @@ class RiskMap extends Model
 
     protected $table = 'risk_maps';
 
+    /**
+     * (2026-09-05 · Unidades P1) `unit_id` EXCLUIDA del hash SOLO cuando es null: el mapeo sellado la
+     * trae en null → fuera del payload → su sello NO cambia; con valor (2ª unidad) SÍ se sella. Este
+     * modelo SOBRESCRIBE canonicalSignaturePayload() con un payload propio (anexa vistas/marcadores),
+     * así que la exclusión-en-null se aplica AHÍ explícitamente, no vía el trait. Sin cablear filtros (Paso 2).
+     */
+    const NULLABLE_HASH_EXCLUDES = ['unit_id'];
+
     protected $fillable = [
         'scouting_id', 'project_id', 'location_id',
         'title', 'status', 'version', 'pin_scale',
@@ -159,13 +167,27 @@ class RiskMap extends Model
 
         // Override CURADO del catálogo (hazard_events.risk_icon): manda sobre todo.
         // El owner toma el icono; la etiqueta corta se queda en la de la categoría.
-        if ($iconOverride !== null && $iconOverride !== '' && in_array($iconOverride, self::ICON_KEYS, true)) {
+        // Acepta una clave dibujada (ICON_KEYS) O cualquier slug de la biblioteca de
+        // señales (p. ej. 'adr_3b', 'wear_safety_glasses') — así las familias nuevas
+        // (hazmat, EPP, prohibición) se pueden asignar por evento del catálogo.
+        if ($iconOverride !== null && $iconOverride !== ''
+            && (in_array($iconOverride, self::ICON_KEYS, true) || \App\Support\RiskSigns::has($iconOverride))) {
             return ['icon' => $iconOverride, 'short' => self::hazardCategoryLabel($cat)];
         }
 
         $name = $nameEs !== null ? self::normalizeName((string) $nameEs) : '';
 
+        // CLIMA: el catálogo tiene UNA categoría 'weather' pero muchas señales de clima.
+        // Se elige la específica por palabra clave del nombre (default: aviso general).
+        if ($cat === 'weather') {
+            return ['icon' => self::weatherSign($name), 'short' => self::hazardCategoryLabel($cat)];
+        }
+
         if ($name !== '') {
+            // Insectos (abejas/avispas/garrapatas): condición del lugar, señal propia.
+            if (self::nameHasAny($name, ['abeja', 'avispa', 'garrapata', 'enjambre', 'insecto', 'mosquito', 'picadura'])) {
+                return ['icon' => 'insectos', 'short' => self::hazardCategoryLabel($cat)];
+            }
             // 'arma de fuego' (NO 'armado' de un andamio) → llaves específicas.
             if (self::nameHasAny($name, ['arma de fuego', 'disparo', 'municion', 'balac', 'proyectil', 'pistola', 'rifle', 'escopeta'])) {
                 return ['icon' => 'haz-firearm', 'short' => 'Armas de fuego'];
@@ -212,6 +234,36 @@ class RiskMap extends Model
             }
         }
         return false;
+    }
+
+    /**
+     * Señal de CLIMA por palabra clave del nombre (ya normalizado: minúsculas sin
+     * acentos). Orden IMPORTA: lo más específico primero (torrencial antes que lluvia,
+     * polvoriento antes que viento, frío antes que altitud). Default: aviso general.
+     * Devuelve un slug de la biblioteca de señales (RiskSigns) — no una clave dibujada.
+     */
+    private static function weatherSign(string $name): string
+    {
+        $has = function (array $ns) use ($name) { return self::nameHasAny($name, $ns); };
+
+        if ($has(['rayo', 'tormenta electrica', 'lightning', 'descarga atmosf'])) return 'clima_tormenta_electrica';
+        if ($has(['huracan', 'ciclon', 'tifon']))                                 return 'clima_huracan';
+        if ($has(['inundacion', 'inunda', 'desbordamiento', 'crecida']))          return 'clima_inundacion';
+        if ($has(['granizo']))                                                    return 'clima_granizo';
+        if ($has(['nevada', 'nieve', 'ventisca', 'nevado']))                      return 'clima_nevada';
+        if ($has(['neblina', 'niebla', 'baja visibilidad', 'visibilidad reducida', 'bruma'])) return 'clima_neblina_o_baja_visibildad';
+        if ($has(['lluvia torrencial', 'lluvias torrenciales', 'aguacero', 'diluvio'])) return 'clima_lluvias_torrenciales';
+        if ($has(['lluvia intensa', 'lluvia fuerte']))                            return 'clima_lluvia_intensa';
+        if ($has(['lluvia', 'precipitacion']))                                    return 'clima_lluvia';
+        if ($has(['viento polvoriento', 'polvo', 'polvareda', 'tolvanera']))      return 'clima_viento_polvoriento';
+        if ($has(['viento', 'ventarron', 'racha', 'vendaval']))                   return 'clima_vientos_fuertes';
+        if ($has(['radiacion uv', 'rayos uv', 'ultravioleta', 'radiacion solar', 'indice uv'])) return 'clima_radiacion_uv_extrema';
+        if ($has(['marea', 'oleaje', 'marejada']))                                return 'clima_marea_viva';
+        if ($has(['calor', 'deshidratacion', 'insolacion', 'sofocante', 'caluroso', 'termico'])) return 'clima_calor';
+        if ($has(['frio', 'hipotermia', 'congelacion', 'helada', 'gelida']))      return 'clima_frio';
+        if ($has(['altitud', 'alta montana', 'gran altura', 'mal de montana']))   return 'clima_altitud';
+
+        return 'clima_aviso_general';
     }
 
     /* ------------------------------------------------------------------ */
@@ -274,6 +326,15 @@ class RiskMap extends Model
         ];
         foreach ($drop as $k) {
             unset($payload[$k]);
+        }
+
+        // (2026-09-05 · Unidades P1) Exclusión CONDICIONAL EN NULL — mismo criterio que el trait: una
+        // columna sembrada después del sello (unit_id) sale del payload cuando es null → el mapeo ya
+        // sellado no se marca ALTERADO; con valor SÍ se sella.
+        foreach (self::NULLABLE_HASH_EXCLUDES as $k) {
+            if (array_key_exists($k, $payload) && $payload[$k] === null) {
+                unset($payload[$k]);
+            }
         }
 
         $views = [];
@@ -364,6 +425,33 @@ class RiskMap extends Model
                 ];
             })
             ->keyBy('id');
+    }
+
+    /**
+     * Pines de PELIGRO cuyo event_id YA NO está evaluado en el scouting (colgantes).
+     * Deriva de eligibleEvents() en vivo; no toca columnas ni el sello. Es la señal de
+     * que el scouting quitó ese peligro DESPUÉS de haberlo mapeado: el pin quedaría
+     * huérfano (sin nombre ni normas) y —sin este control— su event_id entraría al hash
+     * igual, certificando un peligro que ese scouting ya no evalúa. Devuelve una
+     * colección de RiskMapMarker (su vista queda accesible por ->view).
+     */
+    public function orphanHazardMarkers(): Collection
+    {
+        $elig = $this->eligibleEvents();
+        $out = collect();
+        foreach ($this->views as $v) {
+            foreach ($v->markers as $m) {
+                if ($m->kind === 'hazard' && $m->event_id && ! $elig->has((int) $m->event_id)) {
+                    $out->push($m);
+                }
+            }
+        }
+        return $out;
+    }
+
+    public function hasOrphanHazards(): bool
+    {
+        return $this->orphanHazardMarkers()->isNotEmpty();
     }
 
     /**

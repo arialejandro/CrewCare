@@ -79,7 +79,8 @@ return [
     'n_hospitalizations' => '{0} 0 hospitalizaciones|{1} 1 hospitalización|[2,*] :count hospitalizaciones',
 
     // ---- Casillas ----
-    'c_alive'        => 'Vivo/Sano',
+    'c_alive'        => 'Vivo',
+    'c_healthy'      => 'Sano',
     'c_dead'         => 'Fallecido',
     'c_diabetes'     => 'Diabetes mellitus (azúcar)',
     'c_hypertension' => 'Hipertensión arterial (presión alta)',

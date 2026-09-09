@@ -1,0 +1,257 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Exceptions\ContractEnvelopeException;
+use App\Models\ContractConsent;
+use App\Models\ContractEnvelope;
+use App\Models\ContractEnvelopeRecipient;
+use App\Models\ContractTemplate;
+use App\Support\ContractCeremony;
+use App\Support\ContractPdfStamper;
+use App\Support\ContractSigning;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
+
+/**
+ * EL CONTRATO · PASO C — FIRMAR. El CONTRATADO firma desde el teléfono SIN sesión, por un enlace
+ * firmado POR DESTINATARIO, con su segundo factor (fecha de nacimiento si es crew; RFC si es
+ * no-crew). Los internos (preparador/obliga) llegan por el mismo enlace pero, logueados y siendo
+ * su propio destinatario, SALTAN el factor. Antes de firmar puede VER los documentos del sobre.
+ */
+class ContractSignController extends Controller
+{
+    const SF_MAX = 8;   // intentos del segundo factor antes de enfriar
+
+    /** Enlace firmado por destinatario (14 días). Lo dispara el envío del sobre / el hub. */
+    public static function signUrl(ContractEnvelopeRecipient $recipient, int $days = 14): string
+    {
+        return URL::temporarySignedRoute('contracts.sign.show', now()->addDays($days), ['recipient' => $recipient->id]);
+    }
+
+    public function show(Request $request, ContractEnvelopeRecipient $recipient)
+    {
+        $envelope = $recipient->envelope;
+        abort_unless($envelope, 404);
+
+        // Estado de la ruta. Cualquier estado TERMINAL (completado/anulado/rechazado/vencido) o el
+        // propio destinatario ya firmado → nada que hacer aquí (la vista adapta el texto al estado).
+        if ($envelope->isStopped() || $recipient->isSigned()) {
+            return view('contracts.sign', ['recipient' => $recipient, 'envelope' => $envelope, 'stage' => 'done']);
+        }
+        if (! ContractSigning::isOpenTurn($envelope, $recipient)) {
+            // Aún no es su turno (secuencial); en paralelo cualquier firmante abierto pasa.
+            return view('contracts.sign', ['recipient' => $recipient, 'envelope' => $envelope, 'stage' => 'not_turn']);
+        }
+
+        // ¿Necesita segundo factor? Interno logueado que es su propio destinatario → no.
+        if ($this->needsFactor($request, $recipient) && ! $this->factorPassed($recipient)) {
+            return view('contracts.sign-gate', [
+                'recipient' => $recipient,
+                'factor'    => ContractSigning::factorType($envelope),   // borndate | rfc
+                'verifyUrl' => URL::temporarySignedRoute('contracts.sign.verify', now()->addHours(3), ['recipient' => $recipient->id]),
+                'error'     => null,
+                'locked'    => false,
+            ]);
+        }
+
+        // Puede ver documentos + consentir + firmar.
+        ContractSigning::markViewed($recipient);
+        [$type, $id] = $this->consenterKey($recipient);
+        $needsConsent = $id !== null && ! ContractConsent::has($type, $id);
+
+        return view('contracts.sign', [
+            'recipient'    => $recipient,
+            'envelope'     => $envelope,
+            'stage'        => 'sign',
+            'needsConsent' => $needsConsent,
+            'signUrl'      => URL::temporarySignedRoute('contracts.sign.do', now()->addHours(3), ['recipient' => $recipient->id]),
+            'declineUrl'   => URL::temporarySignedRoute('contracts.sign.decline', now()->addHours(3), ['recipient' => $recipient->id]),
+            // CEREMONIA DocuSign-like: el PAQUETE COMPLETO (contrato + anexos + Hoja) armado, con MIS
+            // lugares de firma en cada documento. Adopto mi autógrafa una vez y la estampo en cada etiqueta.
+            'ceremony'     => ContractCeremony::documents($envelope, $recipient),
+            'adopted'      => optional($recipient->user)->adopted_signature,
+        ]);
+    }
+
+    public function verify(Request $request, ContractEnvelopeRecipient $recipient)
+    {
+        $envelope = $recipient->envelope;
+        abort_unless($envelope, 404);
+
+        $key = 'sign2fa:' . $recipient->id . ':' . $request->ip();
+        if (RateLimiter::tooManyAttempts($key, self::SF_MAX)) {
+            return view('contracts.sign-gate', [
+                'recipient' => $recipient, 'factor' => ContractSigning::factorType($envelope),
+                'verifyUrl' => URL::temporarySignedRoute('contracts.sign.verify', now()->addHours(3), ['recipient' => $recipient->id]),
+                'error' => __('Demasiados intentos por ahora. Espera un momento e inténtalo de nuevo, o avísale a producción.'), 'locked' => true,
+            ]);
+        }
+        RateLimiter::hit($key, 3600);
+
+        if (ContractSigning::verifyFactor($recipient, (string) $request->input('factor_value'))) {
+            RateLimiter::clear($key);
+            session()->put($this->sessionKey($recipient), true);
+            return redirect(self::signUrl($recipient, 14));
+        }
+
+        return view('contracts.sign-gate', [
+            'recipient' => $recipient, 'factor' => ContractSigning::factorType($envelope),
+            'verifyUrl' => URL::temporarySignedRoute('contracts.sign.verify', now()->addHours(3), ['recipient' => $recipient->id]),
+            'error' => __('El dato no coincide. Revísalo e inténtalo de nuevo; si sigue sin coincidir, avísale a producción.'), 'locked' => false,
+        ]);
+    }
+
+    public function sign(Request $request, ContractEnvelopeRecipient $recipient)
+    {
+        $envelope = $recipient->envelope;
+        abort_unless($envelope, 404);
+
+        // Guarda del factor (salvo interno logueado que es su propio destinatario).
+        if ($this->needsFactor($request, $recipient) && ! $this->factorPassed($recipient)) {
+            abort(403);
+        }
+
+        // FIRMA AUTÓGRAFA obligatoria (DocuSign): la imagen dibujada es la representación física de
+        // la autorización, más allá del sello. Sin ella no se firma.
+        $request->validate([
+            'signature_image' => 'required|string|min:100',
+            'rubrica_image'   => 'nullable|string',   // marca de RÚBRICA (distinta de la firma; opcional)
+        ]);
+        $image   = (string) $request->input('signature_image');
+        $rubrica = (string) $request->input('rubrica_image', '');
+        $rubrica = $rubrica !== '' ? $rubrica : $image;   // sin rúbrica capturada → usa la firma (elección válida)
+
+        // Consentimiento electrónico (aparte, una vez por persona).
+        if ($request->boolean('consent')) {
+            ContractSigning::recordConsent($recipient, $request->ip());
+        }
+
+        // Adopción de firma para reúso (solo el firmante interno logueado sobre su propio
+        // destinatario; el contratado no-crew no tiene usuario donde guardarla).
+        $u = $request->user();
+        if ($request->boolean('save_signature') && $u && (int) $u->id === (int) $recipient->user_id) {
+            $u->adopted_signature = $image;
+            $u->save();
+        }
+
+        $method = $this->needsFactor($request, $recipient) ? 'signed_link_2fa' : 'authenticated';
+        try {
+            ContractSigning::sign($recipient, $method, $request->ip(), $image, $rubrica);
+        } catch (ContractEnvelopeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect(self::signUrl($recipient, 14))->with('status', __('Firma registrada.'));
+    }
+
+    /**
+     * RECHAZAR (Fase 2) — el firmante en turno se niega, con MOTIVO obligatorio. Misma guarda del
+     * factor que firmar (solo quien pasó el 2º factor, o el interno logueado, puede rechazar). Detiene
+     * el sobre. Vuelve a la misma página, que ahora muestra el estado "rechazado".
+     */
+    public function decline(Request $request, ContractEnvelopeRecipient $recipient)
+    {
+        $envelope = $recipient->envelope;
+        abort_unless($envelope, 404);
+
+        if ($this->needsFactor($request, $recipient) && ! $this->factorPassed($recipient)) {
+            abort(403);
+        }
+
+        $data = $request->validate(['reason' => 'required|string|max:500']);
+
+        try {
+            ContractSigning::decline($recipient, $request->ip(), $data['reason']);
+        } catch (ContractEnvelopeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect(self::signUrl($recipient, 14))->with('status', __('Registramos que no firmarás este contrato.'));
+    }
+
+    public function document(Request $request, ContractEnvelopeRecipient $recipient, int $index)
+    {
+        $envelope = $recipient->envelope;
+        abort_unless($envelope, 404);
+        // Debe poder VER solo quien pasó el factor (o interno logueado).
+        if ($this->needsFactor($request, $recipient) && ! $this->factorPassed($recipient)) {
+            abort(403);
+        }
+        return ContractEnvelopeController::serveDocument($envelope, $index);
+    }
+
+    /**
+     * CEREMONIA — sirve UNA plantilla (principal o anexo) ARMADA como PDF: estampada con datos +
+     * firmas del sobre (las pendientes en blanco), con el TEXTO intacto (FPDI). Sobre este PDF el
+     * front superpone MIS etiquetas de firma por coordenadas. Misma guarda del factor que ver
+     * documentos. La plantilla debe ser de esta producción, aplicar al subtipo y ser PDF subido (las
+     * HTML se embeben aparte). Si el estampado falla, cae al PDF ORIGINAL (mismas coordenadas de
+     * página → los marcadores igual alinean). El paquete sellado no se toca aquí.
+     */
+    public function template(Request $request, ContractEnvelopeRecipient $recipient, int $template)
+    {
+        $envelope = $recipient->envelope;
+        abort_unless($envelope, 404);
+        if ($this->needsFactor($request, $recipient) && ! $this->factorPassed($recipient)) {
+            abort(403);
+        }
+
+        $contract = $envelope->contract;
+        abort_unless($contract, 404);
+
+        // La plantilla debe ser de esta producción y aplicar al subtipo. PDF subido O HTML con firmas
+        // por coordenadas (field_map): ambas se sirven como hoja PDF + etiquetas encima (motor unificado).
+        $tpl = ContractTemplate::find($template);
+        abort_unless(
+            $tpl && $tpl->is_active
+                && ($tpl->production_id === null || (int) $tpl->production_id === (int) $envelope->production_id)
+                && $tpl->appliesToSubtype($contract->concept),
+            404
+        );
+
+        try {
+            $bytes = \App\Support\ContractDocRenderer::renderForEnvelope($envelope, $tpl);
+        } catch (\Throwable $e) {
+            // Respaldo: PDF subido → su archivo original (las coordenadas igual alinean). HTML → sin
+            // respaldo simple (Chrome no rindió) → error accionable, no un documento roto.
+            if ($tpl->isPdfSource() && $tpl->pdf_path && Storage::disk('local')->exists($tpl->pdf_path)) {
+                $bytes = Storage::disk('local')->get($tpl->pdf_path);
+            } else {
+                abort(422, __('No se pudo generar el documento para firmar.'));
+            }
+        }
+
+        return response($bytes, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="documento.pdf"',
+        ]);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    /** Necesita factor salvo que el auth user sea ESTE destinatario (interno con sesión). */
+    private function needsFactor(Request $request, ContractEnvelopeRecipient $recipient): bool
+    {
+        $u = $request->user();
+        return ! ($u && $recipient->user_id && (int) $u->id === (int) $recipient->user_id);
+    }
+
+    private function factorPassed(ContractEnvelopeRecipient $recipient): bool
+    {
+        return (bool) session($this->sessionKey($recipient));
+    }
+
+    private function sessionKey(ContractEnvelopeRecipient $recipient): string
+    {
+        return "sign_2fa_ok.{$recipient->id}";
+    }
+
+    private function consenterKey(ContractEnvelopeRecipient $recipient): array
+    {
+        if ($recipient->user_id)  { return [ContractConsent::TYPE_USER,  (int) $recipient->user_id]; }
+        if ($recipient->payee_id) { return [ContractConsent::TYPE_PAYEE, (int) $recipient->payee_id]; }
+        return [ContractConsent::TYPE_USER, null];
+    }
+}

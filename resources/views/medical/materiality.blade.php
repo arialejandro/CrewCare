@@ -114,7 +114,7 @@
                     <div class="col-12 col-md-6">
                         <div class="cc-field mb-0">
                             <label for="photos" class="cc-label">{{ __('Fotos') }} <span class="cc-req" aria-hidden="true">*</span></label>
-                            <input type="file" name="photos[]" id="photos" accept="image/*" multiple required
+                            <input type="file" name="photos[]" id="photos" accept="image/*,.heic,.heif" multiple required data-cc-photo
                                    class="form-control cc-control @error('photos') is-invalid @enderror @error('photos.*') is-invalid @enderror">
                             @error('photos')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                             @error('photos.*')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
@@ -235,3 +235,9 @@
 
 </div>
 @endsection
+
+@push('scripts')
+{{-- HEIC (iPhone): conversión a JPEG en el navegador antes de subir (el servidor no decodifica HEIC). --}}
+<script src="/js/cc-photo.js"></script>
+<script src="/js/cc-photo-auto.js"></script>
+@endpush

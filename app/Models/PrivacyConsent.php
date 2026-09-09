@@ -33,7 +33,8 @@ class PrivacyConsent extends Model
 
     protected $fillable = ['user_id', 'version', 'accepted_at', 'ip_address', 'user_agent'];
 
-    protected $dates = ['accepted_at'];
+    // (2026-08-11 upgrade) `$dates` (deprecado L9+) → `$casts` datetime, mismo comportamiento.
+    protected $casts = ['accepted_at' => 'datetime'];
 
     /**
      * ¿Existe la tabla? Sin ella el módulo se apaga solo y la app sigue funcionando como antes

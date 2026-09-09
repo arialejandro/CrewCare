@@ -87,7 +87,10 @@
                             <div class="col-12 col-md-6">
                                 <div class="cc-field">
                                     <label for="borndate" class="cc-label">{{ __('Fecha de nacimiento') }}</label>
-                                    <input id="borndate" type="date" name="borndate" class="form-control form-control-edit validate cc-control" value="{{ old('borndate', $users->borndate) }}">
+                                    {{-- borndate está casteado a `date` (Carbon): sin format('Y-m-d') el <input type=date>
+                                         recibía "2000-05-15 00:00:00", NO lo entendía y salía vacío → al guardar cualquier
+                                         otro campo el vacío pisaba la fecha real. Con Y-m-d precarga y el round-trip la preserva. --}}
+                                    <input id="borndate" type="date" name="borndate" class="form-control form-control-edit validate cc-control" value="{{ old('borndate', optional($users->borndate)->format('Y-m-d')) }}">
                                 </div>
                             </div>
                             <div class="col-12 col-md-6">
@@ -153,9 +156,11 @@
                          Encima nada de eso escribía production_user, así que editar a alguien NO
                          cambiaba su puesto real. Ahora son los MISMOS selects de catálogo del alta
                          (admin/newuser.blade.php) y el servidor los re-resuelve antes de guardar. --}}
-                    @if($isSelf)
-                        {{-- Ficha propia: sin selects. Un operador no reasigna su propio
-                             departamento/puesto (acountupdate lo rechaza igualmente en servidor). --}}
+                    @if($isSelf && ! auth()->user()->hasRole('super-admin'))
+                        {{-- Ficha propia de un operador normal: sin selects. No reasigna su propio
+                             departamento/puesto (acountupdate lo rechaza igualmente en servidor).
+                             EXCEPCIÓN: el super-admin (el owner) SÍ puede asignarse un puesto para
+                             aparecer en la producción y probar el perfil — su scope ya es total. --}}
                         <div class="col-12">
                             <div class="cc-field">
                                 <label class="cc-label">{{ __('Departamento y puesto') }}</label>
@@ -187,12 +192,6 @@
                             </div>
                         </div>
                     @endif
-                    <div class="col-12 col-md-6">
-                        <div class="cc-field">
-                            <label for="labn" class="cc-label">{{ __('Jerarquía') }} <span class="cc-req" aria-hidden="true">*</span></label>
-                            <input id="labn" type="text" class="form-control validate cc-control" name="labn" required autocomplete="labn" value="{{ old('labn', $users->labn) }}">
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

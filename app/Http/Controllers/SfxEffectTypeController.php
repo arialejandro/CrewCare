@@ -192,4 +192,38 @@ class SfxEffectTypeController extends Controller
         return redirect()->route('sfx-effects.show', $effect->id)
             ->with('success', 'Insumo desasociado: «'.$label.'».');
     }
+
+    /**
+     * Sube/reemplaza la IMAGEN PRINCIPAL del tipo de efecto (referencia visual de la card).
+     * Gate = `sds.manage` (la ruta), el MISMO nivel que asociar insumos: es doctrina del catálogo,
+     * no captura en set. Réplica del patrón de Herramientas (InspectionController::storeToolImage):
+     * comprime al disco público y borra la anterior para no acumular basura.
+     */
+    public function storeImage(Request $request, $id)
+    {
+        $this->guard();
+        if ($resp = $this->layerGuard()) {
+            return $resp;
+        }
+
+        $request->validate([
+            'image' => 'required|mimes:jpg,jpeg,png,gif,bmp,svg,webp,heic,heif|heic_ok|max:8192',
+        ]);
+
+        $effect = SfxEffectType::findOrFail($id);
+
+        $path = \App\Support\ImageCompressor::store($request->file('image'), 'sfx/effects');
+        if ($path === null) {
+            return back()->with('error', 'No se pudo guardar la imagen (formato no reconocido).');
+        }
+
+        if ($effect->image_path) {
+            try { \Illuminate\Support\Facades\Storage::disk('public')->delete($effect->image_path); } catch (\Throwable $e) {}
+        }
+        $effect->image_path = $path;
+        $effect->save();
+
+        return redirect()->route('sfx-effects.show', $effect->id)
+            ->with('success', 'Imagen del efecto actualizada.');
+    }
 }

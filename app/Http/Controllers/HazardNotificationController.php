@@ -139,7 +139,7 @@ class HazardNotificationController extends Controller
 
         // Procesar la imagen principal
         if ($request->hasFile('main_image')) {
-            $image = $request->file('main_image');
+            $image = \App\Support\ImageCompressor::normalizeForUpload($request->file('main_image'));
             // (2026-06-28) nombre único: antes time().'_main.' colisionaba si dos uploads
             // caían en el mismo segundo. Se añade uniqid().
             $filename = time() . '_' . uniqid() . '_main.' . $image->getClientOriginalExtension();
@@ -151,6 +151,7 @@ class HazardNotificationController extends Controller
         if ($request->hasFile('additional_images')) {
             $additionalImagePaths = [];
             foreach ($request->file('additional_images') as $image) {
+                $image = \App\Support\ImageCompressor::normalizeForUpload($image);
                 $filename = time() . '_additional_' . uniqid() . '.' . $image->getClientOriginalExtension();
                 $path = $image->storeAs('hazard_images', $filename, 'public');
                 $additionalImagePaths[] = Storage::url($path);
@@ -166,6 +167,10 @@ class HazardNotificationController extends Controller
         $data['make_date'] = now()->toDateString();
         if (\Illuminate\Support\Facades\Schema::hasColumn('hazardnotifications', 'created_by_id')) {
             $data['created_by_id'] = auth()->id();
+        }
+        // (2026-09-07 · Unidades 2b) Unidad VIGENTE del contexto (null = principal → idéntico a hoy).
+        if (\Illuminate\Support\Facades\Schema::hasColumn('hazardnotifications', 'unit_id')) {
+            $data['unit_id'] = \App\Support\CurrentUnit::id();
         }
 
         // (2026-06-28) Chips de severidad/estado: SON capturados por el usuario (NO autofirma).
@@ -242,6 +247,11 @@ class HazardNotificationController extends Controller
     {
         $report = HazardNotification::findOrFail($id);
 
+        // Aislamiento por autor (auditoría #1): editar sólo el autor o la consolidación
+        // (safety.consolidate). Un safety no edita el hallazgo de otro. Leer la ficha SÍ es transversal.
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $report), 403,
+            'Solo el autor o la consolidación de seguridad pueden editar este reporte.');
+
         // (2026-07-24) Para prellenar el responsable/fecha de la acción correctiva en el form.
         if (\Illuminate\Support\Facades\Schema::hasTable('action_items')) {
             $report->load('actionItems');
@@ -273,6 +283,10 @@ class HazardNotificationController extends Controller
     {
         $report = HazardNotification::findOrFail($id);
 
+        // Aislamiento por autor (auditoría #1): sólo el autor o la consolidación pueden editar/re-sellar.
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $report), 403,
+            'Solo el autor o la consolidación de seguridad pueden editar este reporte.');
+
         // (2026-07-23) Blindaje anti-"solo espacios" (Fase 2 no pasa por el FormRequest, así que
         // se replica aquí el trim de prepareForValidation): "   " → "" → dispara el obligatorio.
         foreach (['production_name', 'name_loc', 'location_hazard_unsafe_act', 'description_hazard_unsafe_act'] as $f) {
@@ -297,9 +311,9 @@ class HazardNotificationController extends Controller
             'description_hazard_unsafe_act' => 'required|string',
             'action_taken'                  => 'nullable|string',
             'suggestions_corrective_action' => 'nullable|string',
-            'main_image'                    => 'nullable|image|mimes:jpeg,png,jpg,gif|max:12288',
+            'main_image'                    => 'nullable|mimes:jpeg,png,jpg,gif,heic,heif|heic_ok|max:12288',
             'additional_images'             => 'nullable|array',
-            'additional_images.*'           => 'nullable|image|mimes:jpeg,png,jpg,gif|max:12288',
+            'additional_images.*'           => 'nullable|mimes:jpeg,png,jpg,gif,heic,heif|heic_ok|max:12288',
             'hazard_event_id'               => 'nullable|integer',
             'risk_level'                    => 'nullable|in:Bajo,Medio,Alto,Extremo',
             'action_status'                 => 'nullable|in:Abierto,En proceso,Cerrado',
@@ -346,7 +360,7 @@ class HazardNotificationController extends Controller
 
         // Imagen principal: reemplazo OPCIONAL (si no se sube, se conserva la existente).
         if ($request->hasFile('main_image')) {
-            $image = $request->file('main_image');
+            $image = \App\Support\ImageCompressor::normalizeForUpload($request->file('main_image'));
             $filename = time() . '_' . uniqid() . '_main.' . $image->getClientOriginalExtension();
             $path = $image->storeAs('hazard_images', $filename, 'public');
             $data['main_image_path'] = Storage::url($path);
@@ -356,6 +370,7 @@ class HazardNotificationController extends Controller
         if ($request->hasFile('additional_images')) {
             $additionalImagePaths = is_array($report->additional_images_paths) ? $report->additional_images_paths : [];
             foreach ($request->file('additional_images') as $image) {
+                $image = \App\Support\ImageCompressor::normalizeForUpload($image);
                 $filename = time() . '_additional_' . uniqid() . '.' . $image->getClientOriginalExtension();
                 $path = $image->storeAs('hazard_images', $filename, 'public');
                 $additionalImagePaths[] = Storage::url($path);
@@ -422,7 +437,9 @@ class HazardNotificationController extends Controller
      */
     public function index()
     {
-        $hazardNotifications = HazardNotification::orderBy('id', 'desc')->paginate(15);
+        // Aislamiento por propiedad (auditoría #1): autor, con bypass safety.consolidate.
+        $hazardNotifications = \App\Support\ReportVisibility::forCurrentUnit(HazardNotification::query(), auth()->user())
+            ->orderBy('id', 'desc')->paginate(15);
         return View::make('admin.hazards', compact('hazardNotifications'));
     }
 
@@ -476,7 +493,16 @@ class HazardNotificationController extends Controller
             }
         }
 
-        return View::make('admin.hazard', compact('hazardNotification', 'standardUrl', 'involvedUser', 'involvedDeptName', 'canViewInvolved'));
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+        // MISMA vista/datos y la pasa por Browsershot (Chrome headless) → descarga idéntica a
+        // window.print(). Márgenes 0 (el @page Oficio manda). Ver [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = View::make('admin.hazard', compact('hazardNotification', 'standardUrl', 'involvedUser', 'involvedDeptName', 'canViewInvolved'))->render();
+            return \App\Support\PdfExporter::download($html, 'HAZ-' . $hazardNotification->id, [0, 0, 0, 0]);
+        }
+
+        return View::make('admin.hazard', compact('hazardNotification', 'standardUrl', 'involvedUser', 'involvedDeptName', 'canViewInvolved'))
+            ->with('pdfUrl', request()->fullUrlWithQuery(['pdf' => 1]));
     }
 
     /**
@@ -491,6 +517,10 @@ class HazardNotificationController extends Controller
     {
         $request->validate(['action_status' => 'required|in:Abierto,En proceso,Cerrado']);
         $n = HazardNotification::findOrFail($id);
+        // Aislamiento por autor (auditoría #1): cambiar el estado / cerrar el hallazgo = autor o
+        // consolidación. Un safety no cierra el hallazgo de otro.
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $n), 403,
+            'Solo el autor o la consolidación de seguridad pueden cambiar el estado de este reporte.');
         // (2026-07-09) Bloqueo de estado PDCA: no se puede pasar a "Cerrado" si quedan
         // acciones correctivas abiertas (lanza ValidationException → se muestra en el show).
         if ($request->input('action_status') === 'Cerrado') {

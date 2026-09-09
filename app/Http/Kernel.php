@@ -16,7 +16,7 @@ class Kernel extends HttpKernel
     protected $middleware = [
         // \App\Http\Middleware\TrustHosts::class,
         \App\Http\Middleware\TrustProxies::class,
-        \Fruitcake\Cors\HandleCors::class,
+        \Illuminate\Http\Middleware\HandleCors::class,
         \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
         \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
         \App\Http\Middleware\TrimStrings::class,
@@ -30,6 +30,7 @@ class Kernel extends HttpKernel
      */
     protected $middlewareGroups = [
         'web' => [
+            \App\Http\Middleware\SecurityHeaders::class,   // (2026-08-30) redirección https (prod) + cabeceras + CSP-reporte
             \App\Http\Middleware\EncryptCookies::class,
             \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
             \Illuminate\Session\Middleware\StartSession::class,
@@ -74,11 +75,16 @@ class Kernel extends HttpKernel
         // personales sensibles sin haber leído bajo qué términos.
         'privacidad' => \App\Http\Middleware\EnsurePrivacyConsent::class,
 
-        // Spatie RBAC aliases (ADDITIVE — registered for use vertical-by-vertical later;
-        // NOT yet attached to any existing route. Old 'admin'/AdminMiddleware stay in place).
-        // NOTE: spatie/laravel-permission v5 namespaces these under `Middlewares` (plural).
-        'role' => \Spatie\Permission\Middlewares\RoleMiddleware::class,
-        'permission' => \Spatie\Permission\Middlewares\PermissionMiddleware::class,
-        'role_or_permission' => \Spatie\Permission\Middlewares\RoleOrPermissionMiddleware::class,
+        // (2026-08-29) Envío diferido offline (Camino A). Como 'privacidad', NO va en
+        // ningún grupo global: se cuelga SÓLO de las rutas store() de los reportes que
+        // se capturan sin red. Es inerte salvo que la petición traiga X-Idempotency-Key,
+        // así que el envío interactivo en línea ni lo nota. Ver App\Http\Middleware\IdempotentReplay.
+        'idempotent' => \App\Http\Middleware\IdempotentReplay::class,
+
+        // Spatie RBAC aliases. (2026-08-11 · upgrade L10) spatie/laravel-permission v6 movió
+        // el namespace de `Middlewares` (plural, v5) a `Middleware` (singular).
+        'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
+        'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+        'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
     ];
 }

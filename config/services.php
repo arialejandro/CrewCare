@@ -41,6 +41,16 @@ return [
     ],
 
     /*
+     * WhatsApp click-to-chat (wa.me). 'country_code' es la LADA PAÍS por defecto que se
+     * antepone a un número LOCAL de 10 dígitos (ver App\Support\Phone): sin ella WhatsApp
+     * leería la lada local como país y abriría un chat equivocado. México (52) por defecto;
+     * una instalación de otro país lo cambia AQUÍ (WHATSAPP_COUNTRY_CODE) sin tocar código.
+     */
+    'whatsapp' => [
+        'country_code' => env('WHATSAPP_COUNTRY_CODE', '52'),
+    ],
+
+    /*
      * ROBOT DE VERIFICACIÓN DE CÉDULA (sub-paso sep_auto del Paso B).
      *
      * Consulta el Registro Nacional de Profesionistas a través de BÚHOLEGAL (fuente pública

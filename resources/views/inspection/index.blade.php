@@ -1,5 +1,13 @@
 @extends('layouts.app')
 @section('content')
+@push('scripts')
+<script>
+    // El buscador NO envía el form (búsqueda por keyup/AJAX): veta el submit sin on* (CSP).
+    document.addEventListener('submit', function (e) {
+        if (e.target.closest('[data-search-noop]')) { e.preventDefault(); }
+    });
+</script>
+@endpush
 
 {{-- Paso 1 · ENCONTRAR LA HERRAMIENTA. Rejilla de cards con el lenguaje de crew.
      La operación está DETENIDA: el buscador (alias primero) es lo primero que se ve. --}}
@@ -19,7 +27,7 @@
 
             <div class="crew-search flex-grow-1 flex-lg-grow-0" style="min-width: 280px;">
                 <label for="toolsearch" class="visually-hidden">{{ __('Buscar herramienta') }}</label>
-                <form onsubmit="return false;">
+                <form data-search-noop>
                     <div class="input-group">
                         <span class="input-group-text border-end-0">
                             @include('componentes._icon', ['name' => 'search', 'class' => 'cc-ico', 'label' => null])
@@ -31,6 +39,16 @@
             </div>
         </div>
 
+        {{-- Consulta del histórico + admin de imágenes de referencia (delta #47). --}}
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <a href="{{ route('tools.records') }}" class="btn btn-sm btn-crew-soft d-inline-flex align-items-center gap-1">
+                @include('componentes._icon', ['name' => 'clipboard-list', 'label' => null]) {{ __('Actas de inspección') }}
+            </a>
+            <a href="{{ route('tools.images') }}" class="btn btn-sm btn-crew-soft d-inline-flex align-items-center gap-1">
+                @include('componentes._icon', ['name' => 'camera', 'label' => null]) {{ __('Imágenes de referencia') }}
+            </a>
+        </div>
+
         {{-- Puerta (A4): inspección ligada a un reporte de origen. --}}
         @if (! empty($launch['origin']))
             <div class="alert alert-info d-flex align-items-center gap-2 py-2">
@@ -39,27 +57,12 @@
             </div>
         @endif
 
-        {{-- LA LISTA DEL DÍA: la DEUDA. Corta por diseño (solo por_jornada sin acta vigente hoy). --}}
-        @if ($dayList->isNotEmpty())
-            <div class="card border-0 shadow-sm rounded-3 mb-4" style="border-left:4px solid #b45309 !important;">
-                <div class="p-3">
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        @include('componentes._icon', ['name' => 'clock', 'class' => 'cc-ico', 'label' => null])
-                        <strong>{{ __('Pendiente de inspección hoy') }}</strong>
-                        <span class="insp-tag">{{ $dayList->count() }}</span>
-                    </div>
-                    <div class="d-flex flex-wrap gap-2">
-                        @foreach ($dayList as $t)
-                            <a href="{{ route('tools.inspect.form', array_merge([$t->id], $launch)) }}"
-                               class="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-1">
-                                @include('componentes._icon', ['name' => 'wrench', 'label' => null])
-                                {{ $t->name }}
-                            </a>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
-        @endif
+        {{-- (2026-08-08) RETIRADA "Pendiente de inspección hoy": se derivaba de un atributo ESTÁTICO
+             del catálogo (inspection_regime = por_jornada), NO de lo que realmente llega al set.
+             Listar herramientas "por poner" es peligroso: hace creer que eso es todo lo que hay que
+             revisar, o que llegará algo que quizá no llega. Una lista real de arribos tendría que
+             venir de una fuente que DECLARE qué llega (p. ej. un scouting), no de una suposición del
+             catálogo. Hasta que exista esa fuente, no se muestra ninguna deuda inventada. --}}
 
         <div id="toolgrid" aria-live="polite" data-launch="{{ http_build_query($launch) }}">
             @if ($tools->count() === 0)

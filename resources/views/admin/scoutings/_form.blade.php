@@ -142,7 +142,7 @@
     <div class="alert alert-danger">{{ session('error') }}</div>
 @endif
 
-<form action="{{ $isEdit ? route('scoutings.update', $report->id) : route('scoutings.store') }}" method="POST" enctype="multipart/form-data" data-cc-autosave="scouting-report" data-cc-sections>
+<form action="{{ $isEdit ? route('scoutings.update', $report->id) : route('scoutings.store') }}" method="POST" enctype="multipart/form-data" @if(!$isEdit) data-cc-drafts="scouting-report" @endif data-cc-sections>
     @csrf
 
     {{-- (2026-08-01 · captura fluida, Paso 7) Secciones plegables + estado por sección.
@@ -153,6 +153,14 @@
     @include('componentes._collapsible-sections')
     @if($isEdit)
         @method('PUT')
+    @endif
+
+    {{-- (captura fluida · Paso A) BORRADORES en el dispositivo. Solo en ALTA: al editar,
+         el reporte ya vive en el servidor. Varios a la vez, sobreviven al cierre y a la
+         falta de red; se retoma cualquiera. El scouting registra abajo su reconstructor
+         de filas de peligro (window.CCDraftRehydrate['scouting-report']). --}}
+    @if(!$isEdit)
+        @include('componentes._drafts-tray', ['draftType' => 'scouting-report', 'formSel' => 'form[data-cc-drafts]'])
     @endif
 
     {{-- ============ SECCIÓN: GENERAL ============ --}}
@@ -182,7 +190,7 @@
                 </div>
                 <div class="col-md-8">
                     <label for="location_name" class="form-label fw-semibold">Locación <span class="text-danger">*</span></label>
-                    <input type="text" id="location_name" name="location_name" class="form-control @error('location_name') is-invalid @enderror" value="{{ old('location_name', $report->location_name ?? '') }}" required>
+                    <input type="text" id="location_name" name="location_name" data-draft-title class="form-control @error('location_name') is-invalid @enderror" value="{{ old('location_name', $report->location_name ?? '') }}" required>
                     @error('location_name')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
 
@@ -194,6 +202,7 @@
                     @include('componentes._geo-capture', [
                         'mode'         => 'address',
                         'required'     => false,
+                        'auto'         => ! ($isEdit ?? false), {{-- auto-captura solo en ALTA, nunca en edición --}}
                         'latValue'     => old('latitude', $report->latitude ?? ''),
                         'lngValue'     => old('longitude', $report->longitude ?? ''),
                         'addressValue' => old('location_address', $report->location_address ?? ''),
@@ -314,7 +323,20 @@
                 <div class="col-md-3">
                     <label class="form-label fw-semibold">Distancia al hospital (km)</label>
                     <input type="number" step="0.01" min="0" inputmode="decimal" name="hospital_distance_km" class="form-control" placeholder="Ej: 3.2" value="{{ old('hospital_distance_km', $report->hospital_distance_km ?? '') }}">
-                    <small class="cc-muted d-block mt-1">La llena el buscador (ruta real en auto). Ajústala si hace falta.</small>
+                    <small class="cc-muted d-block mt-1">Ajústala si hace falta.</small>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">¿Habrá ambulancia?</label>
+                    @php
+                        $haVal = old('has_ambulance', (isset($report) && $report->has_ambulance !== null) ? (int) $report->has_ambulance : '');
+                        $haVal = ($haVal === '' || $haVal === null) ? '' : (string) $haVal;
+                    @endphp
+                    <select name="has_ambulance" class="form-select">
+                        <option value="" @selected($haVal === '')>— Sin declarar —</option>
+                        <option value="1" @selected($haVal === '1')>Sí</option>
+                        <option value="0" @selected($haVal === '0')>No</option>
+                    </select>
+                    <small class="cc-muted d-block mt-1">Planeación; la unidad se verifica aparte.</small>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label fw-semibold">Compañía de ambulancia</label>
@@ -535,6 +557,12 @@
                  El <style> de abajo hace que en móvil cada control ocupe el 100% con su
                  etiqueta encima, en vez de compartir renglón (celdas ricas: select+input). --}}
             <style>
+                /* (captura fluida · Paso C) Revelación condicional: el guion se ve mientras
+                   la fila NO está calificada; el control/residual/personal aparecen al calificar
+                   (clase .is-rated puesta por JS). Solo presentación; el POST no cambia. */
+                #hazards-table .hz-locked { display: none; color: var(--text-muted, #6c757d); padding-left: .15rem; }
+                #hazards-table .hz-row:not(.is-rated) .hz-locked { display: inline; }
+                #hazards-table .hz-row:not(.is-rated) .hz-cond { display: none; }
                 @media (max-width: 767px) {
                     #hazards-table.cc-stack td { flex-wrap: wrap; text-align: left; }
                     #hazards-table.cc-stack td::before { flex: 1 1 100%; }
@@ -585,7 +613,7 @@
             {{-- Casilla SB132: actividades especiales declaradas (gatilla el RA específico) --}}
             <div class="mt-3 p-3 border rounded {{ $specialChecked ? 'border-danger' : '' }}" id="sb132-box">
                 <div class="form-check mb-0">
-                    <input class="form-check-input" type="checkbox" name="special_activities" value="1" id="special_activities" {{ $specialChecked ? 'checked' : '' }} onchange="toggleSpecial()">
+                    <input class="form-check-input" type="checkbox" name="special_activities" value="1" id="special_activities" {{ $specialChecked ? 'checked' : '' }}>
                     <label class="form-check-label fw-semibold" for="special_activities">
                         Se declaran <u>actividades especiales</u> (armas / pirotecnia / stunts / aéreo / agua / off-road / fuego abierto / altura)
                     </label>
@@ -823,7 +851,7 @@
                             <small class="cc-muted">Imagen actual — sube una nueva para <strong>reemplazarla</strong>.</small>
                         </div>
                     @endif
-                    <input type="file" id="main-image-input" name="main_image" class="form-control" accept="image/*">
+                    <input type="file" id="main-image-input" name="main_image" class="form-control" accept="image/*,.heic,.heif" data-cc-noauto>
                     <small class="cc-muted d-block mt-1">JPG, PNG o GIF · hasta 12 MB. Se optimiza sola al subir.</small>
                 </div>
                 <div class="col-md-6">
@@ -871,7 +899,7 @@
                     {{-- Uploader múltiple con mejora progresiva: el input real funciona solo;
                          el JS (si el navegador lo permite) lo oculta y muestra botón + miniaturas con pie de foto. --}}
                     <div id="ai-uploader">
-                        <input type="file" id="ai-input" name="additional_images[]" accept="image/*" multiple class="form-control">
+                        <input type="file" id="ai-input" name="additional_images[]" accept="image/*,.heic,.heif" multiple class="form-control" data-cc-noauto>
                         <button type="button" id="ai-add" class="ai-add-btn d-inline-flex align-items-center gap-1" style="display:none;">
                             @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-ico'])
                             <span>Agregar imágenes</span>
@@ -953,6 +981,10 @@
         if (box) box.classList.toggle('border-danger', cb.checked);
     }
     document.addEventListener('DOMContentLoaded', toggleSpecial);
+    // Aviso SB132 al cambiar la casilla (CSP: sin onchange inline).
+    document.addEventListener('change', function (e) {
+        if (e.target && e.target.id === 'special_activities') { toggleSpecial(); }
+    });
 
     // Tabla de peligros: auto-clasificación (matriz Amazon), agregar y quitar filas.
     (function () {
@@ -980,6 +1012,20 @@
                 out.removeAttribute('style');
                 out.textContent = '—';
             }
+            stageRow(tr);
+        }
+        // (captura fluida · Paso C) Revela control/residual/personal cuando la fila ya está
+        // calificada (Prob+Cons) o ya trae contenido (medida pre-propuesta / edición / borrador).
+        // Solo alterna la clase .is-rated; el POST sigue enviando todos los campos → sello intacto.
+        function stageRow(tr) {
+            var l = tr.querySelector('.hz-l'), c = tr.querySelector('.hz-c');
+            var rated = !!(l && c && l.value && c.value);
+            var filled = false;
+            ['hz_control[]', 'hz_residual[]', 'hz_personnel[]'].forEach(function (n) {
+                var e = tr.querySelector('[name="' + n + '"]');
+                if (e && e.value && String(e.value).trim() !== '') { filled = true; }
+            });
+            tr.classList.toggle('is-rated', rated || filled);
         }
         var body = document.getElementById('hazards-body');
         if (!body) return;
@@ -1037,6 +1083,7 @@
                 }
             });
             refreshRow(tr, false);
+            stageRow(tr);
         }
         body.querySelectorAll('.hz-row').forEach(wire);
 
@@ -1097,6 +1144,7 @@
             // Vacío = vacío: nunca texto inventado.
             var ctrl = tr.querySelector('input[name="hz_control[]"]');
             if (ctrl && ev && ev.control && !ctrl.value) { ctrl.value = ev.control; }
+            stageRow(tr); // revela control/residual/personal si llegó medida pre-propuesta o P/C sugeridas
             if (activeFrames.length) { applyFacetsAll(tr); }
             contarSinEvento();
             if (tr.scrollIntoView) { tr.scrollIntoView({ block: 'nearest' }); }
@@ -1142,6 +1190,30 @@
                 setTimeout(contarSinEvento, 0);
             }
         });
+
+        // (captura fluida · Paso A) RECONSTRUCTOR de la tabla de peligros para retomar un
+        // borrador: crea tantas filas VACÍAS como valores guardados haya; luego CCDrafts.restore
+        // asigna cada valor por orden del DOM (el change del evento repone norma y sugiere
+        // Prob/Cons, que restore sobrescribe con lo guardado por venir después en el DOM).
+        window.CCDraftRehydrate = window.CCDraftRehydrate || {};
+        window.CCDraftRehydrate['scouting-report'] = function (buckets) {
+            if (!tpl || !tpl.content) { return; }
+            var need = 0;
+            ['hz_event_id[]', 'hz_hazard[]', 'hz_likelihood[]', 'hz_consequence[]',
+             'hz_control[]', 'hz_residual[]', 'hz_personnel[]'].forEach(function (n) {
+                if (buckets[n]) { need = Math.max(need, buckets[n].length); }
+            });
+            var have = body.querySelectorAll('.hz-row').length;
+            for (var i = have; i < need; i++) {
+                body.appendChild(tpl.content.cloneNode(true));
+                var rows = body.querySelectorAll('.hz-row');
+                var tr = rows[rows.length - 1];
+                wire(tr);
+                if (window.CCTypeahead) { window.CCTypeahead.enhanceAll(tr); }
+            }
+            setTimeout(contarSinEvento, 0);
+        };
+
         contarSinEvento();
     })();
 

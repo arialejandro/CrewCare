@@ -60,8 +60,11 @@ class HomeController extends Controller
         // ---- KPIs (cada uno tras su permiso) ------------------------------------------------
         $totalAccidents = $canInjury ? InjuryReport::count() : 0;
         $lastAccident   = $canInjury ? InjuryReport::latest('incident_date')->first() : null;
+        // Carbon 3 (upgrade L13) cambió diffInDays: ahora devuelve FLOAT y CON SIGNO. Sin
+        // normalizar, "Días sin accidentes" salía con decimales (p. ej. 0.47 si el accidente
+        // es de hoy) o incluso negativo. Se fuerza a entero absoluto de días completos.
         $daysSinceLastAccident = $lastAccident
-            ? Carbon::parse($lastAccident->incident_date)->diffInDays(Carbon::now())
+            ? (int) floor(abs(Carbon::parse($lastAccident->incident_date)->diffInDays(Carbon::now())))
             : 'N/A';
 
         // (2026-07-24 · PASO 2/3, item 2) El KPI cuenta consultas INDIVIDUALES, así que respeta el

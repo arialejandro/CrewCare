@@ -61,6 +61,13 @@ class MedevacPoster extends Model
     protected $signatureExcludes = ['is_active'];
 
     /**
+     * (2026-09-05 · Unidades P1) `unit_id` EXCLUIDA del hash SOLO cuando es null: los 6 pósters sellados
+     * la traen en null → su sello NO cambia; con valor (2ª unidad) SÍ se sella. La aplica el trait
+     * (HasDigitalSignatures::nullableHashExcludes). NO se cablea ningún filtro por unidad (eso es Paso 2).
+     */
+    const NULLABLE_HASH_EXCLUDES = ['unit_id'];
+
+    /**
      * ¿Está aplicado el SQL del módulo? Memo por petición. Sin la tabla, el módulo se
      * apaga (menú/rutas/botón) en vez de tronar. Mismo patrón que WrapReport::supported().
      */

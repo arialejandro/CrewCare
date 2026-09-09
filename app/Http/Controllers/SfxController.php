@@ -45,12 +45,16 @@ class SfxController extends Controller
         $active = SfxEvent::active()->with('consumable')->latest('started_at')->get();
         $recent = SfxEvent::where('status', 'ended')->with('consumable')->latest('ended_at')->limit(15)->get();
 
+        // Resumen para que el panel SIEMPRE tenga algo que decir, aunque no haya nada en curso.
+        $closedToday = SfxEvent::where('status', 'ended')->whereDate('ended_at', now()->toDateString())->count();
+        $totalEver   = SfxEvent::count();
+
         // Consumibles activos para el <select> del form de inicio (defensivo: tabla puede faltar).
         $consumables = Schema::hasTable('consumables')
             ? Consumable::active()->orderBy('type')->orderBy('name')->get()
             : collect();
 
-        return view('admin.sfx.index', compact('active', 'recent', 'consumables'));
+        return view('admin.sfx.index', compact('active', 'recent', 'consumables', 'closedToday', 'totalEver'));
     }
 
     public function start(Request $request)

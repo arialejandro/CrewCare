@@ -1,0 +1,52 @@
+#!/bin/sh
+#
+# CrewCare · pre-commit — CANDADO CSP (Fase 1): bloquea manejadores on*= EN LÍNEA nuevos en vistas Blade.
+#
+# POR QUÉ EXISTE: NoInlineHandlersTest ya cazaba esto, pero un test solo protege si ALGUIEN lo corre — y una
+# regresión entró igual (onchange en payee/folders.blade.php, commit 0157e00c) porque nadie lo corrió antes
+# de commitear. Esto corre solo, sobre lo que estás por commitear, en milisegundos y sin levantar Laravel.
+#
+# CON LA CSP EN BLOQUEO un on*= en atributo NO se puede cubrir con nonce → queda MUERTO. Conviértelo a
+# addEventListener con data-* + delegación (partials: _autosubmit para un select/input que auto-envía;
+# _confirm-submit para confirmar un submit; _row-link para una fila clickeable).
+#
+# INSTALAR (no se activa solo al clonar): git config core.hooksPath .githooks   (ver DEPLOY-RUNBOOK.md).
+# SALTARLO en emergencia:                 git commit --no-verify
+#
+# Espeja el patrón de tests/Feature/Security/NoInlineHandlersTest.php y su misma exclusión de vistas
+# *-legacy (muertas) y de comentarios Blade {{-- --}} (no se renderizan).
+
+# Mismos eventos DOM que el test. \b evita casar "person", "monge", etc.
+PATTERN="\bon(click|submit|change|input|keyup|keydown|keypress|blur|focus|load|error|mouse[a-z]+|pointer[a-z]+|scroll|drop|drag[a-z]*|paste|copy|cut|wheel|contextmenu|toggle|reset|select|invalid|abort|beforeunload|hashchange|resize)[[:space:]]*=[[:space:]]*[\"']"
+
+# Solo .blade.php en STAGING (Added/Copied/Modified), excluyendo las vistas *-legacy (muertas, como el test).
+files=$(git diff --cached --name-only --diff-filter=ACM -- '*.blade.php' | grep -v -- '-legacy\.blade\.php')
+
+[ -z "$files" ] && exit 0
+
+found=0
+report=""
+for f in $files; do
+    # La versión EXACTA en staging (no la del working tree, que podría diferir en un add parcial).
+    # Se quitan los comentarios Blade {{-- --}} CONSERVANDO los saltos de línea → los números de línea
+    # quedan correctos y el ejemplo de _confirm-submit no cuenta como falso positivo (igual que el test).
+    matches=$(git show ":$f" 2>/dev/null \
+        | perl -0777 -pe 's{\{\{--.*?--\}\}}{ my $x=$&; $x =~ s/[^\n]//g; $x }ges' \
+        | grep -nEi "$PATTERN")
+    if [ -n "$matches" ]; then
+        found=1
+        report="$report
+  $f
+$(printf '%s\n' "$matches" | sed 's/^/    línea /')"
+    fi
+done
+
+[ "$found" -eq 0 ] && exit 0
+
+printf '\n\033[1;31m✖ CSP (Fase 1): manejador on*= EN LÍNEA en una vista Blade en staging.\033[0m\n'
+printf '  La CSP en bloqueo NO cubre on*= con nonce → quedaría muerto.\n'
+printf '  Conviértelo a addEventListener con data-* + delegación (usa el partial que toque:\n'
+printf '  _autosubmit / _confirm-submit / _row-link).\n'
+printf '%s\n' "$report"
+printf '\n  Emergencia (sabes lo que haces): git commit --no-verify\n\n'
+exit 1

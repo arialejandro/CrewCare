@@ -10,6 +10,8 @@
      ES/EN con acentos). Ruta raíz-relativa porque asset() está roto. Regenerar el CSS y los woff2:
      scratchpad/fetch_fonts.php. --}}
 <link rel="stylesheet" href="/fonts/reports/report-fonts.css">
+{{-- CSP: oculta <img data-hide-on-error> rotas sin onerror inline (same-origin, en <head>). --}}
+<script src="/js/img-fallback.js"></script>
 <style>
   :root{
     --bg-deep:#090C13; --bg:#0C1019; --sheet:rgba(20,26,38,.72); --panel:rgba(255,255,255,.04);
@@ -88,7 +90,10 @@
   :root[data-view="print"] .stage{padding:0}
   .sheet{width:100%;max-width:860px;background:var(--sheet);border:1px solid var(--stroke);border-radius:var(--radius);
     overflow:hidden;box-shadow:0 40px 90px -30px rgba(0,0,0,.7);backdrop-filter:blur(22px) saturate(1.25);-webkit-backdrop-filter:blur(22px) saturate(1.25)}
-  :root[data-view="print"] .sheet{max-width:none;border:0;border-radius:0;box-shadow:none;backdrop-filter:none}
+  /* overflow:visible en modo papel: con overflow:hidden Chrome trata la hoja como UN fragmento
+     y RECORTA el contenido en los saltos de página (en vez de fluirlo). Es la causa del texto
+     cortado en documentos largos (p.ej. el acta de ambulancia). */
+  :root[data-view="print"] .sheet{max-width:none;border:0;border-radius:0;box-shadow:none;backdrop-filter:none;overflow:visible}
 
   /* hero */
   .hero{position:relative;height:196px;overflow:hidden;background:#0c1119}
@@ -118,7 +123,7 @@
   /* quick-read band */
   .band{display:flex;background:rgba(0,0,0,.3);border-bottom:1px solid var(--stroke)}
   :root[data-view="print"] .band{background:#0b0f16}
-  .band .lead{flex:1.7;display:flex;align-items:center;gap:12px;padding:11px 20px;border-left:3px solid var(--brand);border-right:1px solid var(--stroke);min-width:0}
+  .band .lead{flex:1.7;display:flex;align-items:center;gap:12px;padding:11px 20px;border-right:1px solid var(--stroke);min-width:0}
   .band .lead .ic{width:26px;height:26px;color:var(--brand);flex:none}
   .band .lead .ic svg{width:26px;height:26px}
   .band .lead .who{display:flex;flex-direction:column;min-width:0;gap:1px}
@@ -197,6 +202,8 @@
   .sig{border:1px dashed var(--stroke-2);border-radius:var(--radius-sm);padding:14px 16px}
   .sig .who{font-weight:700;font-size:.9rem;margin-top:26px;border-top:1px solid var(--stroke);padding-top:7px}
   .sig .role{font-size:.7rem;color:var(--muted)}
+  {{-- Variante SIN línea de firma: para un dato que se muestra pero NO se firma (p. ej. la fecha). --}}
+  .sig--plain .who{margin-top:0;border-top:0;padding-top:0}
   .seal{display:flex;align-items:center;gap:11px;margin-top:14px;padding:12px 14px;border-radius:var(--radius-sm)}
   .seal svg{width:20px;height:20px;flex:none}
   /* Ya NO hay cintillo verde (2026-07-24): el documento sano no anuncia nada. Quedan el rojo
@@ -259,7 +266,12 @@
 
   @media print{
     /* @page margin:0 → el hero (thead) y el pie (fixed) van a sangre en cada hoja.
-       Hoja OFICIO (Oficio MX 216×340mm): más alto vertical que Carta → menos cortes/huecos. */
+       OFICIO (216×340mm). Los documentos están DISEÑADOS para esta altura: la rejilla de bitácora,
+       las tarjetas y sus break-inside:avoid paginan bien en Oficio (el DSR de Pino = 4 hojas, 2
+       columnas, compacto). Forzarlos a CARTA (279mm, 61mm más corto) ROMPE la paginación → una
+       tarjeta por hoja y páginas casi vacías (el DSR de Salón = 10 hojas). Si en el futuro se
+       quiere Carta, hay que RE-DISEÑAR el layout de cada doc para la hoja corta, no sólo cambiar el
+       @page. (Volvió a Oficio 2026-08-09 tras confirmarlo con los PDFs reales del owner.) */
     @page{size:216mm 340mm;margin:0}
     /* Modo papel forzado aunque el JS no corra. Incluye los semánticos oscuros para papel
        (ver el bloque :root[data-view="print"] de arriba): sin esto, un Ctrl+P directo sin pasar
@@ -268,8 +280,18 @@
     .toolbar,.caption,.ambient,.docfoot,.no-print,.ops,.alert{display:none!important}
     body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .stage{padding:0}
-    .sheet{max-width:none;border:0;border-radius:0;box-shadow:none;backdrop-filter:none}
+    /* overflow:visible → la hoja fluye entre páginas en vez de recortarse (ver nota arriba). */
+    .sheet{max-width:none;border:0;border-radius:0;box-shadow:none;backdrop-filter:none;overflow:visible}
     .sec{break-inside:avoid}
+    /* Secciones LARGAS por naturaleza (checklists, tablas de muchas filas): fluyen entre páginas
+       en vez de saltar enteras (que dejaba un hueco grande al fondo de la hoja anterior). Cada fila
+       se mantiene atómica y el encabezado de grupo no queda huérfano al pie. */
+    .sec--flow{break-inside:auto}
+    .sec--flow .tbl tr{break-inside:avoid}
+    .sec--flow .tbl tr.scope-row{break-after:avoid}
+    /* En una sección fluida, las unidades cerradas (firmas, recuadro del sello) NO se parten:
+       fluyen entre sí pero cada una entra completa en una hoja. */
+    .sec--flow .sign,.sec--flow .sig,.sec--flow .cfdi{break-inside:avoid}
     /* Repetición por hoja: hero (thead) + espaciador de pie (tfoot). */
     .report-wrap>thead{display:table-header-group}
     .report-wrap>tfoot{display:table-footer-group}
@@ -298,6 +320,20 @@
   .report-wrap>thead>tr>td,.report-wrap>tbody>tr>td,.report-wrap>tfoot>tr>td{padding:0;border:0}
   .footer-spacer{height:0}
   .print-foot{display:none}
+
+  /* ===== NORMAS DEL HALLAZGO/RIESGO (N:M) — chips de componentes/_standards-chips =====
+     (2026-08-06) EXTRAÍDO del DSR al chrome compartido cuando el PAE se volvió el 2º
+     adoptante del parcial (el DSR ya lo anticipaba en su comentario). Valores IDÉNTICOS a
+     los que tenía el DSR: mover al chrome no cambia un solo pixel de su render. */
+  .std-row{display:flex;flex-wrap:wrap;gap:6px}
+  .std-stack{display:flex;flex-direction:column;gap:5px;align-items:flex-end}
+  .std-one{display:inline-flex;align-items:center;gap:6px;font-size:.62rem;line-height:1.25;
+    border:1px solid var(--stroke);border-radius:7px;padding:3px 7px;max-width:100%}
+  .std-code{font-family:var(--mono);color:var(--muted);white-space:nowrap}
+  .std-cat{color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .std-link{font-weight:700;color:var(--brand);text-decoration:none;white-space:nowrap}
+  /* En la tarjeta basta marco + código: el nombre de la categoría satura la rejilla. */
+  .std-row .std-cat{display:none}
 </style>
 {{-- Tokens de color de los chips .badge-XXX (fuera de <style>: el parcial trae el suyo con @once). --}}
 @include('componentes._badge-tokens')

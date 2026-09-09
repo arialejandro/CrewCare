@@ -57,7 +57,7 @@ class MedevacController extends Controller
             'contacts.*.phone' => 'nullable|string|max:50',
             // Mapa OPCIONAL: captura de Google Maps (la misma que se pega hoy a mano). Se sella
             // DENTRO del payload como data-URI → offline y a prueba de manipulación.
-            'map_image'        => 'nullable|image|mimes:jpeg,jpg,png,webp|max:8192',
+            'map_image'        => 'nullable|mimes:jpeg,jpg,png,webp,heic,heif|heic_ok|max:8192',
         ]);
 
         // Contactos ORDENADOS por slot, tal como el emisor los confirmó (pre-llenados del crew
@@ -125,6 +125,15 @@ class MedevacController extends Controller
     public function show(MedevacPoster $poster)
     {
         abort_unless(MedevacPoster::supported(), 404);
+
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+        // MISMA vista/datos y la pasa por Browsershot (Chrome headless) → descarga idéntica a
+        // window.print(). El póster es CARTA (letter, márgenes 10mm); el botón vive en la propia
+        // vista (chrome propio, no _report-v2-foot). Ver [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = view('admin.medevac.show', compact('poster'))->render();
+            return \App\Support\PdfExporter::download($html, 'MEDEVAC-' . substr($poster->uuid, 0, 8), [10, 10, 10, 10]);
+        }
 
         return view('admin.medevac.show', compact('poster'));
     }

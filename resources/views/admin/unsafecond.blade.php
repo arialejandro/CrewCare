@@ -41,10 +41,16 @@
 
     // ---- Folio / UUID ----
     $folio    = 'UNS-' . str_pad((string) $uc->id, 4, '0', STR_PAD_LEFT);
-    $footUuid = 'UUID: ' . $brandName . '-UNS-' . (16210 + $uc->id) . '-' . \Carbon\Carbon::parse($uc->created_at)->format('dmY') . ' | ' . config('crewcare.doc_version');
+    // UUID REAL del documento (el mismo del sello CFDI), no un código derivado del id.
+    $footUuid = 'UUID: ' . ($uc->uuid ?: '—') . ' | ' . config('crewcare.doc_version');
+
+    // NOMBRE DE CRÉDITOS de quien elaboró (firmas + pie + sello): autor por created_by_id →
+    // User::displayName (ncreditos; si vacío, nombre corto). Si no hay autor, cae a make_by.
+    $__author = ! empty($uc->created_by_id) ? \App\Models\User::find($uc->created_by_id) : null;
+    $creditName = $__author ? \App\Models\User::displayName($__author) : ($uc->make_by ?: '—');
 
     // ---- Hero ----
-    $heroDate = $uc->date_observed ? \Carbon\Carbon::parse($uc->date_observed)->format('d M Y') : null;
+    $heroDate = $uc->date_observed ? \Carbon\Carbon::parse($uc->date_observed)->translatedFormat('d M Y') : null;
     $heroTime = $uc->time_observed ?: null;
     $heroLoc  = $uc->name_loc ?: ($uc->location_unsafe_cond ?: '');
 
@@ -292,9 +298,11 @@
            sellan al crearse, así que SIEMPRE llevan cadena vigente. --}}
       <section class="sec">
         <div class="sec-h"><span class="bar"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg><h2>{{ __('reports.label_signatures_integrity') }}</h2><span class="line"></span></div>
+        {{-- Casilla 1 = nombre de créditos sobre la línea de firma; casilla 2 = fecha como dato SIN
+             línea (.sig--plain): la fecha no se firma. --}}
         <div class="sign">
-          <div class="sig"><div class="who">{{ $uc->make_by ?: '—' }}</div><div class="role">{{ __('reports.label_prepared_by') }}</div></div>
-          <div class="sig"><div class="who">{{ $uc->make_date ? \Carbon\Carbon::parse($uc->make_date)->format('d M Y') : '—' }}</div><div class="role">{{ __('reports.label_date') }}</div></div>
+          <div class="sig"><div class="who">{{ $creditName }}</div><div class="role">{{ __('reports.label_prepared_by') }}</div></div>
+          <div class="sig sig--plain"><div class="who">{{ $uc->make_date ? \Carbon\Carbon::parse($uc->make_date)->translatedFormat('d M Y') : '—' }}</div><div class="role">{{ __('reports.label_date') }}</div></div>
         </div>
         @include('componentes._seal-cfdi', ['doc' => $uc, 'folio' => $folio, 'prefix' => 'CREWCARE-UNS'])
       </section>
@@ -303,10 +311,10 @@
     <tfoot><tr><td><div class="footer-spacer"></div></td></tr></tfoot>
     </table>
     @include('componentes._report-v2-foot', [
-      'footPreparedName' => $uc->make_by ?: '—',
+      'footPreparedName' => $creditName,
       {{-- (2026-07-23) Antes reusaba label_risk_assessment ("Risk Assessment" — inglés dentro del
            doc ES). Se usa el nombre localizado del módulo, que ya nombra el tipo de documento. --}}
-      'footPreparedMeta' => __('reports.unsafe_module') . ($uc->make_date ? ' · ' . \Carbon\Carbon::parse($uc->make_date)->format('d M Y') : ''),
+      'footPreparedMeta' => __('reports.unsafe_module'), // pie SIN fecha (owner 2026-08)
       'footUuid'         => $footUuid,
     ])
 

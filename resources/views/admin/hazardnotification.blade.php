@@ -51,9 +51,17 @@
             ? 'hazards.update'
             : (\Illuminate\Support\Facades\Route::has('hazard_notifications.update') ? 'hazard_notifications.update' : 'hazards.update');
     @endphp
-    <form action="{{ $isEdit ? route($hzUpdateRoute, $report->id) : route('hazard_notifications.store') }}" method="POST" enctype="multipart/form-data" data-cc-autosave="hazard-notification">
+    <form action="{{ $isEdit ? route($hzUpdateRoute, $report->id) : route('hazard_notifications.store') }}" method="POST" enctype="multipart/form-data" @if(!$isEdit) data-cc-drafts="hazard-notification" @endif data-cc-sections>
         @csrf
         @if($isEdit) @method('PUT') @endif
+
+        {{-- (captura fluida · Paso 7) Secciones plegables + estado por sección (no invasivo). --}}
+        @include('componentes._collapsible-sections')
+
+        {{-- (captura fluida · Paso A) Borradores en el dispositivo. Solo en alta. --}}
+        @if(!$isEdit)
+            @include('componentes._drafts-tray', ['draftType' => 'hazard-notification'])
+        @endif
 
         {{-- ============ SECCIÓN: GENERAL Y LOCACIÓN ============ --}}
         <div class="card shadow-sm mb-4">
@@ -394,7 +402,7 @@
                                 <div class="form-text">Imagen actual. Sube otra sólo si deseas reemplazarla.</div>
                             </div>
                         @endif
-                        <input type="file" class="form-control" id="main_image" name="main_image" accept="image/*">
+                        <input type="file" class="form-control" id="main_image" name="main_image" accept="image/*,.heic,.heif" data-cc-photo>
                         <div class="form-text">Esta será la imagen principal del reporte.</div>
                     </div>
                     <div class="col-12">
@@ -412,7 +420,7 @@
                         <div id="additional_images_container"></div>
                         {{-- d-grid = botón de ancho completo en móvil; en md+ vuelve a auto. --}}
                         <div class="d-grid d-md-block">
-                            <button type="button" class="btn btn-outline-secondary" onclick="addImageField()">＋ Agregar otra imagen</button>
+                            <button type="button" class="btn btn-outline-secondary" data-img-add>＋ Agregar otra imagen</button>
                         </div>
                         <div class="form-text">Puedes agregar varias imágenes como evidencia.</div>
                     </div>
@@ -475,8 +483,8 @@
         const div = document.createElement('div');
         div.classList.add('input-group', 'mb-2');
         div.innerHTML = `
-            <input type="file" class="form-control" id="additional_image_${imageCounter}" name="additional_images[]" accept="image/*" aria-label="Imagen adicional ${imageCounter}">
-            <button type="button" class="btn btn-outline-danger" onclick="removeImageField(this)" title="Eliminar">✕</button>
+            <input type="file" class="form-control" id="additional_image_${imageCounter}" name="additional_images[]" accept="image/*,.heic,.heif" aria-label="Imagen adicional ${imageCounter}" data-cc-photo>
+            <button type="button" class="btn btn-outline-danger" data-img-del title="Eliminar">✕</button>
         `;
         container.appendChild(div);
     }
@@ -484,6 +492,13 @@
     function removeImageField(button) {
         button.parentNode.remove();
     }
+
+    // Delegación (CSP: sin onclick inline; el botón "quitar" se inyecta con cada imagen).
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('[data-img-add]')) { addImageField(); return; }
+        var d = e.target.closest('[data-img-del]');
+        if (d) { removeImageField(d); }
+    });
 
     // (2026-07-13) GPS HONESTO (no-silencioso): sincroniza el respaldo manual con los hidden
     // latitude/longitude del GPS silencioso Y muestra un aviso VISIBLE (#gps_fail_alert) cuando
@@ -679,3 +694,9 @@
     })();
 </script>
 @endsection
+
+@push('scripts')
+{{-- HEIC (iPhone): conversión a JPEG en el navegador antes de subir (el servidor no decodifica HEIC). --}}
+<script src="/js/cc-photo.js"></script>
+<script src="/js/cc-photo-auto.js"></script>
+@endpush

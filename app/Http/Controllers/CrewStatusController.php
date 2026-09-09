@@ -87,7 +87,10 @@ class CrewStatusController extends Controller
         return redirect('/usuarioscrud');
     }
 
-    // ---- #6: rol legacy `admin` / grupos legacy `daytest` ------------------------------
+    // ---- #6: rol legacy `admin` -------------------------------------------------------
+    // `admin` SIGUE VIVO: gatea /importcrew (AdminMiddleware), User::canSeePanel() y el rótulo
+    // del sidebar. Su toggle salió del menú de acciones (2026-08-07) pero estas rutas/métodos se
+    // conservan intactos para no romper el contrato de la columna.
 
     public function activaradmin($id)
     {
@@ -101,24 +104,12 @@ class CrewStatusController extends Controller
         return redirect('/usuarioscrud');
     }
 
-    public function putga($id)
-    {
-        $this->setFlag($id, 'daytest', 0);
-        return redirect('/usuarioscrud');
-    }
-
-    // PASO A (2026-07-19): ELIMINADO putgb() — escribía daytest = 2 ("Convertir a Médico").
-    // Era un falso marcador: los 13 usuarios que lo tuvieron eran de producción/coordinación
-    // y los médicos reales tenían NULL. La identidad médica es ahora el rol Spatie `medic`
-    // (User::isMedic()), que se asigna desde /rolescrud → RoleAssignmentController.
-    // Se eliminaron a la vez la ruta POST /putmed/{id} y los 2 botones de
-    // resources/views/componentes/_group-toggles.blade.php (únicos usuarios de route('putgb')).
+    // (2026-08-07) ELIMINADOS putga()/putgg() — escribían el grupo legacy `daytest` (0/1), una
+    // bandera MUERTA que ningún código leía para decidir nada. Se borraron junto con sus rutas
+    // (POST /putadm, /putsup) y el parcial componentes/_group-toggles ("Supervisor"/"Admin").
+    // La columna `daytest` se conserva como dato (pendiente de DROP en owner-apply).
+    // putgb() (daytest=2, "Convertir a Médico") ya se había retirado el 2026-07-19; la identidad
+    // médica es hoy el rol Spatie `medic` (User::isMedic()), asignado desde /rolescrud.
     // setFlag() NO se toca: lo comparten activarusuario/activarencuesta/desactivarusuario/
-    // activaradmin/desactivaradmin/putga/putgg y es donde vive la guarda canManageCrewMember.
-
-    public function putgg($id)
-    {
-        $this->setFlag($id, 'daytest', 1);
-        return redirect('/usuarioscrud');
-    }
+    // activaradmin/desactivaradmin y es donde vive la guarda canManageCrewMember.
 }

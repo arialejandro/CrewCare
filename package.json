@@ -24,6 +24,7 @@
         "vue-template-compiler": "^2.6.12"
     },
     "dependencies": {
+        "puppeteer": "^25.5.0",
         "tinymce": "^6.3.1"
     }
 }

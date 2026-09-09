@@ -39,6 +39,8 @@
     .cc-ta-opt { padding:.42rem .75rem; font-size:.9rem; color:#1f2937; cursor:pointer; }
     .cc-ta-opt:hover, .cc-ta-opt.active { background:#eef2ff; }
     .cc-ta-empty { padding:.5rem .75rem; font-size:.85rem; color:#9aa3af; }
+    .cc-ta-create { color:#4f46e5; font-weight:600; border-top:1px dashed #e5e7eb; }
+    @media (prefers-color-scheme: dark) { .cc-ta-create { color:#a5b4fc; border-top-color:#374151; } }
     /* Modo rico (data-ta-rich): etiqueta recortada por CSS (line-clamp) + fila de chips
        de marco. Los colores .badge-XXX los aporta _badge-tokens (lo incluye el picker);
        aquí solo maquetamos. El <li> sigue siendo un tap-target ≥44px. */
@@ -61,6 +63,21 @@
 <script>
 (function () {
     if (window.CCTypeahead) { return; }
+
+    // ── ELEGIR UNA OPCIÓN: pointerdown, NO mousedown. ──────────────────────────────────
+    // 🪤 Las opciones de la lista se cableaban SOLO a 'mousedown'. En iOS los eventos de
+    // ratón son SINTETIZADOS a partir del toque y no son fiables sobre elementos que no son
+    // controles de formulario; encima el preventDefault() sobre un mouse sintético interfiere
+    // con la secuencia del toque. Resultado en iPad: tocabas la opción, setVal() NUNCA corría,
+    // el <select> se quedaba vacío y el servidor respondía "el campo X es obligatorio" — con el
+    // agravante de que el usuario SÍ había elegido y no tenía forma de saber qué faltaba.
+    // Android sintetiza mousedown bien, por eso ahí nunca se vio (flor.crewcare.mx, 2026-09-08).
+    //
+    // 'pointerdown' cubre ratón, toque y lápiz con UN solo manejador y existe en Safari desde
+    // la 13. Se mantiene 'mousedown' de respaldo para navegadores sin Pointer Events. Sigue
+    // siendo *down* y no *click* a propósito: dispara ANTES del blur del input, que es lo que
+    // permite el preventDefault() para no perder el foco antes de asignar el valor.
+    var PICK_EVENT = window.PointerEvent ? 'pointerdown' : 'mousedown';
 
     // Enum BLANCO de marcos: solo estos valores se pintan como chip y se usan como sufijo
     // de clase .badge-XXX (defensa XSS: los data-badges son controlados pero se validan).
@@ -86,7 +103,8 @@
             category: o.dataset.category || '',
             desc:     o.dataset.desc || '',
             l:        o.dataset.l || '',
-            c:        o.dataset.c || ''
+            c:        o.dataset.c || '',
+            extra:    o.dataset.search || ''   // texto extra buscable (name_en + alias), opt-in data-ta-extra
         };
     }
 
@@ -109,6 +127,21 @@
         if (!sel || sel.getAttribute('data-ta') === '1') { return; }
         sel.setAttribute('data-ta', '1');
         var rich = sel.getAttribute('data-ta-rich') === '1';
+        // Opt-in: además de la etiqueta, busca en data-search de cada <option> (name_en + alias
+        // normalizados). Sin el flag, el filtrado es BIT A BIT el de hoy (los demás usos no cambian).
+        var extraSearch = sel.getAttribute('data-ta-extra') === '1';
+        // Opt-in "crear" (Opción B): si lo tecleado no empata con ningún puesto, ofrece crear uno
+        // nuevo en el departamento en contexto. data-ta-create-url = endpoint; data-ta-create-dept =
+        // selector del campo con el department_id vigente. Sin el flag no se activa (demás usos intactos).
+        var createMode    = sel.getAttribute('data-ta-create') === '1';
+        var createUrl     = sel.getAttribute('data-ta-create-url') || '';
+        // dept OPCIONAL: si el select lo trae (puestos) se exige y se envía department_id; si no
+        // (p. ej. vehículos por placa), el create es de un solo campo. createKey = nombre del campo
+        // que lleva lo tecleado (default 'name'; 'plate' para vehículos). createNoun = sustantivo del
+        // confirm ('puesto' por default). Sin estos atributos, el comportamiento es el de hoy.
+        var createDeptSel = sel.getAttribute('data-ta-create-dept') || '';
+        var createKey     = sel.getAttribute('data-ta-create-key') || 'name';
+        var createNoun    = sel.getAttribute('data-ta-create-noun') || 'puesto';
 
         // Extrae las opciones reales (ignora el placeholder value="").
         var groups = [], flat = [];
@@ -182,7 +215,9 @@
             var nq = norm(q), any = false;
             groups.forEach(function (g) {
                 var matched = g.items.filter(function (it) {
-                    if (!(nq === '' || norm(it.label).indexOf(nq) !== -1)) { return false; }
+                    var hit = nq === '' || norm(it.label).indexOf(nq) !== -1
+                              || (extraSearch && it.extra && norm(it.extra).indexOf(nq) !== -1);
+                    if (!hit) { return false; }
                     return facetOk(it); // INTERSECCIÓN texto ∩ marco
                 });
                 if (!matched.length) { return; }
@@ -208,11 +243,32 @@
                     } else {
                         li.textContent = it.label; // comportamiento de hoy, intacto
                     }
-                    li.addEventListener('mousedown', function (e) { e.preventDefault(); setVal(it.value, it.label); close(); });
+                    li.addEventListener(PICK_EVENT, function (e) { e.preventDefault(); setVal(it.value, it.label); close(); });
                     list.appendChild(li); visible.push(li);
                 });
             });
-            if (!any) {
+            // Modo crear: los cercanos ya se pintaron arriba; ABAJO va, y solo si no hay empate exacto,
+            // "Crear «X»" — o, si aún no hay departamento, el aviso de que lo elija primero.
+            var hasCreateRow = false;
+            if (createMode) {
+                var typedRaw = (q || '').trim(), typedNorm = norm(q), exact = false;
+                for (var fi = 0; fi < flat.length; fi++) { if (norm(flat[fi].label) === typedNorm) { exact = true; break; } }
+                if (typedRaw && !exact) {
+                    var deptEl = createDeptSel ? document.querySelector(createDeptSel) : null;
+                    var deptVal = deptEl ? (deptEl.value || '') : '';
+                    if (createDeptSel && !deptVal) {   // sólo cuando el create EXIGE departamento (puestos)
+                        var pe = document.createElement('li'); pe.className = 'cc-ta-empty';
+                        pe.textContent = 'Elige primero el departamento'; list.appendChild(pe); hasCreateRow = true;
+                    } else {
+                        var deptName = (createDeptSel && deptEl && deptEl.selectedOptions && deptEl.selectedOptions[0]) ? deptEl.selectedOptions[0].textContent.trim() : '';
+                        var cli = document.createElement('li'); cli.className = 'cc-ta-opt cc-ta-create';
+                        cli.textContent = 'Crear «' + typedRaw + '»' + (deptName ? ' en ' + deptName : '');
+                        cli.addEventListener(PICK_EVENT, function (e) { e.preventDefault(); doCreate(typedRaw, deptVal); });
+                        list.appendChild(cli); hasCreateRow = true;
+                    }
+                }
+            }
+            if (!any && !hasCreateRow) {
                 var em = document.createElement('li'); em.className = 'cc-ta-empty'; em.textContent = 'Sin coincidencias'; list.appendChild(em);
             }
         }
@@ -222,6 +278,44 @@
         function highlight(i) {
             visible.forEach(function (li) { li.classList.remove('active'); });
             if (i >= 0 && i < visible.length) { visible[i].classList.add('active'); visible[i].scrollIntoView({ block: 'nearest' }); }
+        }
+
+        // Crear un puesto nuevo (acto DELIBERADO con confirmación). Al éxito, agrega la opción,
+        // la selecciona y reconstruye el typeahead. 403 = fuera del alcance del departamento.
+        function doCreate(text, deptId) {
+            if (!createUrl) { return; }
+            var deptClause = createDeptSel ? ' en este departamento' : '';
+            if (!window.confirm('¿Crear ' + createNoun + ' «' + text + '»' + deptClause + '? Entrará al catálogo como cualquier otro.')) { return; }
+            var token = '';
+            var form = sel.closest ? sel.closest('form') : null;
+            var ti = form ? form.querySelector('input[name="_token"]') : null;
+            if (ti) { token = ti.value; }
+            else { var m = document.querySelector('meta[name="csrf-token"]'); if (m) { token = m.getAttribute('content'); } }
+            // Lo tecleado va bajo la llave configurada (name | plate | …); department_id sólo si aplica.
+            var body = encodeURIComponent(createKey) + '=' + encodeURIComponent(text) + '&_token=' + encodeURIComponent(token);
+            if (createDeptSel) { body += '&department_id=' + encodeURIComponent(deptId); }
+            fetch(createUrl, {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+                body: body
+            }).then(function (r) { if (!r.ok) { throw r; } return r.json(); })
+              .then(function (d) {
+                  // Dedup del server: si devolvió uno EXISTENTE (mismo, p. ej. misma placa), reúsalo sin duplicar.
+                  var existing = sel.querySelector('option[value="' + d.id + '"]');
+                  if (!existing) {
+                      var o = document.createElement('option');
+                      o.value = d.id; o.textContent = d.name;
+                      if (extraSearch) { o.setAttribute('data-search', d.search || ''); }
+                      if (d.driver) { o.setAttribute('data-driver', d.driver); }
+                      sel.appendChild(o);
+                  }
+                  sel.value = String(d.id);
+                  window.CCTypeahead.rebuild(sel);   // re-lee opciones; el input refleja la seleccionada
+              })
+              .catch(function (err) {
+                  if (err && err.status === 403) { window.alert('No tienes permiso para crear ' + createNoun + '.'); }
+                  else { window.alert('No se pudo crear. Intenta de nuevo.'); }
+              });
         }
 
         input.addEventListener('focus', function () { open(); });
@@ -255,6 +349,17 @@
 
     window.CCTypeahead = {
         enhance: function (sel) { build(sel); },
+        // Reconstruye un typeahead cuyas <option> cambiaron (p. ej. el puesto se rellena por depto):
+        // tira el wrapper viejo y vuelve a construir leyendo las opciones actuales.
+        rebuild: function (sel) {
+            if (!sel) { return; }
+            var prev = sel.previousElementSibling;
+            if (prev && prev.classList && prev.classList.contains('cc-ta')) { prev.parentNode.removeChild(prev); }
+            sel.removeAttribute('data-ta');
+            sel.style.display = '';
+            sel.removeAttribute('aria-hidden');
+            build(sel);
+        },
         enhanceAll: function (root) {
             (root || document).querySelectorAll('select.js-typeahead').forEach(build);
         },

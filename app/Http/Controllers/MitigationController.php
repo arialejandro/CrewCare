@@ -76,7 +76,7 @@ class MitigationController extends Controller
         }
 
         $request->validate([
-            'mitigation_image' => 'required|image|mimes:jpeg,png,jpg|max:12288',
+            'mitigation_image' => 'required|mimes:jpeg,png,jpg,heic,heif|heic_ok|max:12288',
             'mitigation_note'  => 'nullable|string|max:1000',
         ]);
 

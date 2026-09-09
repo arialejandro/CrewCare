@@ -10,16 +10,23 @@
 <header class="cc-appbar no-print">
     <div class="cc-appbar__inner">
 
-        {{-- Marca: logo CrewCare + logo del cliente (configurable por branding). --}}
+        {{-- Marca: logo CrewCare + logo del cliente (configurable por branding).
+             MÓVIL: solo la MARCA (el lockup con texto queda como micro-letras ilegibles a ese
+             tamaño). La marca del CLIENTE no va en el topbar móvil: su color ya tiñe toda la
+             interfaz, así que competiría por espacio sin aportar. Ambas vuelven en escritorio. --}}
         <a href="/" class="cc-appbar__brand" aria-label="{{ __('nav.home') }}">
-            <img src="{{ URL::asset('img/logo-cc-usrs.svg') }}" alt="CrewCare" class="cc-appbar__logo">
-            <span class="cc-appbar__sep d-none d-sm-inline" aria-hidden="true"></span>
-            <img src="{{ ($branding['client_logo'] ?? '') ?: URL::asset('img/redrum.png') }}" alt="" class="cc-appbar__logo cc-appbar__logo--client d-none d-sm-inline">
+            <img src="{{ URL::asset('img/logo-cc-login.svg') }}" alt="CrewCare" class="cc-appbar__mark d-md-none">
+            <img src="{{ URL::asset('img/logo-cc-usrs.svg') }}" alt="CrewCare" class="cc-appbar__logo d-none d-md-inline">
+            <span class="cc-appbar__sep d-none d-md-inline" aria-hidden="true"></span>
+            <img src="{{ ($branding['client_logo'] ?? '') ?: URL::asset('img/redrum.png') }}" alt="" class="cc-appbar__logo cc-appbar__logo--client d-none d-md-inline">
         </a>
 
         {{-- Acciones. En móvil los textos se ocultan (icon-only con aria-label);
              desde md se muestran las etiquetas. RBAC preservado (admin vs crew). --}}
         <nav class="cc-appbar__actions" aria-label="{{ __('nav.menu') }}">
+
+            {{-- Selector de UNIDAD VIGENTE (Unidades 2b) — sólo con más de una unidad. --}}
+            @auth @include('layouts._unit-switch') @endauth
 
             <a class="cc-appbar__btn" href="{{ URL::previous() }}">
                 @include('componentes._icon', ['name' => 'chevron-left', 'class' => 'cc-appbar__ico', 'label' => __('nav.back')])
@@ -45,6 +52,14 @@
                 </a>
             @endif
 
+            {{-- (2026-08-30) Bitácora de lectura clínica — SOLO super-admin (el visor aborta 403 al resto). --}}
+            @if(auth()->user()->hasRole('super-admin'))
+                <a class="cc-appbar__btn" href="{{ route('clinical_log.index') }}" title="{{ __('Bitácora clínica') }}">
+                    @include('componentes._icon', ['name' => 'clipboard-list', 'class' => 'cc-appbar__ico', 'label' => __('Bitácora clínica')])
+                    <span class="cc-appbar__btn-txt d-none d-md-inline">{{ __('Bitácora') }}</span>
+                </a>
+            @endif
+
             {{-- Disparador de la paleta de comandos (⌘K / Ctrl-K). Abre el overlay
                  componentes/_command-palette; la clase .cc-cmd-open la escucha su JS. --}}
             <button type="button" class="cc-appbar__btn cc-appbar__btn--search cc-cmd-open"
@@ -64,6 +79,16 @@
                     @include('componentes._icon', ['name' => 'moon', 'class' => 'cc-appbar__ico', 'label' => null])
                 </span>
             </button>
+
+            {{-- Transportación (Fase 5): contador de atención (propuestas + traslapes). Sólo transpo/producción.
+                 El badge sube en vivo por poll (layouts._transport-notify); a 0 queda oculto. --}}
+            @if (($__truckShow ?? false))
+                <a class="cc-appbar__btn cc-appbar__btn--icon position-relative" href="{{ route('transport.order.index') }}"
+                   aria-label="{{ __('Transportación') }}" title="{{ __('Novedades de transportación') }}">
+                    @include('componentes._icon', ['name' => 'truck', 'class' => 'cc-appbar__ico', 'label' => null])
+                    <span class="cc-appbar__badge" id="cc-truck-badge" style="{{ ($__truckCount ?? 0) > 0 ? '' : 'display:none' }}">{{ $__truckCount ?? 0 }}</span>
+                </a>
+            @endif
 
             {{-- Selector de idioma (ES/EN) — componente compartido. --}}
             <span class="cc-appbar__lang">@include('layouts._lang-switch')</span>
@@ -104,8 +129,16 @@
         min-height: 44px;
     }
     .cc-appbar__logo { height: 30px; width: auto; display: block; }
+    .cc-appbar__mark { height: 36px; width: auto; display: block; }  /* solo móvil: marca cuadrada, legible */
     .cc-appbar__logo--client { height: 26px; opacity: .95; }
     .cc-appbar__sep { width: 1px; height: 26px; background: rgba(255, 255, 255, .25); display: inline-block; }
+    /* Badge del contador de transportación (Fase 5). */
+    .cc-appbar__badge {
+        position: absolute; top: 2px; right: 0;
+        min-width: 16px; height: 16px; padding: 0 4px;
+        border-radius: 999px; background: #ef4444; color: #fff;
+        font-size: 10px; line-height: 16px; font-weight: 700; text-align: center;
+    }
 
     .cc-appbar__actions { display: flex; align-items: center; gap: .3rem; flex-wrap: nowrap; }
 
@@ -157,8 +190,18 @@
         background: rgba(255, 255, 255, .16); border-color: rgba(255, 255, 255, .28); color: #fff;
     }
 
+    /* Móvil: el selector de idioma tenía objetivos táctiles chicos (btn-group-sm ~31px).
+       Se agrandan para el pulgar (≥44px de alto/ancho). */
+    @media (max-width: 767px) {
+        .cc-appbar__lang .btn {
+            min-height: 44px; min-width: 44px;
+            padding: .5rem .65rem; font-size: .84rem;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+    }
+
     @media (max-width: 400px) {
-        .cc-appbar__logo { height: 26px; }
+        .cc-appbar__mark { height: 32px; }
         .cc-appbar__btn { padding: 0 .5rem; }
     }
 </style>

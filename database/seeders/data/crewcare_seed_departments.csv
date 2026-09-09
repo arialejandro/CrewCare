@@ -1,0 +1,34 @@
+department_id,name_es,name_en,sort_order,account_hint,existence,jurisdictions,aliases_es,aliases_en
+executive,Producción Ejecutiva,Executive,10,1000,core,,produccion ejecutiva|productores|ejecutivos,executive|producers|exec
+writers,Guion,Writing,20,1100,core,,guion|guión|escritores|literario,writing|writers|story|script
+direction,Dirección,Directors / ADs,30,1200,core,,direccion|dirección|asistentes de direccion|ads|equipo de direccion,direction|directors|assistant directors|ads|directing
+casting,Casting,Casting,40,1300,core,,casting|reparto|extras|casting de extras,casting|background|extras casting
+production,Producción,Production,50,2000,core,,produccion|producción|oficina de produccion|staff de produccion,production|production office|production staff|upm
+accounting,Contabilidad,Accounting,55,2050,core,,contabilidad|contaduria|contaduría|nomina,accounting|production accounting|payroll
+camera,Cámara,Camera,60,2700,core,,camara|cámara|fotografia|fotografía,camera|camera department|cam
+video,DIT / Video,Video & DIT,65,2750,core,,dit|vtr|video assist|videoasistencia|video,dit|video|video assist|playback|video village
+electric,Eléctricos,Electric,70,2500,core,,electricos|eléctricos|luces|iluminacion|iluminación,electric|lighting|electrical|g&e|set lighting
+grip,Tramoya / Grip,Grip,75,2400,core,,tramoya|grip|grips|staff|montaje,grip|grips|set operations
+sound,Sonido,Sound,80,2800,core,,sonido|sonido directo,sound|production sound
+art,Arte,Art,90,2200,core,,arte|departamento de arte|direccion de arte,art|art department|set design
+set_dec,Ambientación,Set Decoration,95,2300,core,,ambientacion|ambientación|decoracion|decoración|set dec,set decoration|set dec|set dressing
+props,Props / Utilería,Property,100,2600,core,,props|utileria|utilería,property|props|prop department
+construction,Construcción,Construction,105,2250,core,,construccion|construcción|carpinteria|pintura,construction|set construction|paint
+greens,Jardinería de Escena,Greens,108,2260,conditional,,jardineria|jardinería|verdes|plantas de escena,greens|greensman|landscaping
+costume,Vestuario,Costume,110,3100,core,,vestuario|sastreria|sastrería,costume|wardrobe|costumes
+hmu,Maquillaje y Peinados,Makeup & Hair,115,3200,core,,maquillaje|peinados|m&p|maquillaje y peinados,makeup|hair|mu&h|make up & hair|hmu
+locations,Locaciones,Locations,120,3400,core,,locaciones|locacion|locación,locations|location department
+transport,Transporte,Transportation,125,3500,core,,transporte|transpo,transportation|transpo|transport
+picture_cars,Picture Cars,Picture Cars,128,3550,conditional,,picture cars|vehiculos de escena|action cars|pic cars,picture cars|action vehicles|picture vehicles
+stunts,Stunts,Stunts,130,1400,conditional,,stunts|dobles|especialistas|doblaje de riesgo,stunts|stunt department
+sfx,Efectos Especiales,Special Effects,135,2900,conditional,,efectos especiales|fx|sfx|fxs|efectos practicos,special effects|sfx|practical effects
+vfx,Efectos Visuales,Visual Effects,140,5000,conditional,,vfx|efectos visuales,visual effects|vfx
+animals,Animales,Animals,145,3300,conditional,,animales|animalero|manejo de animales,animals|animal wranglers|wranglers
+catering,Alimentación,Catering,150,3700,core,,catering|alimentacion|alimentación|craft|comedor|cocina,catering|craft service|crafty|craft
+medical,Salud y Seguridad,Health & Safety,155,3800,core,,salud y seguridad|seguridad y salud|s&s|medico|médico|covid,health & safety|health and safety|medical|medic|s&s
+security,Seguridad,Security,160,3850,core,,seguridad|vigilancia,security
+sustainability,Sustentabilidad,Sustainability,165,3900,conditional,,sustentabilidad|sostenibilidad|eco,sustainability|green production|eco
+welfare,Bienestar de Menores,Minors & Welfare,170,1450,conditional,,maestro tutor|tutor|bienestar de menores|trabajador social,studio teacher|welfare worker|minors
+publicity,Prensa / EPK,Publicity & EPK,175,6000,conditional,,prensa|epk|publicidad|foto fija de prensa,publicity|unit publicist|epk|press
+post,Postproducción,Post Production,180,5100,core,,postproduccion|postproducción|post|edicion|edición,post production|post|editorial
+compliance,Sindicatos y Cumplimiento,Compliance & Unions,190,,jurisdictional,MX,sindicatos|sindicato|delegado|anda|stpc|stic|cumplimiento,compliance|union rep|labor relations
