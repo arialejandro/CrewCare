@@ -162,6 +162,13 @@ iPhone se rechaza y la verificación de vehículos exige foto); **nombre/código
 **la base no tiene datos de demo** (incluye el chequeo del §6). Sal con código ≠ 0 si hay alguna FALLA.
 **Córrelo lo primero tras instalar y lo último antes de abrir en set**, y de nuevo después de cada actualización.
 
+Y **4 más, aprendidas en campo** el 2026-09-08 (ninguna la veía el preflight, y las cuatro se
+descubrieron con la producción ya rodando — ver §11): **zona horaria de la producción** (FALLA si el
+`.env` pide una y la app corre en otra); **Marca llenada** (avisa si `brand_name` sigue vacío o dice
+"CrewCare", porque entonces la cabecera de los documentos no lleva el título del proyecto);
+**límites de subida** (avisa si `post_max_size`/`upload_max_filesize`/`max_input_time` no aguantan una
+foto desde el set con mala red); e **higiene del entorno** (`APP_DEBUG`, `APP_ENV`, `APP_URL` con esquema).
+
 > 🪤 **Al AMPLIAR este comando (o cualquier otro): usa `config()`, nunca `env()`.** En producción la config
 > se cachea (`config:cache`) y **con la caché presente Laravel no lee el `.env`**: todo `env()` fuera de un
 > archivo de `config/` devuelve el default. Ya costó una vez — el check de `CREWCARE_SEAL_KEY` leía
@@ -228,6 +235,54 @@ Un candado sin llave termina desactivado para siempre; por eso el bypass es expl
   catálogo idempotentes** que la racha indique (p. ej. `php artisan db:seed --class=CatalogFusionSeeder --force`).
 
 ---
+
+## 11 · 🔥 Lo que costó el PRIMER deploy real (flor.crewcare.mx, sep-2026)
+
+> El primer despliegue a una producción de verdad tomó **tres días**. Casi nada de eso fue el
+> despliegue: fue descubrir en caliente cosas que nadie había mirado porque en local no se ven.
+> Esta sección existe para que el siguiente tome horas. **Léela ANTES de empezar, no cuando algo falle.**
+
+**Modelo de ramas — una rama de despliegue POR INSTANCIA.**
+`upgrade/laravel-13` (o la rama de desarrollo del momento) es donde se trabaja; **producción tira de
+`deploy/<instancia>`** (p. ej. `deploy/flor`). Promover es un acto deliberado:
+`git checkout deploy/<inst> && git merge <rama-dev> && git push`, y luego *Pull* en el servidor.
+Sin esta separación, **cualquier commit que alguien empuje a la rama de desarrollo entra al servidor
+del cliente en el siguiente pull** — y si el despliegue automático está activo, sin que nadie lo pida.
+
+**Trampas de Plesk (si el hosting es Plesk):**
+- La carpeta de la app **no es un repo git**: Plesk despliega **copiando** desde un clon bare en
+  `~/git/<repo>`. `git log` en la raíz de la app falla. Para saber qué versión corre, **compara los
+  bytes** (`md5sum`) contra tu repo — y normaliza los finales de línea (`tr -d '\r'`), porque una
+  copia de trabajo en Windows es CRLF y el servidor LF: si no, todo archivo parece distinto.
+- El desplegable de ramas lista las del **clon local**, no las de GitHub. Una rama nueva **no aparece**
+  hasta que se hace fetch: el botón es **`Pull now`**, no el ícono ⟳ (ese solo refresca el panel).
+  **Nunca borres el repo para "recargarlo"**: se lleva la configuración de despliegue.
+- Los ajustes de PHP del dominio (`max_input_time` y compañía) están en *PHP Settings*, y **no son
+  los que ves por CLI**. `php -i` en consola miente sobre lo que hace el proceso web.
+
+**Trampas del código, ya cerradas — no las reintroduzcas:**
+- **`env()` fuera de `config/` no existe en producción.** Con `config:cache` (el estado normal) Laravel
+  **no lee el `.env`**: todo `env()` devuelve el default. Costó un `[FALLA]` fantasma en el chequeo de
+  la clave del sello, justo el punto más delicado. En comandos y servicios, **siempre `config()`**.
+- **Nada de valores literales en `config/` que deban venir del `.env`.** `'timezone' => 'UTC'` escrito a
+  mano dejó `APP_TIMEZONE` decorativa: los documentos sellados salieron con 6 h de más y uno se creó
+  con la fecha de mañana. Un sello **no se rehace**.
+- **Tailwind NO está cargado en las vistas de reporte.** Llevan su propio CSS. Un `px-5 py-3` ahí no
+  hace nada: el logo de la cabecera salía pegado a los bordes. En vistas de documento, **espaciado inline**.
+- **La app se usa en iPad.** Un manejador cableado sólo a `mousedown` está **muerto al tacto**: el
+  typeahead —que usa todo select largo— no registraba la opción elegida y el formulario respondía
+  "campo obligatorio" sin que hubiera nada vacío. Usa `pointerdown`. Lo vigila
+  `tests/Feature/Security/NoMouseOnlyHandlersTest`.
+- **Borrar un registro NO borra su archivo.** Las fotos quedan huérfanas en `storage/app/public/…` y su
+  **URL es pública** (sólo el listado del directorio da 403). Toda limpieza tiene que borrar los ficheros.
+
+**Deuda conocida (no bloquea, pero conviene saberla):** el sello del DSR **no cubre sus `daily_logs`** —
+el payload es `attributesToArray()` de `daily_reports`. Se pueden alterar o borrar hallazgos y el
+verificador sigue diciendo "íntegro".
+
+**Y lo único de verdad irreversible:** `CREWCARE_SEAL_KEY` **no se rota jamás** una vez que hay
+documentos sellados. Guarda copia del `.env` **fuera del VPS**, en cuenta distinta a la del respaldo
+de la base. Si el servidor se pierde con esa llave dentro, ningún documento vuelve a verificar.
 
 ## 10 · Cambios por racha (más reciente arriba)
 

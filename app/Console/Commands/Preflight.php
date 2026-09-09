@@ -50,6 +50,14 @@ class Preflight extends Command
         $this->check('storage:link hecho', fn () => $this->checkStorageLink());
         $this->check('La base NO tiene datos de demo', fn () => $this->checkNoDemo());
 
+        // ── Aprendidas EN CAMPO el 2026-09-08 (primer deploy real, flor.crewcare.mx). ──────────
+        // Ninguna de las cuatro la veía el preflight, y las cuatro se descubrieron con la
+        // producción ya rodando. Cada una está aquí porque COSTÓ horas, no porque sea elegante.
+        $this->check('Zona horaria de la producción', fn () => $this->checkTimezone());
+        $this->check('Marca llenada (nombre del proyecto)', fn () => $this->checkBranding());
+        $this->check('Límites de subida para fotos de móvil', fn () => $this->checkUploadLimits());
+        $this->check('Higiene del entorno (debug, URL)', fn () => $this->checkEnvHygiene());
+
         $this->line('  ' . str_repeat('─', 68));
         $this->line(sprintf('  <fg=green>%d OK</>   <fg=yellow>%d aviso(s)</>   <fg=red>%d falla(s)</>', $this->oks, $this->warns, $this->fails));
         $this->line('');
@@ -309,5 +317,133 @@ class Preflight extends Command
                 . '. Límpialos (database/owner-apply/2026-07-24-borrar-produccion-demo.sql) antes de abrir.'];
         }
         return ['OK', 'sin marcador [DEMO] ni cuentas @crewcare.test.'];
+    }
+
+    // --- 11) Zona horaria ------------------------------------------------------------------
+    //
+    // 🔴 LA MÁS CARA DE TODAS. `config/app.php` traía `'timezone' => 'UTC'` LITERAL (default de
+    // fábrica de Laravel), así que poner APP_TIMEZONE en el .env no hacía absolutamente nada. Un
+    // DSR sellado imprimía "13:29" cuando eran las 07:29 de CDMX, y un reporte llegó a crearse con
+    // la fecha de MAÑANA. Un sello NO se rehace: cada documento emitido con la hora mal se queda
+    // así para siempre. Por eso esto es FALLA y no aviso.
+    private function checkTimezone(): array
+    {
+        $app = trim((string) config('app.timezone'));
+        $env = trim((string) env('APP_TIMEZONE', ''));   // vacío si la config está cacheada; se tolera
+
+        if ($app === '') {
+            return ['FAIL', 'config(app.timezone) vacío: los documentos no tendrían hora fiable.'];
+        }
+
+        // El síntoma exacto del bug: el .env pide una zona y la app corre en otra.
+        if ($env !== '' && strcasecmp($env, $app) !== 0) {
+            return ['FAIL', "el .env pide APP_TIMEZONE=$env pero la app corre en '$app' → alguien fijó un "
+                . "valor literal en config/app.php y la variable quedó decorativa. Corrígelo y `config:cache`."];
+        }
+
+        if (strcasecmp($app, 'UTC') === 0) {
+            return ['WARN', 'la app corre en UTC. Si la producción no está en UTC, cada documento sellado '
+                . 'imprimirá una hora que no es la del set (y no se puede corregir después). Pon APP_TIMEZONE '
+                . 'con la zona real, p. ej. America/Mexico_City.'];
+        }
+
+        return ['OK', "hora de la producción: $app (" . now()->format('Y-m-d H:i') . ').'];
+    }
+
+    // --- 12) Marca de la instancia ---------------------------------------------------------
+    //
+    // El rótulo grande de la cabecera de TODOS los documentos sale de `brand_name`. Su valor de
+    // fábrica es "CrewCare", así que una instancia sin configurar imprimía el nombre de la APP en
+    // el lugar del proyecto. Hoy el hero cae al nombre de la producción, pero eso es una red: el
+    // título real lo pone una persona en Ajustes › Marca.
+    private function checkBranding(): array
+    {
+        try {
+            $name = trim((string) \App\Support\Branding::get('brand_name', ''));
+        } catch (\Throwable $e) {
+            return ['WARN', 'no se pudo leer la Marca: ' . $e->getMessage()];
+        }
+
+        if ($name === '' || strcasecmp($name, 'CrewCare') === 0) {
+            return ['WARN', 'Marca sin llenar (brand_name = ' . ($name === '' ? 'vacío' : '"CrewCare"')
+                . '): la cabecera de los documentos caerá al nombre de la producción en vez del título del '
+                . 'proyecto. Ponlo en Ajustes › Marca.'];
+        }
+
+        return ['OK', "el proyecto se rotula como \"$name\" en los documentos."];
+    }
+
+    // --- 13) Límites de subida ---------------------------------------------------------------
+    //
+    // Las fotos de evidencia se suben DESDE EL SET, con la red que haya. Si PHP corta la recepción
+    // del cuerpo a medias, `$_POST` llega vacío y el formulario responde "el campo es obligatorio"
+    // en TODOS los campos — un mensaje que no tiene NADA que ver con la causa y que manda a quien
+    // depura por el camino equivocado (nos pasó). Estos números son del entorno, no del código.
+    private function checkUploadLimits(): array
+    {
+        $toBytes = static function (string $v): int {
+            $v = trim($v);
+            if ($v === '') { return 0; }
+            $unit = strtolower(substr($v, -1));
+            $n    = (int) $v;
+            return match ($unit) { 'g' => $n * 1073741824, 'm' => $n * 1048576, 'k' => $n * 1024, default => $n };
+        };
+
+        $post   = (string) ini_get('post_max_size');
+        $upload = (string) ini_get('upload_max_filesize');
+        $time   = (int) ini_get('max_input_time');
+        $bad    = [];
+
+        if ($toBytes($post) > 0 && $toBytes($post) < 20 * 1048576) { $bad[] = "post_max_size=$post (mín. 20M)"; }
+        if ($toBytes($upload) > 0 && $toBytes($upload) < 20 * 1048576) { $bad[] = "upload_max_filesize=$upload (mín. 20M)"; }
+        // -1 = sin límite (típico en CLI). Sólo molesta un tope BAJO en el proceso web.
+        if ($time > 0 && $time < 120) { $bad[] = "max_input_time={$time}s (mín. 120 con red de set)"; }
+
+        if ($bad) {
+            return ['WARN', 'subidas desde móvil en riesgo: ' . implode(' · ', $bad)
+                . '. Si PHP corta el cuerpo a medias, el formulario dirá "campo obligatorio" en TODO y '
+                . 'nadie sabrá por qué. ⚠ Ojo: en CLI estos valores NO son los del proceso web.'];
+        }
+
+        return ['OK', "post=$post upload=$upload max_input_time=" . ($time <= 0 ? 'sin límite' : $time . 's') . '.'];
+    }
+
+    // --- 14) Higiene del entorno -------------------------------------------------------------
+    //
+    // Baratas de comprobar y caras de descubrir tarde: APP_DEBUG deja ver trazas (y secretos) a
+    // cualquiera que provoque un error, y una APP_URL sin esquema rompe los enlaces de los correos
+    // y del QR del sello — precisamente lo que nadie prueba hasta que un firmante no puede entrar.
+    private function checkEnvHygiene(): array
+    {
+        $fails = [];
+        $warns = [];
+
+        if (app()->environment('production') && config('app.debug')) {
+            $fails[] = 'APP_DEBUG=true en producción (expone trazas y configuración a cualquiera que provoque un error)';
+        }
+
+        // 'local' es LEGÍTIMO: es la máquina del desarrollador, donde este comando también se corre.
+        // Gritar FALLA ahí entrena a ignorar la alarma — exactamente el defecto que este comando
+        // existe para no tener. Cualquier OTRO entorno (staging, testing) en una instancia de
+        // cliente sí es un error real.
+        if (! app()->environment(['production', 'local'])) {
+            $fails[] = "APP_ENV='" . app()->environment() . "' (una instancia de cliente debe ir en 'production')";
+        } elseif (app()->environment('local')) {
+            $warns[] = "APP_ENV='local' (normal en tu máquina; en un servidor de cliente debe ser 'production')";
+        }
+
+        $url = trim((string) config('app.url'));
+        if ($url === '' || ! preg_match('#^https?://#i', $url)) {
+            $fails[] = "APP_URL='" . $url . "' sin esquema http(s):// → deep-links de correos y QR rotos";
+        }
+
+        if ($fails) {
+            return ['FAIL', implode(' · ', array_merge($fails, $warns)) . '.'];
+        }
+        if ($warns) {
+            return ['WARN', implode(' · ', $warns) . '.'];
+        }
+
+        return ['OK', 'APP_ENV=production, APP_DEBUG=false, APP_URL con esquema.'];
     }
 }
