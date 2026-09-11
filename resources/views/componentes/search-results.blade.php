@@ -36,7 +36,7 @@
                         <div class="crew-name-cell">
                             {{-- Nombre a mostrar: crédito o nombre corto (ver User::displayName). --}}
                             <span class="crew-name d-block">{{ \App\Models\User::displayName($user) }}</span>
-                            <span class="crew-sub d-block text-muted small">{{ \App\Models\User::positionNameFor($user->id ?? null, $user->puestodepartamento ?? null) }}</span>
+                            <span class="crew-sub d-block text-muted small">{{ \App\Models\User::positionNameFor($user->id ?? null, $user->puestodepartamento ?? null) }}@if(!empty($contractStatus[$user->id]['unit_label'])) · {{ $contractStatus[$user->id]['unit_label'] }}@endif</span>
                             @isset($contractStatus[$user->id])
                                 <span class="d-inline-block mt-1">@include('componentes._contract-badge', ['cs' => $contractStatus[$user->id]])</span>
                             @endisset

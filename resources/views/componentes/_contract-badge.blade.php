@@ -32,3 +32,9 @@
         <span>{{ $cs['exp_label'] }}</span>
     </span>
 @endif
+@if($cs && ($cs['rev_state'] ?? '') === \App\Support\ContractStatus::REV_REVISAR)
+    <span class="cc-cmark cc-cmark--revisar" title="{{ __('La unidad del contrato ya no corresponde a dónde está la persona hoy. Puede requerir anexo — producción decide.') }}">
+        @include('componentes._icon', ['name' => 'bell', 'class' => 'cc-ico', 'label' => null])
+        <span>{{ $cs['rev_label'] }}</span>
+    </span>
+@endif

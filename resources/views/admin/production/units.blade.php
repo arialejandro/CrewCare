@@ -67,7 +67,7 @@
                         <input type="hidden" name="sort_order" value="{{ $u->sort_order }}">
                         <button type="submit" class="btn btn-sm btn-outline-secondary">Guardar</button>
                     </form>
-                    <span class="form-text">orden {{ $u->sort_order }}</span>
+                    <span class="form-text">unidad {{ $u->number }}</span>
                     {{-- 2c · Constructor: armar quién trabaja en esta unidad (pivote). --}}
                     <a href="{{ route('production.units.builder', $u->id) }}" class="btn btn-sm btn-outline-primary">Constructor →</a>
                     <span class="unit-badge {{ $u->is_active ? 'on' : 'paused' }}">{{ $u->is_active ? 'Activa' : 'Inactiva' }}</span>
@@ -96,6 +96,26 @@
                 Dar de alta una unidad NO mueve nada de lo existente: todo sigue en la principal.
                 La baja es por <strong>desactivación</strong>, nunca borrado — los documentos ya sellados de una unidad conservan su unidad.
             </p>
+        </div>
+    </div>
+
+    {{-- FORMATO del nombre de unidad en el contrato (§2). Sólo cambia cómo se ESCRIBE de aquí en
+         adelante; los contratos ya emitidos conservan su título. La principal nunca lleva sufijo. --}}
+    <div class="card cal-card mb-4">
+        <div class="card-header">Nombre de unidad en los contratos</div>
+        <div class="card-body">
+            <p class="form-text mb-2">
+                Cómo se escribe la unidad en el título del contrato de quien <strong>vive</strong> en una unidad adicional
+                (ej. «Primer asistente de dirección Unidad 2»). La unidad principal y los compartidos no llevan sufijo.
+            </p>
+            <form action="{{ route('production.units.format') }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
+                @csrf
+                <select name="unit_label_format" class="form-control" style="max-width:240px">
+                    <option value="long"  {{ ($prod->unit_label_format ?? 'long') === 'long' ? 'selected' : '' }}>Unidad 2 — largo</option>
+                    <option value="short" {{ ($prod->unit_label_format ?? 'long') === 'short' ? 'selected' : '' }}>U2 — corto</option>
+                </select>
+                <button type="submit" class="btn btn-outline-secondary text-nowrap">Guardar formato</button>
+            </form>
         </div>
     </div>
 

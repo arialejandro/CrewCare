@@ -19,6 +19,10 @@ class Unit extends Model
     /** Etiqueta de la unidad principal (unit_id NULL). No es una fila: es un concepto. */
     const PRINCIPAL_LABEL = 'Unidad principal';
 
+    /** Formato del sufijo de unidad en el título del contrato (productions.unit_label_format). */
+    const LABEL_LONG  = 'long';   // "Unidad {n}"
+    const LABEL_SHORT = 'short';  // "U{n}"
+
     /**
      * Tablas operativas que llevan `unit_id` (espejo de la migración 2026_09_05_000010). Sirven para CONTAR
      * lo que una unidad conserva al desactivarse (el aviso previo). Si esa lista crece, crece aquí también.
@@ -30,7 +34,7 @@ class Unit extends Model
         'call_days', 'transport_orders',
     ];
 
-    protected $fillable = ['production_id', 'name', 'sort_order', 'is_active', 'created_by_id'];
+    protected $fillable = ['production_id', 'name', 'number', 'sort_order', 'is_active', 'created_by_id'];
 
     protected $casts = [
         'is_active'  => 'boolean',
@@ -61,6 +65,45 @@ class Unit extends Model
         $u = self::find($unitId);
 
         return $u ? $u->name : ('Unidad #' . $unitId);
+    }
+
+    /**
+     * NÚMERO ESTABLE para una unidad NUEVA de la producción: el mayor asignado + 1 (mínimo 2, porque la
+     * PRINCIPAL es la 1 implícita). NUNCA baja al desactivar/reordenar (el número es una columna guardada,
+     * esos flujos no la tocan). Una unidad con documentos sellados no se puede borrar (FK RESTRICT), así
+     * que un número que ya viajó a un contrato jamás se reutiliza.
+     */
+    public static function nextNumberFor($productionId): int
+    {
+        $max = (int) static::query()
+            ->where(fn ($w) => $productionId === null ? $w->whereNull('production_id') : $w->where('production_id', $productionId))
+            ->max('number');
+
+        return max(1, $max) + 1;
+    }
+
+    /**
+     * Sufijo de unidad para el TÍTULO del contrato. Principal (número null o 1) → cadena vacía: el
+     * silencio significa principal. Formato por producción: "Unidad {n}" (largo) o "U{n}" (corto).
+     */
+    public static function contractLabel(?int $number, string $format = self::LABEL_LONG): string
+    {
+        if ($number === null || $number <= 1) {
+            return '';
+        }
+
+        return $format === self::LABEL_SHORT ? ('U' . $number) : ('Unidad ' . $number);
+    }
+
+    /** Formato de etiqueta elegido por la producción (degrade-safe → largo). */
+    public static function labelFormatFor($productionId): string
+    {
+        if (! $productionId || ! Schema::hasColumn('productions', 'unit_label_format')) {
+            return self::LABEL_LONG;
+        }
+        $v = DB::table('productions')->where('id', $productionId)->value('unit_label_format');
+
+        return $v === self::LABEL_SHORT ? self::LABEL_SHORT : self::LABEL_LONG;
     }
 
     /**

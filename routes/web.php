@@ -757,6 +757,7 @@ Route::middleware(['auth','permission:settings.manage'])->group(function () {
     // desactivación, nunca borrado.
     Route::get('/settings/unidades',                 [App\Http\Controllers\UnitController::class, 'index'])->name('production.units.index');
     Route::post('/settings/unidades',                [App\Http\Controllers\UnitController::class, 'store'])->name('production.units.store');
+    Route::post('/settings/unidades/formato',        [App\Http\Controllers\UnitController::class, 'format'])->name('production.units.format');
     Route::put('/settings/unidades/{unit}',          [App\Http\Controllers\UnitController::class, 'update'])->name('production.units.update')->whereNumber('unit');
     Route::post('/settings/unidades/{unit}/toggle',  [App\Http\Controllers\UnitController::class, 'toggle'])->name('production.units.toggle')->whereNumber('unit');
 

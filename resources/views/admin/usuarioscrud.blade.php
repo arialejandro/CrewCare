@@ -104,6 +104,12 @@
                 {{ __('Sin fecha de fin') }} <span class="crew-chip-count">{{ $counts['sin_fecha'] }}</span>
             </a>
             @endif
+            @if(($counts['revisar'] ?? 0) > 0)
+            <a href="{{ route('usuarioscrud', ['contract' => 'revisar']) }}" class="crew-chip" aria-pressed="{{ $filter === 'revisar' ? 'true' : 'false' }}">
+                @include('componentes._icon', ['name' => 'bell', 'class' => 'cc-ico', 'label' => null])
+                {{ __('Revisar unidad') }} <span class="crew-chip-count">{{ $counts['revisar'] }}</span>
+            </a>
+            @endif
         </div>
         @endisset
 
@@ -145,7 +151,7 @@
                                             {{-- Nombre a mostrar: crédito o nombre corto (1ª palabra + 1er apellido).
                                                  Sustituye a `name` (parcial) y hace redundante la columna "Apellido". --}}
                                             <span class="crew-name d-block">{{ \App\Models\User::displayName($user) }}</span>
-                                            <span class="crew-sub d-block text-muted small">{{ \App\Models\User::positionNameFor($user->id ?? null, $user->puestodepartamento ?? null) }}</span>
+                                            <span class="crew-sub d-block text-muted small">{{ \App\Models\User::positionNameFor($user->id ?? null, $user->puestodepartamento ?? null) }}@if(!empty($contractStatus[$user->id]['unit_label'])) · {{ $contractStatus[$user->id]['unit_label'] }}@endif</span>
                                             @isset($contractStatus[$user->id])
                                                 <span class="d-inline-block mt-1">@include('componentes._contract-badge', ['cs' => $contractStatus[$user->id]])</span>
                                             @endisset

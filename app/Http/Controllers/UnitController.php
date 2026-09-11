@@ -47,6 +47,9 @@ class UnitController extends Controller
         Unit::create([
             'production_id' => $prod->id,
             'name'          => $data['name'],
+            // NÚMERO ESTABLE de identidad (§2): asignado al crear, nunca cambia. Se estampa en el título
+            // del contrato de quien vive en esta unidad. NO se deriva del orden → apagar/reordenar no renumera.
+            'number'        => Unit::nextNumberFor($prod->id),
             'sort_order'    => $max + 1,
             'is_active'     => true,
             'created_by_id' => auth()->id(),
@@ -97,6 +100,25 @@ class UnitController extends Controller
         }
 
         return redirect()->route('production.units.index')->with('success', $msg);
+    }
+
+    /**
+     * FORMATO del sufijo de unidad en el título del contrato, por producción: "Unidad {n}" o "U{n}".
+     * Sólo cambia cómo se ESCRIBE de aquí en adelante; los contratos ya emitidos no se tocan (su título
+     * quedó congelado con el formato de entonces).
+     */
+    public function format(Request $request)
+    {
+        $prod = CurrentProduction::get();
+        abort_if($prod === null, 404, 'No hay producción vigente.');
+
+        $data = $request->validate([
+            'unit_label_format' => ['required', 'in:' . Unit::LABEL_LONG . ',' . Unit::LABEL_SHORT],
+        ]);
+        $prod->forceFill(['unit_label_format' => $data['unit_label_format']])->save();
+
+        return redirect()->route('production.units.index')
+            ->with('success', 'Formato de unidad guardado. Aplica a los contratos que se emitan de ahora en adelante.');
     }
 
     /** La unidad debe ser de la producción vigente (o global). */

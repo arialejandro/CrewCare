@@ -55,7 +55,7 @@ class PayeeContract extends Model
     const ROSTER_PENDING_SIGNATURE = 'pending_signature';
 
     protected $fillable = [
-        'payee_id', 'fiscal_regime_id', 'production_id', 'concept', 'title', 'asset_ref',
+        'payee_id', 'fiscal_regime_id', 'production_id', 'concept', 'title', 'unit_number', 'asset_ref',
         'contracted_by_user_id', 'payment_frequency', 'is_repse',
         'notes', 'is_active', 'sort_order', 'created_by_id',
         // PASO A · CARÁTULA crew_work (todo NULL en rental/service). La frecuencia de honorarios

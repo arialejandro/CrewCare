@@ -202,6 +202,12 @@
         background: var(--surface-2);
         border-style: dashed;
     }
+    /* "Revisar" (desalineación de unidad): atención, NO error — tono info, no rojo/ámbar. */
+    .cc-cmark--revisar {
+        color: #1d4ed8;
+        background: color-mix(in srgb, #3b82f6 14%, transparent);
+        border-color: color-mix(in srgb, #3b82f6 42%, transparent);
+    }
 
     /* Pills de estado (Gafetes) — estado por texto + icono, nunca solo color */
     .crew-pill {

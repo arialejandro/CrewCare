@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\PayeeContract;
+use App\Models\Unit;
 use App\Models\UnitMember;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -53,19 +54,24 @@ class ContractStatus
     const EXP_SIN_FECHA = 'sin_fecha';
     const EXP_NA       = 'na';
 
+    // Eje 3 · desalineación de unidad ("revisar")
+    const REV_REVISAR = 'revisar';
+    const REV_OK      = 'ok';
+
     // Claves de filtro (query param ?contract=...).
     const FILTER_SIN        = 'sin';         // sólo SIN_CONTRATO
     const FILTER_INCOMPLETO = 'incompleto';  // sólo INCOMPLETO
     const FILTER_FALTA      = 'falta';       // unión: sin contrato COMPLETO (SIN o INCOMPLETO)
     const FILTER_VENCE      = 'vence';        // vence antes del wrap
     const FILTER_SIN_FECHA  = 'sinfecha';     // contrato sin fecha de fin
+    const FILTER_REVISAR    = 'revisar';      // la unidad del contrato ya no corresponde
 
     /** Filtros aceptados (para validar el query param y evitar valores raros). */
     public static function filters(): array
     {
         return [
             self::FILTER_SIN, self::FILTER_INCOMPLETO, self::FILTER_FALTA,
-            self::FILTER_VENCE, self::FILTER_SIN_FECHA,
+            self::FILTER_VENCE, self::FILTER_SIN_FECHA, self::FILTER_REVISAR,
         ];
     }
 
@@ -99,7 +105,7 @@ class ContractStatus
                 ->where('is_active', 1)
                 ->when($prodId, fn ($q) => $q->where('production_id', $prodId))
                 ->whereIn('payee_id', array_keys($payeeToUser))
-                ->get(['id', 'payee_id', 'title', 'department_id', 'fee_amount',
+                ->get(['id', 'payee_id', 'title', 'department_id', 'fee_amount', 'emitted_at', 'unit_number',
                        'effective_date', 'estimated_end_date', 'definitive_end_date']);
 
             foreach ($contracts as $c) {
@@ -110,15 +116,20 @@ class ContractStatus
             }
         }
 
-        // Unidad(es) de cada persona → su wrap (para la vigencia por unidad).
-        $wrapByUser = self::wrapDatesFor($userIds);
+        // Contexto de unidad por persona: wrap (para la vigencia) + la unidad EXCLUSIVA viva (para el
+        // sufijo mostrado y para "revisar"). Con una sola unidad, todos caen en la principal.
+        $ctx    = self::unitContextFor($userIds, $prodId);
+        $format = Unit::labelFormatFor($prodId);
 
         $out = [];
         foreach ($userIds as $uid) {
             $contracts = $byUser[$uid] ?? [];
+            $exclNum   = $ctx[$uid]['excl_number'] ?? null;
             $out[$uid] = self::descriptor(
                 self::coverageState($contracts),
-                self::expiry($contracts, $wrapByUser[$uid] ?? null)
+                self::expiry($contracts, $ctx[$uid]['wrap'] ?? null),
+                self::review($contracts, $exclNum),
+                Unit::contractLabel($exclNum, $format)   // etiqueta viva (vacía si principal/compartido)
             );
         }
 
@@ -183,43 +194,56 @@ class ContractStatus
     }
 
     /**
-     * Wrap (último día de rodaje) de la unidad de cada persona. Con una sola unidad, todos caen en la
-     * principal (unit_id NULL) → un solo wrap. Degrada a principal si no está la pivote de unidades.
+     * "REVISAR" (§3): la unidad del contrato EMITIDO ya no corresponde a dónde vive la persona hoy.
+     * Compara la unidad CONGELADA en el contrato (`unit_number`, NULL = principal) contra la unidad
+     * EXCLUSIVA viva ($exclNumber, NULL = principal/compartido), en las DOS direcciones:
+     *   · contrato "Unidad 2" y hoy principal/compartido → revisar.
+     *   · contrato sin sufijo (principal) y hoy exclusivo de una adicional → revisar.
+     * SÓLO cuenta contratos EMITIDOS (ahí se congela la unidad); los no emitidos tomarán la correcta al
+     * emitir. NO dice "falta contrato": es "revisar" — puede requerir anexo o no, según la productora.
+     *
+     * @return array{0:string} [estado]
+     */
+    protected static function review(array $contracts, ?int $exclNumber): array
+    {
+        foreach ($contracts as $c) {
+            if ($c->emitted_at === null) {
+                continue;   // la unidad se congela al emitir; un borrador no dispara "revisar"
+            }
+            $contractNum = $c->unit_number ? (int) $c->unit_number : null;   // NULL = principal
+            if ($contractNum !== $exclNumber) {
+                return [self::REV_REVISAR];
+            }
+        }
+
+        return [self::REV_OK];
+    }
+
+    /**
+     * Contexto de unidad por persona: wrap (último día de rodaje de SU unidad, para la vigencia) y el
+     * NÚMERO de la unidad de la que es EXCLUSIVA (para el sufijo mostrado y "revisar"). Con una sola
+     * unidad, todos en la principal. Degrada a principal si no está la pivote de unidades.
      *
      * @param  array<int>  $userIds
-     * @return array<int,?Carbon>
+     * @return array<int,array{wrap:?Carbon,excl_number:?int}>
      */
-    protected static function wrapDatesFor(array $userIds): array
+    protected static function unitContextFor(array $userIds, ?int $prodId): array
     {
-        // user_id => lista de unidades que trabaja (null = principal).
-        $unitsByUser = [];
-        $rowsByUser  = [];
+        // Filas de pertenencia por persona + mapa id→número de unidad.
+        $rowsByUser = [];
+        $numberById = [];
         if (Schema::hasTable('unit_members')) {
             foreach (UnitMember::whereIn('user_id', $userIds)->get(['user_id', 'unit_id', 'exclusive']) as $r) {
                 $rowsByUser[(int) $r->user_id][] = $r;
             }
-        }
-        foreach ($userIds as $uid) {
-            $rows = $rowsByUser[$uid] ?? [];
-            if (empty($rows)) {
-                $unitsByUser[$uid] = [null];   // sin fila → principal
-                continue;
+            $unitIds = collect($rowsByUser)->flatten(1)->pluck('unit_id')->unique()->filter()->all();
+            if (! empty($unitIds) && Schema::hasColumn('units', 'number')) {
+                $numberById = Unit::whereIn('id', $unitIds)->pluck('number', 'id')
+                    ->map(fn ($v) => $v === null ? null : (int) $v)->all();
             }
-            $units = [];
-            $hasExclusive = false;
-            foreach ($rows as $r) {
-                $units[] = (int) $r->unit_id;
-                if ($r->exclusive) {
-                    $hasExclusive = true;
-                }
-            }
-            if (! $hasExclusive) {
-                $units[] = null;   // compartido → también principal
-            }
-            $unitsByUser[$uid] = array_values(array_unique($units, SORT_REGULAR));
         }
 
-        // Wrap por unidad (cacheado): último día de shootDates() de esa unidad.
+        // Wrap por unidad (cacheado): último día de shootDates() de esa unidad (null=principal).
         $wrapCache = [];
         $wrapOf = function ($unitId) use (&$wrapCache) {
             $key = $unitId === null ? 'n' : (string) $unitId;
@@ -233,24 +257,47 @@ class ContractStatus
 
         $out = [];
         foreach ($userIds as $uid) {
+            $rows = $rowsByUser[$uid] ?? [];
+
+            // Unidades que trabaja (para el wrap) + la EXCLUSIVA (para sufijo/revisar).
+            $units       = [];
+            $hasExclusive = false;
+            $exclNumber  = null;
+            foreach ($rows as $r) {
+                $units[] = (int) $r->unit_id;
+                if ($r->exclusive) {
+                    $hasExclusive = true;
+                    $exclNumber   = $numberById[(int) $r->unit_id] ?? $exclNumber;
+                }
+            }
+            if (! $hasExclusive) {
+                $units[] = null;   // principal / compartido → también principal
+            }
+            if (empty($rows)) {
+                $units = [null];
+            }
+            $units = array_values(array_unique($units, SORT_REGULAR));
+
             $max = null;
-            foreach ($unitsByUser[$uid] as $unitId) {
+            foreach ($units as $unitId) {
                 $w = $wrapOf($unitId);
                 if ($w !== null && ($max === null || $w->gt($max))) {
                     $max = $w;
                 }
             }
-            $out[$uid] = $max;
+
+            $out[$uid] = ['wrap' => $max, 'excl_number' => $exclNumber];
         }
 
         return $out;
     }
 
     /** Descriptor listo para la vista (etiquetas traducibles). */
-    protected static function descriptor(array $coverage, array $expiry): array
+    protected static function descriptor(array $coverage, array $expiry, array $review = [self::REV_OK], string $unitLabel = ''): array
     {
         [$state, $detail]   = $coverage;
         [$expState, $expAt] = $expiry;
+        [$revState]         = $review;
 
         $labels = [
             self::SIN_CONTRATO => __('Sin contrato'),
@@ -268,19 +315,22 @@ class ContractStatus
         }
 
         return [
-            'state'     => $state,
-            'label'     => $labels[$state] ?? '',
-            'detail'    => $detail,
-            'exp_state' => $expState,
-            'exp_label' => $expLabel,
-            'exp_date'  => $expAt,
+            'state'      => $state,
+            'label'      => $labels[$state] ?? '',
+            'detail'     => $detail,
+            'exp_state'  => $expState,
+            'exp_label'  => $expLabel,
+            'exp_date'   => $expAt,
+            'rev_state'  => $revState,
+            'rev_label'  => $revState === self::REV_REVISAR ? __('Revisar unidad') : '',
+            'unit_label' => $unitLabel,   // etiqueta de unidad viva para el CrewList (vacía si principal)
         ];
     }
 
     /** Conteo por estado a partir de un mapa de descriptores (todo el alcance). */
     public static function tally(array $descriptors): array
     {
-        $c = ['sin' => 0, 'incompleto' => 0, 'ok' => 0, 'vence' => 0, 'sin_fecha' => 0, 'activos' => count($descriptors)];
+        $c = ['sin' => 0, 'incompleto' => 0, 'ok' => 0, 'vence' => 0, 'sin_fecha' => 0, 'revisar' => 0, 'activos' => count($descriptors)];
         foreach ($descriptors as $d) {
             if ($d['state'] === self::SIN_CONTRATO)      $c['sin']++;
             elseif ($d['state'] === self::INCOMPLETO)    $c['incompleto']++;
@@ -288,6 +338,8 @@ class ContractStatus
 
             if ($d['exp_state'] === self::EXP_VENCE)          $c['vence']++;
             elseif ($d['exp_state'] === self::EXP_SIN_FECHA)  $c['sin_fecha']++;
+
+            if (($d['rev_state'] ?? self::REV_OK) === self::REV_REVISAR) $c['revisar']++;
         }
         $c['falta'] = $c['sin'] + $c['incompleto'];
 
@@ -313,6 +365,7 @@ class ContractStatus
                 self::FILTER_FALTA      => $d['state'] === self::SIN_CONTRATO || $d['state'] === self::INCOMPLETO,
                 self::FILTER_VENCE      => $d['exp_state'] === self::EXP_VENCE,
                 self::FILTER_SIN_FECHA  => $d['exp_state'] === self::EXP_SIN_FECHA,
+                self::FILTER_REVISAR    => ($d['rev_state'] ?? self::REV_OK) === self::REV_REVISAR,
                 default                 => false,
             };
             if ($hit) {

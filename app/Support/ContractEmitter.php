@@ -5,7 +5,9 @@ namespace App\Support;
 use App\Exceptions\ContractEmitException;
 use App\Models\ContractClause;
 use App\Models\PayeeContract;
+use App\Models\Unit;
 use App\Models\User;
+use App\Support\UnitMembership;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -73,6 +75,10 @@ class ContractEmitter
             }
         }
 
+        // NOMBRE COMPUESTO DE UNIDAD (2c · §2): congela la unidad en el título si la persona VIVE en una
+        // adicional. Aislado en un método para poder probarlo sin toda la ceremonia de emisión.
+        self::stampUnitLabel($contract);
+
         if ($clause) {
             $contract->clause_id = $clause->id;   // fallback byte-intact; sin clausulado queda null
         }
@@ -89,5 +95,34 @@ class ContractEmitter
         $contract->save();
 
         return $contract;
+    }
+
+    /**
+     * NOMBRE COMPUESTO DE UNIDAD (2c · §2). Si quien firma VIVE en una unidad adicional (es EXCLUSIVO de
+     * ella), el título lleva su unidad — "Primer asistente de dirección Unidad 2" — y se CONGELA aquí
+     * (patrón PAE): el papel dice dónde estaba al emitirse, aunque después se mueva. PRINCIPAL o COMPARTIDO
+     * → sin sufijo (el silencio significa principal). `unit_number` guarda la referencia ESTRUCTURAL
+     * (NULL = principal) para comparar contra la pertenencia viva ("revisar") sin parsear el texto. Sólo
+     * crew_work y sólo si aún no se estampó. NO persiste: el llamador guarda (emit hace $contract->save()).
+     */
+    public static function stampUnitLabel(PayeeContract $contract): void
+    {
+        if ($contract->concept !== PayeeContract::CONCEPT_CREW
+            || $contract->unit_number !== null
+            || ! \Illuminate\Support\Facades\Schema::hasColumn('payee_contracts', 'unit_number')) {
+            return;
+        }
+
+        $uid  = optional(optional($contract->payee)->user)->id;
+        $unit = $uid ? UnitMembership::exclusiveUnitFor((int) $uid, (int) $contract->production_id) : null;
+        if (! $unit || (int) $unit->number <= 1) {
+            return;   // principal / compartido → sin sufijo
+        }
+
+        $contract->unit_number = (int) $unit->number;
+        $label = Unit::contractLabel((int) $unit->number, Unit::labelFormatFor($contract->production_id));
+        if ($label !== '' && stripos((string) $contract->title, $label) === false) {
+            $contract->title = trim(((string) $contract->title) . ' ' . $label);
+        }
     }
 }

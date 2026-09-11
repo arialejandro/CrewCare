@@ -64,6 +64,33 @@ class UnitMembership
     }
 
     /**
+     * La unidad ADICIONAL de la que la persona es EXCLUSIVA (vive ahí), o null si está en la principal o
+     * es compartida. Es la que define el sufijo del contrato (§2) y con la que se compara "revisar" (§3):
+     * SÓLO quien vive en la unidad lleva su nombre; los compartidos son de la principal. Acotada a la
+     * producción vigente (una unidad de otra producción no cuenta).
+     */
+    public static function exclusiveUnitFor(int $userId, ?int $prodId = null): ?Unit
+    {
+        if (! self::supported()) {
+            return null;
+        }
+        $prodId  = $prodId ?? CurrentProduction::id();
+        $unitId  = UnitMember::where('user_id', $userId)->where('exclusive', 1)->value('unit_id');
+        if (! $unitId) {
+            return null;
+        }
+        $unit = Unit::find($unitId);
+        if (! $unit) {
+            return null;
+        }
+        if ($prodId && $unit->production_id !== null && (int) $unit->production_id !== (int) $prodId) {
+            return null;
+        }
+
+        return $unit;
+    }
+
+    /**
      * Estado de una persona respecto a una unidad adicional $unitId (para el constructor):
      *  'principal' = no está en esta unidad · 'solo' = sólo aquí (exclusiva) · 'ambas' = aquí y en la principal.
      */
