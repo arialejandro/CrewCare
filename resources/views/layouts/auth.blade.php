@@ -5,7 +5,15 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ config('app.name', 'CrewCare') }}</title>
+    {{-- MISMO origen que el resto de la app: Marca (`app_title`), no APP_NAME.
+         Antes el login leía config('app.name') y el resto `app_title`: el mismo dato en DOS sitios,
+         y cambiarlo "bien" en uno dejaba el otro atrás. Peor aún, el sitio que mandaba en el login
+         era el `.env`, donde un valor con espacios SIN COMILLAS no arranca la app — o sea que el
+         camino natural para arreglar el título era también el que la tumbaba. Ahora es un solo
+         campo, editable desde Ajustes › Marca, sin tocar el .env ni `config:cache`.
+         APP_NAME sigue existiendo para lo suyo (nombre interno de Laravel, remitente por defecto),
+         pero ya no manda en NADA de la interfaz. --}}
+    <title>{{ $branding['app_title'] ?? 'CrewCare' }}</title>
 
     {{-- Shell COMPARTIDO de las pantallas de auth (login + recuperar/restablecer
          contraseña). Superficie ÚNICA sin marca de cliente: azul CrewCare fijo,
