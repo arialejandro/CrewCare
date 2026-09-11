@@ -29,7 +29,7 @@
                 </span>
                 <div>
                     <h1 class="crew-title mb-0">Crew</h1>
-                    <p class="text-muted mb-0 small">{{ $usuarios->total() }} miembros activos</p>
+                    <p class="text-muted mb-0 small">{{ $counts['activos'] ?? $usuarios->total() }} miembros activos</p>
                 </div>
             </div>
 
@@ -78,6 +78,25 @@
             </div>
         </div>
 
+        {{-- Filtro + conteo por ESTADO DE CONTRATO (chips clicables, CSP-safe: links, sin JS).
+             El uso real no es mirar 150 filas, es "muéstrame a los que les falta contrato". El
+             conteo es de TODO el alcance del visor, no de la página. NO bloquea nada: sólo informa. --}}
+        @isset($counts)
+        <div class="crew-chips mb-3" role="group" aria-label="{{ __('Filtrar por estado de contrato') }}">
+            <a href="{{ route('usuarioscrud') }}" class="crew-chip" aria-pressed="{{ $filter ? 'false' : 'true' }}">
+                {{ __('Todos') }}
+            </a>
+            <a href="{{ route('usuarioscrud', ['contract' => 'sin']) }}" class="crew-chip" aria-pressed="{{ $filter === 'sin' ? 'true' : 'false' }}">
+                @include('componentes._icon', ['name' => 'x-circle', 'class' => 'cc-ico', 'label' => null])
+                {{ __('Sin contrato') }} <span class="crew-chip-count">{{ $counts['sin'] }}</span>
+            </a>
+            <a href="{{ route('usuarioscrud', ['contract' => 'incompleto']) }}" class="crew-chip" aria-pressed="{{ $filter === 'incompleto' ? 'true' : 'false' }}">
+                @include('componentes._icon', ['name' => 'alert-triangle', 'class' => 'cc-ico', 'label' => null])
+                {{ __('Contrato incompleto') }} <span class="crew-chip-count">{{ $counts['incompleto'] }}</span>
+            </a>
+        </div>
+        @endisset
+
         {{-- Tabla --}}
         <div class="card border-0 shadow-sm rounded-3">
             <div id="usertable" class="table-responsive" aria-live="polite">
@@ -117,6 +136,9 @@
                                                  Sustituye a `name` (parcial) y hace redundante la columna "Apellido". --}}
                                             <span class="crew-name d-block">{{ \App\Models\User::displayName($user) }}</span>
                                             <span class="crew-sub d-block text-muted small">{{ \App\Models\User::positionNameFor($user->id ?? null, $user->puestodepartamento ?? null) }}</span>
+                                            @isset($contractStatus[$user->id])
+                                                <span class="d-inline-block mt-1">@include('componentes._contract-badge', ['cs' => $contractStatus[$user->id]])</span>
+                                            @endisset
                                         </div>
                                     </div>
                                 </td>

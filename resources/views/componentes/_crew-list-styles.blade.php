@@ -161,6 +161,37 @@
     }
     .crew-chip .crew-chip-count { color: var(--text); font-weight: 700; }
 
+    /* ── Marcador de CONTRATO (Crew List + Buscador + Dados de baja) ──────────────
+       Estado del contrato por persona: SIN CONTRATO / INCOMPLETO / con contrato.
+       Texto + icono (nunca solo color). NO suaviza: sin/incompleto se ven de lejos
+       (owner: "eso no es ruido, es el estado real; no lo escondas"). "Con contrato"
+       queda callado para no alfombrar la lista de verde. */
+    .cc-cmark {
+        display: inline-flex; align-items: center; gap: .28rem;
+        padding: .16rem .48rem;
+        border-radius: 999px;
+        font-size: .68rem; font-weight: 700; line-height: 1.2;
+        text-transform: uppercase; letter-spacing: .03em; white-space: nowrap;
+        border: 1px solid var(--stroke, var(--border));
+    }
+    .cc-cmark .cc-ico { width: .82rem; height: .82rem; flex: none; }
+    .cc-cmark--none {
+        color: #b91c1c;
+        background: color-mix(in srgb, #ef4444 15%, transparent);
+        border-color: color-mix(in srgb, #ef4444 42%, transparent);
+    }
+    .cc-cmark--partial {
+        color: #b45309;
+        background: color-mix(in srgb, #f59e0b 17%, transparent);
+        border-color: color-mix(in srgb, #f59e0b 42%, transparent);
+    }
+    .cc-cmark--ok {
+        color: var(--text-muted);
+        background: transparent;
+        border-style: dashed;
+        opacity: .85;
+    }
+
     /* Pills de estado (Gafetes) — estado por texto + icono, nunca solo color */
     .crew-pill {
         display: inline-flex; align-items: center; gap: .3rem;

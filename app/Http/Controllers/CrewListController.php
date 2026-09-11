@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use App\Models\BadgeTemplate;
 use App\Models\LitePatient;
+use App\Support\ContractStatus;
 use App\Support\CrewRosterBuilder;
 
 /**
@@ -22,17 +23,30 @@ use App\Support\CrewRosterBuilder;
  */
 class CrewListController extends Controller
 {
-    public function usuarioscrud()
+    public function usuarioscrud(Request $request)
     {
         // Scope por departamento (#2): un HOD (sin crew.view.all-departments) solo ve a su
         // propio departamento; super-admin/coordinador/line-producer (con all-departments)
         // ven a todos. Mismo helper que usa SearchController → una sola fuente de verdad.
-        $query = DB::table('users')->where('activo', '=', 1);
-        $query = User::applyDepartmentScope($query, auth()->user());
-        // Orden jerárquico depto→puesto (HOD arriba), igual que el export. Antes: users.id DESC.
-        $usuarios = User::applyRosterOrder($query)->paginate(50);
+        $base = DB::table('users')->where('activo', '=', 1);
+        $base = User::applyDepartmentScope($base, auth()->user());
 
-        return view ('admin/usuarioscrud', compact('usuarios'));
+        // MARCADOR DE CONTRATO (2026-09-10). Filtro por estado ("muéstrame a los que les falta
+        // contrato" — el uso real, no mirar 150 filas) + conteo por TODO el alcance (no la página).
+        // El filtro es SQL para que la paginación sea exacta. NO bloquea nada: sólo informa.
+        $filter = $request->query('contract');
+        $filter = in_array($filter, ContractStatus::filters(), true) ? $filter : null;
+
+        $counts = ContractStatus::counts($base);              // clona por dentro; no muta $base
+        ContractStatus::applyFilter($base, $filter);          // muta $base con el filtro elegido
+
+        // Orden jerárquico depto→puesto (HOD arriba), igual que el export. Antes: users.id DESC.
+        $usuarios = User::applyRosterOrder($base)->paginate(50)->appends(array_filter(['contract' => $filter]));
+
+        // Estado por persona SÓLO de la página visible (sin N+1: 2 consultas para las ~50 filas).
+        $contractStatus = ContractStatus::forUserIds($usuarios->getCollection()->pluck('id')->all());
+
+        return view('admin/usuarioscrud', compact('usuarios', 'counts', 'filter', 'contractStatus'));
     }
 
     // RETIRADO (2026-07-19): comcrud(). Servía la pantalla huérfana /comcrud, redundante con

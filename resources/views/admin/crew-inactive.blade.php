@@ -57,6 +57,9 @@
                         <div>
                             <span class="inact-name">{{ $p['name'] }}</span>
                             @if($p['cargo'] !== '')<span class="inact-cargo"> · {{ $p['cargo'] }}</span>@endif
+                            @isset($contractStatus[$p['id']])
+                                <span class="d-block mt-1">@include('componentes._contract-badge', ['cs' => $contractStatus[$p['id']]])</span>
+                            @endisset
                         </div>
                         @if($reasons->has($p['id']))
                             <span class="inact-why unit">{{ __('Apagado con «:u»', ['u' => $reasons[$p['id']]]) }}</span>

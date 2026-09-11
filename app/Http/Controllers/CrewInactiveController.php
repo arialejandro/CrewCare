@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\UnitMember;
 use App\Models\User;
+use App\Support\ContractStatus;
 use App\Support\CrewRosterBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -42,7 +43,20 @@ class CrewInactiveController extends Controller
                 ->pluck('units.name', 'unit_members.user_id');   // [user_id => nombre de unidad]
         }
 
-        return view('admin.crew-inactive', ['roster' => $roster, 'reasons' => $reasons]);
+        // MARCADOR DE CONTRATO (2026-09-10): mismo estado que el crew list, para que al reintegrar a
+        // alguien quede VISIBLE después que le falta contrato. Reúne los ids de todos los grupos y
+        // resuelve en 2 consultas (sin N+1). El contrato es independiente de activo=0, así que un dado
+        // de baja normalmente cae en SIN CONTRATO / INCOMPLETO — que es justo lo que hay que ver.
+        $ids = collect($roster['groups'] ?? [])
+            ->flatMap(fn ($g) => array_column($g['people'] ?? [], 'id'))
+            ->all();
+        $contractStatus = ContractStatus::forUserIds($ids);
+
+        return view('admin.crew-inactive', [
+            'roster'         => $roster,
+            'reasons'        => $reasons,
+            'contractStatus' => $contractStatus,
+        ]);
     }
 
     /**
