@@ -113,7 +113,7 @@ class ContractStatusMarkerTest extends QaTestCase
         $this->assertSame(ContractStatus::SIN_CONTRATO, $states[$renta->id]['state']);
     }
 
-    public function test_filtro_sql_y_conteo_casan(): void
+    public function test_filtro_y_conteo_casan(): void
     {
         $prod = $this->prod();
 
@@ -125,32 +125,90 @@ class ContractStatusMarkerTest extends QaTestCase
 
         $admin = $this->admin();               // all-departments → ve todo (sin acotar)
 
-        $baseFor = fn () => User::applyDepartmentScope(DB::table('users')->where('activo', 1), $admin);
+        $scope = User::applyDepartmentScope(DB::table('users')->where('activo', 1), $admin)
+            ->pluck('id')->map(fn ($v) => (int) $v)->all();
+        $desc = ContractStatus::forUserIds($scope);
 
         // El filtro "sin" incluye al sin-contrato y EXCLUYE al que sí lo tiene completo.
-        $sinIds = ContractStatus::applyFilter($baseFor(), ContractStatus::FILTER_SIN)->pluck('id')->all();
+        $sinIds = ContractStatus::idsMatching($desc, ContractStatus::FILTER_SIN);
         $this->assertContains($sin->id, $sinIds);
         $this->assertNotContains($ok->id, $sinIds);
         $this->assertNotContains($incompleto->id, $sinIds);
 
         // "incompleto" incluye al incompleto y excluye al completo y al sin-contrato.
-        $incIds = ContractStatus::applyFilter($baseFor(), ContractStatus::FILTER_INCOMPLETO)->pluck('id')->all();
+        $incIds = ContractStatus::idsMatching($desc, ContractStatus::FILTER_INCOMPLETO);
         $this->assertContains($incompleto->id, $incIds);
         $this->assertNotContains($ok->id, $incIds);
         $this->assertNotContains($sin->id, $incIds);
 
         // "falta" (unión) los toma a ambos y no al completo.
-        $faltaIds = ContractStatus::applyFilter($baseFor(), ContractStatus::FILTER_FALTA)->pluck('id')->all();
+        $faltaIds = ContractStatus::idsMatching($desc, ContractStatus::FILTER_FALTA);
         $this->assertContains($sin->id, $faltaIds);
         $this->assertContains($incompleto->id, $faltaIds);
         $this->assertNotContains($ok->id, $faltaIds);
 
-        // Conteos coherentes: falta = sin + incompleto, y los filtros SQL cuentan igual.
-        $counts = ContractStatus::counts($baseFor());
+        // Conteos coherentes: falta = sin + incompleto, y el filtro cuenta igual.
+        $counts = ContractStatus::tally($desc);
         $this->assertSame($counts['sin'] + $counts['incompleto'], $counts['falta']);
         $this->assertSame(count($sinIds), $counts['sin']);
         $this->assertSame(count($incIds), $counts['incompleto']);
         $this->assertSame(count($faltaIds), $counts['falta']);
+    }
+
+    /** Contrato crew_work COMPLETO con fechas de fin explícitas (para la vigencia). */
+    private function completeContract(User $user, Production $prod, ?string $definitive, ?string $estimated): PayeeContract
+    {
+        $payee = Payee::create([
+            'legal_nature' => Payee::NATURE_FISICA, 'name' => $user->name, 'user_id' => $user->id, 'is_active' => 1,
+        ]);
+
+        return PayeeContract::create([
+            'payee_id'            => $payee->id,
+            'production_id'       => $prod->id,
+            'concept'             => PayeeContract::CONCEPT_CREW,
+            'is_active'           => 1,
+            'title'               => 'Primer asistente de dirección',
+            'department_id'       => Department::query()->value('id'),
+            'fee_amount'          => 15000,
+            'effective_date'      => now()->toDateString(),
+            'definitive_end_date' => $definitive,
+            'estimated_end_date'  => $estimated,
+        ]);
+    }
+
+    public function test_vigencia_vence_sin_fecha_y_cubierto(): void
+    {
+        $prod = $this->prod();
+
+        // Calendario determinista: último día de rodaje = 2026-12-31 (unidad principal).
+        \App\Models\ShootDay::where('production_id', $prod->id)->delete();
+        \App\Models\ShootDay::create(['production_id' => $prod->id, 'unit_id' => null, 'shoot_date' => '2026-10-01', 'is_shoot_day' => 1]);
+        \App\Models\ShootDay::create(['production_id' => $prod->id, 'unit_id' => null, 'shoot_date' => '2026-12-31', 'is_shoot_day' => 1]);
+        \App\Support\ProductionCalendar::forget();
+
+        $vence  = $this->crew('Vence' . Str::random(4));
+        $cubre  = $this->crew('Cubre' . Str::random(4));
+        $sinfec = $this->crew('SinFecha' . Str::random(4));
+
+        $this->completeContract($vence,  $prod, '2026-11-01', null);   // fin firme ANTES del wrap
+        $this->completeContract($cubre,  $prod, '2026-12-31', null);   // llega al wrap
+        $this->completeContract($sinfec, $prod, null, null);           // sin fecha de fin
+
+        $s = ContractStatus::forUserIds([$vence->id, $cubre->id, $sinfec->id]);
+
+        $this->assertSame(ContractStatus::EXP_VENCE,     $s[$vence->id]['exp_state']);
+        $this->assertSame('2026-11-01',                  $s[$vence->id]['exp_date']);
+        $this->assertSame(ContractStatus::EXP_COVERED,   $s[$cubre->id]['exp_state']);
+        $this->assertSame(ContractStatus::EXP_SIN_FECHA, $s[$sinfec->id]['exp_state']);
+        // La cobertura (otro eje) sigue OK: tienen el trato completo.
+        $this->assertSame(ContractStatus::OK, $s[$vence->id]['state']);
+
+        // 🔑 definitive_end_date MANDA sobre estimated_end_date: un estimado tardío no salva si la firme vence.
+        $mixto = $this->crew('Mixto' . Str::random(4));
+        $this->completeContract($mixto, $prod, '2026-11-01', '2027-06-01');
+        $s2 = ContractStatus::forUserIds([$mixto->id]);
+        $this->assertSame(ContractStatus::EXP_VENCE, $s2[$mixto->id]['exp_state']);
+        $this->assertSame('2026-11-01', $s2[$mixto->id]['exp_date']);
     }
 
     public function test_crew_list_pinta_los_chips_de_filtro(): void
@@ -159,13 +217,15 @@ class ContractStatusMarkerTest extends QaTestCase
         $this->actingAs($this->admin());
 
         $res = $this->get(route('usuarioscrud'))->assertOk();
-        $res->assertSee('Sin contrato');            // chip de filtro
-        $res->assertSee('Contrato incompleto');     // chip de filtro
+        $res->assertSee('Sin contrato');            // chip de filtro (cobertura)
+        $res->assertSee('Contrato incompleto');     // chip de filtro (cobertura)
+        $res->assertSee('Vence antes del wrap');    // chip de filtro (vigencia)
         $res->assertSee('miembros activos');
 
-        // El filtro por query param responde OK (paginación exacta por SQL).
+        // Cada filtro por query param responde OK (paginación exacta por whereIn del conjunto que casa).
         $this->get(route('usuarioscrud', ['contract' => 'sin']))->assertOk();
         $this->get(route('usuarioscrud', ['contract' => 'incompleto']))->assertOk();
+        $this->get(route('usuarioscrud', ['contract' => 'vence']))->assertOk();
     }
 
     public function test_dados_de_baja_muestra_el_marcador(): void

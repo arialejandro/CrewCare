@@ -3,136 +3,78 @@
 namespace App\Support;
 
 use App\Models\PayeeContract;
+use App\Models\UnitMember;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * ContractStatus — FUENTE ÚNICA del "estado de contrato" de una persona del crew, para pintarlo
- * junto a cada quien en el Crew List y en Dados de baja, filtrar por él y contarlo (2026-09-10).
+ * junto a cada quien en el Crew List / buscador / Dados de baja, filtrar por él y contarlo.
  *
- * LA PREGUNTA que contesta: ¿quién de este crew NO tiene contrato, y a quién le falta capturar el
- * trato? Hoy eso sólo se veía entrando a la ficha de una persona, de una en una — con 150 no se hace.
+ * DOS EJES INDEPENDIENTES por persona (un mismo quien puede tener los dos):
  *
- * TRES ESTADOS (los dos primeros SÍ se construyen; el tercero —DESALINEADO— se REPORTÓ y NO se
- * construye por ahora, ver nota abajo):
- *   · SIN_CONTRATO — no existe ningún contrato crew_work ACTIVO de la persona (nunca se emitió).
- *   · INCOMPLETO   — existe contrato crew_work pero le falta algo del trato. NO inventa un concepto
- *                    nuevo de "sin contrato": REÚSA {@see InfosheetSigning::missingToAuthorize()}
- *                    (puesto, departamento, honorarios > 0, fecha de inicio) — el MISMO mínimo que
- *                    ya gatea la autorización. El detalle sale de {@see InfosheetSigning::missingLabel()}.
- *   · OK           — tiene al menos un contrato crew_work activo COMPLETO (con ese mínimo capturado).
+ *  1) COBERTURA — ¿tiene contrato y está capturado el trato?
+ *     · SIN_CONTRATO — no existe ningún contrato crew_work ACTIVO (nunca se emitió).
+ *     · INCOMPLETO   — existe pero le falta el mínimo del trato. REÚSA
+ *                      {@see InfosheetSigning::missingToAuthorize/missingLabel} (puesto, depto,
+ *                      honorarios > 0, fecha de inicio) — sin inventar un concepto nuevo.
+ *     · OK           — al menos un contrato crew_work activo COMPLETO.
  *
- * 🔴 NO BLOQUEA NADA: es sólo un marcador informativo. Ni el llamado, ni crear documentos, ni el
- * acceso dependen de esto. Producción decide.
+ *  2) VIGENCIA — ¿el contrato llega al final de rodaje? (2026-09-10, §4)
+ *     · EXP_VENCE     — todos sus contratos terminan ANTES del último día marcado en el calendario.
+ *                       El caso dominante: la producción se atrasa o agrega días y el papel queda corto.
+ *                       Trae la fecha de fin más lejana que tiene. Se recalcula solo cuando el
+ *                       calendario cambia (se lee `ProductionCalendar::shootDates()` en vivo, no se guarda).
+ *     · EXP_SIN_FECHA — tiene contrato pero NINGUNO trae fecha de fin. Estado PROPIO, no un default
+ *                       silencioso: producción sabe que no puede cruzar la vigencia.
+ *     · EXP_COVERED   — algún contrato cubre hasta el wrap (o después). Sin marca.
+ *     · EXP_NA        — no aplica (sin contrato, o sin calendario con qué comparar).
+ *     🔑 POR UNIDAD: se compara contra el wrap de SU unidad (`shootDates($unitId)`), no el de la
+ *        producción. Con una sola unidad, todos caen en la principal → el wrap de siempre.
+ *     🔑 QUÉ FECHA MANDA: `definitive_end_date` (la firme) gana; si no hay, `estimated_end_date`.
  *
- * 🔎 DESALINEADO (§2c del pedido) — REPORTADO, NO CONSTRUIDO. El puesto del contrato vive en
- * `payee_contracts.title` como el NOMBRE del puesto del catálogo (lo puebla el select `position_id`
- * → `positions.name`; el sistema ya casa `title` ↔ puesto por nombre exacto en
- * InfosheetController::positionIdFor). Es comparable con el puesto vivo SÓLO cuando ambos lados
- * salen del catálogo; en filas legacy de texto libre (`users.puestodepartamento`) da falsos
- * positivos. Y el motor del pedido —el CAMBIO DE UNIDAD— NO está en el nombre del puesto en
- * CrewCare (la unidad vive en `unit_members`, no en `positions.name`), y el contrato no guarda
- * ninguna referencia de unidad → una comparación por nombre de puesto NO detecta mudanzas de unidad
- * (el caso que más importa) y daría falsa tranquilidad. Por eso: dos estados buenos, no tres con
- * ruido. Cuando el owner decida, aquí es donde entraría.
- *
- * Correlaciona por `payees.user_id` (la liga opcional del crew con "quien cobra"). Acotado a la
+ * 🔴 NO BLOQUEA NADA: sólo informa; producción decide. Correlaciona por `payees.user_id`; acota a la
  * producción vigente y a `is_active = 1` (un contrato apagado no cuenta como cobertura).
+ *
+ * 🔎 DESALINEADO ("revisar"): se maneja aparte (necesita el nombre compuesto de unidad en el título del
+ * contrato). Ver §2/§3 del pedido.
  */
 class ContractStatus
 {
+    // Eje 1 · cobertura
     const OK           = 'ok';
     const INCOMPLETO   = 'incompleto';
     const SIN_CONTRATO = 'sin_contrato';
+
+    // Eje 2 · vigencia
+    const EXP_COVERED  = 'covered';
+    const EXP_VENCE    = 'vence';
+    const EXP_SIN_FECHA = 'sin_fecha';
+    const EXP_NA       = 'na';
 
     // Claves de filtro (query param ?contract=...).
     const FILTER_SIN        = 'sin';         // sólo SIN_CONTRATO
     const FILTER_INCOMPLETO = 'incompleto';  // sólo INCOMPLETO
     const FILTER_FALTA      = 'falta';       // unión: sin contrato COMPLETO (SIN o INCOMPLETO)
+    const FILTER_VENCE      = 'vence';        // vence antes del wrap
+    const FILTER_SIN_FECHA  = 'sinfecha';     // contrato sin fecha de fin
 
     /** Filtros aceptados (para validar el query param y evitar valores raros). */
     public static function filters(): array
     {
-        return [self::FILTER_SIN, self::FILTER_INCOMPLETO, self::FILTER_FALTA];
-    }
-
-    /**
-     * Closure de subconsulta correlacionada: ¿existe un contrato crew_work ACTIVO de esta persona
-     * en la producción vigente? Con $complete=true exige además el mínimo del trato (mismo criterio
-     * que missingToAuthorize). $userCol = columna del user en la consulta externa (p.ej. 'users.id').
-     */
-    protected static function existsClosure(string $userCol, bool $complete, ?int $prodId): \Closure
-    {
-        return function ($s) use ($userCol, $complete, $prodId) {
-            $s->selectRaw('1')->from('payee_contracts')
-              ->join('payees', 'payees.id', '=', 'payee_contracts.payee_id')
-              ->whereColumn('payees.user_id', $userCol)
-              ->where('payee_contracts.concept', PayeeContract::CONCEPT_CREW)
-              ->where('payee_contracts.is_active', 1);
-
-            if ($prodId) {
-                $s->where('payee_contracts.production_id', $prodId);
-            }
-
-            if ($complete) {
-                $s->whereNotNull('payee_contracts.title')->where('payee_contracts.title', '!=', '')
-                  ->whereNotNull('payee_contracts.department_id')
-                  ->where('payee_contracts.fee_amount', '>', 0)
-                  ->whereNotNull('payee_contracts.effective_date');
-            }
-        };
-    }
-
-    /**
-     * Aplica el filtro por estado de contrato a una consulta de `users` (SQL, para que la paginación
-     * y el conteo sean exactos). MUTA y devuelve la misma consulta. Filtro nulo/desconocido = sin tocar.
-     */
-    public static function applyFilter($query, ?string $filter, string $userCol = 'users.id', ?int $prodId = null)
-    {
-        $prodId = $prodId ?? CurrentProduction::id();
-        $any      = self::existsClosure($userCol, false, $prodId);
-        $complete = self::existsClosure($userCol, true, $prodId);
-
-        switch ($filter) {
-            case self::FILTER_SIN:
-                return $query->whereNotExists($any);
-            case self::FILTER_INCOMPLETO:
-                return $query->whereExists($any)->whereNotExists($complete);
-            case self::FILTER_FALTA:
-                return $query->whereNotExists($complete);
-            default:
-                return $query;
-        }
-    }
-
-    /**
-     * Conteos por estado sobre TODO el alcance del visor (no sólo la página), para el resumen/filtro.
-     * NO muta la consulta base: clona por cada conteo. Devuelve ['sin','incompleto','falta','activos'].
-     */
-    public static function counts($baseUsersQuery, string $userCol = 'users.id', ?int $prodId = null): array
-    {
-        $prodId = $prodId ?? CurrentProduction::id();
-        $any      = self::existsClosure($userCol, false, $prodId);
-        $complete = self::existsClosure($userCol, true, $prodId);
-
-        $sin        = (clone $baseUsersQuery)->whereNotExists($any)->count();
-        $incompleto = (clone $baseUsersQuery)->whereExists($any)->whereNotExists($complete)->count();
-        $activos    = (clone $baseUsersQuery)->count();
-
         return [
-            'sin'        => $sin,
-            'incompleto' => $incompleto,
-            'falta'      => $sin + $incompleto,
-            'activos'    => $activos,
+            self::FILTER_SIN, self::FILTER_INCOMPLETO, self::FILTER_FALTA,
+            self::FILTER_VENCE, self::FILTER_SIN_FECHA,
         ];
     }
 
     /**
-     * Estado de contrato para un conjunto de user_ids, SIN N+1 (2 consultas + PHP). Devuelve
-     * [user_id => ['state','label','detail']]. Un user sin fila = SIN_CONTRATO. La lista lo pinta
-     * junto a cada persona; el detalle (missingLabel) va como tooltip del chip INCOMPLETO.
+     * Estado (cobertura + vigencia) para un conjunto de user_ids, SIN N+1. Devuelve
+     * [user_id => descriptor]. Un user sin fila = SIN_CONTRATO. La lista lo pinta junto a cada persona.
      *
      * @param  array<int>  $userIds
-     * @return array<int,array{state:string,label:string,detail:string}>
+     * @return array<int,array>
      */
     public static function forUserIds(array $userIds, ?int $prodId = null): array
     {
@@ -148,8 +90,8 @@ class ContractStatus
             $payeeToUser[(int) $r->id] = (int) $r->user_id;
         }
 
-        // Contratos crew_work ACTIVOS de esos payees en la producción vigente. Sólo las columnas del
-        // mínimo del trato (las que lee missingToAuthorize) → barato aunque haya varios por persona.
+        // Contratos crew_work ACTIVOS de esos payees en la producción vigente. Columnas: el mínimo del
+        // trato (missingToAuthorize) + las dos fechas de fin (vigencia).
         $byUser = []; // user_id => [PayeeContract, ...]
         if (! empty($payeeToUser)) {
             $contracts = PayeeContract::query()
@@ -157,7 +99,8 @@ class ContractStatus
                 ->where('is_active', 1)
                 ->when($prodId, fn ($q) => $q->where('production_id', $prodId))
                 ->whereIn('payee_id', array_keys($payeeToUser))
-                ->get(['id', 'payee_id', 'title', 'department_id', 'fee_amount', 'effective_date']);
+                ->get(['id', 'payee_id', 'title', 'department_id', 'fee_amount',
+                       'effective_date', 'estimated_end_date', 'definitive_end_date']);
 
             foreach ($contracts as $c) {
                 $uid = $payeeToUser[(int) $c->payee_id] ?? null;
@@ -167,53 +110,216 @@ class ContractStatus
             }
         }
 
+        // Unidad(es) de cada persona → su wrap (para la vigencia por unidad).
+        $wrapByUser = self::wrapDatesFor($userIds);
+
         $out = [];
         foreach ($userIds as $uid) {
             $contracts = $byUser[$uid] ?? [];
-
-            if (empty($contracts)) {
-                $out[$uid] = self::descriptor(self::SIN_CONTRATO);
-                continue;
-            }
-
-            // ¿Alguno COMPLETO? (mínimo del trato capturado). Si ninguno, se toma el "más completo"
-            // (menos faltantes) para mostrar en qué se quedó.
-            $hasComplete   = false;
-            $bestIncomplete = null;
-            $bestMissing    = PHP_INT_MAX;
-            foreach ($contracts as $c) {
-                $missing = InfosheetSigning::missingToAuthorize($c);
-                if (empty($missing)) {
-                    $hasComplete = true;
-                    break;
-                }
-                if (count($missing) < $bestMissing) {
-                    $bestMissing    = count($missing);
-                    $bestIncomplete = $c;
-                }
-            }
-
-            $out[$uid] = $hasComplete
-                ? self::descriptor(self::OK)
-                : self::descriptor(self::INCOMPLETO, InfosheetSigning::missingLabel($bestIncomplete));
+            $out[$uid] = self::descriptor(
+                self::coverageState($contracts),
+                self::expiry($contracts, $wrapByUser[$uid] ?? null)
+            );
         }
 
         return $out;
     }
 
-    /** Descriptor listo para la vista (etiqueta traducible + detalle opcional). */
-    protected static function descriptor(string $state, string $detail = ''): array
+    /** Cobertura de una persona a partir de sus contratos crew_work activos. */
+    protected static function coverageState(array $contracts): array
     {
+        if (empty($contracts)) {
+            return [self::SIN_CONTRATO, ''];
+        }
+        $bestIncomplete = null;
+        $bestMissing    = PHP_INT_MAX;
+        foreach ($contracts as $c) {
+            $missing = InfosheetSigning::missingToAuthorize($c);
+            if (empty($missing)) {
+                return [self::OK, ''];
+            }
+            if (count($missing) < $bestMissing) {
+                $bestMissing    = count($missing);
+                $bestIncomplete = $c;
+            }
+        }
+
+        return [self::INCOMPLETO, InfosheetSigning::missingLabel($bestIncomplete)];
+    }
+
+    /**
+     * Vigencia de una persona: ¿algún contrato llega al $wrap? La fecha efectiva de cada contrato es
+     * `definitive_end_date` (la firme) o, si no hay, `estimated_end_date`. $wrap = último día de rodaje
+     * de SU unidad (Carbon) o null si no hay calendario con qué comparar.
+     *
+     * @return array{0:string,1:?string} [estado, fecha efectiva 'Y-m-d' cuando aplica]
+     */
+    protected static function expiry(array $contracts, ?Carbon $wrap): array
+    {
+        if (empty($contracts) || $wrap === null) {
+            return [self::EXP_NA, null];
+        }
+
+        $ends = [];
+        foreach ($contracts as $c) {
+            $end = $c->definitive_end_date ?: $c->estimated_end_date;
+            if ($end) {
+                $ends[] = $end instanceof Carbon ? $end->copy()->startOfDay() : Carbon::parse($end)->startOfDay();
+            }
+        }
+
+        if (empty($ends)) {
+            return [self::EXP_SIN_FECHA, null];   // tiene contrato, ninguna fecha de fin
+        }
+
+        // El fin MÁS LEJANO: hasta ahí está cubierta. Si ni ese llega al wrap → vence antes.
+        usort($ends, fn ($a, $b) => $a <=> $b);
+        $furthest = end($ends);
+        if ($furthest->gte($wrap->copy()->startOfDay())) {
+            return [self::EXP_COVERED, null];
+        }
+
+        return [self::EXP_VENCE, $furthest->toDateString()];
+    }
+
+    /**
+     * Wrap (último día de rodaje) de la unidad de cada persona. Con una sola unidad, todos caen en la
+     * principal (unit_id NULL) → un solo wrap. Degrada a principal si no está la pivote de unidades.
+     *
+     * @param  array<int>  $userIds
+     * @return array<int,?Carbon>
+     */
+    protected static function wrapDatesFor(array $userIds): array
+    {
+        // user_id => lista de unidades que trabaja (null = principal).
+        $unitsByUser = [];
+        $rowsByUser  = [];
+        if (Schema::hasTable('unit_members')) {
+            foreach (UnitMember::whereIn('user_id', $userIds)->get(['user_id', 'unit_id', 'exclusive']) as $r) {
+                $rowsByUser[(int) $r->user_id][] = $r;
+            }
+        }
+        foreach ($userIds as $uid) {
+            $rows = $rowsByUser[$uid] ?? [];
+            if (empty($rows)) {
+                $unitsByUser[$uid] = [null];   // sin fila → principal
+                continue;
+            }
+            $units = [];
+            $hasExclusive = false;
+            foreach ($rows as $r) {
+                $units[] = (int) $r->unit_id;
+                if ($r->exclusive) {
+                    $hasExclusive = true;
+                }
+            }
+            if (! $hasExclusive) {
+                $units[] = null;   // compartido → también principal
+            }
+            $unitsByUser[$uid] = array_values(array_unique($units, SORT_REGULAR));
+        }
+
+        // Wrap por unidad (cacheado): último día de shootDates() de esa unidad.
+        $wrapCache = [];
+        $wrapOf = function ($unitId) use (&$wrapCache) {
+            $key = $unitId === null ? 'n' : (string) $unitId;
+            if (! array_key_exists($key, $wrapCache)) {
+                $dates = ProductionCalendar::shootDates($unitId);
+                $wrapCache[$key] = ! empty($dates) ? Carbon::parse(end($dates))->startOfDay() : null;
+            }
+
+            return $wrapCache[$key];
+        };
+
+        $out = [];
+        foreach ($userIds as $uid) {
+            $max = null;
+            foreach ($unitsByUser[$uid] as $unitId) {
+                $w = $wrapOf($unitId);
+                if ($w !== null && ($max === null || $w->gt($max))) {
+                    $max = $w;
+                }
+            }
+            $out[$uid] = $max;
+        }
+
+        return $out;
+    }
+
+    /** Descriptor listo para la vista (etiquetas traducibles). */
+    protected static function descriptor(array $coverage, array $expiry): array
+    {
+        [$state, $detail]   = $coverage;
+        [$expState, $expAt] = $expiry;
+
         $labels = [
             self::SIN_CONTRATO => __('Sin contrato'),
             self::INCOMPLETO   => __('Contrato incompleto'),
             self::OK           => __('Con contrato'),
         ];
+        $expLabels = [
+            self::EXP_VENCE     => __('Vence antes del wrap'),
+            self::EXP_SIN_FECHA => __('Sin fecha de fin'),
+        ];
+
+        $expLabel = $expLabels[$expState] ?? '';
+        if ($expState === self::EXP_VENCE && $expAt) {
+            $expLabel = __('Vence :fecha', ['fecha' => Carbon::parse($expAt)->format('d/m/Y')]);
+        }
 
         return [
-            'state'  => $state,
-            'label'  => $labels[$state] ?? '',
-            'detail' => $detail,
+            'state'     => $state,
+            'label'     => $labels[$state] ?? '',
+            'detail'    => $detail,
+            'exp_state' => $expState,
+            'exp_label' => $expLabel,
+            'exp_date'  => $expAt,
         ];
+    }
+
+    /** Conteo por estado a partir de un mapa de descriptores (todo el alcance). */
+    public static function tally(array $descriptors): array
+    {
+        $c = ['sin' => 0, 'incompleto' => 0, 'ok' => 0, 'vence' => 0, 'sin_fecha' => 0, 'activos' => count($descriptors)];
+        foreach ($descriptors as $d) {
+            if ($d['state'] === self::SIN_CONTRATO)      $c['sin']++;
+            elseif ($d['state'] === self::INCOMPLETO)    $c['incompleto']++;
+            elseif ($d['state'] === self::OK)            $c['ok']++;
+
+            if ($d['exp_state'] === self::EXP_VENCE)          $c['vence']++;
+            elseif ($d['exp_state'] === self::EXP_SIN_FECHA)  $c['sin_fecha']++;
+        }
+        $c['falta'] = $c['sin'] + $c['incompleto'];
+
+        return $c;
+    }
+
+    /**
+     * Los user_ids que casan un filtro, a partir del mapa de descriptores. Devuelve null si el filtro
+     * no aplica (→ el llamador no acota). Exacto: el conjunto ES la lista de ids.
+     *
+     * @return array<int>|null
+     */
+    public static function idsMatching(array $descriptors, ?string $filter): ?array
+    {
+        if (! in_array($filter, self::filters(), true)) {
+            return null;
+        }
+        $ids = [];
+        foreach ($descriptors as $uid => $d) {
+            $hit = match ($filter) {
+                self::FILTER_SIN        => $d['state'] === self::SIN_CONTRATO,
+                self::FILTER_INCOMPLETO => $d['state'] === self::INCOMPLETO,
+                self::FILTER_FALTA      => $d['state'] === self::SIN_CONTRATO || $d['state'] === self::INCOMPLETO,
+                self::FILTER_VENCE      => $d['exp_state'] === self::EXP_VENCE,
+                self::FILTER_SIN_FECHA  => $d['exp_state'] === self::EXP_SIN_FECHA,
+                default                 => false,
+            };
+            if ($hit) {
+                $ids[] = (int) $uid;
+            }
+        }
+
+        return $ids;
     }
 }

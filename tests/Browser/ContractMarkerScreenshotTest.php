@@ -29,7 +29,8 @@ class ContractMarkerScreenshotTest extends DuskTestCase
                 ->pause(700)
                 ->screenshot('crew-marcador-contrato')   // captura ANTES de asertar (queda pase o falle)
                 ->assertSee('miembros activos')
-                ->assertSee('Contrato incompleto');       // chip de filtro (no va en mayúsculas)
+                ->assertSee('Contrato incompleto')        // chip de filtro · cobertura
+                ->assertSee('Vence antes del wrap');      // chip de filtro · vigencia (§4)
         });
 
         // (2) Filtrado a los que les falta capturar el trato.

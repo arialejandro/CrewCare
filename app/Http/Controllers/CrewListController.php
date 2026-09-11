@@ -31,20 +31,25 @@ class CrewListController extends Controller
         $base = DB::table('users')->where('activo', '=', 1);
         $base = User::applyDepartmentScope($base, auth()->user());
 
-        // MARCADOR DE CONTRATO (2026-09-10). Filtro por estado ("muéstrame a los que les falta
-        // contrato" — el uso real, no mirar 150 filas) + conteo por TODO el alcance (no la página).
-        // El filtro es SQL para que la paginación sea exacta. NO bloquea nada: sólo informa.
+        // MARCADOR DE CONTRATO (2026-09-10). Estado por persona (cobertura + vigencia) sobre TODO el
+        // alcance del visor, en una sola pasada: de ahí salen el conteo, el filtro y lo que pinta cada
+        // fila. El filtro "muéstrame a los que les falta contrato / vencen" es el uso real (no mirar 150
+        // filas). NO bloquea nada: sólo informa. La vigencia se recalcula sola al cambiar el calendario.
         $filter = $request->query('contract');
         $filter = in_array($filter, ContractStatus::filters(), true) ? $filter : null;
 
-        $counts = ContractStatus::counts($base);              // clona por dentro; no muta $base
-        ContractStatus::applyFilter($base, $filter);          // muta $base con el filtro elegido
+        $scopeIds       = (clone $base)->pluck('id')->map(fn ($v) => (int) $v)->all();
+        $contractStatus = ContractStatus::forUserIds($scopeIds);   // cobertura + vigencia, todo el alcance
+        $counts         = ContractStatus::tally($contractStatus);
+
+        // Filtro exacto por el conjunto de ids que casan (la paginación DB sigue exacta con whereIn).
+        $matchIds = ContractStatus::idsMatching($contractStatus, $filter);
+        if ($matchIds !== null) {
+            $base->whereIn('users.id', $matchIds ?: [-1]);
+        }
 
         // Orden jerárquico depto→puesto (HOD arriba), igual que el export. Antes: users.id DESC.
         $usuarios = User::applyRosterOrder($base)->paginate(50)->appends(array_filter(['contract' => $filter]));
-
-        // Estado por persona SÓLO de la página visible (sin N+1: 2 consultas para las ~50 filas).
-        $contractStatus = ContractStatus::forUserIds($usuarios->getCollection()->pluck('id')->all());
 
         return view('admin/usuarioscrud', compact('usuarios', 'counts', 'filter', 'contractStatus'));
     }

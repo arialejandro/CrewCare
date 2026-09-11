@@ -94,6 +94,16 @@
                 @include('componentes._icon', ['name' => 'alert-triangle', 'class' => 'cc-ico', 'label' => null])
                 {{ __('Contrato incompleto') }} <span class="crew-chip-count">{{ $counts['incompleto'] }}</span>
             </a>
+            <a href="{{ route('usuarioscrud', ['contract' => 'vence']) }}" class="crew-chip" aria-pressed="{{ $filter === 'vence' ? 'true' : 'false' }}">
+                @include('componentes._icon', ['name' => 'clock', 'class' => 'cc-ico', 'label' => null])
+                {{ __('Vence antes del wrap') }} <span class="crew-chip-count">{{ $counts['vence'] }}</span>
+            </a>
+            @if(($counts['sin_fecha'] ?? 0) > 0)
+            <a href="{{ route('usuarioscrud', ['contract' => 'sinfecha']) }}" class="crew-chip" aria-pressed="{{ $filter === 'sinfecha' ? 'true' : 'false' }}">
+                @include('componentes._icon', ['name' => 'calendar', 'class' => 'cc-ico', 'label' => null])
+                {{ __('Sin fecha de fin') }} <span class="crew-chip-count">{{ $counts['sin_fecha'] }}</span>
+            </a>
+            @endif
         </div>
         @endisset
 

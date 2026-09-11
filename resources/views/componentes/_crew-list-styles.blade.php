@@ -191,6 +191,17 @@
         border-style: dashed;
         opacity: .85;
     }
+    /* Vigencia (eje aparte de la cobertura): vence antes del wrap / sin fecha de fin. */
+    .cc-cmark--vence {
+        color: #c2410c;
+        background: color-mix(in srgb, #f97316 16%, transparent);
+        border-color: color-mix(in srgb, #f97316 44%, transparent);
+    }
+    .cc-cmark--nofecha {
+        color: var(--text-muted);
+        background: var(--surface-2);
+        border-style: dashed;
+    }
 
     /* Pills de estado (Gafetes) — estado por texto + icono, nunca solo color */
     .crew-pill {
