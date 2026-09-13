@@ -222,6 +222,34 @@ Route::middleware(['auth','permission:crew.view'])->group(function () {
     Route::get('/roster',[App\Http\Controllers\RosterController::class,'index'])->name('roster.index');
 });
 
+// ---- SALIDAS (outs) + TURNAROUND (2026-09-12) ----
+// Autoridad POR PUESTO: producción/coordinación ven todo; el jefe (is_hod) registra su depto. Por eso
+// el grupo es sólo `auth` y la autoridad se aplica DENTRO (OutAuthority) — gatear por callsheet.manage
+// dejaría fuera a los jefes. NO confundir con la columna `out` del back ni con el estado ROSTER_OUT.
+Route::middleware(['auth'])->group(function () {
+    $out = App\Http\Controllers\OutController::class;
+    Route::get('/salidas',                 [$out, 'index'])->name('outs.index');
+    Route::post('/salidas/depto',          [$out, 'storeDepartment'])->name('outs.dept.store');
+    Route::post('/salidas/individual',     [$out, 'storeIndividual'])->name('outs.ind.store');
+    Route::post('/salidas/depto/{id}/quitar',      [$out, 'destroyDepartment'])->name('outs.dept.destroy')->where('id', '\d+');
+    Route::post('/salidas/individual/{id}/quitar', [$out, 'destroyIndividual'])->name('outs.ind.destroy')->where('id', '\d+');
+    Route::post('/salidas/pegar',          [$out, 'ingest'])->name('outs.ingest');
+    Route::get('/salidas/turnaround',      [$out, 'turnaround'])->name('outs.turnaround');
+    Route::get('/salidas/turnaround/export', [$out, 'turnaroundExport'])->name('outs.turnaround.export');
+});
+
+// SALIDAS · canal Meta/WhatsApp (capa 6, APAGADA + NO VERIFICADA).
+//  - Panel de credenciales: settings.manage.
+//  - Webhook: PÚBLICO (lo llama Meta), sin CSRF (exento en VerifyCsrfToken), autenticado por FIRMA
+//    HMAC y por el flag `outs_whatsapp` (aborta 404 mientras esté apagado). Ver OutWhatsappController.
+Route::middleware(['auth','permission:settings.manage'])->group(function () {
+    $wa = App\Http\Controllers\OutWhatsappController::class;
+    Route::get('/salidas/whatsapp',  [$wa, 'settings'])->name('outs.whatsapp.settings');
+    Route::post('/salidas/whatsapp', [$wa, 'saveSettings'])->name('outs.whatsapp.settings.save');
+});
+Route::get('/webhooks/outs/whatsapp',  [App\Http\Controllers\OutWhatsappController::class, 'verify'])->name('outs.whatsapp.verify');
+Route::post('/webhooks/outs/whatsapp', [App\Http\Controllers\OutWhatsappController::class, 'webhook'])->name('outs.whatsapp.webhook');
+
 // ---- LLAMADO · motor de horarios + back exportable (PARTES D/E/F) ----
 // Herramienta de OFICINA DE PRODUCCIÓN → gate callsheet.manage (super-admin/line-producer/coordinator;
 // el HOD usa el roster de solo-lectura). {date} = Y-m-d. Todo se guarda como OFFSET (CallSheetEngine).

@@ -55,6 +55,12 @@ return [
     'roster_day_view'         => false,
     'callsheet_wrap_estimate' => false,
 
+    // Salidas (outs) · CANAL META/WHATSAPP (2026-09-12). 🔴 NACE APAGADO y NO VERIFICADO: la capa se
+    // escribió contra la documentación de hoy, SIN número y sin tocar nunca la API real. El día que se
+    // conecte hay que revisar formato del webhook, firma y respuesta contra la doc vigente de ENTONCES
+    // (misma trampa de Browsershot). La captura en la app (§1-5) NO depende de este flag: va activa.
+    'outs_whatsapp'           => false,
+
     //  - callsheet_extra_docs: permite adjuntar PDF(s) ADICIONAL(es) al paquete del llamado, después
     //                          del back ([front → back → adicionales]). Algunas producciones mandan
     //                          documentos extra (mapas, avisos). Apagado por default; todo el paquete

@@ -315,6 +315,13 @@
                                 <span>{{ __('Llamado del día') }}</span>
                             </a>
                         @endcan
+                        {{-- (2026-09-12) SALIDAS (outs): el jefe registra su depto; producción/coordinación, todo. --}}
+                        @if(auth()->check() && \App\Support\OutAuthority::canUseScreen(auth()->user()))
+                            <a href="{{ route('outs.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'log-out', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Salidas') }}</span>
+                            </a>
+                        @endif
                         @can('settings.manage')
                             <a href="{{ route('deliveries.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'send', 'class' => 'cc-item__ico', 'label' => null])
@@ -721,6 +728,10 @@
                             @include('componentes._icon', ['name' => 'mail', 'class' => 'cc-item__ico', 'label' => null])
                             <span>{{ __('Correos') }}</span>
                         </a>
+                        <a href="{{ route('outs.whatsapp.settings') }}" class="cc-item">
+                            @include('componentes._icon', ['name' => 'log-out', 'class' => 'cc-item__ico', 'label' => null])
+                            <span>{{ __('Salidas · WhatsApp') }}</span>
+                        </a>
                     </div></div>
                 </div>
             @endcan
@@ -815,6 +826,13 @@
                                     <span>{{ __('Llamado del día') }}</span>
                                 </a>
                             @endcan
+                            {{-- (2026-09-12) SALIDAS (outs): el jefe registra su depto; producción/coordinación, todo. --}}
+                            @if(auth()->check() && \App\Support\OutAuthority::canUseScreen(auth()->user()))
+                                <a href="{{ route('outs.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'log-out', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>{{ __('Salidas') }}</span>
+                                </a>
+                            @endif
                             @can('settings.manage')
                                 <a href="{{ route('deliveries.index') }}" class="cc-item">
                                     @include('componentes._icon', ['name' => 'send', 'class' => 'cc-item__ico', 'label' => null])
@@ -1215,6 +1233,10 @@
                             <a href="{{ route('emails.preview.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'mail', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('Correos') }}</span>
+                            </a>
+                            <a href="{{ route('outs.whatsapp.settings') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'log-out', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>{{ __('Salidas · WhatsApp') }}</span>
                             </a>
                         </div></div>
                     </div>
