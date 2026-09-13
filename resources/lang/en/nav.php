@@ -18,6 +18,7 @@ return [
     'back'         => 'Back',
     'profile'      => 'Profile',
     'theme_toggle' => 'Toggle light / dark theme',
+    'logout'       => 'Log out',   // THIS device (≠ "close other sessions")
 
     // ===== Shell: search / command palette + collapse sidebar =====
     'search'             => 'Search…',

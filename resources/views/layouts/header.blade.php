@@ -7,6 +7,8 @@
      · z-index por debajo del offcanvas móvil (1045) y del botón hamburguesa (1035),
        para no taparlos.  no-print: no aparece al imprimir/PDF.
      ============================================================================ --}}
+{{-- Confirmación del submit (data-confirm) sin onsubmit inline (CSP). Idempotente (@@once). --}}
+@include('componentes._confirm-submit')
 <header class="cc-appbar no-print">
     <div class="cc-appbar__inner">
 
@@ -92,6 +94,22 @@
 
             {{-- Selector de idioma (ES/EN) — componente compartido. --}}
             <span class="cc-appbar__lang">@include('layouts._lang-switch')</span>
+
+            {{-- (2026-09-12) CERRAR SESIÓN de ESTE dispositivo. Antes no existía: "Sesiones
+                 activas" (perfil) solo cierra las DEMÁS. Este cierra la ACTUAL y manda al login.
+                 Es un POST (Auth::routes → LoginController@logout: invalida SOLO esta sesión,
+                 regenera token); las otras sesiones no se tocan. Confirm CSP-safe (data-confirm,
+                 sin onsubmit inline). Sesión larga tipo Instagram: salir es voluntario. --}}
+            @auth
+            <form method="POST" action="{{ route('logout') }}" class="cc-appbar__logout"
+                  data-confirm="{{ __('¿Cerrar tu sesión en este dispositivo?') }}">
+                @csrf
+                <button type="submit" class="cc-appbar__btn" title="{{ __('nav.logout') }}">
+                    @include('componentes._icon', ['name' => 'log-out', 'class' => 'cc-appbar__ico', 'label' => __('nav.logout')])
+                    <span class="cc-appbar__btn-txt d-none d-md-inline">{{ __('nav.logout') }}</span>
+                </button>
+            </form>
+            @endauth
         </nav>
     </div>
 </header>
@@ -177,6 +195,9 @@
     /* Icono del toggle: se muestra sol o luna según el tema efectivo (lo decide el JS). */
     .cc-theme-ico { display: none; align-items: center; justify-content: center; }
     .cc-theme-ico.is-on { display: inline-flex; }
+
+    /* Cerrar sesión: el <form> es un ítem flex más; sin margen ni salto de línea. */
+    .cc-appbar__logout { margin: 0; display: inline-flex; align-items: center; }
 
     /* Selector de idioma dentro del appbar oscuro: legible sobre fondo oscuro. */
     .cc-appbar__lang { margin-left: .15rem; }

@@ -21,6 +21,22 @@ use Illuminate\Support\Facades\Schema;
  * SQL), signDocument() regresa null y nada truena. Un modelo puede sobreescribir
  * canonicalSignaturePayload() o declarar `protected $signatureExcludes = [...]`
  * para excluir columnas adicionales del hash.
+ *
+ * ⛔ DOCTRINA · EN UNA TABLA SELLADA NO SE BORRAN COLUMNAS.
+ *   El sello se calcula sobre attributesToArray() — la fila ENTERA. Quitar una columna
+ *   cambia el payload EXACTAMENTE igual que agregarla: cada documento ya firmado se
+ *   recomputa distinto y se auto-acusa de "ALTERADO". No hay vuelta atrás una vez que
+ *   existen filas selladas.
+ *     · AÑADIR una columna a una tabla ya sellada SÍ es seguro, pero solo si el modelo la
+ *       declara en NULLABLE_HASH_EXCLUDES (sale del hash mientras vale null → las filas
+ *       viejas no se mueven; en cuanto lleva valor, queda cubierta). Ver más abajo.
+ *     · BORRAR una columna solo es barato ANTES del primer sello de esa tabla (fue el caso
+ *       de `crt19` en `formularios`: se retiró en 2026-07-24, justo antes de que el
+ *       expediente empezara a sellarse). Después: se queda para siempre, o se re-sella todo
+ *       (decisión del owner — cambia el instante de integridad y NO se hace a la ligera).
+ *   Antes de marcar una columna "muerta / pendiente de DROP", verifica si su tabla usa
+ *   este trait. Si la usa, NO la dropees. (Tablas SIN sello — p. ej. `users` — no aplican:
+ *   ahí `daytest`/`labn`/COVID pueden dropearse por el carril normal de esquema.)
  */
 trait HasDigitalSignatures
 {

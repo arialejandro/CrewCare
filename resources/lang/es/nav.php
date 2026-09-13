@@ -18,6 +18,7 @@ return [
     'back'         => 'Atrás',
     'profile'      => 'Perfil',
     'theme_toggle' => 'Cambiar tema claro / oscuro',
+    'logout'       => 'Cerrar sesión',   // ESTE dispositivo (≠ "cerrar las demás sesiones")
 
     // ===== Shell: buscador / paleta de comandos + colapsar sidebar =====
     'search'             => 'Buscar…',
