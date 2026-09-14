@@ -21,16 +21,15 @@ use Illuminate\Support\Facades\DB;
 /**
  * OutController — SALIDAS (outs) + turnaround.
  *
- * MODELO (corregido 2026-09-13):
- *   · CADA PERSONA marca SU PROPIA salida (individual), en un toque, desde su HOME. NADIE captura por
- *     todos y marcar lo propio NO requiere autoridad (myOut).
- *   · El REPORTE POR DEPARTAMENTO lo hace un DESIGNADO (OutReporter), por WhatsApp (capa apagada) o
- *     pegando el mensaje aquí (ingest). Autoridad por designación, no por puesto.
- *   · La individual GANA sobre la del depto; si difieren, se VE (no se resuelve sola).
- *   · Este tablero (/salidas) es de PRODUCCIÓN/DESIGNADOS: consulta (quién marcó / quién falta),
- *     reporte por depto (pegar), corrección/retiro, turnaround y export.
+ * MODELO (así se maneja en CINE, no en oficina):
+ *   · El OUT es del DEPARTAMENTO: UNA persona DESIGNADA por depto reporta la hora y APLICA A TODOS
+ *     ("salimos a tal hora" = todos). NADIE marca "lo suyo"; no hay auto-marcado.
+ *   · La salida INDIVIDUAL es la EXCEPCIÓN (alguien que salió a otra hora que su equipo) y TAMBIÉN la
+ *     ASIGNA el designado — gana sobre la del depto para el turnaround de esa persona.
+ *   · Autoridad POR DESIGNACIÓN (OutReporter), no por puesto. Producción/coordinación ven y reportan
+ *     todo. El reporte por WhatsApp (capa apagada) usa el mismo servicio (OutIngest).
  *
- * "OUT" aquí NO es la columna `out` del back ni el estado ROSTER_OUT.
+ * "OUT" aquí NO es la columna `out` del back (retirada) ni el estado ROSTER_OUT.
  */
 class OutController extends Controller
 {
@@ -40,62 +39,13 @@ class OutController extends Controller
     }
 
     // ---------------------------------------------------------------------------------------
-    // Auto-marcado de la PROPIA salida (cualquier persona, SIN autoridad)
-    // ---------------------------------------------------------------------------------------
-
-    public function myOut(Request $request)
-    {
-        $user = $request->user();
-        $pid = CurrentProduction::id();
-        abort_unless($pid, 404, 'Sin producción vigente.');
-        $unitId = CurrentUnit::id();
-
-        $data = $request->validate(['time' => ['nullable', 'string', 'max:10']]);
-
-        $shootDate = OutWindow::shootDateForNow($pid, $unitId);
-
-        if (! empty($data['time'])) {
-            $res = OutWindow::outAtForShootDay($shootDate, $data['time'], $unitId, $pid);
-            if ($res['reason'] === 'bad_time') {
-                return back()->with('error', 'La hora «' . $data['time'] . '» no es válida.');
-            }
-            $outAt = $res['out_at'];
-        } else {
-            $outAt = Carbon::now();   // un toque = "salí ahora"
-        }
-
-        $deptId = DB::table('production_user')->where('production_id', $pid)->where('user_id', $user->id)
-            ->value('department_id');
-
-        OutRegistrar::individualOut($pid, $unitId, $shootDate, $user->id, $deptId ? (int) $deptId : null,
-            $outAt, IndividualOut::SOURCE_APP, $user->id);
-
-        return back()->with('success', 'Marcaste tu salida a las ' . $outAt->format('H:i') . '.');
-    }
-
-    public function myOutDestroy(Request $request)
-    {
-        $user = $request->user();
-        $pid = CurrentProduction::id();
-        abort_unless($pid, 404);
-        $unitId = CurrentUnit::id();
-        $shootDate = OutWindow::shootDateForNow($pid, $unitId);
-
-        $q = IndividualOut::where('production_id', $pid)->where('user_id', $user->id)->whereDate('shoot_date', $shootDate);
-        $unitId === null ? $q->whereNull('unit_id') : $q->where('unit_id', $unitId);
-        $q->delete();
-
-        return back()->with('success', 'Quitaste tu marca de salida.');
-    }
-
-    // ---------------------------------------------------------------------------------------
-    // Tablero de PRODUCCIÓN / DESIGNADOS
+    // Tablero del designado / producción
     // ---------------------------------------------------------------------------------------
 
     public function index(Request $request)
     {
         $viewer = $request->user();
-        abort_unless(OutAuthority::canUseScreen($viewer), 403, 'No tienes autoridad para el tablero de salidas.');
+        abort_unless(OutAuthority::canUseScreen($viewer), 403, 'No tienes departamento asignado para reportar salidas.');
 
         $pid = CurrentProduction::id();
         abort_unless($pid, 404, 'Sin producción vigente.');
@@ -107,64 +57,140 @@ class OutController extends Controller
 
         $visibleDeptIds = OutAuthority::visibleDepartmentIds($viewer);   // null = todos
 
-        // Salidas del día (unidad vigente).
-        $deptOuts = [];   // department_id => DepartmentOut
-        $dq = DepartmentOut::where('production_id', $pid)->whereDate('shoot_date', $day);
-        $unitId === null ? $dq->whereNull('unit_id') : $dq->where('unit_id', $unitId);
-        if ($visibleDeptIds !== null) { $dq->whereIn('department_id', $visibleDeptIds ?: [-1]); }
-        foreach ($dq->get() as $o) { $deptOuts[(int) $o->department_id] = $o; }
-
-        $indByUser = [];   // user_id => IndividualOut
-        $iq = IndividualOut::where('production_id', $pid)->whereDate('shoot_date', $day);
-        $unitId === null ? $iq->whereNull('unit_id') : $iq->where('unit_id', $unitId);
-        foreach ($iq->get() as $io) { $indByUser[(int) $io->user_id] = $io; }
-
-        // Roster del día por depto (reusa DayRosterBuilder, ya scopeado por el viewer).
+        // Departamentos con llamado ese día (reusa el roster; ya scopeado por el viewer).
         $roster = DayRosterBuilder::build($viewer, $day);
-        $groups = [];
-        $marked = 0; $pending = 0;
+        $deptRows = [];
+        $rosterPeople = [];   // para el selector de excepción individual (acotado por autoridad)
         foreach ($roster['groups'] as $g) {
             $deptId = null;
             foreach ($g['people'] as $p) { if (! empty($p['dept_id'])) { $deptId = (int) $p['dept_id']; break; } }
             if ($deptId === null) { continue; }
             if ($visibleDeptIds !== null && ! in_array($deptId, $visibleDeptIds, true)) { continue; }
-
-            $deptOut = $deptOuts[$deptId] ?? null;
-            $deptTime = $deptOut ? Carbon::parse($deptOut->out_at)->format('H:i') : null;
-
-            $people = [];
+            $deptRows[$deptId] = ['id' => $deptId, 'label' => $g['label'], 'called' => count($g['people'])];
             foreach ($g['people'] as $p) {
-                $io = $indByUser[$p['user_id']] ?? null;
-                $myTime = $io ? Carbon::parse($io->out_at)->format('H:i') : null;
-                $discrepa = ($myTime !== null && $deptTime !== null && $myTime !== $deptTime);
-                if ($myTime !== null) { $marked++; } else { $pending++; }
-                $people[] = [
-                    'user_id'   => $p['user_id'],
-                    'name'      => $p['name'],
-                    'cargo'     => $p['cargo'] ?? '',
-                    'my_time'   => $myTime,
-                    'my_out_id' => $io ? $io->id : null,
-                    'discrepa'  => $discrepa,
-                ];
+                $rosterPeople[] = ['user_id' => $p['user_id'], 'name' => $p['name'], 'dept' => $g['label']];
             }
-            $groups[] = [
-                'id'        => $deptId,
-                'label'     => $g['label'],
-                'dept_time' => $deptTime,
-                'dept_out'  => $deptOut,
-                'people'    => $people,
-            ];
         }
 
+        // Salidas de departamento del día.
+        $deptOuts = [];
+        $dq = DepartmentOut::where('production_id', $pid)->whereDate('shoot_date', $day);
+        $unitId === null ? $dq->whereNull('unit_id') : $dq->where('unit_id', $unitId);
+        foreach ($dq->get() as $o) { $deptOuts[(int) $o->department_id] = $o; }
+
+        // Excepciones individuales del día (acotadas a los deptos visibles).
+        $iq = IndividualOut::where('production_id', $pid)->whereDate('shoot_date', $day);
+        $unitId === null ? $iq->whereNull('unit_id') : $iq->where('unit_id', $unitId);
+        if ($visibleDeptIds !== null) { $iq->whereIn('department_id', $visibleDeptIds ?: [-1]); }
+        $individualOuts = $iq->orderBy('out_at')->get();
+        $indNames = [];
+        foreach (DB::table('users')->whereIn('id', $individualOuts->pluck('user_id')->all() ?: [-1])
+                    ->get(['id', 'name', 'lname', 'lname2', 'ncreditos']) as $u) {
+            $indNames[$u->id] = \App\Models\User::displayName($u);
+        }
+
+        // "Reportaron vs faltan" es POR DEPARTAMENTO (uno reporta por todos).
+        $totalDepts = count($deptRows);
+        $reported = 0;
+        foreach ($deptRows as $id => $r) { if (isset($deptOuts[$id])) { $reported++; } }
+
         return view('admin.outs.index', [
-            'day'          => $day,
-            'dayLabel'     => ProductionCalendar::labelFor($day, $unitId),
-            'groups'       => $groups,
-            'marked'       => $marked,
-            'pending'      => $pending,
-            'generalCall'  => ($gc = OutWindow::generalCall($pid, $unitId, $day)) ? substr($gc, 0, 5) : null,
-            'canDesignate' => OutAuthority::seesAll($viewer) || ! empty(OutAuthority::authorityDepartmentIds($viewer)),
+            'day'            => $day,
+            'dayLabel'       => ProductionCalendar::labelFor($day, $unitId),
+            'deptRows'       => array_values($deptRows),
+            'rosterPeople'   => $rosterPeople,
+            'deptOuts'       => $deptOuts,
+            'individualOuts' => $individualOuts,
+            'indNames'       => $indNames,
+            'reported'       => $reported,
+            'pending'        => max(0, $totalDepts - $reported),
+            'totalDepts'     => $totalDepts,
+            'generalCall'    => ($gc = OutWindow::generalCall($pid, $unitId, $day)) ? substr($gc, 0, 5) : null,
+            'canDesignate'   => OutAuthority::seesAll($viewer) || ! empty(OutAuthority::authorityDepartmentIds($viewer)),
         ]);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Registrar / corregir (SOLO el designado o producción)
+    // ---------------------------------------------------------------------------------------
+
+    /** Salida del DEPARTAMENTO (aplica a todos). Corregir = volver a guardar (updateOrCreate). */
+    public function storeDepartment(Request $request)
+    {
+        $viewer = $request->user();
+        $data = $request->validate([
+            'department_id' => ['required', 'integer'],
+            'shoot_date'    => ['required', 'date'],
+            'time'          => ['required', 'string', 'max:10'],
+            'note'          => ['nullable', 'string', 'max:191'],
+        ]);
+
+        $pid = CurrentProduction::id();
+        abort_unless($pid, 404);
+        $unitId = CurrentUnit::id();
+        $deptId = (int) $data['department_id'];
+
+        abort_unless(OutAuthority::canRegisterFor($viewer, $deptId), 403, 'No estás designado para ese departamento.');
+
+        $shootDate = Carbon::parse($data['shoot_date'])->toDateString();
+        $res = OutWindow::outAtForShootDay($shootDate, $data['time'], $unitId, $pid);
+        if ($res['reason'] === 'bad_time') {
+            return back()->with('error', 'La hora «' . $data['time'] . '» no es válida.');
+        }
+        if (! $res['resolved'] && $res['reason'] === 'outside_window') {
+            return back()->with('error', 'Esa hora no cae en la ventana de este día (más de 20 h del llamado). '
+                . 'Regístrala en el día que corresponde.');
+        }
+
+        OutRegistrar::departmentOut($pid, $unitId, $shootDate, $deptId, $res['out_at'],
+            DepartmentOut::SOURCE_APP, $viewer->id, $data['note'] ?? null);
+
+        $msg = 'Salida del departamento registrada.';
+        if ($res['reason'] === 'no_general_call') {
+            $msg .= ' (Aviso: este día no tiene llamado general configurado; se tomó la fecha tal cual.)';
+        }
+
+        return back()->with('success', $msg);
+    }
+
+    /** EXCEPCIÓN individual: alguien que salió a otra hora — la ASIGNA el designado, no la persona. */
+    public function storeIndividual(Request $request)
+    {
+        $viewer = $request->user();
+        $data = $request->validate([
+            'user_id'    => ['required', 'integer'],
+            'shoot_date' => ['required', 'date'],
+            'time'       => ['required', 'string', 'max:10'],
+            'note'       => ['nullable', 'string', 'max:191'],
+        ]);
+
+        $pid = CurrentProduction::id();
+        abort_unless($pid, 404);
+        $unitId = CurrentUnit::id();
+        $userId = (int) $data['user_id'];
+
+        $deptId = DB::table('production_user')->where('production_id', $pid)->where('user_id', $userId)
+            ->value('department_id');
+        $deptId = $deptId ? (int) $deptId : null;
+
+        abort_unless(
+            OutAuthority::seesAll($viewer) || ($deptId !== null && OutAuthority::canRegisterFor($viewer, $deptId)),
+            403, 'No estás designado para el departamento de esa persona.'
+        );
+
+        $shootDate = Carbon::parse($data['shoot_date'])->toDateString();
+        $res = OutWindow::outAtForShootDay($shootDate, $data['time'], $unitId, $pid);
+        if ($res['reason'] === 'bad_time') {
+            return back()->with('error', 'La hora «' . $data['time'] . '» no es válida.');
+        }
+        if (! $res['resolved'] && $res['reason'] === 'outside_window') {
+            return back()->with('error', 'Esa hora no cae en la ventana de este día. Regístrala en el día correcto.');
+        }
+
+        OutRegistrar::individualOut($pid, $unitId, $shootDate, $userId, $deptId, $res['out_at'],
+            IndividualOut::SOURCE_APP, $viewer->id, $data['note'] ?? null);
+
+        return back()->with('success', 'Excepción individual registrada.');
     }
 
     /** Pegar un mensaje de grupo → reporta la salida del DEPARTAMENTO (mismo servicio que el bot). */
@@ -172,9 +198,7 @@ class OutController extends Controller
     {
         $viewer = $request->user();
         abort_unless(OutAuthority::canUseScreen($viewer), 403);
-        $data = $request->validate([
-            'message' => ['required', 'string', 'max:1000'],
-        ]);
+        $data = $request->validate(['message' => ['required', 'string', 'max:1000']]);
 
         $pid = CurrentProduction::id();
         abort_unless($pid, 404);
@@ -208,11 +232,11 @@ class OutController extends Controller
         );
         $out->delete();
 
-        return back()->with('success', 'Salida individual eliminada.');
+        return back()->with('success', 'Excepción individual eliminada.');
     }
 
     // ---------------------------------------------------------------------------------------
-    // Designados (autoridad por designación, no por puesto)
+    // Designados (una persona por depto — autoridad por designación, no por puesto)
     // ---------------------------------------------------------------------------------------
 
     public function designations(Request $request)
@@ -224,14 +248,13 @@ class OutController extends Controller
 
         $visibleDeptIds = OutAuthority::visibleDepartmentIds($viewer);   // null = todos
 
-        // Departamentos gestionables + sus designados actuales.
         $deptNames = DB::table('departments')->where('active', 1)->orderBy('sort_order')->orderBy('name')
             ->pluck('name', 'id')->all();
         if ($visibleDeptIds !== null) {
             $deptNames = array_intersect_key($deptNames, array_flip($visibleDeptIds));
         }
 
-        $reporters = [];   // department_id => [ [user_id,name,row_id], ... ]
+        $reporters = [];
         $rows = OutReporter::where('production_id', $pid)->get();
         $userNames = [];
         foreach (DB::table('users')->whereIn('id', $rows->pluck('user_id')->all() ?: [-1])
@@ -246,7 +269,6 @@ class OutController extends Controller
             ];
         }
 
-        // Crew de la producción para el selector (por depto), acotado a lo gestionable.
         $crew = [];
         $cq = DB::table('production_user as pu')->join('users', 'users.id', '=', 'pu.user_id')
             ->where('pu.production_id', $pid)->where('users.activo', 1)

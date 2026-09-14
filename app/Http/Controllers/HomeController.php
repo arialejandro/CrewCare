@@ -9,7 +9,6 @@ use App\Models\cmedic;
 use App\Models\DailyReport;
 use App\Models\ScoutingReport;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 /**
@@ -112,7 +111,6 @@ class HomeController extends Controller
         }
 
         return view('inicio', [
-            'selfMark'              => $this->selfMarkData($user),
             'calendario'            => $calendario,
             'totalAccidents'        => $totalAccidents,
             'daysSinceLastAccident' => $daysSinceLastAccident,
@@ -135,42 +133,6 @@ class HomeController extends Controller
                 'meds'    => $canMeds,
             ],
         ]);
-    }
-
-    /**
-     * SALIDAS · datos para el auto-marcado de la PROPIA salida en el home (2026-09-13).
-     * Cada quien marca lo suyo, en un toque, donde ya está. Se muestra sólo a quien es crew de la
-     * producción vigente (tiene fila en production_user); marcar no requiere permiso alguno.
-     *
-     * @return array{can: bool, marked_at: ?string, shoot_date: ?string}
-     */
-    private function selfMarkData($user)
-    {
-        $off = ['can' => false, 'marked_at' => null, 'shoot_date' => null];
-        if (! $user || ! Schema::hasTable('individual_outs')) {
-            return $off;
-        }
-        $pid = \App\Support\CurrentProduction::id();
-        if (! $pid) {
-            return $off;
-        }
-        $isCrew = DB::table('production_user')->where('production_id', $pid)->where('user_id', $user->id)->exists();
-        if (! $isCrew) {
-            return $off;   // sin fila en la producción vigente → no aplica marcar salida
-        }
-        $unitId = \App\Support\CurrentUnit::id();
-        $shootDate = \App\Support\OutWindow::shootDateForNow($pid, $unitId);
-
-        $q = \App\Models\IndividualOut::where('production_id', $pid)->where('user_id', $user->id)
-            ->whereDate('shoot_date', $shootDate);
-        $unitId === null ? $q->whereNull('unit_id') : $q->where('unit_id', $unitId);
-        $row = $q->first();
-
-        return [
-            'can'        => true,
-            'marked_at'  => $row ? Carbon::parse($row->out_at)->format('H:i') : null,
-            'shoot_date' => $shootDate,
-        ];
     }
 
     /**

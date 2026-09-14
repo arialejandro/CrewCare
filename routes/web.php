@@ -228,11 +228,12 @@ Route::middleware(['auth','permission:crew.view'])->group(function () {
 // dejaría fuera a los jefes. NO confundir con la columna `out` del back ni con el estado ROSTER_OUT.
 Route::middleware(['auth'])->group(function () {
     $out = App\Http\Controllers\OutController::class;
-    // Auto-marcado de la PROPIA salida (SIN autoridad; se dispara desde el home).
-    Route::post('/salidas/mia',        [$out, 'myOut'])->name('outs.mine.store');
-    Route::post('/salidas/mia/quitar', [$out, 'myOutDestroy'])->name('outs.mine.destroy');
-    // Tablero de producción / designados: consulta, reporte por depto (pegar), corrección/retiro.
+    // Tablero del DESIGNADO / producción. El OUT es del DEPARTAMENTO (una persona reporta por todos);
+    // la excepción individual también la asigna el designado. Autoridad DENTRO (OutAuthority), no por
+    // callsheet.manage (dejaría fuera a los designados que no son de producción).
     Route::get('/salidas',                         [$out, 'index'])->name('outs.index');
+    Route::post('/salidas/depto',                  [$out, 'storeDepartment'])->name('outs.dept.store');
+    Route::post('/salidas/individual',             [$out, 'storeIndividual'])->name('outs.ind.store');
     Route::post('/salidas/pegar',                  [$out, 'ingest'])->name('outs.ingest');
     Route::post('/salidas/depto/{id}/quitar',      [$out, 'destroyDepartment'])->name('outs.dept.destroy')->where('id', '\d+');
     Route::post('/salidas/individual/{id}/quitar', [$out, 'destroyIndividual'])->name('outs.ind.destroy')->where('id', '\d+');

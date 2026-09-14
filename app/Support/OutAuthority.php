@@ -18,9 +18,9 @@ use Illuminate\Support\Facades\Schema;
  *   - Un DESIGNADO reporta la salida de SU(S) depto(s) y puede gestionar los designados de ESE depto
  *     (dept auto-gestionado).
  *
- * ⚠ Esta autoridad es SÓLO para reportar POR EL DEPARTAMENTO (WhatsApp / pegar mensaje). Marcar la
- * PROPIA salida (individual) NO requiere autoridad alguna: cada quien puede con la suya (ver
- * OutController::myOut). Sin `is_hod` en ningún lado.
+ * El OUT es del DEPARTAMENTO: el designado reporta la hora y aplica a TODOS ("salimos a tal hora").
+ * La salida INDIVIDUAL es la excepción (alguien salió distinto) y TAMBIÉN la asigna el designado, no
+ * la persona — no hay auto-marcado. Sin `is_hod` en ningún lado.
  */
 class OutAuthority
 {

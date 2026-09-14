@@ -115,55 +115,6 @@
 {{-- Tamaños de icono explícitos (.cc-ico-NN): antes varios _icon caían en clases
      Tailwind/undefined (p.ej. cc-nav-ico) y el SVG se inflaba. El kit los fija. --}}
 @include('componentes._form-kit')
-@include('componentes._confirm-submit')
-
-{{-- MI SALIDA · cada quien marca LO SUYO, en un toque, donde ya está (2026-09-13). Va ANTES del
-     split tablero/crew para que TODOS la vean primero. Marcar la propia salida no requiere autoridad.
-     Solo se muestra a quien es crew de la producción vigente ($selfMark['can']). --}}
-@if(!empty($selfMark) && $selfMark['can'])
-    @include('componentes._form-feedback')
-    <div class="cc-panel p-3 mb-4">
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-            <div>
-                <div class="fw-bold cc-panel__title">{{ __('Mi salida de hoy') }}</div>
-                <div class="cc-panel__note small">
-                    @if($selfMark['marked_at'])
-                        {{ __('Marcaste tu salida a las') }} <strong>{{ $selfMark['marked_at'] }}</strong>. {{ __('Solo tú marcas la tuya.') }}
-                    @else
-                        {{ __('Cuando dejes la locación, márcalo. Solo tú marcas la tuya.') }}
-                    @endif
-                </div>
-            </div>
-            <div class="d-flex align-items-center gap-2 flex-wrap">
-                @if(!$selfMark['marked_at'])
-                    <form method="POST" action="{{ route('outs.mine.store') }}">
-                        @csrf
-                        <button type="submit" class="cc-hero__cta inline-flex items-center gap-2" style="border:0;cursor:pointer;padding:.6rem 1rem;border-radius:.7rem;font-weight:700;">
-                            @include('componentes._icon', ['name' => 'log-out', 'class' => 'cc-ico-16', 'label' => null])
-                            {{ __('Marqué mi salida ahora') }}
-                        </button>
-                    </form>
-                    <form method="POST" action="{{ route('outs.mine.store') }}" class="d-flex align-items-center gap-1">
-                        @csrf
-                        <span class="cc-panel__note small">{{ __('otra hora') }}</span>
-                        <input type="time" name="time" class="form-control form-control-sm" style="max-width:120px;">
-                        <button type="submit" class="btn btn-outline-secondary btn-sm">{{ __('Guardar') }}</button>
-                    </form>
-                @else
-                    <form method="POST" action="{{ route('outs.mine.store') }}" class="d-flex align-items-center gap-1">
-                        @csrf
-                        <input type="time" name="time" value="{{ $selfMark['marked_at'] }}" class="form-control form-control-sm" style="max-width:120px;" required>
-                        <button type="submit" class="btn btn-primary btn-sm">{{ __('Corregir') }}</button>
-                    </form>
-                    <form method="POST" action="{{ route('outs.mine.destroy') }}" data-confirm="{{ __('¿Quitar tu marca de salida?') }}">
-                        @csrf
-                        <button type="submit" class="btn btn-outline-danger btn-sm">{{ __('Quitar') }}</button>
-                    </form>
-                @endif
-            </div>
-        </div>
-    </div>
-@endif
 
 {{-- GATE tablero ⇄ tarjeta de perfil.
      (2026-07-24) Antes era `users.view`, y ése es el permiso de administrar CREW, no el de

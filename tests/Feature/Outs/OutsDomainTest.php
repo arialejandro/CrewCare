@@ -116,11 +116,11 @@ class OutsDomainTest extends QaTestCase
     }
 
     /** @test */
-    public function marcar_la_propia_salida_no_requiere_autoridad(): void
+    public function solo_el_designado_reporta_la_salida_del_departamento(): void
     {
         $pid = $this->pid();
         $deptId = DB::table('departments')->insertGetId([
-            'name' => 'QA Self ' . Str::random(6), 'active' => 1, 'sort_order' => 0,
+            'name' => 'QA Dept ' . Str::random(6), 'active' => 1, 'sort_order' => 0,
         ]);
         $user = User::forceCreate([
             'name' => 'Crew QA', 'email' => 'crewqa-' . Str::random(6) . '@qa.test',
@@ -131,13 +131,17 @@ class OutsDomainTest extends QaTestCase
             'position_id' => null, 'role' => 'crew', 'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        // Sin autoridad alguna, marca SU salida por la ruta real.
-        $this->assertFalse(OutAuthority::canUseScreen($user));
-        $this->actingAs($user);
-        $this->post(route('outs.mine.store'), [])->assertRedirect();
+        $payload = ['department_id' => $deptId, 'shoot_date' => '2027-06-10', 'time' => '20:00'];
 
-        $this->assertDatabaseHas('individual_outs', [
-            'production_id' => $pid, 'user_id' => $user->id, 'department_id' => $deptId,
+        // Sin designación: no puede reportar por el departamento (nadie captura si no está asignado).
+        $this->actingAs($user);
+        $this->post(route('outs.dept.store'), $payload)->assertForbidden();
+
+        // Designado: ahora sí, y la salida es del DEPARTAMENTO (aplica a todos).
+        OutReporter::create(['production_id' => $pid, 'department_id' => $deptId, 'user_id' => $user->id]);
+        $this->post(route('outs.dept.store'), $payload)->assertRedirect();
+        $this->assertDatabaseHas('department_outs', [
+            'production_id' => $pid, 'department_id' => $deptId,
         ]);
     }
 
