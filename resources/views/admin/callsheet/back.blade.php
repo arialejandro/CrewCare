@@ -25,7 +25,7 @@
         : $dayLabel;
     $longDate = \Carbon\Carbon::parse($day)->locale($en ? 'en' : 'es')->isoFormat('dddd, D MMMM YYYY');
     $colspan  = count($tableCols);
-    $logi     = ['hotel', 'pickup', 'place', 'call', 'out'];   // columnas con tinte crema
+    $logi     = ['hotel', 'pickup', 'place', 'call'];   // columnas de logística con tinte crema (OUT retirada 2026-09-13)
     $bandBg   = ($preset['bands'] ?? 'gray') === 'black' ? '#111' : '#c2c2c2';
     $bandFg   = ($preset['bands'] ?? 'gray') === 'black' ? '#fff' : '#000';
     $statusLegend = $en

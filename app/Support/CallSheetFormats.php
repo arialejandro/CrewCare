@@ -25,7 +25,9 @@ class CallSheetFormats
         'pickup' => ['es' => 'P/U',   'en' => 'P.UP',  'w' => 11, 'align' => 'center', 'bold' => false],
         'place'  => ['es' => '@',     'en' => '@',     'w' => 9,  'align' => 'center', 'bold' => false],
         'call'   => ['es' => 'Hora',  'en' => 'Call',  'w' => 13, 'align' => 'center', 'bold' => true],
-        'out'    => ['es' => 'Out',   'en' => 'Out',   'w' => 10, 'align' => 'center', 'bold' => false],
+        // (2026-09-13) La columna OUT se RETIRÓ del back: no existe en los backs mexicanos (plantilla
+        // gringa) y ningún preset la usaba. La SALIDA del crew vive en su módulo ("Salidas"), no en el
+        // llamado. No había columna `out` en BD ni el llamado se sella → retiro puramente de plantilla.
     ];
 
     /**

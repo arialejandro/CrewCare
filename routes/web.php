@@ -228,13 +228,20 @@ Route::middleware(['auth','permission:crew.view'])->group(function () {
 // dejaría fuera a los jefes. NO confundir con la columna `out` del back ni con el estado ROSTER_OUT.
 Route::middleware(['auth'])->group(function () {
     $out = App\Http\Controllers\OutController::class;
-    Route::get('/salidas',                 [$out, 'index'])->name('outs.index');
-    Route::post('/salidas/depto',          [$out, 'storeDepartment'])->name('outs.dept.store');
-    Route::post('/salidas/individual',     [$out, 'storeIndividual'])->name('outs.ind.store');
+    // Auto-marcado de la PROPIA salida (SIN autoridad; se dispara desde el home).
+    Route::post('/salidas/mia',        [$out, 'myOut'])->name('outs.mine.store');
+    Route::post('/salidas/mia/quitar', [$out, 'myOutDestroy'])->name('outs.mine.destroy');
+    // Tablero de producción / designados: consulta, reporte por depto (pegar), corrección/retiro.
+    Route::get('/salidas',                         [$out, 'index'])->name('outs.index');
+    Route::post('/salidas/pegar',                  [$out, 'ingest'])->name('outs.ingest');
     Route::post('/salidas/depto/{id}/quitar',      [$out, 'destroyDepartment'])->name('outs.dept.destroy')->where('id', '\d+');
     Route::post('/salidas/individual/{id}/quitar', [$out, 'destroyIndividual'])->name('outs.ind.destroy')->where('id', '\d+');
-    Route::post('/salidas/pegar',          [$out, 'ingest'])->name('outs.ingest');
-    Route::get('/salidas/turnaround',      [$out, 'turnaround'])->name('outs.turnaround');
+    // Designados (autoridad POR DESIGNACIÓN, no por puesto).
+    Route::get('/salidas/designados',              [$out, 'designations'])->name('outs.designations');
+    Route::post('/salidas/designados',             [$out, 'storeDesignation'])->name('outs.designations.store');
+    Route::post('/salidas/designados/{id}/quitar', [$out, 'destroyDesignation'])->name('outs.designations.destroy')->where('id', '\d+');
+    // Turnaround (silencioso).
+    Route::get('/salidas/turnaround',        [$out, 'turnaround'])->name('outs.turnaround');
     Route::get('/salidas/turnaround/export', [$out, 'turnaroundExport'])->name('outs.turnaround.export');
 });
 

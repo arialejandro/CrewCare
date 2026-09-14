@@ -1341,14 +1341,14 @@ class CallSheetController extends Controller
             'pickup' => $pickup['literal'] ?? $pickup['time'] ?? '',
             'place'  => $pickup['place'] ?? '',
             'call'   => $llamado ?: 'N/C',
-            'out'    => '',                                          // sin dato aún (wrap es por día)
+            // (2026-09-13) 'out' retirada del back (no existe en backs MX; la salida vive en su módulo).
         ];
     }
 
     /** Fila vacía (rellenable) para el bloque Crew Adicional. */
     private function emptyRow(): array
     {
-        return ['uid' => '', 'num' => '', 'title' => '', 'name' => '', 'hotel' => '', 'pickup' => '', 'place' => '', 'call' => '', 'out' => ''];
+        return ['uid' => '', 'num' => '', 'title' => '', 'name' => '', 'hotel' => '', 'pickup' => '', 'place' => '', 'call' => ''];
     }
 
     /**

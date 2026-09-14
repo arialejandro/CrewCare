@@ -4,6 +4,7 @@ namespace Tests\Feature\Outs;
 
 use App\Models\CallDay;
 use App\Models\DepartmentOut;
+use App\Models\OutReporter;
 use App\Models\Position;
 use App\Models\User;
 use App\Support\CurrentProduction;
@@ -77,7 +78,7 @@ class OutsDomainTest extends QaTestCase
     }
 
     /** @test */
-    public function la_autoridad_es_por_puesto_is_hod(): void
+    public function la_autoridad_es_por_designacion_no_por_puesto(): void
     {
         $pid = $this->pid();
         $deptId = DB::table('departments')->insertGetId([
@@ -86,27 +87,58 @@ class OutsDomainTest extends QaTestCase
         $otherDeptId = DB::table('departments')->insertGetId([
             'name' => 'QA Otro ' . Str::random(6), 'active' => 1, 'sort_order' => 0,
         ]);
+        // Usuario que es JEFE (is_hod) del depto — para probar que is_hod YA NO da autoridad.
         $hodPos = Position::create(['name' => 'Jefe QA', 'department_id' => $deptId, 'is_hod' => 1, 'active' => 1]);
-
-        // Usuario SIN rol que conceda crew.view.all-departments (no seesAll), pero jefe del depto.
-        $hod = User::forceCreate([
-            'name' => 'HOD QA', 'email' => 'hodqa-' . Str::random(6) . '@qa.test',
+        $u = User::forceCreate([
+            'name' => 'Jefe QA', 'email' => 'jefeqa-' . Str::random(6) . '@qa.test',
             'password' => Hash::make('secret'), 'admin' => 0, 'activo' => 1,
         ]);
         DB::table('production_user')->insert([
-            'production_id' => $pid, 'user_id' => $hod->id, 'department_id' => $deptId,
+            'production_id' => $pid, 'user_id' => $u->id, 'department_id' => $deptId,
             'position_id' => $hodPos->id, 'role' => 'crew', 'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        $this->assertFalse(OutAuthority::seesAll($hod));
-        $this->assertSame([$deptId], OutAuthority::authorityDepartmentIds($hod));
-        $this->assertTrue(OutAuthority::canRegisterFor($hod, $deptId));
-        $this->assertFalse(OutAuthority::canRegisterFor($hod, $otherDeptId));
+        // Ser jefe NO basta: sin designación, cero autoridad.
+        $this->assertFalse(OutAuthority::seesAll($u));
+        $this->assertSame([], OutAuthority::authorityDepartmentIds($u));
+        $this->assertFalse(OutAuthority::canRegisterFor($u, $deptId));
 
-        // Producción/coordinación ven todo.
+        // DESIGNARLO sí le da autoridad — sobre ESE depto, no otro.
+        OutReporter::create(['production_id' => $pid, 'department_id' => $deptId, 'user_id' => $u->id]);
+        $this->assertSame([$deptId], OutAuthority::authorityDepartmentIds($u));
+        $this->assertTrue(OutAuthority::canRegisterFor($u, $deptId));
+        $this->assertFalse(OutAuthority::canRegisterFor($u, $otherDeptId));
+
+        // Producción/coordinación ven todo (sin designación).
         $admin = $this->makeUser('super-admin');
         $this->assertTrue(OutAuthority::seesAll($admin));
-        $this->assertNull(OutAuthority::visibleDepartmentIds($admin));   // null = todos
+        $this->assertNull(OutAuthority::visibleDepartmentIds($admin));
+    }
+
+    /** @test */
+    public function marcar_la_propia_salida_no_requiere_autoridad(): void
+    {
+        $pid = $this->pid();
+        $deptId = DB::table('departments')->insertGetId([
+            'name' => 'QA Self ' . Str::random(6), 'active' => 1, 'sort_order' => 0,
+        ]);
+        $user = User::forceCreate([
+            'name' => 'Crew QA', 'email' => 'crewqa-' . Str::random(6) . '@qa.test',
+            'password' => Hash::make('secret'), 'admin' => 0, 'activo' => 1,
+        ]);
+        DB::table('production_user')->insert([
+            'production_id' => $pid, 'user_id' => $user->id, 'department_id' => $deptId,
+            'position_id' => null, 'role' => 'crew', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        // Sin autoridad alguna, marca SU salida por la ruta real.
+        $this->assertFalse(OutAuthority::canUseScreen($user));
+        $this->actingAs($user);
+        $this->post(route('outs.mine.store'), [])->assertRedirect();
+
+        $this->assertDatabaseHas('individual_outs', [
+            'production_id' => $pid, 'user_id' => $user->id, 'department_id' => $deptId,
+        ]);
     }
 
     /** @test */

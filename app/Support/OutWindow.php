@@ -89,6 +89,18 @@ class OutWindow
     }
 
     /**
+     * Día de rodaje al que pertenece "ahora" (para el auto-marcado de la propia salida). Usa la ventana
+     * si hay llamado; si no hay `general_call` configurado, cae a la fecha de HOY (caso demo/sin config).
+     */
+    public static function shootDateForNow(int $productionId, ?int $unitId, ?Carbon $now = null): string
+    {
+        $now = $now ?: Carbon::now();
+        $res = self::resolveShootDate($now, $unitId, $productionId);
+
+        return $res['resolved'] ? $res['shoot_date'] : $now->toDateString();
+    }
+
+    /**
      * App: dado el DÍA DE RODAJE (de la pantalla) y una hora humana, calcula el datetime REAL del out.
      * Si la hora es ANTERIOR al general_call, es de madrugada → cae al día natural siguiente. Valida 20 h.
      *
