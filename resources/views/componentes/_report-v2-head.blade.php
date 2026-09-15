@@ -188,7 +188,19 @@
   /* photos */
   .photos{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   .photo{aspect-ratio:4/3;border-radius:var(--radius-sm);border:1px solid var(--stroke);overflow:hidden;position:relative;background:#141a26}
-  .photo img{width:100%;height:100%;object-fit:cover;display:block}
+  /* 🪤 `position:absolute` NO es decorativo: es lo que hace que la foto se vea EN SAFARI.
+     El documento se maqueta dentro de una TABLA (.report-wrap) porque el motor de paginación
+     necesita repetir cabecera y pie en cada hoja impresa. Dentro de una celda de tabla, WebKit
+     resuelve `height:100%` de una imagen ESTÁTICA contra el alto de la FILA —que aquí es una hoja
+     entera—, no contra .photo. La imagen se vuelve altísima, `object-fit:cover` la AMPLÍA para
+     cubrir esa altura, y el `overflow:hidden` de arriba recorta un fragmento diminuto: en el iPad
+     salía un trozo de ~1.5% de la foto, estirado y pixelado. Chrome resuelve el porcentaje contra
+     .photo, así que en escritorio se veía perfecto y el fallo parecía cosa del dispositivo.
+     Con `position:absolute`, el porcentaje se mide contra .photo (que es `position:relative`) y
+     deja de depender de la tabla. Es lo mismo que ya hacía `.doc-hero .hero-bg` — la única imagen
+     del documento que SIEMPRE se vio bien en iPad, y la pista que destapó todo esto.
+     ⚠ Si algún día quitas el `position:absolute` de aquí, el bug vuelve SÓLO en Safari. */
+  .photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
   .photo .cap{position:absolute;left:0;right:0;bottom:0;padding:6px 9px;font-size:.66rem;color:#fff;background:linear-gradient(0deg,rgba(0,0,0,.62),transparent)}
 
   /* table */
