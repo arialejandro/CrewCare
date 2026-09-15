@@ -63,7 +63,15 @@
                     @foreach ($docTypes as $dt)
                         @php
                             $validated = $docState[$dt->code] ?? null;
-                            $latest    = optional($docsByCode->get($dt->code))->sortByDesc('id')->first();
+                            // 🪤 `optional(null)->sortByDesc(...)` devuelve NULL, no un Optional: la cadena
+                            // NO sigue siendo segura después del primer eslabón, y el `->first()` reventaba
+                            // con "Call to a member function first() on null". Consecuencia real: un vehículo
+                            // SIN ese documento cargado tumbaba su propia ficha con un 500 — y como el botón
+                            // "Verificar" vive en esta ficha, no se podía auditar ningún vehículo recién dado
+                            // de alta. Justo el caso normal: en una producción que no lleva su flota en
+                            // CrewCare, el vehículo se registra y se verifica ANTES de tener papeles.
+                            // Una colección vacía como piso es lo correcto: recorre cero veces y da null.
+                            $latest    = ($docsByCode->get($dt->code) ?? collect())->sortByDesc('id')->first();
                         @endphp
                         <div class="d-flex align-items-center justify-content-between gap-2 py-2 border-bottom">
                             <div>
