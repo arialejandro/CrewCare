@@ -57,6 +57,8 @@ class Preflight extends Command
         $this->check('Marca llenada (nombre del proyecto)', fn () => $this->checkBranding());
         $this->check('Límites de subida para fotos de móvil', fn () => $this->checkUploadLimits());
         $this->check('Higiene del entorno (debug, URL)', fn () => $this->checkEnvHygiene());
+        $this->check('vendor/ escribible (el deploy no se cuelga)', fn () => $this->checkVendorWritable());
+        $this->check('La app NO está en modo mantenimiento', fn () => $this->checkNotDown());
 
         $this->line('  ' . str_repeat('─', 68));
         $this->line(sprintf('  <fg=green>%d OK</>   <fg=yellow>%d aviso(s)</>   <fg=red>%d falla(s)</>', $this->oks, $this->warns, $this->fails));
@@ -392,6 +394,8 @@ class Preflight extends Command
         $post   = (string) ini_get('post_max_size');
         $upload = (string) ini_get('upload_max_filesize');
         $time   = (int) ini_get('max_input_time');
+        $files  = (int) ini_get('max_file_uploads');
+        $vars   = (int) ini_get('max_input_vars');
         $bad    = [];
 
         if ($toBytes($post) > 0 && $toBytes($post) < 20 * 1048576) { $bad[] = "post_max_size=$post (mín. 20M)"; }
@@ -399,13 +403,30 @@ class Preflight extends Command
         // -1 = sin límite (típico en CLI). Sólo molesta un tope BAJO en el proceso web.
         if ($time > 0 && $time < 120) { $bad[] = "max_input_time={$time}s (mín. 120 con red de set)"; }
 
+        // 🪤 max_file_uploads — el default de PHP es 20 y NO avisa. En flor.crewcare.mx se llenó un
+        // scouting con más de 20 fotos: PHP descartó las sobrantes en SILENCIO, Laravel recibió 20 y
+        // guardó 20 sin un solo error. El usuario lo intentó dos veces pensando que era su conexión y
+        // acabó con el scouting DUPLICADO. Un scouting de locación grande pasa de 20 sin esfuerzo.
+        if ($files > 0 && $files < 60) { $bad[] = "max_file_uploads=$files (mín. 60; el default 20 se queda corto)"; }
+
+        // 🪤 max_input_vars — el compañero olvidado, y el que muerde MÁS FUERTE. No cuenta archivos:
+        // cuenta CAMPOS. Cada imagen manda su pie de foto y su bandera de mapeo, y al EDITAR manda
+        // además la ruta de la que ya estaba guardada (3 campos por imagen). Pasado el tope, PHP
+        // recorta la cola sin decir nada — y como update() reconstruye el set de imágenes a partir de
+        // lo que le llega, las que se perdieron en el recorte SE BORRAN del scouting. Subir
+        // max_file_uploads sin subir esto cambia un fallo visible por uno que destruye datos callado.
+        if ($vars > 0 && $vars < 5000) {
+            $bad[] = "max_input_vars=$vars (mín. 5000; con muchas fotos el recorte BORRA imágenes al editar)";
+        }
+
         if ($bad) {
             return ['WARN', 'subidas desde móvil en riesgo: ' . implode(' · ', $bad)
                 . '. Si PHP corta el cuerpo a medias, el formulario dirá "campo obligatorio" en TODO y '
                 . 'nadie sabrá por qué. ⚠ Ojo: en CLI estos valores NO son los del proceso web.'];
         }
 
-        return ['OK', "post=$post upload=$upload max_input_time=" . ($time <= 0 ? 'sin límite' : $time . 's') . '.'];
+        return ['OK', "post=$post upload=$upload max_input_time=" . ($time <= 0 ? 'sin límite' : $time . 's')
+            . " archivos=$files campos=$vars."];
     }
 
     // --- 14) Higiene del entorno -------------------------------------------------------------
@@ -445,5 +466,75 @@ class Preflight extends Command
         }
 
         return ['OK', 'APP_ENV=production, APP_DEBUG=false, APP_URL con esquema.'];
+    }
+
+    // --- 15) vendor/ escribible por el usuario del sitio --------------------------------------
+    //
+    // 🪤 LA MINA DEL SEGUNDO DEPLOY (2026-09-14). El primer `composer install` de flor.crewcare.mx se
+    // corrió como ROOT, así que `vendor/` quedó root:root — la ÚNICA carpeta de la app que no era del
+    // usuario del sitio. Consecuencia: el `composer install` que Plesk dispara en cada Pull no puede
+    // reescribir el autoloader, falla, y como corre entre `artisan down` y `artisan up`, el script
+    // aborta a la mitad y DEJA EL SITIO APAGADO. Se cayó en plena jornada y el mensaje que daba Plesk
+    // ("Permission denied" sobre autoload_classmap.php) no menciona el modo mantenimiento por ningún
+    // lado, así que el síntoma y la causa parecían no tener nada que ver.
+    //
+    // Y la caída es la mitad menos grave. Con el autoloader congelado, un commit que traiga una CLASE
+    // NUEVA se despliega ROTO: el archivo llega pero PHP no lo encuentra. Un cambio que sólo toca
+    // clases existentes o vistas pasa sin ruido, así que el fallo aparece más tarde, en otro deploy, y
+    // sin relación aparente con la causa.
+    //
+    // Arreglo (como root, una vez):
+    //     chown -R <usuario-del-sitio>:<grupo> /ruta/de/la/app/vendor
+    private function checkVendorWritable(): array
+    {
+        $vendor = base_path('vendor');
+        if (! is_dir($vendor)) {
+            return ['FAIL', 'no existe vendor/. La app no puede arrancar sin dependencias.'];
+        }
+
+        // is_writable() sobre el directorio Y sobre el archivo que composer reescribe en cada install:
+        // la carpeta puede ser escribible y el archivo no, que es justo el caso que rompió el deploy.
+        $classmap = $vendor . DIRECTORY_SEPARATOR . 'composer' . DIRECTORY_SEPARATOR . 'autoload_classmap.php';
+        $bad = [];
+        if (! is_writable($vendor)) { $bad[] = 'vendor/'; }
+        if (is_file($classmap) && ! is_writable($classmap)) { $bad[] = 'vendor/composer/autoload_classmap.php'; }
+
+        if ($bad) {
+            $owner = function_exists('posix_getpwuid') && function_exists('fileowner')
+                ? (posix_getpwuid(fileowner($vendor))['name'] ?? '?') : '?';
+            $me = function_exists('posix_geteuid') && function_exists('posix_getpwuid')
+                ? (posix_getpwuid(posix_geteuid())['name'] ?? '?') : '?';
+
+            return ['FAIL', 'no escribible: ' . implode(', ', $bad) . " (dueño: $owner · yo soy: $me). "
+                . 'El `composer install` del deploy va a FALLAR, y como corre entre `artisan down` y '
+                . '`artisan up`, el sitio se queda APAGADO. Además el autoloader no se regenera: el '
+                . 'siguiente commit con una clase nueva se despliega roto. Corrige con '
+                . '`chown -R <usuario-del-sitio>:<grupo> ' . $vendor . '` como root.'];
+        }
+
+        return ['OK', 'vendor/ es del usuario del sitio (composer puede regenerar el autoloader).'];
+    }
+
+    // --- 16) La app NO está en modo mantenimiento ---------------------------------------------
+    //
+    // Contraparte de la anterior: si un deploy abortó entre `down` y `up`, esto queda encendido y el
+    // sitio responde 503 a TODO el mundo. Es trivial de comprobar y el síntoma (503 sin errores en el
+    // log) se confunde con una caída del servidor, que es donde se pierde el tiempo buscando.
+    private function checkNotDown(): array
+    {
+        // Laravel 11+ usa storage/framework/maintenance.php; las versiones previas, framework/down.
+        // Se miran las dos: el preflight tiene que servir aunque la instancia vaya atrasada.
+        foreach (['framework/down', 'framework/maintenance.php'] as $rel) {
+            $path = storage_path($rel);
+            if (file_exists($path)) {
+                $when = @filemtime($path);
+                return ['FAIL', "la app está en MODO MANTENIMIENTO (503 para todos) desde "
+                    . ($when ? date('Y-m-d H:i', $when) : 'fecha desconocida') . ". Suele ser un deploy "
+                    . 'que abortó entre `artisan down` y `artisan up` — mira la comprobación de vendor/. '
+                    . 'Levántala con `php artisan up`.'];
+            }
+        }
+
+        return ['OK', 'la app está en línea (sin marcador de mantenimiento).'];
     }
 }
