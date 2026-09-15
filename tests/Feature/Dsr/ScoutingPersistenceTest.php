@@ -238,4 +238,72 @@ class ScoutingPersistenceTest extends QaTestCase
         $this->assertNotSame('final', $scout->status, 'No debe quedar final con una acción abierta.');
         $this->assertFalse($scout->signatures()->exists(), 'Y por tanto no debe sellarse.');
     }
+
+    // =====================================================================
+    //  RANGO DE RODAJE — una locación puede ocupar varios días (2026-09-14)
+    // =====================================================================
+
+    public function test_rango_de_rodaje_persiste_y_el_fin_no_puede_ser_anterior_al_inicio(): void
+    {
+        $this->actingAsRole('safety-officer');
+
+        $ok = $this->scoutPayload(['date_shoot' => '2026-10-14', 'date_shoot_end' => '2026-10-17']);
+        $this->post(route('scoutings.store'), $ok)->assertSessionHasNoErrors();
+
+        $scout = ScoutingReport::where('location_name', $ok['location_name'])->latest('id')->first();
+        $this->assertSame('2026-10-17', $scout->date_shoot_end->toDateString());
+        $this->assertTrue($scout->hasShootRange());
+        $this->assertSame('2026-10-17', $scout->shootEndDate()->toDateString());
+
+        // Un fin ANTERIOR al inicio no es un rango, es un error de dedo: se rechaza.
+        $this->post(route('scoutings.store'), $this->scoutPayload([
+            'date_shoot' => '2026-10-14', 'date_shoot_end' => '2026-10-09',
+        ]))->assertSessionHasErrors('date_shoot_end');
+    }
+
+    public function test_sin_rango_el_scouting_se_comporta_como_de_un_solo_dia(): void
+    {
+        $this->actingAsRole('safety-officer');
+        $payload = $this->scoutPayload(['date_shoot' => '2026-10-14']);
+        $this->post(route('scoutings.store'), $payload)->assertSessionHasNoErrors();
+
+        $scout = ScoutingReport::where('location_name', $payload['location_name'])->latest('id')->first();
+        $this->assertNull($scout->date_shoot_end);
+        $this->assertFalse($scout->hasShootRange(), 'Sin fin declarado NO hay rango que mostrar.');
+        $this->assertSame('2026-10-14', $scout->shootEndDate()->toDateString());
+    }
+
+    /**
+     * ⛔ LA PRUEBA QUE DE VERDAD IMPORTA. `scouting_reports` está SELLADA: el hash cubre la fila
+     * entera, así que una columna nueva mueve el sello de TODO lo ya firmado y lo vuelve "ALTERADO"
+     * —irreversible—. `date_shoot_end` está en NULLABLE_HASH_EXCLUDES justamente para eso: mientras
+     * valga null NO entra al payload, y un scouting sellado sin rango sigue verificando íntegro.
+     *
+     * Este test vigila LAS DOS MITADES del contrato, porque una sola no sirve: fuera del hash
+     * cuando es null (o los sellos viejos se caen) y DENTRO en cuanto lleva valor (o el rango sería
+     * un dato no sellado dentro de un documento probatorio, alterable sin dejar rastro).
+     */
+    public function test_el_rango_sale_del_hash_si_esta_vacio_y_entra_en_cuanto_tiene_valor(): void
+    {
+        $this->actingAsRole('safety-officer');
+        $payload = $this->scoutPayload(['status' => 'final', 'date_shoot' => '2026-10-14']);
+        $this->post(route('scoutings.store'), $payload)->assertSessionHasNoErrors();
+
+        $scout = ScoutingReport::where('location_name', $payload['location_name'])->latest('id')->first();
+        $this->assertTrue($scout->signatures()->exists());
+        $this->assertTrue($scout->verifyLatestSignature(), 'Sellado sin rango: debe verificar íntegro.');
+
+        $this->assertArrayNotHasKey(
+            'date_shoot_end',
+            $scout->canonicalSignaturePayload(),
+            'Vacío, el rango NO debe entrar al payload: si entrara, cada sello anterior se caería.'
+        );
+
+        $scout->date_shoot_end = '2026-10-17';
+        $this->assertArrayHasKey(
+            'date_shoot_end',
+            $scout->canonicalSignaturePayload(),
+            'Con valor, el rango SÍ debe entrar al hash: un dato del documento no puede quedar fuera del sello.'
+        );
+    }
 }

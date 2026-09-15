@@ -99,7 +99,19 @@
     //      que es inconsistente/vacío); locación = nombre; fecha = shoot ----
     $heroProject = $brandName;
     // translatedFormat (no format) para que el mes salga en el idioma de la app (es/en).
-    $heroDate    = $report->date_shoot ? $report->date_shoot->translatedFormat('d M Y') : null;
+    // Con rango, el hero muestra el tramo completo: el documento tiene que decir cuántos días ocupa
+    // la locación, no sólo cuándo empieza. Dentro del mismo mes se abrevia el inicio ("14 – 17 sep
+    // 2026"); si el rango cruza de mes NO se abrevia, o "28 – 3 oct" se leería al revés.
+    $heroDate = null;
+    if ($report->date_shoot) {
+        if ($report->hasShootRange()) {
+            $sameMonth = $report->date_shoot->isSameMonth($report->date_shoot_end);
+            $heroDate  = $report->date_shoot->translatedFormat($sameMonth ? 'd' : 'd M')
+                       . ' – ' . $report->date_shoot_end->translatedFormat('d M Y');
+        } else {
+            $heroDate = $report->date_shoot->translatedFormat('d M Y');
+        }
+    }
 
     // ---- Sub-línea del LLAMADO en el hero (homologada con el PAE): tipo Int./Ext. · día/noche · escenas ----
     $heroCallType = implode(' · ', array_filter([
@@ -114,7 +126,11 @@
     // ---- Rango de fechas (prep · shoot · wrap) para la banda y la ficha ----
     $dtParts = [];
     if ($report->date_prep)  { $dtParts[] = $report->date_prep->translatedFormat('d M'); }
-    if ($report->date_shoot) { $dtParts[] = $report->date_shoot->translatedFormat('d M Y'); }
+    if ($report->date_shoot) {
+        $dtParts[] = $report->hasShootRange()
+            ? $report->date_shoot->translatedFormat('d M') . ' – ' . $report->date_shoot_end->translatedFormat('d M Y')
+            : $report->date_shoot->translatedFormat('d M Y');
+    }
     if ($report->date_wrap)  { $dtParts[] = $report->date_wrap->translatedFormat('d M'); }
     $dtRange = count($dtParts) ? implode(' · ', $dtParts) : null;
 

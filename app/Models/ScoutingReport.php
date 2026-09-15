@@ -42,8 +42,30 @@ class ScoutingReport extends Model
      * antes de sembrar la columna la traen en null → fuera del payload → su sello NO cambia; con valor
      * (2ª unidad) SÍ entra al hash y la unidad queda sellada. La aplica el trait
      * (HasDigitalSignatures::nullableHashExcludes). NO se cablea ningún filtro por unidad (eso es Paso 2).
+     *
+     * (2026-09-14 · rango de rodaje) `date_shoot_end` entra por la MISMA puerta y por la misma razón:
+     * una locación puede ocupar varios días y `date_shoot` sola no lo sabía decir. Vacía = un solo día
+     * → fuera del payload → los scoutings que se sellen sin rango no se mueven nunca; con valor, el
+     * rango queda sellado igual que el resto.
      */
-    const NULLABLE_HASH_EXCLUDES = ['unit_id'];
+    const NULLABLE_HASH_EXCLUDES = ['unit_id', 'date_shoot_end'];
+
+    /**
+     * Último día de rodaje EFECTIVO: el fin del rango si lo hay, si no el día único.
+     * Fuente única para no repetir el `?:` en cada vista y en el rankeo por fechas.
+     */
+    public function shootEndDate()
+    {
+        return $this->date_shoot_end ?: $this->date_shoot;
+    }
+
+    /** ¿La locación ocupa más de un día? (rango real, no un fin igual al inicio). */
+    public function hasShootRange(): bool
+    {
+        return $this->date_shoot
+            && $this->date_shoot_end
+            && $this->date_shoot_end->gt($this->date_shoot);
+    }
 
     /**
      * $fillable explícito: solo estas columnas son asignables en masa.
@@ -64,6 +86,7 @@ class ScoutingReport extends Model
         'scene',
         'date_prep',
         'date_shoot',
+        'date_shoot_end',
         'date_wrap',
         'loc_setting',
         'shoot_time',
@@ -116,6 +139,7 @@ class ScoutingReport extends Model
     protected $casts = [
         'date_prep'                => 'date',
         'date_shoot'              => 'date',
+        'date_shoot_end'          => 'date',
         'date_wrap'               => 'date',
         'make_date'               => 'date',
         'risk_assessment'         => 'array',

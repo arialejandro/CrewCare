@@ -169,7 +169,7 @@ class ScoutingReportController extends Controller
             ->orderBy('id', 'desc')
             ->limit(50)
             ->get(['id', 'location_name', 'location_address', 'latitude', 'longitude',
-                   'date_prep', 'date_shoot', 'date_wrap']);
+                   'date_prep', 'date_shoot', 'date_shoot_end', 'date_wrap']);
 
         $today   = now()->startOfDay();
         $matches = [];
@@ -183,7 +183,10 @@ class ScoutingReportController extends Controller
             // si no, días de distancia a la ventana; null = scouting sin fechas.
             $dateScore = null;
             $start = $c->date_prep ?: $c->date_shoot;
-            $end   = $c->date_wrap ?: $c->date_shoot;
+            // El fin del rango de rodaje cuenta como cierre de la ventana cuando no hay wrap: una
+            // locación "del 14 al 17" sigue siendo la locación de hoy el día 16. Sin esto, un rodaje
+            // de varios días dejaba de sugerirse a partir del segundo.
+            $end   = $c->date_wrap ?: ($c->date_shoot_end ?: $c->date_shoot);
             if ($start && $end) {
                 $startDay = $start->copy()->startOfDay();
                 $endDay   = $end->copy()->endOfDay();
@@ -815,6 +818,8 @@ class ScoutingReportController extends Controller
             'scene'               => $request->input('scene'),
             'date_prep'           => $request->input('date_prep'),
             'date_shoot'          => $request->input('date_shoot'),
+            // Vacío → null, nunca '' (columna DATE en modo estricto no acepta cadena vacía).
+            'date_shoot_end'      => $request->input('date_shoot_end') ?: null,
             'date_wrap'           => $request->input('date_wrap'),
             'loc_setting'         => $request->input('loc_setting'),
             'shoot_time'          => $request->input('shoot_time'),

@@ -63,6 +63,11 @@ class StoreScoutingReportRequest extends FormRequest
             'scene'               => 'nullable|string|max:255',
             'date_prep'           => 'nullable|date',
             'date_shoot'          => 'nullable|date',
+            // Fin del rango de rodaje. Vacío = un solo día. No puede ser ANTERIOR al inicio; que sea
+            // igual sí se acepta (es lo mismo que dejarlo vacío y no vale la pena rechazárselo a nadie
+            // en campo). `after_or_equal` sólo actúa si date_shoot viene: sin inicio no hay rango que
+            // validar, y el formulario ya no deja capturar el fin sin el inicio.
+            'date_shoot_end'      => 'nullable|date|after_or_equal:date_shoot',
             'date_wrap'           => 'nullable|date',
             'loc_setting'         => 'nullable|string|max:30',
             'shoot_time'          => 'nullable|string|max:30',
