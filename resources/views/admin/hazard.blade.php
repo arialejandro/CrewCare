@@ -167,7 +167,7 @@
           <div class="fact"><div class="k">{{ __('reports.label_related_report') }}</div><div class="v mono">UNS-{{ str_pad((string) $rel->id, 4, '0', STR_PAD_LEFT) }}{{ $relDate ? ' · ' . $relDate : '' }}</div></div>
           @endif
           @if($hz->make_by)
-          <div class="fact"><div class="k">{{ __('reports.label_by') }}</div><div class="v">{{ $hz->make_by }}</div></div>
+          <div class="fact"><div class="k">{{ __('reports.label_by') }}</div><div class="v">{{ $creditName }}</div></div>
           @endif
         </div></div>
       </section>

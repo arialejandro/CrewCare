@@ -394,7 +394,13 @@
           <div class="fact"><div class="k">{{ __('reports.label_gps_location') }}</div><div class="v mono">{{ number_format((float) $report->latitude, 4) }}, {{ number_format((float) $report->longitude, 4) }}</div></div>
           @endif
           @if($report->make_by)
-          <div class="fact"><div class="k">{{ __('reports.label_by') }}</div><div class="v">{{ $report->make_by }}</div></div>
+          {{-- $creditName, NO el snapshot crudo `make_by`: ese guarda sólo el PRIMER nombre del
+               autor ("Ari"), y el mismo documento ya mostraba el nombre de créditos completo en el
+               bloque de firma ("Ari Rómulo"). Dos nombres distintos para la misma persona en la
+               misma hoja, y el corto es AMBIGUO en cuanto hay dos Genaros en la producción — que es
+               justo lo que un documento con valor probatorio no se puede permitir.
+               $creditName ya cae al snapshot si el reporte es viejo y no tiene autor. --}}
+          <div class="fact"><div class="k">{{ __('reports.label_by') }}</div><div class="v">{{ $creditName }}</div></div>
           @endif
         </div>
         @if($report->latitude && $report->longitude)

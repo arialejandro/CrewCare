@@ -446,7 +446,7 @@
                 </div>
                 @php
                     // En edición se muestra la AUTOFIRMA original (no se re-firma en Fase 2).
-                    $firmaBy   = ($isEdit && $report && $report->make_by) ? $report->make_by : auth()->user()->name;
+                    $firmaBy   = ($isEdit && $report && $report->make_by) ? $report->make_by : \App\Models\User::displayName(auth()->user());
                     $firmaDate = ($isEdit && $report && $report->make_date)
                         ? (is_object($report->make_date) ? $report->make_date->format('d/m/Y') : \Carbon\Carbon::parse($report->make_date)->format('d/m/Y'))
                         : date('d/m/Y');

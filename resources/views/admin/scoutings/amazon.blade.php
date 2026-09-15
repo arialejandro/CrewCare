@@ -98,6 +98,12 @@
 @php
     $L = function ($k) use ($lang) { return __('scouting.' . $k, [], $lang); };
 
+    // NOMBRE DE CRÉDITOS de quien elaboró — misma fuente que show.blade.php, para que el formato
+    // Amazon-MGM y el documento propio no firmen con nombres distintos. El snapshot `make_by` sólo
+    // se usa como respaldo para reportes viejos sin autor.
+    $__author  = ! empty($report->created_by_id) ? \App\Models\User::find($report->created_by_id) : null;
+    $creditName = $__author ? \App\Models\User::displayName($__author) : ($report->make_by ?: $L('none'));
+
     $ratingChip = function ($r) {
         $map = [
             'L' => 'background:#C0DD97;color:#173404;',
@@ -325,7 +331,7 @@
     {{-- ===== FIRMA (sin sello ni hash: el documento del estudio sale limpio) ===== --}}
     <div class="amz-firma amz-break">
         <div class="lbl">{{ $L('compiled_by') }}</div>
-        <div class="name">{{ $report->make_by ?: $L('none') }}</div>
+        <div class="name">{{ $creditName }}</div>
     </div>
 
 </td></tr></tbody>

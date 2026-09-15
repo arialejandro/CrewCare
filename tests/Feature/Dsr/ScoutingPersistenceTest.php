@@ -47,7 +47,11 @@ class ScoutingPersistenceTest extends QaTestCase
             'location_name' => $payload['location_name'],
             'status'        => 'draft',
             // AUTOFIRMA: make_by/created_by_id se fijan server-side (no del form).
-            'make_by'       => $user->name,
+            // make_by guarda el NOMBRE DE CRÉDITOS (User::displayName), no `->name`: ese es sólo el
+            // primer nombre y en un documento firmado resulta ambiguo (dos "Genaro" en la misma
+            // producción dejan de distinguirse). Se asserta la REGLA, no una cadena literal, para
+            // que el test siga valiendo si cambia el usuario de prueba.
+            'make_by'       => \App\Models\User::displayName($user),
             'created_by_id' => $user->id,
         ]);
     }
@@ -166,8 +170,32 @@ class ScoutingPersistenceTest extends QaTestCase
 
         $scout->refresh();
         $this->assertSame($nuevoNombre, $scout->location_name, 'La edición debe persistir.');
-        $this->assertSame($autor->name, $scout->make_by, 'make_by (autofirma) NO se toca al editar.');
+        $this->assertSame(\App\Models\User::displayName($autor), $scout->make_by, 'make_by (autofirma) NO se toca al editar.');
         $this->assertSame($autor->id, (int) $scout->created_by_id, 'created_by_id (autofirma) NO se toca al editar.');
+    }
+
+    /**
+     * REGLA DEL OWNER: el autor de un documento se identifica por su NOMBRE EN CRÉDITOS.
+     *
+     * Los dos tests de arriba NO la cubren: su usuario de prueba no tiene `ncreditos`, así que
+     * displayName() cae al nombre corto y pasarían igual con el `->name` de antes. Este sí la fija.
+     *
+     * El porqué no es cosmético: `->name` guardaba sólo el PRIMER nombre ("Ari"), mientras el mismo
+     * documento imprimía el crédito completo en el bloque de firma ("Ari Rómulo"). Dos nombres para
+     * la misma persona en la misma hoja, y el corto es AMBIGUO en cuanto hay dos personas que
+     * comparten nombre de pila — inaceptable en algo con valor probatorio.
+     */
+    public function test_make_by_guarda_el_nombre_de_creditos_no_el_nombre_de_pila(): void
+    {
+        $user = $this->actingAsRole('safety-officer');
+        $user->forceFill(['name' => 'Ari', 'lname' => 'Rómulo', 'ncreditos' => 'Ari Rómulo'])->save();
+
+        $payload = $this->scoutPayload();
+        $this->post(route('scoutings.store'), $payload)->assertSessionHasNoErrors();
+
+        $scout = ScoutingReport::where('location_name', $payload['location_name'])->latest('id')->first();
+        $this->assertSame('Ari Rómulo', $scout->make_by, 'Debe quedar el nombre de CRÉDITOS, no "Ari".');
+        $this->assertNotSame('Ari', $scout->make_by, 'El nombre de pila solo es ambiguo y no identifica.');
     }
 
     // =====================================================================

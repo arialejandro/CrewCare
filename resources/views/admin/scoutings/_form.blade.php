@@ -946,7 +946,7 @@
             <div class="row g-3">
                 <div class="col-md-5">
                     <label class="form-label fw-semibold">Elaborado por</label>
-                    <input type="text" class="form-control bg-light" value="{{ $isEdit ? $report->make_by : auth()->user()->name }}" readonly>
+                    <input type="text" class="form-control bg-light" value="{{ $isEdit ? $report->make_by : \App\Models\User::displayName(auth()->user()) }}" readonly>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label fw-semibold">Fecha</label>
