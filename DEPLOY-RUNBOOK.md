@@ -169,6 +169,13 @@ descubrieron con la producción ya rodando — ver §11): **zona horaria de la p
 **límites de subida** (avisa si `post_max_size`/`upload_max_filesize`/`max_input_time` no aguantan una
 foto desde el set con mala red); e **higiene del entorno** (`APP_DEBUG`, `APP_ENV`, `APP_URL` con esquema).
 
+Y **2 más del SEGUNDO deploy** (2026-09-14, ver §11·b), que son las que evitan que un Pull te deje el
+sitio caído: **`vendor/` escribible por el usuario del sitio** (si es de root, el `composer install` del
+deploy falla y el `artisan up` nunca corre) y **la app NO está en modo mantenimiento** (503 en todo sin
+un solo error en el log). En la misma racha, el check de límites de subida creció para mirar
+`max_file_uploads` y `max_input_vars`: los dos recortan **en silencio**, y el segundo llega a borrar
+imágenes ya guardadas al editar.
+
 > 🪤 **Al AMPLIAR este comando (o cualquier otro): usa `config()`, nunca `env()`.** En producción la config
 > se cachea (`config:cache`) y **con la caché presente Laravel no lee el `.env`**: todo `env()` fuera de un
 > archivo de `config/` devuelve el default. Ya costó una vez — el check de `CREWCARE_SEAL_KEY` leía
@@ -283,6 +290,58 @@ verificador sigue diciendo "íntegro".
 **Y lo único de verdad irreversible:** `CREWCARE_SEAL_KEY` **no se rota jamás** una vez que hay
 documentos sellados. Guarda copia del `.env` **fuera del VPS**, en cuenta distinta a la del respaldo
 de la base. Si el servidor se pierde con esa llave dentro, ningún documento vuelve a verificar.
+
+## 11·b · 🔥 Lo que costó el SEGUNDO deploy (mismo servidor, seis días después)
+
+El primer deploy dejó una mina armada que no se disparó hasta el segundo. Las tres cosas de abajo ya
+las comprueba `crewcare:preflight` — **córrelo antes y después de cada deploy**, no sólo al instalar.
+
+**1 · `vendor/` de root = el sitio se queda APAGADO en cada Pull.**
+El primer `composer install` se corrió como root, así que `vendor/` quedó `root:root` — la única
+carpeta de la app que no era del usuario del sitio. Plesk dispara en cada Pull la secuencia
+`artisan down` → `composer install` → `artisan up`. Composer no puede reescribir el autoloader,
+**falla, el script aborta, y el `artisan up` nunca corre**: el sitio responde 503 a todo el mundo.
+El mensaje de Plesk ("Permission denied" sobre `autoload_classmap.php`) no menciona el modo
+mantenimiento por ningún lado, así que el síntoma y la causa parecen no tener relación.
+
+La caída es la mitad menos grave. Con el autoloader congelado, **un commit que traiga una clase nueva
+se despliega roto**: el archivo llega pero PHP no lo encuentra. Un cambio que sólo toca clases
+existentes o vistas pasa sin ruido — por eso el fallo aparece más tarde, en otro deploy, sin relación
+aparente con la causa.
+
+```bash
+# como root, UNA vez por instancia
+chown -R <usuario-del-sitio>:<grupo> /ruta/de/la/app/vendor
+```
+
+**2 · Si un deploy aborta, la app se queda en modo mantenimiento.**
+Marcador en `storage/framework/down` (o `framework/maintenance.php` en Laravel 11+). Síntoma: **503
+en todo, sin un solo error en `laravel.log`** — que es donde se pierde el tiempo buscando, porque
+parece caída del servidor. Se levanta con `php artisan up`.
+
+**3 · El `php` del PATH puede no tener `pdo_mysql`.**
+En Plesk, `/usr/bin/php` suele venir sin el driver de MySQL: `php artisan migrate` muere con
+*"could not find driver"* sin tocar nada. Usa el binario de Plesk:
+
+```bash
+/opt/plesk/php/8.3/bin/php artisan migrate --force
+```
+
+**Y la trampa de las subidas, que tiene dos mitades.** `max_file_uploads` (default **20**) descarta
+en silencio los archivos que sobren: un scouting con 25 fotos guarda 20 y **no da ningún error**. Pero
+subirlo sin subir también `max_input_vars` (default **1000**) cambia un fallo visible por uno que
+**destruye datos**: ese no cuenta archivos sino CAMPOS, y al editar un scouting cada imagen manda 3
+(ruta, pie de foto, bandera). Pasado el tope PHP recorta la cola, y como `update()` reconstruye el set
+de imágenes con lo que le llega, **las que se perdieron en el recorte se borran del registro**. Suben
+juntos o no suben.
+
+### Orden recomendado para cualquier deploy posterior al primero
+
+1. Respaldo de la base **y bájalo del servidor** (un respaldo en la misma máquina no es respaldo).
+2. `git pull` (o *Pull now* en Plesk).
+3. `crewcare:preflight` — mira `vendor/`, mantenimiento y límites de subida.
+4. `migrate:status` → `migrate --pretend` → `migrate --force` (con el PHP de Plesk).
+5. Comprueba que el sitio responde 200 **antes** de avisar que ya está.
 
 ## 10 · Cambios por racha (más reciente arriba)
 
