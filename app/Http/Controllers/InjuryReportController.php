@@ -79,7 +79,9 @@ class InjuryReportController extends Controller
     $dataForDb = $this->prepareDataForDb($request, $validatedData);
 
     // AUTOFIRMA (sistema cerrado): autor + fecha del servidor, NO del formulario → no falseable.
-    $dataForDb['make_by']   = auth()->user()->name;
+    // Nombre de CRÉDITOS (ver ScoutingReportController): `->name` es sólo el primer nombre y
+    // resulta ambiguo en un documento firmado. La trazabilidad dura es `created_by_id`.
+    $dataForDb['make_by']   = \App\Models\User::displayName(auth()->user());
     $dataForDb['make_date'] = now()->toDateString();
     if (Schema::hasColumn('injury_reports', 'created_by_id')) {
         $dataForDb['created_by_id'] = auth()->id();

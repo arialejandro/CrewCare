@@ -156,7 +156,9 @@ class unsafecondNotificationController extends Controller
         }
 
         // AUTOFIRMA (sistema cerrado): autor + fecha del servidor, NO del formulario → no falseable.
-        $data['make_by']   = auth()->user()->name;
+        // Nombre de CRÉDITOS (ver ScoutingReportController): `->name` es sólo el primer nombre y
+        // resulta ambiguo en un documento firmado. La trazabilidad dura es `created_by_id`.
+        $data['make_by']   = \App\Models\User::displayName(auth()->user());
         $data['make_date'] = now()->toDateString();
         if (\Illuminate\Support\Facades\Schema::hasColumn('unsafeconds', 'created_by_id')) {
             $data['created_by_id'] = auth()->id();

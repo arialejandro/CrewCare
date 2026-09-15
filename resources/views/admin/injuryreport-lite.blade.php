@@ -144,7 +144,7 @@
           <div class="fact"><div class="k">{{ __('reports.label_body_part') }}</div><div class="v">{{ $injuryReport->body_part }}</div></div>
           @endif
           @if($injuryReport->make_by)
-          <div class="fact"><div class="k">{{ __('reports.label_reporter') }}</div><div class="v">{{ $injuryReport->make_by }}</div></div>
+          <div class="fact"><div class="k">{{ __('reports.label_reporter') }}</div><div class="v">{{ $creditName }}</div></div>
           @endif
         </div></div>
       </section>
@@ -189,7 +189,7 @@
     </table>
 
     @include('componentes._report-v2-foot', [
-      'footPreparedName' => $injuryReport->make_by ?: '—',
+      'footPreparedName' => $creditName,
       'footPreparedMeta' => __('reports.label_reporter'), // pie SIN fecha (owner 2026-08)
       'footUuid'         => $footUuid,
     ])

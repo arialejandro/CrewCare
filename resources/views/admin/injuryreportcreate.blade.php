@@ -721,7 +721,7 @@
                 <div class="row g-3">
                     <div class="col-12 col-md-8">
                         <label class="form-label fw-semibold">Completado por</label>
-                        <input type="text" class="form-control bg-light" value="{{ $isEdit && $report ? ($report->make_by ?? auth()->user()->name) : auth()->user()->name }}" readonly>
+                        <input type="text" class="form-control bg-light" value="{{ $isEdit && $report ? ($report->make_by ?? \App\Models\User::displayName(auth()->user())) : \App\Models\User::displayName(auth()->user()) }}" readonly>
                     </div>
                     <div class="col-12 col-md-4">
                         <label class="form-label fw-semibold">Fecha realizado</label>

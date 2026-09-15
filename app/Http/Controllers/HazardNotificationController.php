@@ -163,7 +163,9 @@ class HazardNotificationController extends Controller
 
         // AUTOFIRMA (sistema cerrado): autor + fecha del servidor, NO del formulario → no falseable.
         // Se coloca justo antes de create() para que ningún unset() previo lo borre.
-        $data['make_by']   = auth()->user()->name;
+        // Nombre de CRÉDITOS (ver ScoutingReportController): `->name` es sólo el primer nombre y
+        // resulta ambiguo en un documento firmado. La trazabilidad dura es `created_by_id`.
+        $data['make_by']   = \App\Models\User::displayName(auth()->user());
         $data['make_date'] = now()->toDateString();
         if (\Illuminate\Support\Facades\Schema::hasColumn('hazardnotifications', 'created_by_id')) {
             $data['created_by_id'] = auth()->id();

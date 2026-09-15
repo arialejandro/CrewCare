@@ -190,7 +190,7 @@
             @can('viewMedical', $injuryReport)<div class="v">{{ $injuryReport->hospital ?: '—' }}</div>@else<div class="v restricted">{{ __('reports.label_restricted_medical') }}</div>@endcan
           </div>
           @if($injuryReport->make_by)
-          <div class="fact"><div class="k">{{ __('reports.label_by') }}</div><div class="v">{{ $injuryReport->make_by }}</div></div>
+          <div class="fact"><div class="k">{{ __('reports.label_by') }}</div><div class="v">{{ $creditName }}</div></div>
           @endif
         </div></div>
       </section>
@@ -244,7 +244,7 @@
       <section class="sec">
         <div class="sec-h"><span class="bar"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><h2>{{ __('reports.injury_section_roles') }}</h2><span class="line"></span></div>
         <div class="panel"><div class="facts">
-          <div class="fact"><div class="k">{{ __('reports.label_reporter') }}</div><div class="v">{{ $injuryReport->make_by ?: '—' }}</div><div style="font-size:.62rem;color:var(--faint);margin-top:2px">{{ __('reports.injury_role_reporter_hint') }}</div></div>
+          <div class="fact"><div class="k">{{ __('reports.label_reporter') }}</div><div class="v">{{ $creditName }}</div><div style="font-size:.62rem;color:var(--faint);margin-top:2px">{{ __('reports.injury_role_reporter_hint') }}</div></div>
           <div class="fact"><div class="k">{{ __('reports.label_first_responder') }}</div><div class="v">{{ $injuryReport->treatment_by ?: '—' }}</div><div style="font-size:.62rem;color:var(--faint);margin-top:2px">{{ __('reports.injury_role_first_responder_hint') }}</div></div>
           <div class="fact"><div class="k">{{ __('reports.label_witness') }}</div><div class="v">{{ (Schema::hasTable('witnesses') && $injuryReport->witnesses->count()) ? $injuryReport->witnesses->pluck('name')->implode(', ') : '—' }}</div><div style="font-size:.62rem;color:var(--faint);margin-top:2px">{{ __('reports.injury_role_witness_hint') }}</div></div>
         </div></div>

@@ -171,7 +171,7 @@
           <div class="fact"><div class="k">{{ __('reports.label_applicable_regulation') }}</div><div class="v"><span class="badge badge-{{ $uc->regulation_badge }}">{{ $uc->regulation_badge }}</span> <span class="mono" style="font-size:.78rem">{{ $uc->regulation_code }}</span></div></div>
           @endif
           @if($uc->make_by)
-          <div class="fact"><div class="k">{{ __('reports.label_by') }}</div><div class="v">{{ $uc->make_by }}</div></div>
+          <div class="fact"><div class="k">{{ __('reports.label_by') }}</div><div class="v">{{ $creditName }}</div></div>
           @endif
         </div></div>
       </section>

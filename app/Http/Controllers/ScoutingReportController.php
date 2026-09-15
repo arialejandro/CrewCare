@@ -275,7 +275,13 @@ class ScoutingReportController extends Controller
         // capturan del usuario autenticado y del servidor → no se pueden falsear. Esto es lo
         // que permite saber con certeza QUIÉN registró QUÉ y CUÁNDO (trazabilidad real).
         // Solo se fija aquí (creación); update() NUNCA toca estos campos.
-        $reportData['make_by']       = auth()->user()->name;
+        // NOMBRE DE CRÉDITOS, no `->name`. `name` es sólo el PRIMER nombre ("Ari"), y en un
+        // documento con valor probatorio eso es AMBIGUO: con dos Genaros en la producción, la
+        // instantánea deja de identificar a nadie. Además el propio documento ya mostraba el
+        // crédito completo en el bloque de firma, así que la misma hoja traía dos nombres
+        // distintos para la misma persona. displayName() cae al nombre corto si no hay crédito.
+        // La trazabilidad dura sigue siendo `created_by_id`; esto es la etiqueta legible.
+        $reportData['make_by']       = \App\Models\User::displayName(auth()->user());
         $reportData['created_by_id'] = auth()->id();
         $reportData['make_date']     = now()->toDateString();
 
