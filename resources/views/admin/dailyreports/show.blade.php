@@ -185,7 +185,10 @@
   .dsr-log-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
   .dsr-log-card{background:var(--panel);border:1px solid var(--stroke);border-radius:var(--radius-sm);overflow:hidden;display:flex;flex-direction:column;break-inside:avoid}
   .dsr-log-photo{position:relative;aspect-ratio:16/9;background:#141a26;overflow:hidden}
-  .dsr-log-photo img{width:100%;height:100%;object-fit:cover;display:block}
+  {{-- Mismo caso que `.photo img` en _report-v2-head: dentro de la tabla de paginación, un
+       `height:100%` sobre imagen estática se mide contra la FILA en Safari y la foto sale ampliada
+       y recortada. `position:absolute` la ancla a .dsr-log-photo (que es relative). --}}
+  .dsr-log-photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
   .dsr-log-time{position:absolute;top:8px;left:8px;font-family:var(--mono);font-size:.62rem;font-weight:600;color:#fff;background:rgba(0,0,0,.6);padding:3px 7px;border-radius:6px;letter-spacing:.03em}
   .dsr-log-auto{position:absolute;top:8px;right:8px;font-size:.58rem;font-weight:700;color:#fff;background:rgba(124,58,237,.85);padding:3px 7px;border-radius:6px}
   .dsr-log-b{padding:13px 14px;display:flex;flex-direction:column;gap:9px;flex:1}
