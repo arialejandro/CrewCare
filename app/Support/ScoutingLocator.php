@@ -48,7 +48,7 @@ class ScoutingLocator
                 ->whereBetween('longitude', [$lng - $lngDelta, $lng + $lngDelta])
                 ->orderBy('id', 'desc')
                 ->limit(50)
-                ->get(['id', 'latitude', 'longitude', 'date_prep', 'date_shoot', 'date_wrap']);
+                ->get(['id', 'latitude', 'longitude', 'date_prep', 'date_shoot', 'date_shoot_end', 'date_wrap']);
 
             $today   = now()->startOfDay();
             $best    = null;
@@ -61,7 +61,9 @@ class ScoutingLocator
 
                 $dateScore = null;
                 $start = $c->date_prep ?: $c->date_shoot;
-                $end   = $c->date_wrap ?: $c->date_shoot;
+                // Mismo criterio que ScoutingReportController@scoutingsNearby: si la locación ocupa
+                // varios días, la ventana se cierra en el ÚLTIMO, no en el primero.
+                $end   = $c->date_wrap ?: ($c->date_shoot_end ?: $c->date_shoot);
                 if ($start && $end) {
                     $startDay = $start->copy()->startOfDay();
                     $endDay   = $end->copy()->endOfDay();

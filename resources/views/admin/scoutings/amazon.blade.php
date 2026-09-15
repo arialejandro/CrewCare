@@ -214,7 +214,7 @@
                  mal rotulado, la misma fabricación que se quitó en la compañía). --}}
             <td>{{ $report->location_address ?: $L('none') }}</td>
             <td>{{ optional($report->make_date)->format('d/m/Y') ?: $L('none') }}</td>
-            <td>{{ optional($report->date_shoot)->format('d/m/Y') ?: $L('none') }}</td>
+            <td>{{ optional($report->date_shoot)->format('d/m/Y') ?: $L('none') }}@if($report->hasShootRange()) – {{ $report->date_shoot_end->format('d/m/Y') }}@endif</td>
         </tr>
     </table>
 

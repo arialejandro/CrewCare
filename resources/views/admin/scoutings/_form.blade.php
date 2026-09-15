@@ -217,9 +217,17 @@
                     <label class="form-label fw-semibold">Fecha Prep</label>
                     <input type="date" name="date_prep" class="form-control" value="{{ old('date_prep', $isEdit ? optional($report->date_prep)->format('Y-m-d') : '') }}">
                 </div>
+                {{-- RANGO de rodaje: una locación puede ocuparse varios días ("del 14 al 17") y
+                     declarar uno solo obligaba a mentir o a duplicar el scouting. El fin es OPCIONAL
+                     — vacío significa un solo día, que es como se comporta todo lo ya capturado. --}}
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Fecha Shoot</label>
-                    <input type="date" name="date_shoot" class="form-control" value="{{ old('date_shoot', $isEdit ? optional($report->date_shoot)->format('Y-m-d') : '') }}">
+                    <input type="date" name="date_shoot" id="date_shoot" class="form-control" value="{{ old('date_shoot', $isEdit ? optional($report->date_shoot)->format('Y-m-d') : '') }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Último día de rodaje</label>
+                    <input type="date" name="date_shoot_end" class="form-control" value="{{ old('date_shoot_end', $isEdit ? optional($report->date_shoot_end)->format('Y-m-d') : '') }}">
+                    <small class="cc-muted d-block mt-1">Sólo si la locación se ocupa <strong>más de un día</strong>. Déjalo vacío para un día único.</small>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Fecha Wrap</label>

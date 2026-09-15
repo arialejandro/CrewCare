@@ -138,7 +138,7 @@
                         </span>
                         @if($report->date_shoot)
                             <span class="d-inline-flex align-items-center gap-1">
-                                @include('componentes._icon', ['name' => 'clock'])<span>Shoot {{ $report->date_shoot->format('d/m/Y') }}</span>
+                                @include('componentes._icon', ['name' => 'clock'])<span>Shoot {{ $report->date_shoot->format('d/m/Y') }}@if($report->hasShootRange()) – {{ $report->date_shoot_end->format('d/m/Y') }}@endif</span>
                             </span>
                         @endif
                     </div>
