@@ -185,6 +185,27 @@ class ScoutingPersistenceTest extends QaTestCase
      * la misma persona en la misma hoja, y el corto es AMBIGUO en cuanto hay dos personas que
      * comparten nombre de pila — inaceptable en algo con valor probatorio.
      */
+    /**
+     * Los datos de PRODUCCIÓN (tipo, gerente, rep. de seguridad) llegan prellenados al crear un
+     * scouting nuevo: son idénticos en todos los de una misma producción y teclearlos cada vez es
+     * trabajo inútil. Siguen siendo campos editables — se borran y se escribe otra cosa si cambia.
+     */
+    public function test_el_formulario_nuevo_hereda_los_datos_de_produccion_del_ultimo_scouting(): void
+    {
+        $this->actingAsRole('safety-officer');
+        $this->post(route('scoutings.store'), $this->scoutPayload([
+            'production_type' => 'Película',
+            'manager_name'    => 'Adrián Aldana',
+            'safety_rep_name' => 'Ari Rómulo',
+        ]))->assertSessionHasNoErrors();
+
+        $resp = $this->get(route('scoutings.create'));
+        $resp->assertOk();
+        $resp->assertSee('value="Adrián Aldana"', false);
+        $resp->assertSee('value="Ari Rómulo"', false);
+        $resp->assertSee('<option value="Película" selected>', false);
+    }
+
     public function test_make_by_guarda_el_nombre_de_creditos_no_el_nombre_de_pila(): void
     {
         $user = $this->actingAsRole('safety-officer');

@@ -256,8 +256,40 @@ class ScoutingReportController extends Controller
         $standards    = SafetyStandard::orderBy('category_name')->get();
         $categories   = $this->categories();
         $hazardEvents = $this->hazardEventsCatalog();
+        $prefill      = $this->defaultsFromLastScouting();
 
-        return view('admin.scoutings.create', compact('productions', 'standards', 'categories', 'hazardEvents'));
+        return view('admin.scoutings.create', compact('productions', 'standards', 'categories', 'hazardEvents', 'prefill'));
+    }
+
+    /**
+     * PRELLENADO de los datos que NO son de la locación sino de la PRODUCCIÓN.
+     *
+     * Tipo de producción, Gerente de Producción y Rep. de Seguridad son idénticos en todos los
+     * scoutings de una misma producción, y hasta ahora había que teclearlos en cada uno. Se toman
+     * del último scouting capturado: si algo cambia, se borra el campo y se escribe lo nuevo — el
+     * siguiente ya hereda lo corregido.
+     *
+     * Sugerencia, no imposición: son campos normales y editables. La precedencia en la vista es
+     * old() › el reporte que se edita › esto › vacío, así que NUNCA pisa lo que el usuario escribió
+     * ni lo que ya tiene un reporte guardado. Sólo actúa al crear uno nuevo.
+     *
+     * Acotado a la producción en curso para que una instancia con varias no mezcle datos.
+     */
+    private function defaultsFromLastScouting(): array
+    {
+        $last = ScoutingReport::query()
+            ->when(
+                Schema::hasColumn('scouting_reports', 'production_id') && \App\Support\CurrentProduction::id(),
+                fn ($q) => $q->where('production_id', \App\Support\CurrentProduction::id())
+            )
+            ->latest('id')
+            ->first(['production_type', 'manager_name', 'safety_rep_name']);
+
+        return [
+            'production_type' => (string) ($last->production_type ?? ''),
+            'manager_name'    => (string) ($last->manager_name ?? ''),
+            'safety_rep_name' => (string) ($last->safety_rep_name ?? ''),
+        ];
     }
 
     /**

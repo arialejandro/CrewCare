@@ -267,22 +267,29 @@
                      y responsables. Se capturan una vez y el documento Amazon los usa; el
                      resto del encabezado ya sale de la Marca / autofirma. No son obligatorios. --}}
                 <div class="col-12"><hr class="my-1"><small class="cc-muted fw-semibold">Encabezado Amazon MGM <span class="fw-normal">(opcional)</span></small></div>
+                {{-- Estos tres NO son de la locación, son de la PRODUCCIÓN: se repiten idénticos en
+                     todos los scoutings. Al crear uno nuevo llegan prellenados con lo del último
+                     ($prefill, ScoutingReportController@defaultsFromLastScouting) y siguen siendo
+                     campos normales: si algo cambia, se borra y se escribe lo nuevo.
+                     Precedencia: old() › el reporte que se edita › el prellenado › vacío. Así nunca
+                     pisa lo tecleado ni lo ya guardado. --}}
+                @php $prefill = $prefill ?? []; @endphp
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Tipo de producción</label>
                     <select name="production_type" class="form-select">
                         <option value="">—</option>
                         @foreach(['TV', 'Película', 'Comercial', 'Game Show', 'Documental', 'Otro'] as $pt)
-                            <option value="{{ $pt }}" {{ old('production_type', $report->production_type ?? '') === $pt ? 'selected' : '' }}>{{ $pt }}</option>
+                            <option value="{{ $pt }}" {{ old('production_type', $report->production_type ?? ($prefill['production_type'] ?? '')) === $pt ? 'selected' : '' }}>{{ $pt }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Gerente de producción</label>
-                    <input type="text" name="manager_name" class="form-control" value="{{ old('manager_name', $report->manager_name ?? '') }}">
+                    <input type="text" name="manager_name" class="form-control" value="{{ old('manager_name', $report->manager_name ?? ($prefill['manager_name'] ?? '')) }}">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Rep. de seguridad</label>
-                    <input type="text" name="safety_rep_name" class="form-control" value="{{ old('safety_rep_name', $report->safety_rep_name ?? '') }}">
+                    <input type="text" name="safety_rep_name" class="form-control" value="{{ old('safety_rep_name', $report->safety_rep_name ?? ($prefill['safety_rep_name'] ?? '')) }}">
                 </div>
             </div>
         </div>
