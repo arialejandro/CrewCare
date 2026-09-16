@@ -171,7 +171,7 @@
                         </div>
                         <div class="col-12">
                             <label class="form-label small fw-semibold">{{ __('Foto de la unidad (opcional)') }}</label>
-                            <input type="file" name="unit_photo" class="form-control" accept="image/*,.heic,.heif" capture="environment" data-cc-photo>
+                            <input type="file" name="unit_photo" class="form-control" accept="image/*,.heic,.heif" data-cc-photo>
                             <div class="form-text">{{ __('La unidad real; queda sellada en el acta. Opcional.') }}</div>
                         </div>
                     </div>
@@ -183,7 +183,7 @@
                     <p class="text-muted small">{{ __('Agrega las fotos que necesites como prueba de lo verificado: sostienen tanto una revocación (paro) como una autorización (apta) después del hecho. Quedan selladas en el acta.') }}</p>
                     <div id="evidenceRows">
                         <div class="mb-2 evidence-row">
-                            <input type="file" name="evidence_photos[]" class="form-control" accept="image/*,.heic,.heif" capture="environment" data-cc-photo>
+                            <input type="file" name="evidence_photos[]" class="form-control" accept="image/*,.heic,.heif" data-cc-photo>
                         </div>
                     </div>
                     <button type="button" id="addEvidence" class="btn btn-sm btn-crew-soft d-inline-flex align-items-center gap-1">
@@ -191,7 +191,7 @@
                     </button>
                     <template id="evidenceTpl">
                         <div class="mb-2 evidence-row">
-                            <input type="file" name="evidence_photos[]" class="form-control" accept="image/*,.heic,.heif" capture="environment" data-cc-photo>
+                            <input type="file" name="evidence_photos[]" class="form-control" accept="image/*,.heic,.heif" data-cc-photo>
                         </div>
                     </template>
                 </div>
