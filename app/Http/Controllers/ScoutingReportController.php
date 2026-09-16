@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use App\Models\ScoutingReport;
+use App\Models\ScoutingDraft;
 use App\Models\SafetyStandard;
 use App\Models\HazardEvent;
 use App\Models\Production;
@@ -258,7 +259,115 @@ class ScoutingReportController extends Controller
         $hazardEvents = $this->hazardEventsCatalog();
         $prefill      = $this->defaultsFromLastScouting();
 
-        return view('admin.scoutings.create', compact('productions', 'standards', 'categories', 'hazardEvents', 'prefill'));
+        // Borradores VIVOS de esta persona con fotos ya subidas. La vista los ofrece para retomar,
+        // que es la diferencia entre "cerré la pestaña" y "perdí la jornada".
+        $drafts = ScoutingDraft::where('created_by_id', auth()->id())
+            ->latest('updated_at')->limit(10)->get()
+            ->map(fn ($d) => [
+                'key'    => $d->client_key,
+                'at'     => optional($d->updated_at)->toDateTimeString(),
+                'photos' => count($d->photoList()),
+            ])->values()->all();
+
+        return view('admin.scoutings.create', compact('productions', 'standards', 'categories', 'hazardEvents', 'prefill', 'drafts'));
+    }
+
+    // =====================================================================================
+    //  BORRADOR EN SERVIDOR (2026-09-15) — que cerrar la pestaña no cueste la jornada
+    // =====================================================================================
+    //
+    // El borrador local (cc-drafts, IndexedDB) guarda el texto pero NO puede guardar las fotos:
+    // un <input type=file> no es serializable, y así lo advierte su propia cabecera. El
+    // 2026-09-14 eso costó un scouting con más de 20 fotos al cerrarse la vista por error.
+    //
+    // Aquí las fotos dejan de vivir en la pestaña: viajan EN CUANTO se capturan y el borrador
+    // recuerda sus rutas. Al guardar el scouting no se re-suben — se referencian. Efecto lateral
+    // bienvenido: el guardado final deja de tardar un minuto subiendo 30 MB de golpe.
+    //
+    // Las tres rutas son del AUTOR y sólo tocan SU borrador. Nada de esto se sella.
+
+    /** Autoguardado de los CAMPOS (sin fotos). Upsert por (autor, clave local). */
+    public function draftSave(Request $request)
+    {
+        $data = $request->validate([
+            'client_key' => 'required|string|max:64',
+            'values'     => 'nullable|array',
+        ]);
+
+        $draft = ScoutingDraft::updateOrCreate(
+            ['created_by_id' => auth()->id(), 'client_key' => $data['client_key']],
+            ['production_id' => \App\Support\CurrentProduction::id(), 'values' => $data['values'] ?? []]
+        );
+
+        return response()->json(['ok' => true, 'id' => $draft->id, 'photos' => $draft->photoList()]);
+    }
+
+    /**
+     * Subida de fotos EN LOTE. Acepta varias por petición a propósito: una por petición
+     * multiplica la latencia por el número de fotos, y en campo la red es justo lo escaso.
+     *
+     * Devuelve las rutas ya guardadas para que el formulario las pinte y las mande al guardar.
+     * Tolerante a lo parcial: si una foto falla, las demás SÍ se guardan y se informa cuáles —
+     * perder las nueve buenas porque la décima venía corrupta sería exactamente el bug que esto
+     * viene a resolver.
+     */
+    public function draftPhotos(Request $request)
+    {
+        $data = $request->validate([
+            'client_key' => 'required|string|max:64',
+            'photos'     => 'required|array|min:1',
+            'photos.*'   => 'required|mimes:jpeg,png,jpg,gif,webp,heic,heif|heic_ok|max:12288',
+        ]);
+
+        $draft = ScoutingDraft::firstOrCreate(
+            ['created_by_id' => auth()->id(), 'client_key' => $data['client_key']],
+            ['production_id' => \App\Support\CurrentProduction::id(), 'values' => []]
+        );
+
+        $saved  = $draft->photos ?? [];
+        $nuevas = [];
+        $fallos = 0;
+
+        // El resultado conserva la POSICIÓN de entrada (null donde falló). Sin eso, el navegador no
+        // podría emparejar cada foto con su resultado y, si una fallara a media tanda, daría por
+        // subidas las que no lo están — o al revés. Con null en su sitio, la que falló se queda en
+        // el formulario y viaja por el camino normal.
+        foreach ($request->file('photos') as $image) {
+            if (! $image || ! $image->isValid()) {
+                $nuevas[] = null;
+                $fallos++;
+                continue;
+            }
+            try {
+                $entry    = ['path' => $this->storeUploadedImage($image, 'additional'), 'caption' => '', 'risk_map' => false];
+                $saved[]  = $entry;
+                $nuevas[] = $entry;
+            } catch (\Throwable $e) {
+                $nuevas[] = null;
+                $fallos++;
+                Log::warning('scouting draft: foto no guardada', ['e' => $e->getMessage()]);
+            }
+        }
+
+        $draft->photos = $saved;
+        $draft->save();
+
+        return response()->json(['ok' => true, 'saved' => $nuevas, 'failed' => $fallos, 'total' => count($saved)]);
+    }
+
+    /** Descarta el borrador del autor (botón "descartar", o tras guardar el scouting). */
+    public function draftDiscard(Request $request)
+    {
+        $key   = (string) $request->input('client_key', '');
+        $draft = ScoutingDraft::forAuthor($key, auth()->id());
+
+        if ($draft) {
+            // Las fotos NO se borran aquí: si el scouting se guardó, son suyas. Las que queden
+            // realmente huérfanas las barre el aseo de archivos, no este botón.
+            $draft->delete();
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     /**
@@ -327,12 +436,41 @@ class ScoutingReportController extends Controller
             $reportData['main_image_path'] = $this->storeUploadedImage($request->file('main_image'), 'main');
         }
 
+        // ---- Fotos que YA viajaron (borrador en servidor) ----
+        // Llegan como RUTAS, no como archivos: se subieron mientras se capturaba, así que aquí no
+        // se re-suben. Por eso guardar un scouting de 20 fotos es instantáneo en vez de tardar un
+        // minuto mandando 30 MB — y por eso cerrar la pestaña ya no cuesta el trabajo del día.
+        //
+        // 🔒 Cada ruta se comprueba contra el borrador DEL AUTOR (ScoutingDraft::owns). La ruta la
+        // propone el navegador; sin esta verificación alguien podría mandar una cualquiera y colar
+        // como evidencia un archivo que no subió — en un documento sellable eso no es aceptable.
+        $items = [];
+        $draftKey   = (string) $request->input('draft_key', '');
+        $draftPaths = (array) $request->input('draft_photos', []);
+        if ($draftKey !== '' && $draftPaths) {
+            $draft = ScoutingDraft::forAuthor($draftKey, auth()->id());
+            if ($draft) {
+                $dCaptions = (array) $request->input('draft_photos_captions', []);
+                $dRiskmap  = (array) $request->input('draft_photos_riskmap', []);
+                foreach (array_values($draftPaths) as $i => $path) {
+                    $path = (string) $path;
+                    if (! $draft->owns($path)) {
+                        continue; // ruta ajena o inventada: fuera, en silencio
+                    }
+                    $item = ['path' => $path, 'caption' => $this->cleanCaption($dCaptions[$i] ?? '')];
+                    if (! empty($dRiskmap[$i])) {
+                        $item['risk_map'] = true;
+                    }
+                    $items[] = $item;
+                }
+            }
+        }
+
         if ($request->hasFile('additional_images')) {
             // Los pies de foto y el flag de mapeo llegan índice-alineados con los archivos
             // (mismo orden del DOM). additional_images_riskmap[] es "0"/"1" por imagen.
             $captions = $request->input('additional_images_captions', []);
             $riskmap  = $request->input('additional_images_riskmap', []);
-            $items = [];
             foreach ($request->file('additional_images') as $idx => $image) {
                 if (!$image || !$image->isValid()) {
                     continue; // ignora slots vacíos/corruptos del arreglo
@@ -346,10 +484,17 @@ class ScoutingReportController extends Controller
                 }
                 $items[] = $item;
             }
-            // El cast 'array' serializa; se asigna como LISTA de {path, caption} (sin json_encode).
-            if (!empty($items)) {
-                $reportData['additional_images_paths'] = $items;
-            }
+        }
+
+        // El cast 'array' serializa; se asigna como LISTA de {path, caption} (sin json_encode).
+        //
+        // 🪤 Esta asignación vivía DENTRO del `if (hasFile(...))`. Con el borrador en servidor eso
+        // se vuelve un bug silencioso: el caso normal pasa a ser que las fotos YA viajaron y no
+        // llegue ni un archivo en el envío final — y entonces el scouting se guardaba sin ninguna
+        // imagen, sin error, después de que el usuario las capturó todas. Fuera del `if`, las dos
+        // procedencias (subidas antes o adjuntas ahora) se guardan igual.
+        if (! empty($items)) {
+            $reportData['additional_images_paths'] = $items;
         }
 
         try {
@@ -371,6 +516,13 @@ class ScoutingReportController extends Controller
             if ($report->status === 'final') {
                 $report->refresh();
                 $report->signDocument(auth()->user(), $request);
+            }
+
+            // El borrador cumplió: el scouting ya existe. Se retira para que no reaparezca al
+            // abrir otro nuevo. SOLO aquí — si el guardado falla más abajo, el borrador SIGUE VIVO
+            // con sus fotos, que es justo la red que esto viene a tender.
+            if ($draftKey !== '') {
+                ScoutingDraft::forAuthor($draftKey, auth()->id())?->delete();
             }
 
             return redirect()->route('scoutings.show', $report->id)
