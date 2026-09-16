@@ -921,6 +921,22 @@
                         </button>
                         <span id="ai-count" class="cc-muted small ms-2"></span>
                         <div id="ai-grid" class="ai-grid mt-2"></div>
+
+                        {{-- FOTOS YA A SALVO (borrador en servidor, sólo al crear).
+                             Suben en cuanto se capturan: si se cierra la pestaña, se recarga o se
+                             acaba la batería, estas YA no se pierden. Al guardar viajan como RUTAS,
+                             no como archivos — por eso el guardado final es instantáneo. --}}
+                        @if(!$isEdit)
+                            <div id="sd-saved-wrap" class="mt-2" hidden>
+                                <div class="cc-muted small mb-1 d-flex align-items-center gap-1">
+                                    @include('componentes._icon', ['name' => 'file-check', 'class' => 'cc-ico'])
+                                    <span><strong id="sd-saved-count">0</strong> a salvo en el servidor — ya no se pierden si cierras la vista.</span>
+                                </div>
+                                <div id="sd-saved-grid" class="ai-grid"></div>
+                            </div>
+                            <div id="sd-status" class="cc-muted small mt-1" role="status"></div>
+                        @endif
+
                         <small id="ai-help" class="cc-muted d-block mt-1" style="display:none;">
                             Pon un pie de foto y marca las que sean <strong>mapeo de riesgos</strong>.
                         </small>
@@ -982,6 +998,12 @@
      maneja HEIC de iPhone) para todos los caminos de imagen. Se carga ANTES del script
      inline de abajo (script clásico = ejecución en orden) para que window.CCPhoto exista. --}}
 <script src="{{ asset('js/cc-photo.js') }}?v=1"></script>
+{{-- Borrador en SERVIDOR: sube cada foto en cuanto se captura para que cerrar la pestaña no
+     cueste la jornada, y para que el guardado final no tenga que mandar 30 MB de golpe.
+     Sólo al CREAR: al editar, las imágenes ya viven en el reporte. --}}
+@if(!$isEdit)
+    <script src="{{ asset('js/cc-scouting-draft.js') }}?v=1"></script>
+@endif
 
 <script>
     // Aviso SB132: muestra/oculta según la casilla de actividades especiales.
@@ -1388,6 +1410,7 @@
             }
 
             var busy = false;
+            var recienAgregadas = [];   // las de ESTA tanda, para ponerlas a salvo en cuanto entren
             aiAdd.addEventListener('click', function () { aiInput.click(); });
             aiInput.addEventListener('change', function () {
                 if (busy) return; // ignora eventos disparados por nuestra propia reasignación
@@ -1401,7 +1424,10 @@
                         return processFile(f).then(function (out) {
                             if (window.CCPhoto && window.CCPhoto.unconverted(f, out)) { heicBad = true; }
                             var k = keyOf(out);
-                            if (!seen[k]) { seen[k] = true; store.items.add(out); captions.push(''); riskmaps.push(false); }
+                            if (!seen[k]) {
+                                seen[k] = true; store.items.add(out); captions.push(''); riskmaps.push(false);
+                                recienAgregadas.push(out);   // ya comprimida: es la que se sube
+                            }
                         });
                     });
                 });
@@ -1410,8 +1436,141 @@
                     aiAdd.disabled = false;
                     render();
                     ccHeicWarn(document.getElementById('ai-uploader'), heicBad);
+                    sdUpload(recienAgregadas);   // ponerlas a salvo YA (ver bloque de abajo)
+                    recienAgregadas = [];
                 });
             });
+
+            /* ============================================================================
+             *  BORRADOR EN SERVIDOR — que cerrar la pestaña no cueste la jornada
+             * ============================================================================
+             *  El 2026-09-14 se perdió un scouting con más de 20 fotos al cerrarse la vista.
+             *  El borrador local guarda el texto pero NO puede guardar un <input type=file>.
+             *  Aquí cada foto se sube EN CUANTO se captura y pasa a la rejilla "a salvo":
+             *  sale del acumulador local y queda como RUTA (draft_photos[]). Al guardar el
+             *  scouting no se re-sube nada — de paso, el guardado deja de tardar un minuto.
+             *
+             *  Si la subida falla, la foto NO se pierde ni se interrumpe la captura: se queda
+             *  en la rejilla normal, se reintenta al volver la red, y si nunca vuelve viaja por
+             *  el camino de siempre al guardar. Los dos caminos acaban igual.
+             * ============================================================================ */
+            var sdWrap   = document.getElementById('sd-saved-wrap');
+            var sdGrid   = document.getElementById('sd-saved-grid');
+            var sdCount  = document.getElementById('sd-saved-count');
+            var sdStatus = document.getElementById('sd-status');
+            var sdOn     = !!(sdWrap && sdGrid && window.CCScoutDraft);
+            var sdTotal  = 0;
+
+            function sdSay(txt, cls) {
+                if (!sdStatus) { return; }
+                sdStatus.textContent = txt || '';
+                sdStatus.className = 'small mt-1 ' + (cls || 'cc-muted');
+            }
+
+            // La clave del borrador viaja con el formulario: el servidor sólo acepta rutas que
+            // ESE borrador, de ESE autor, registró al subirlas.
+            function sdKeyInput() {
+                var f = aiInput.form;
+                if (!f) { return; }
+                if (f.querySelector('input[name="draft_key"]')) { return; }
+                var h = document.createElement('input');
+                h.type = 'hidden'; h.name = 'draft_key'; h.value = window.CCScoutDraft.key();
+                f.appendChild(h);
+            }
+
+            // Celda de foto YA a salvo: miniatura + pie + switch, con los hidden que la mandan
+            // como ruta. Mismos nombres alineados por orden del DOM, igual que las locales.
+            function sdCell(entry) {
+                var cell = document.createElement('div'); cell.className = 'ai-cell';
+
+                var thumb = document.createElement('div'); thumb.className = 'ai-thumb';
+                var img = document.createElement('img'); img.src = entry.path; img.alt = '';
+                var ok = document.createElement('span'); ok.className = 'ai-sz'; ok.textContent = 'a salvo ✓';
+                thumb.appendChild(img); thumb.appendChild(ok);
+
+                var hid = document.createElement('input');
+                hid.type = 'hidden'; hid.name = 'draft_photos[]'; hid.value = entry.path;
+
+                var cap = document.createElement('input');
+                cap.type = 'text'; cap.name = 'draft_photos_captions[]';
+                cap.className = 'form-control form-control-sm ai-cap mt-1';
+                cap.maxLength = 300; cap.placeholder = 'Pie de foto (hallazgo / acción)…';
+                cap.value = entry.caption || '';
+
+                var riskWrap = document.createElement('div');
+                riskWrap.className = 'ai-risk form-check form-switch';
+                var riskChk = document.createElement('input');
+                riskChk.type = 'checkbox'; riskChk.className = 'form-check-input';
+                riskChk.setAttribute('role', 'switch');
+                riskChk.id = 'sdrisk-' + (sdTotal);
+                riskChk.checked = !!entry.risk_map;
+                var riskHid = document.createElement('input');
+                riskHid.type = 'hidden'; riskHid.name = 'draft_photos_riskmap[]';
+                riskHid.value = entry.risk_map ? '1' : '0';
+                var riskLbl = document.createElement('label');
+                riskLbl.className = 'form-check-label';
+                riskLbl.setAttribute('for', riskChk.id);
+                riskLbl.textContent = 'Mapeo de riesgos';
+                if (entry.risk_map) { cell.classList.add('is-risk'); }
+                riskChk.addEventListener('change', function () {
+                    riskHid.value = riskChk.checked ? '1' : '0';
+                    cell.classList.toggle('is-risk', riskChk.checked);
+                });
+                riskWrap.appendChild(riskChk); riskWrap.appendChild(riskHid); riskWrap.appendChild(riskLbl);
+
+                cell.appendChild(thumb); cell.appendChild(hid);
+                cell.appendChild(cap); cell.appendChild(riskWrap);
+                sdGrid.appendChild(cell);
+
+                sdTotal++;
+                if (sdCount) { sdCount.textContent = sdTotal; }
+                sdWrap.hidden = false;
+            }
+
+            // Saca del acumulador local la foto que ya viajó (por identidad, no por índice: el
+            // usuario puede haber quitado otras mientras subía).
+            function sdDropLocal(file) {
+                var files = Array.prototype.slice.call(store.files);
+                var i = files.indexOf(file);
+                if (i >= 0) { removeAt(i); }
+            }
+
+            function sdUpload(nuevas) {
+                if (!sdOn || !nuevas || !nuevas.length) { return; }
+                sdKeyInput();
+                sdSay('Poniendo a salvo ' + nuevas.length + (nuevas.length === 1 ? ' foto…' : ' fotos…'));
+
+                window.CCScoutDraft.upload(nuevas).then(function (res) {
+                    var saved = (res && res.saved) || [];
+                    var okN = 0;
+                    saved.forEach(function (entry, i) {
+                        if (!entry || !entry.path) { return; }  // null = esa falló; se queda local
+                        sdDropLocal(nuevas[i]);
+                        sdCell(entry);
+                        okN++;
+                    });
+                    if (okN === nuevas.length) {
+                        sdSay(sdTotal + (sdTotal === 1 ? ' foto a salvo en el servidor.' : ' fotos a salvo en el servidor.'), 'text-success');
+                    } else {
+                        sdSay('Se pusieron a salvo ' + okN + ' de ' + nuevas.length + '. El resto se manda al guardar.', 'text-warning');
+                    }
+                }).catch(function () {
+                    // Sin red: NO se interrumpe la captura. Se reintenta solo y, si nunca vuelve
+                    // la red, estas fotos viajan por el camino normal al guardar.
+                    sdSay('Sin conexión: sigue capturando. Estas fotos se subirán solas en cuanto vuelva la red.', 'text-warning');
+                    window.CCScoutDraft.enqueue({
+                        files: nuevas,
+                        onDone: function (saved) {
+                            (saved || []).forEach(function (entry, i) {
+                                if (!entry || !entry.path) { return; }
+                                sdDropLocal(nuevas[i]);
+                                sdCell(entry);
+                            });
+                            sdSay(sdTotal + ' fotos a salvo en el servidor.', 'text-success');
+                        }
+                    });
+                });
+            }
         }
 
         // ---- Existentes (edición): quitar una imagen ya guardada (fuera del gate canDT

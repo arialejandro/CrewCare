@@ -375,6 +375,13 @@ Route::middleware(['auth','permission:medical.create'])->group(function () {
 Route::middleware(['auth','permission:locations.create'])->group(function () {
     Route::get('/scoutings/create', [App\Http\Controllers\ScoutingReportController::class, 'create'])->name('scoutings.create');
     Route::post('/scoutings', [App\Http\Controllers\ScoutingReportController::class, 'store'])->middleware('idempotent')->name('scoutings.store');
+
+    // BORRADOR EN SERVIDOR — mismo permiso que crear, porque es literalmente crear a medias.
+    // Van ANTES de `/scoutings/{id}` por el mismo motivo que `create` (rutas fijas primero).
+    // Las fotos suben EN CUANTO se capturan para que cerrar la pestaña no cueste la jornada.
+    Route::post('/scoutings/draft', [App\Http\Controllers\ScoutingReportController::class, 'draftSave'])->name('scoutings.draft.save');
+    Route::post('/scoutings/draft/photos', [App\Http\Controllers\ScoutingReportController::class, 'draftPhotos'])->name('scoutings.draft.photos');
+    Route::post('/scoutings/draft/discard', [App\Http\Controllers\ScoutingReportController::class, 'draftDiscard'])->name('scoutings.draft.discard');
     // Edición: mismo nivel de permiso que crear (no existe locations.edit y NO se
     // crean permisos nuevos). Se declara ANTES del show `/scoutings/{id}` de abajo
     // para que `{id}/edit` nunca sea capturado por el patrón del show.
