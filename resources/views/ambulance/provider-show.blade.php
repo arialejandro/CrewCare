@@ -218,7 +218,7 @@
                                     {{ __('Foto de credencial') }}
                                 </label>
                                 <input id="id_photo_path" type="file" name="id_photo_path"
-                                       accept="image/*,.heic,.heif" capture="environment" data-cc-photo
+                                       accept="image/*,.heic,.heif" data-cc-photo
                                        class="form-control cc-control">
                                 <span class="cc-help">{{ __('Alta en el momento: la foto de la credencial permite cotejar a quien se presenta.') }}</span>
                             </div>

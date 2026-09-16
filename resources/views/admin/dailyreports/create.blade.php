@@ -208,7 +208,12 @@
                     </div>
                     <div class="col-md-4 col-12">
                         <label class="form-label small fw-bold">{{ __('reports.dsr_meeting_photo_label') }}</label>
-                        <input type="file" name="safety_meeting_photo" class="form-control" accept="image/*,.heic,.heif" capture="environment" data-cc-photo>
+                        {{-- SIN `capture`: ese atributo fuerza la cámara y QUITA la opción de elegir
+                             de la galería. En set hacen falta las dos — a veces la foto ya se tomó
+                             antes, o la tomó otra persona. Sin el atributo, iOS y Android ofrecen
+                             ambas (cámara o fototeca) y el usuario decide. Se quitó del hallazgo el
+                             2026-09-08; éste se quedó atrás. --}}
+                        <input type="file" name="safety_meeting_photo" class="form-control" accept="image/*,.heic,.heif" data-cc-photo>
                         <div class="form-text small">{{ __('reports.dsr_meeting_photo_hint') }}</div>
                     </div>
                 </div>

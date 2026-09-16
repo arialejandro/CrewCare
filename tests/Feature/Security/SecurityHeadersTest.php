@@ -19,14 +19,59 @@ class SecurityHeadersTest extends QaTestCase
         $res->assertHeader('X-Frame-Options', 'SAMEORIGIN');
         $res->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 
-        $csp = $res->headers->get('Content-Security-Policy-Report-Only');
-        $this->assertNotNull($csp, 'la CSP va en modo REPORTE (no bloqueo)');
+        // La CSP se emite en UNO de dos modos según `csp_enforce`, nunca en ambos. Este test no
+        // fija cuál: fija que la política sea la MISMA y esté completa en cualquiera de los dos.
+        //
+        // 🪤 Antes daba por hecho el modo REPORTE, así que en cuanto el owner activó el bloqueo
+        // en su .env la prueba se puso en rojo y ahí se quedó. Una prueba de seguridad que lleva
+        // días fallando por una razón conocida deja de leerse — y el día que el bloqueo mató el
+        // motor geo en producción (connect-src cerrado, 2026-09-14), la suite ya no avisaba de
+        // nada. Un guardia que grita por lo de siempre es un guardia apagado.
+        $enforcing = (bool) config('crewcare.security.csp_enforce');
+        $csp       = $res->headers->get($enforcing ? 'Content-Security-Policy' : 'Content-Security-Policy-Report-Only');
+        $otro      = $res->headers->get($enforcing ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy');
+
+        $this->assertNotNull($csp, $enforcing
+            ? 'con csp_enforce=true la política debe ir en BLOQUEO (Content-Security-Policy).'
+            : 'con csp_enforce=false la política debe ir en REPORTE (Content-Security-Policy-Report-Only).');
+        $this->assertNull($otro, 'la CSP se emite en UN solo modo: nunca las dos cabeceras a la vez.');
+
         $this->assertStringContainsString("script-src 'self'", $csp);
         $this->assertStringContainsString('report-uri /csp-report', $csp);
 
-        // Fuera de producción NO hay HSTS ni CSP de bloqueo.
+        // Fuera de producción NO hay HSTS (el transporte no se toca en local/testing).
         $this->assertNull($res->headers->get('Strict-Transport-Security'));
-        $this->assertNull($res->headers->get('Content-Security-Policy'));
+    }
+
+    /**
+     * REGRESIÓN · el motor geo necesita salir a tres servicios de OpenStreetMap.
+     *
+     * `connect-src 'self'` a secas los bloquea y deja MUERTO todo lo que depende de la ubicación
+     * (dirección del scouting y del DSR, hospitales cercanos del PAE y del MEDEVAC, ETA). Y el fallo
+     * no se ve como fallo: el navegador SÍ obtiene las coordenadas, sólo se bloquea la llamada que
+     * las traduce, y el código degrada a "escríbela a mano" — su conducta correcta sin internet. En
+     * pantalla parece un GPS roto, y así se reportó desde producción: "la geolocalización nunca
+     * funciona, ya probé en varios dispositivos". Costó una jornada encontrarlo.
+     *
+     * Si alguien cierra connect-src otra vez, que lo diga la suite y no el set.
+     */
+    public function test_la_csp_deja_salir_a_los_servicios_del_motor_geo(): void
+    {
+        $res = $this->get('/login');
+        $csp = $res->headers->get('Content-Security-Policy')
+            ?: $res->headers->get('Content-Security-Policy-Report-Only');
+
+        $this->assertNotNull($csp, 'sin CSP emitida no hay nada que comprobar.');
+
+        // Los mismos hosts que usa public/js/crewcare-geo.js.
+        foreach ([
+            'https://nominatim.openstreetmap.org',   // dirección ⇄ coordenadas
+            'https://overpass-api.de',               // hospitales cercanos
+            'https://router.project-osrm.org',       // ETA por carretera
+        ] as $host) {
+            $this->assertStringContainsString($host, $csp,
+                "connect-src debe permitir $host o el módulo geo queda muerto EN SILENCIO.");
+        }
     }
 
     public function test_sumidero_csp_responde(): void

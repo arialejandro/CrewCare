@@ -169,7 +169,7 @@
                             {{ __('Foto del documento') }}
                         </label>
                         <input id="{{ $idp }}-photo" type="file" name="photo"
-                               accept="image/*,.heic,.heif" capture="environment" data-cc-photo
+                               accept="image/*,.heic,.heif" data-cc-photo
                                class="form-control cc-control">
                         <span class="cc-help">{{ __('El riesgo real es un papel de otra persona: la foto permite cotejar el documento con quien lo presenta.') }}</span>
                     </div>

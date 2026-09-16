@@ -169,7 +169,7 @@
                         </div>
                         <div class="col-12">
                             <label class="form-label small fw-semibold">{{ __('Foto de la herramienta (opcional)') }}</label>
-                            <input type="file" name="tool_photo" class="form-control" accept="image/*,.heic,.heif" capture="environment" data-cc-photo>
+                            <input type="file" name="tool_photo" class="form-control" accept="image/*,.heic,.heif" data-cc-photo>
                             <div class="form-text">{{ __('La unidad real; queda sellada en el acta.') }}</div>
                         </div>
                         @if ($tool->requires_designated_operator)

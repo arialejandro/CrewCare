@@ -65,7 +65,18 @@ class TsaTimestampTest extends QaTestCase
         // El verificador público muestra el timbre cuando existe.
         $acuse = SealVerifier::resolve('injury', (string) $r->uuid);
         $this->assertNotEmpty($acuse['tsa_at']);
-        $this->assertSame('freeTSA', $acuse['tsa_authority']);
+        // 🪤 Antes fijaba el literal 'freeTSA', que ya no lo emite nadie: con el transporte
+        // inyectado (esta prueba) Rfc3161 empaqueta la autoridad como 'test', y en producción sale
+        // la que diga config/crewcare.php · tsa.authorities — hoy DigiCert. O sea que el literal
+        // estaba condenado a fallar, y llevaba días en rojo. Una prueba de seguridad que falla
+        // siempre por una razón conocida deja de leerse, y entonces ya no protege de nada.
+        //
+        // Lo que de verdad hay que comprobar no es CÓMO se llama la autoridad, sino que el acuse
+        // público muestre EXACTAMENTE la que quedó registrada al timbrar. Eso vale en cualquier
+        // instancia y con cualquier proveedor.
+        $this->assertNotEmpty($acuse['tsa_authority'], 'el acuse debe decir QUIÉN timbró.');
+        $this->assertSame($row->authority, $acuse['tsa_authority'],
+            'el verificador debe mostrar la MISMA autoridad que se guardó en signature_timestamps.');
     }
 
     public function test_best_effort_si_la_tsa_no_responde_no_bloquea_ni_altera_el_sello(): void

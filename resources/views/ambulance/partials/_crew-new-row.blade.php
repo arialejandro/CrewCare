@@ -32,11 +32,11 @@
     </div>
     <div class="col-md-6">
         <label class="form-label small fw-semibold mb-1">{{ __('Foto del certificado CONOCER (opcional)') }}</label>
-        <input type="file" name="crew[{{ $i }}][cert_photo]" class="form-control form-control-sm" accept="image/*,.heic,.heif" capture="environment" data-cc-photo>
+        <input type="file" name="crew[{{ $i }}][cert_photo]" class="form-control form-control-sm" accept="image/*,.heic,.heif" data-cc-photo>
     </div>
     <div class="col-md-6">
         <label class="form-label small fw-semibold mb-1">{{ __('Foto de la persona (opcional)') }}</label>
-        <input type="file" name="crew[{{ $i }}][person_photo]" class="form-control form-control-sm" accept="image/*,.heic,.heif" capture="environment" data-cc-photo>
+        <input type="file" name="crew[{{ $i }}][person_photo]" class="form-control form-control-sm" accept="image/*,.heic,.heif" data-cc-photo>
     </div>
     <div class="col-12">
         <div class="form-text">{{ __('Con folio + foto del certificado + foto de la persona, el Técnico en Atención Médica Prehospitalaria (TAMP) queda cotejado como verificado. Las fotos son opcionales; sin ambas, queda registrado sin cotejar.') }}</div>
