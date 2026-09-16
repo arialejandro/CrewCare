@@ -219,6 +219,43 @@ class ScoutingDraftTest extends QaTestCase
         $edit->assertDontSee('js/cc-scouting-draft.js', false);
     }
 
+    /**
+     * DESPLIEGUE SIN MIGRAR — la ventana entre copiar los archivos y correr `migrate`.
+     *
+     * Es un orden perfectamente normal (Plesk copia, la migración va después), y durante esos
+     * minutos la tabla no existe. Sin tolerancia, el módulo que existe para NO perder trabajo sería
+     * justo el que impide capturarlo: 500 en la pantalla de captura, y —peor— un "No se pudo
+     * guardar el reporte" DESPUÉS de haberlo creado, porque la limpieza del borrador reventaba
+     * dentro del try. El owner lo daría por perdido y lo capturaría otra vez.
+     *
+     * Sin tabla, todo debe comportarse como antes de existir esto.
+     */
+    public function test_sin_la_tabla_todo_sigue_funcionando_como_antes(): void
+    {
+        Storage::fake('public');
+        $this->actingAsRole('safety-officer');
+        \Illuminate\Support\Facades\Schema::drop('scouting_drafts');
+
+        $this->get(route('scoutings.create'))->assertOk();   // la captura NO puede caerse
+
+        // Los endpoints responden sin romper; el navegador conserva sus fotos y las manda al guardar.
+        $this->post(route('scoutings.draft.photos'), [
+            'client_key' => 'sin-tabla',
+            'photos'     => [UploadedFile::fake()->image('a.jpg')],
+        ])->assertOk()->assertJson(['ok' => false]);
+
+        // Y guardar debe funcionar Y reportarse como éxito, aunque el borrador no exista.
+        $payload = $this->payload(['draft_key' => 'sin-tabla']);
+        $res = $this->post(route('scoutings.store'), $payload);
+        $res->assertSessionHasNoErrors();
+        $res->assertSessionHas('success');
+
+        $this->assertNotNull(
+            ScoutingReport::where('location_name', $payload['location_name'])->first(),
+            'el scouting se guarda igual: la tabla del borrador no es un requisito para capturar.'
+        );
+    }
+
     public function test_el_borrador_exige_sesion(): void
     {
         $this->post(route('scoutings.draft.photos'), ['client_key' => 'x', 'photos' => []])

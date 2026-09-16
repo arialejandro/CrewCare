@@ -261,13 +261,15 @@ class ScoutingReportController extends Controller
 
         // Borradores VIVOS de esta persona con fotos ya subidas. La vista los ofrece para retomar,
         // que es la diferencia entre "cerré la pestaña" y "perdí la jornada".
-        $drafts = ScoutingDraft::where('created_by_id', auth()->id())
-            ->latest('updated_at')->limit(10)->get()
-            ->map(fn ($d) => [
-                'key'    => $d->client_key,
-                'at'     => optional($d->updated_at)->toDateTimeString(),
-                'photos' => count($d->photoList()),
-            ])->values()->all();
+        $drafts = $this->draftsAvailable()
+            ? ScoutingDraft::where('created_by_id', auth()->id())
+                ->latest('updated_at')->limit(10)->get()
+                ->map(fn ($d) => [
+                    'key'    => $d->client_key,
+                    'at'     => optional($d->updated_at)->toDateTimeString(),
+                    'photos' => count($d->photoList()),
+                ])->values()->all()
+            : [];
 
         return view('admin.scoutings.create', compact('productions', 'standards', 'categories', 'hazardEvents', 'prefill', 'drafts'));
     }
@@ -286,9 +288,43 @@ class ScoutingReportController extends Controller
     //
     // Las tres rutas son del AUTOR y sólo tocan SU borrador. Nada de esto se sella.
 
+    /**
+     * ¿Está disponible el borrador en servidor?
+     *
+     * 🪤 DEGRADE-SAFE a propósito, igual que el resto del esquema opcional de la app. Desplegar el
+     * código ANTES de correr la migración es un orden perfectamente normal —Plesk copia los
+     * archivos y la migración se corre después—, y en esa ventana `scouting_drafts` no existe. Sin
+     * esta comprobación, la pantalla de captura devolvería 500: el módulo que existe para no perder
+     * trabajo sería justo el que impide capturarlo. Sin tabla, todo se comporta como antes: las
+     * fotos viajan al guardar, por el camino de siempre.
+     */
+    private ?bool $draftsOk = null;
+
+    private function draftsAvailable(): bool
+    {
+        // Se memoiza POR PETICIÓN (propiedad de instancia), no por proceso. Con `static` el valor
+        // sobreviviría en los workers de PHP-FPM ya calientes: tras correr la migración, los que
+        // siguieran vivos mantendrían el borrador apagado hasta reciclarse, y el owner vería que
+        // "no funciona" sin ninguna razón visible.
+        if ($this->draftsOk === null) {
+            try {
+                $this->draftsOk = Schema::hasTable('scouting_drafts');
+            } catch (\Throwable $e) {
+                $this->draftsOk = false;
+            }
+        }
+
+        return $this->draftsOk;
+    }
+
     /** Autoguardado de los CAMPOS (sin fotos). Upsert por (autor, clave local). */
     public function draftSave(Request $request)
     {
+        if (! $this->draftsAvailable()) {
+            // Sin tabla, el navegador se queda con sus fotos y las manda al guardar: como antes.
+            return response()->json(['ok' => false, 'reason' => 'unavailable'], 200);
+        }
+
         $data = $request->validate([
             'client_key' => 'required|string|max:64',
             'values'     => 'nullable|array',
@@ -313,6 +349,12 @@ class ScoutingReportController extends Controller
      */
     public function draftPhotos(Request $request)
     {
+        if (! $this->draftsAvailable()) {
+            // 200 con ok:false, no 500: el navegador lo trata como "no se pudo poner a salvo",
+            // conserva las fotos y las manda por el camino normal. Nada se pierde, nada se rompe.
+            return response()->json(['ok' => false, 'reason' => 'unavailable', 'saved' => []], 200);
+        }
+
         $data = $request->validate([
             'client_key' => 'required|string|max:64',
             'photos'     => 'required|array|min:1',
@@ -358,6 +400,10 @@ class ScoutingReportController extends Controller
     /** Descarta el borrador del autor (botón "descartar", o tras guardar el scouting). */
     public function draftDiscard(Request $request)
     {
+        if (! $this->draftsAvailable()) {
+            return response()->json(['ok' => true]);
+        }
+
         $key   = (string) $request->input('client_key', '');
         $draft = ScoutingDraft::forAuthor($key, auth()->id());
 
@@ -447,7 +493,7 @@ class ScoutingReportController extends Controller
         $items = [];
         $draftKey   = (string) $request->input('draft_key', '');
         $draftPaths = (array) $request->input('draft_photos', []);
-        if ($draftKey !== '' && $draftPaths) {
+        if ($draftKey !== '' && $draftPaths && $this->draftsAvailable()) {
             $draft = ScoutingDraft::forAuthor($draftKey, auth()->id());
             if ($draft) {
                 $dCaptions = (array) $request->input('draft_photos_captions', []);
@@ -521,8 +567,22 @@ class ScoutingReportController extends Controller
             // El borrador cumplió: el scouting ya existe. Se retira para que no reaparezca al
             // abrir otro nuevo. SOLO aquí — si el guardado falla más abajo, el borrador SIGUE VIVO
             // con sus fotos, que es justo la red que esto viene a tender.
-            if ($draftKey !== '') {
-                ScoutingDraft::forAuthor($draftKey, auth()->id())?->delete();
+            //
+            // 🪤 BLINDADO A PROPÓSITO. Esto es limpieza contable, y una limpieza JAMÁS puede tumbar
+            // un guardado que ya salió bien. Sin el try, bastaba con que la tabla no existiera
+            // —código desplegado antes de correr la migración, que es un orden perfectamente
+            // normal— para que el `catch` de abajo dijera "No se pudo guardar el reporte" DESPUÉS
+            // de haberlo creado. El usuario lo daría por perdido y lo capturaría otra vez:
+            // duplicado, por un borrador que no se pudo borrar. Si esto falla, el borrador se
+            // queda huérfano y no pasa nada — reaparece una vez y se descarta.
+            try {
+                if ($draftKey !== '' && $this->draftsAvailable()) {
+                    ScoutingDraft::forAuthor($draftKey, auth()->id())?->delete();
+                }
+            } catch (\Throwable $e) {
+                Log::warning('scouting: no se pudo retirar el borrador (el reporte SÍ se guardó)', [
+                    'report' => $report->id, 'e' => $e->getMessage(),
+                ]);
             }
 
             return redirect()->route('scoutings.show', $report->id)
