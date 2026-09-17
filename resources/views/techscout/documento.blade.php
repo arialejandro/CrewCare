@@ -76,10 +76,11 @@
     <table class="report-wrap">
     <thead><tr><td>
       @include('componentes._doc-hero', [
-        {{-- SIN foto de fondo a propósito: la banda es de 200px y una foto 4:3 pierde ~70% ahí.
-             En este documento las fotos son el contenido y se ven enteras abajo; la cabecera es
-             identidad de marca, no galería. --}}
-        'heroImage'       => null,
+        {{-- Portada ELEGIDA a mano (no la primera nota): la banda es ancha y baja, así que una foto
+             se ve como una franja. Quien arma el documento decide cuál aguanta ese encuadre —
+             normalmente un plano general de la locación. Sin portada, la banda queda con la marca
+             sola, que también es una salida digna. --}}
+        'heroImage'       => $scout->hero_image_path,
         'heroProject'     => $brandName,
         'heroLocation'    => $scout->location_name,
         'heroDate'        => $heroDate,
@@ -90,6 +91,59 @@
       ])
     </td></tr></thead>
     <tbody><tr><td>
+
+      {{-- ── DATOS DEL RECORRIDO ── Mismos campos y nombres que el Scouting H&S: quien lee los dos
+           documentos no debería tener que traducir. Sólo se imprime lo que está lleno — un dato
+           vacío en un documento que va a arte es ruido. --}}
+      @php
+        $general = array_filter([
+            'Producción'        => $scout->production_type,
+            'Gerente de prod.'  => $scout->manager_name,
+            'Tipo de locación'  => $scout->loc_setting,
+            'Horario'           => $scout->shoot_time,
+            'Prep'              => optional($scout->date_prep)->format('d/m/Y'),
+            'Rodaje'            => $scout->date_shoot
+                ? ($scout->hasShootRange()
+                    ? $scout->date_shoot->format('d/m/Y') . ' – ' . $scout->date_shoot_end->format('d/m/Y')
+                    : $scout->date_shoot->format('d/m/Y'))
+                : null,
+            'Wrap'              => optional($scout->date_wrap)->format('d/m/Y'),
+            'Dirección'         => $scout->location_address,
+        ]);
+        $viab = $scout->rows('viability_checklist');
+        $agr  = $scout->rows('agreements');
+      @endphp
+
+      @if ($general)
+        <div class="sec-h"><span class="bar"></span><h2>Datos del recorrido</h2></div>
+        <table class="tbl" style="margin-bottom:14px">
+          <tbody>
+            @foreach ($general as $k => $v)
+              <tr><th style="width:26%">{{ $k }}</th><td>{{ $v }}</td></tr>
+            @endforeach
+          </tbody>
+        </table>
+      @endif
+
+      @if ($viab)
+        <div class="sec-h"><span class="bar"></span><h2>Viabilidad</h2></div>
+        <table class="tbl" style="margin-bottom:14px">
+          <thead><tr><th style="width:32%">Permiso / gestión</th><th>Detalle</th></tr></thead>
+          <tbody>
+            @foreach ($viab as $r)<tr><td>{{ $r['item'] }}</td><td>{{ $r['detail'] }}</td></tr>@endforeach
+          </tbody>
+        </table>
+      @endif
+
+      @if ($agr)
+        <div class="sec-h"><span class="bar"></span><h2>Acuerdos</h2></div>
+        <table class="tbl" style="margin-bottom:14px">
+          <thead><tr><th style="width:32%">Con quién / qué</th><th>Qué se acordó</th></tr></thead>
+          <tbody>
+            @foreach ($agr as $r)<tr><td>{{ $r['item'] }}</td><td>{{ $r['detail'] }}</td></tr>@endforeach
+          </tbody>
+        </table>
+      @endif
 
       <div class="sec-h">
         <span class="bar"></span>
