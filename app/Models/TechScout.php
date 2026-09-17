@@ -30,7 +30,12 @@ class TechScout extends Model
         // Panel general — MISMOS nombres que el Scouting H&S a propósito: es el mismo dato del
         // mundo real, y llamarlo distinto en cada documento es cómo empiezan a divergir.
         'hero_image_path',
-        'production_type', 'manager_name', 'loc_setting', 'shoot_time',
+        // ⚠ `production_type` y `manager_name` NO están aquí a propósito. Existen como columnas
+        // (se crearon en la primera versión del panel) pero el owner los retiró: «esa información
+        // no es relevante aquí» — la producción y su gerente son los mismos para todas las
+        // locaciones, así que repetirlos en cada documento es ruido. Fuera de $fillable para que
+        // no se puedan rellenar por asignación masiva sin una decisión explícita.
+        'loc_setting', 'shoot_time',
         'date_prep', 'date_shoot', 'date_shoot_end', 'date_wrap',
         // Permisos, solicitudes especiales y lo pactado entre departamentos y locaciones.
         'viability_checklist', 'agreements',

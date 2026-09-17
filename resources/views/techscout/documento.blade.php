@@ -83,9 +83,13 @@
         'heroImage'       => $scout->hero_image_path,
         'heroProject'     => $brandName,
         'heroLocation'    => $scout->location_name,
+        {{-- Sólo la FECHA en la cabecera. La dirección se quitó de aquí: cargar la banda con el
+             domicilio completo la vuelve un bloque de datos y compite con la foto, cuando su
+             trabajo es abrir el documento. El domicilio vive abajo, en Datos del scouting, que es
+             donde se consulta. Decisión del owner. --}}
         'heroDate'        => $heroDate,
         'heroTime'        => null,
-        'heroMeta'        => $scout->location_address ?: null,
+        'heroMeta'        => null,
         'heroHideCallLoc' => true,
         'heroModule'      => 'Tech Scout',
       ])
@@ -115,7 +119,7 @@
       @endphp
 
       @if ($general)
-        <div class="sec-h"><span class="bar"></span><h2>Datos del recorrido</h2></div>
+        <div class="sec-h"><span class="bar"></span><h2>Datos del scouting</h2></div>
         <table class="tbl" style="margin-bottom:14px">
           <tbody>
             @foreach ($general as $k => $v)
@@ -147,11 +151,11 @@
 
       <div class="sec-h">
         <span class="bar"></span>
-        <h2>Recorrido · {{ $notas->count() }} {{ $notas->count() === 1 ? 'nota' : 'notas' }}</h2>
+        <h2>Notas · {{ $notas->count() }}</h2>
       </div>
 
       @if (! $notas->count())
-        <div class="tsn-none">Este recorrido todavía no tiene notas.</div>
+        <div class="tsn-none">Este scouting todavía no tiene notas.</div>
       @else
         @foreach ($notas as $n)
           <div class="tsn">

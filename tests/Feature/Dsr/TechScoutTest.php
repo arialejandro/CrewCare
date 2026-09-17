@@ -241,19 +241,18 @@ class TechScoutTest extends QaTestCase
         $scout = $this->nuevoRecorrido(['location_name' => 'Casa Pantalla']);
 
         $this->put(route('techscout.update', $scout->id), [
-            'location_name'   => 'Casa Pantalla',
-            'production_type' => 'Película',
-            'manager_name'    => 'Adrián Aldana',
-            'loc_setting'     => 'Interior',
-            'shoot_time'      => 'Día',
-            'date_shoot'      => '2026-10-14',
-            'date_shoot_end'  => '2026-10-17',
-            'viability'       => [['item' => 'Permiso de filmación', 'detail' => 'Lo tramita producción']],
-            'agreements'      => [['item' => 'Arte', 'detail' => 'Se retiran las cortinas el día 13']],
+            'location_name'  => 'Casa Pantalla',
+            'loc_setting'    => 'Interior',
+            'shoot_time'     => 'Día',
+            'date_shoot'     => '2026-10-14',
+            'date_shoot_end' => '2026-10-17',
+            'viability'      => [['item' => 'Permiso de filmación', 'detail' => 'Lo tramita producción']],
+            'agreements'     => [['item' => 'Arte', 'detail' => 'Se retiran las cortinas el día 13']],
         ])->assertSessionHasNoErrors();
 
         $s = $scout->fresh();
-        $this->assertSame('Película', $s->production_type);
+        $this->assertSame('Interior', $s->loc_setting);
+        $this->assertSame('Día', $s->shoot_time);
         $this->assertTrue($s->hasShootRange());
         $this->assertCount(1, $s->rows('viability_checklist'));
         $this->assertCount(1, $s->rows('agreements'));
@@ -305,8 +304,8 @@ class TechScoutTest extends QaTestCase
 
         // Segundo guardado SIN archivo: la portada debe seguir ahí.
         $this->put(route('techscout.update', $scout->id), [
-            'location_name'   => $scout->location_name,
-            'production_type' => 'TV',
+            'location_name' => $scout->location_name,
+            'shoot_time'    => 'Noche',
         ])->assertSessionHasNoErrors();
 
         $this->assertSame($portada, $scout->fresh()->hero_image_path,
@@ -323,6 +322,57 @@ class TechScoutTest extends QaTestCase
             'date_shoot'     => '2026-10-14',
             'date_shoot_end' => '2026-10-09',
         ])->assertSessionHasErrors('date_shoot_end');
+    }
+
+    /**
+     * UNA SOLA PANTALLA — crear abre el panel COMPLETO, no un formulario mínimo previo.
+     *
+     * 🪤 Antes eran dos pantallas y el owner lo marcó: «son 2 pantallas nuevamente». Partir la
+     * captura obliga a decidir qué es "lo mínimo" antes de dejar trabajar, y en campo eso es
+     * fricción. Lo único que no está hasta guardar son las notas, porque una nota necesita un
+     * documento al que pertenecer — y eso se dice en pantalla, no se esconde.
+     */
+    public function test_crear_abre_el_panel_completo_en_una_sola_pantalla(): void
+    {
+        $this->actingAsRole('safety-officer');
+
+        $res = $this->get(route('techscout.create'));
+        $res->assertOk();
+
+        $res->assertSee('name="location_name"', false);
+        $res->assertSee('name="loc_setting"', false);
+        $res->assertSee('name="shoot_time"', false);
+        $res->assertSee('name="date_shoot"', false);
+        $res->assertSee('name="hero_image"', false);
+        $res->assertSee('name="viability[0][item]"', false);
+        $res->assertSee('name="agreements[0][item]"', false);
+
+        // Lo que el owner retiró NO puede reaparecer.
+        $res->assertDontSee('name="production_type"', false);
+        $res->assertDontSee('name="manager_name"', false);
+
+        // Las notas se anuncian, pero aún no se pueden capturar.
+        $res->assertDontSee('name="story_label"', false);
+        $res->assertSee('Guarda los datos');
+    }
+
+    public function test_se_crea_con_todo_el_panel_de_un_solo_envio(): void
+    {
+        $this->actingAsRole('safety-officer');
+
+        $this->post(route('techscout.store'), [
+            'location_name' => 'Bodega Vallejo',
+            'loc_setting'   => 'Interior',
+            'shoot_time'    => 'Día',
+            'date_shoot'    => '2026-11-02',
+            'viability'     => [['item' => 'Permiso', 'detail' => 'En trámite']],
+        ])->assertSessionHasNoErrors();
+
+        $s = TechScout::latest('id')->first();
+        $this->assertSame('Bodega Vallejo', $s->location_name);
+        $this->assertSame('Interior', $s->loc_setting);
+        $this->assertCount(1, $s->rows('viability_checklist'),
+            'el panel entero debe guardarse en el MISMO envío que crea el documento.');
     }
 
     public function test_el_modulo_exige_sesion(): void
