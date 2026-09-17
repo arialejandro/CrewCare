@@ -379,6 +379,18 @@ Route::middleware(['auth','permission:locations.create'])->group(function () {
     // BORRADOR EN SERVIDOR — mismo permiso que crear, porque es literalmente crear a medias.
     // Van ANTES de `/scoutings/{id}` por el mismo motivo que `create` (rutas fijas primero).
     // Las fotos suben EN CUANTO se capturan para que cerrar la pestaña no cueste la jornada.
+    // ── TECH SCOUT · recorrido técnico de LOCACIONES ──────────────────────────────────────
+    // Documento de TRABAJO (foto + nota de lo que hay que resolver). NO es el Scouting H&S:
+    // aquél se sella y tiene valor probatorio; éste se edita a diario y no lleva hash.
+    // De momento reusa los permisos `locations.*` — su juego propio va en la siguiente tanda,
+    // junto con el alta de los scouters (hoy en producción sólo existe el owner).
+    Route::get('/tech-scout', [App\Http\Controllers\TechScoutController::class, 'index'])->name('techscout.index');
+    Route::get('/tech-scout/nuevo', [App\Http\Controllers\TechScoutController::class, 'create'])->name('techscout.create');
+    Route::post('/tech-scout', [App\Http\Controllers\TechScoutController::class, 'store'])->name('techscout.store');
+    Route::get('/tech-scout/{id}', [App\Http\Controllers\TechScoutController::class, 'show'])->name('techscout.show')->whereNumber('id');
+    Route::post('/tech-scout/{id}/notas', [App\Http\Controllers\TechScoutController::class, 'storeNote'])->name('techscout.note.store')->whereNumber('id');
+    Route::put('/tech-scout/{id}/notas/{noteId}', [App\Http\Controllers\TechScoutController::class, 'updateNote'])->name('techscout.note.update')->whereNumber('id')->whereNumber('noteId');
+
     Route::get('/scoutings/draft', [App\Http\Controllers\ScoutingReportController::class, 'draftShow'])->name('scoutings.draft.show');
     Route::post('/scoutings/draft', [App\Http\Controllers\ScoutingReportController::class, 'draftSave'])->name('scoutings.draft.save');
     Route::post('/scoutings/draft/photos', [App\Http\Controllers\ScoutingReportController::class, 'draftPhotos'])->name('scoutings.draft.photos');
