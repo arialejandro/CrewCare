@@ -81,6 +81,14 @@
     .ts-cell__meta{font-size:.68rem;color:var(--text-muted);display:flex;gap:.55rem;flex-wrap:wrap;align-items:center}
     .ts-cell__meta .ed{font-style:italic}
 
+    /* Estado de la captura. Vacío no ocupa nada (no hay placeholder de nada, regla de la casa). */
+    .ts-note-status{margin:.6rem 0 0;font-size:.8rem;font-weight:600;min-height:0}
+    .ts-note-status:empty{display:none}
+    .ts-note-status.is-info{color:var(--text-muted)}
+    .ts-note-status.is-ok{color:var(--ok)}
+    .ts-note-status.is-warn{color:var(--warn,#d19a12)}
+    .ts-note-status.is-error{color:var(--danger,#e05260)}
+
     .ts-empty{text-align:center;padding:2.5rem 1rem;color:var(--text-muted)}
     /* Editar en línea: discreto hasta que se abre, para que la rejilla siga siendo de consulta. */
     .ts-edit > summary{font-size:.7rem;color:var(--text-muted);cursor:pointer;list-style:none;margin-top:.15rem}
@@ -134,10 +142,16 @@
     @unless ($nuevo)
         <div class="card p-3 p-md-4 mb-3">
             <h2 class="h6 mb-3" style="font-family:'Poppins',sans-serif;font-weight:700">Agregar nota</h2>
-            <form action="{{ route('techscout.note.store', $scout->id) }}" method="POST" enctype="multipart/form-data">
+            {{-- data-ts-note-form: la captura NO se envía directo a la red — primero se guarda en
+                 el dispositivo (foto incluida) y de ahí sale. Ver public/js/cc-techscout-note.js. --}}
+            <form action="{{ route('techscout.note.store', $scout->id) }}" method="POST"
+                  enctype="multipart/form-data" data-ts-note-form>
                 @csrf
                 @include('techscout._note-fields', ['lastLabel' => $lastLabel, 'submitLabel' => 'Agregar nota'])
             </form>
+            {{-- El renglón que dice la verdad en cada momento: guardada · enviando · agregada, o
+                 cuántas esperan señal. Sin esto el mecanismo es invisible y nadie le cree. --}}
+            <p class="ts-note-status is-info" data-ts-note-status aria-live="polite"></p>
         </div>
     @endunless
 
@@ -147,7 +161,7 @@
          Al CREAR arrancan abiertos, que es cuando hay que llenarlos. --}}
     <form action="{{ $nuevo ? route('techscout.store') : route('techscout.update', $scout->id) }}"
           method="POST" enctype="multipart/form-data"
-          @if(! $nuevo) data-cc-sections="closed" @else data-cc-sections @endif class="mb-4">
+          @if(! $nuevo) data-cc-sections="closed" @else data-cc-sections data-ts-create-form @endif class="mb-4">
         @csrf
         @unless ($nuevo) @method('PUT') @endunless
 
@@ -275,6 +289,10 @@
         @endif
 
         <button type="submit" class="btn btn-crew-accent ts-submit">{{ $nuevo ? 'Crear Tech Scout' : 'Guardar datos' }}</button>
+        @if ($nuevo)
+            {{-- Sólo habla si el alta se quedó sin red: dice que NO hay que volver a capturarla. --}}
+            <p class="ts-note-status is-info" data-ts-create-status aria-live="polite"></p>
+        @endif
     </form>
     @include('componentes._collapsible-sections')
 
@@ -287,11 +305,16 @@
 </div>
 @endsection
 
+@push('scripts')
+{{-- La cola va en LAS DOS pantallas: el alta también lleva una foto (portada + primera nota).
+     Se carga el motor de borradores SIN la bandeja (`_drafts-tray`): aquí no hace falta un panel
+     de borradores, sólo la cola. cc-drafts.js es idempotente si otra vista ya lo cargó. --}}
+<script src="{{ asset('js/cc-drafts.js') }}"></script>
+<script src="{{ asset('js/cc-techscout-note.js') }}?v=2"></script>
 {{-- $scout->exists y no $nuevo: esa variable nace dentro de @section y aquí ya estamos fuera. --}}
 @if ($scout->exists)
-@push('scripts')
 {{-- Refresco periódico: dos scouters en la misma locación ven aparecer lo del otro sin recargar.
      Archivo externo (no <script> inline) para no depender del nonce de la CSP. --}}
-<script src="{{ asset('js/cc-techscout-refresh.js') }}?v=1"></script>
-@endpush
+<script src="{{ asset('js/cc-techscout-refresh.js') }}?v=2"></script>
 @endif
+@endpush

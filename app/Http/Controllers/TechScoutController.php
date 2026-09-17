@@ -287,7 +287,12 @@ class TechScoutController extends Controller
                 'tipo'       => $request->header('Content-Type'),
             ]);
 
-            return back()->withInput()->withErrors([
+            // 🪤 SE LANZA, NO SE REDIRIGE. Un `back()->withErrors()` es un 302, y para la cola de
+            // envío diferido un 3xx es ÉXITO (el store() redirige al show al crear) → borraría el
+            // borrador y con él la foto, en silencio, creyendo que la nota ya está. Lanzando la
+            // excepción, Laravel responde 422 a quien espera JSON —la cola conserva la nota y
+            // muestra el error— y sigue redirigiendo igual que antes al navegador.
+            throw \Illuminate\Validation\ValidationException::withMessages([
                 'note' => 'Escribe la nota o adjunta una foto — una nota vacía no dice nada.',
             ]);
         }

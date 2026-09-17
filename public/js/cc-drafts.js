@@ -23,9 +23,13 @@
  * conserva el borrador con su error a la vista. Los pares {n,v} guardados YA son el
  * payload del formulario (conservan los name[] y su orden) — se reproducen tal cual.
  *
- * OJO (imágenes): el borrador NO captura <input type=file>. Un envío diferido llega SIN
- * las fotos; si la forma las exige, rebota en validación (422) y el borrador se conserva
- * para completarlo con red. Al encolar una forma con archivos seleccionados se avisa.
+ * IMÁGENES (⚠ esta nota decía lo contrario hasta el 2026-09-16 y era FALSA — costó tiempo):
+ * el AUTOGUARDADO periódico no captura <input type=file>, pero el ENCOLADO sí: al encolar se
+ * comprimen las fotos con CCPhoto y viajan como Blobs en el MISMO FormData, por la ruta normal.
+ * O sea: un envío diferido SÍ lleva sus fotos. Lo que no las lleva es el borrador de texto que
+ * se va guardando mientras escribes — si la pestaña muere antes de pulsar el botón, la foto
+ * seleccionada no estaba en ningún sitio. Por eso la captura de notas del Tech Scout ENCOLA
+ * SIEMPRE (ver `enqueueNow`), en vez de esperar a quedarse sin red.
  *
  * API pública (window.CCDrafts):
  *   .available                      -> bool (IndexedDB utilizable)
@@ -461,6 +465,13 @@
         d.addEventListener('submit', function (e) {
             var form = e.target;
             if (!form || form.nodeType !== 1 || form.getAttribute('data-cc-defer') !== '1') { return; }
+            // ENCOLADO MANUAL: el formulario anfitrión se encarga él mismo del submit (con red y
+            // sin ella) llamando a `enqueueNow()`. Aquí no se toca ni se corta la propagación —
+            // si la cortáramos, su propio listener no correría, el formulario se quedaría con lo
+            // ya encolado y el autoguardado reescribiría ESE borrador sin las fotos. Lo usa la
+            // captura de notas del Tech Scout. Sigue siendo `defer` para todo lo demás: el
+            // registro guarda destino, método y llave de idempotencia.
+            if (form.hasAttribute('data-cc-defer-manual')) { return; }
             if (!(w.navigator && w.navigator.onLine === false)) { return; }   // en línea → envío normal, no tocamos nada.
             var entry = findDefer(form);
             if (!entry) { return; }
@@ -516,10 +527,12 @@
         // OFFLINE submit: captura+comprime las fotos, encola con destino + llave, sin borrar.
         // Al reconectar, la cola lo envía por la ruta normal (texto + fotos en el mismo FormData).
         function enqueue() {
-            collectFiles(form).then(function (files) {
+            // Devuelve la promesa (no sólo dispara): quien encola con red necesita esperar a que
+            // el registro ESTÉ en el dispositivo antes de intentar enviarlo.
+            return collectFiles(form).then(function (files) {
                 var rec = baseRec('queued');
                 rec.files = files;
-                put(rec).then(function () {
+                return put(rec).then(function () {
                     onStatus({ state: 'queued', at: rec.updatedAt, id: rec.id, hasFiles: files.length > 0, photoCount: files.length });
                     if (w.navigator && w.navigator.onLine) { flushPending(); }   // por si 'offline' fue un falso negativo.
                 }).catch(function (err) {
@@ -567,7 +580,18 @@
         return {
             id: function () { return currentId; },
             saveNow: doSave,
-            setId: function (id) { currentId = id; }
+            setId: function (id) { currentId = id; },
+            // ENCOLAR AUNQUE HAYA RED (2026-09-16, Tech Scout). Los 5 reportes que ya usan esto
+            // encolan SÓLO offline: el envío en línea es el normal del navegador. Para una captura
+            // de UNA foto por nota eso deja un hueco que en campo importa — `navigator.onLine` dice
+            // "sí" con una red que no pasa un byte (wifi de cortesía, señal de un sótano), el POST
+            // se queda colgado y si se cierra la pestaña la foto no existía en ningún sitio.
+            // Encolando SIEMPRE, la foto queda en el dispositivo ANTES de tocar la red, y la cola
+            // la envía enseguida (o cuando vuelva la señal). La llave de idempotencia impide que
+            // un reintento duplique la nota.
+            enqueueNow: function () { return enqueue(); },
+            // Deja la siguiente captura en un borrador NUEVO: cada nota es su propio envío.
+            reset: function () { currentId = null; }
         };
     }
 

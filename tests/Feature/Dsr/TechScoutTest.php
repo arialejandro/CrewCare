@@ -581,6 +581,58 @@ class TechScoutTest extends QaTestCase
             ->assertSee('Falta luz en el pasillo');
     }
 
+    // ────────────────────────────────────────────────────────────────────────────────────────
+    // LA NOTA NO SE PIERDE — los dos contratos del servidor de los que depende la cola
+    //
+    // La captura guarda la nota (con su foto) en el DISPOSITIVO antes de tocar la red, y de ahí
+    // la envía. Ese envío diferido se apoya en dos comportamientos del servidor que, si cambian,
+    // hacen perder notas EN SILENCIO. Por eso están fijados aquí y no sólo en el JavaScript.
+    // ────────────────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * 🔑 REINTENTAR NO DUPLICA. Si la red se corta después de que el servidor creó la nota pero
+     * antes de que la respuesta llegue, el dispositivo reintenta con la MISMA llave. Sin esta
+     * garantía, salir del penal con 20 notas encoladas podría dejar 40.
+     */
+    public function test_reenviar_la_misma_nota_no_la_duplica(): void
+    {
+        $this->actingAsRole('safety-officer');
+        $scout = $this->nuevoRecorrido();
+
+        $llave = 'techscout-note-prueba-123';
+        $envio = ['note' => 'Falta contacto en la cocina'];
+
+        $this->withHeaders(['X-Idempotency-Key' => $llave])
+            ->post(route('techscout.note.store', $scout->id), $envio);
+        $this->withHeaders(['X-Idempotency-Key' => $llave])
+            ->post(route('techscout.note.store', $scout->id), $envio);
+
+        $this->assertSame(1, $scout->notes()->count(),
+            'dos envíos con la misma llave son UNA nota, no dos.');
+    }
+
+    /**
+     * 🔑 UNA NOTA VACÍA SE RECHAZA CON 422, NO CON UN 302.
+     *
+     * Para la cola de envío, un 3xx es ÉXITO (el store redirige al crear) → con una redirección
+     * borraría el borrador dando la nota por buena, y con él la FOTO. Rechazar con 422 es lo que
+     * hace que la nota se conserve en el dispositivo con su error a la vista.
+     */
+    public function test_la_nota_vacia_se_rechaza_con_422_para_quien_espera_json(): void
+    {
+        $this->actingAsRole('safety-officer');
+        $scout = $this->nuevoRecorrido();
+
+        $this->postJson(route('techscout.note.store', $scout->id), ['note' => ''])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('note');
+
+        // Y al navegador de siempre se le sigue contestando con la redirección de toda la vida.
+        $this->post(route('techscout.note.store', $scout->id), ['note' => ''])
+            ->assertStatus(302)
+            ->assertSessionHasErrors('note');
+    }
+
     /** Extrae el valor de `data-ts-sig` del fragmento (lo que compara el refresco). */
     private function firmaDe(string $html): string
     {

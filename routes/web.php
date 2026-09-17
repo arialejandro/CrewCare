@@ -384,7 +384,9 @@ Route::middleware(['auth','permission:medical.create'])->group(function () {
 Route::middleware(['auth','locaciones'])->group(function () {
     Route::get('/tech-scout', [App\Http\Controllers\TechScoutController::class, 'index'])->name('techscout.index');
     Route::get('/tech-scout/nuevo', [App\Http\Controllers\TechScoutController::class, 'create'])->name('techscout.create');
-    Route::post('/tech-scout', [App\Http\Controllers\TechScoutController::class, 'store'])->name('techscout.store');
+    // `idempotent` también en el alta: sin red, el alta entera (portada + primera nota) se guarda
+    // en el dispositivo y sube al recuperar señal — un reintento no puede crear dos recorridos.
+    Route::post('/tech-scout', [App\Http\Controllers\TechScoutController::class, 'store'])->middleware('idempotent')->name('techscout.store');
     // El DOCUMENTO va antes que `{id}` a secas por el mismo motivo de siempre (rutas fijas primero).
     Route::get('/tech-scout/{id}/documento', [App\Http\Controllers\TechScoutController::class, 'document'])->name('techscout.document')->whereNumber('id');
     // Sólo la REJILLA de notas, en HTML. La pide el refresco periódico: dos scouters recorren la
@@ -392,7 +394,10 @@ Route::middleware(['auth','locaciones'])->group(function () {
     Route::get('/tech-scout/{id}/notas', [App\Http\Controllers\TechScoutController::class, 'notesFragment'])->name('techscout.notes')->whereNumber('id');
     Route::get('/tech-scout/{id}', [App\Http\Controllers\TechScoutController::class, 'show'])->name('techscout.show')->whereNumber('id');
     Route::put('/tech-scout/{id}', [App\Http\Controllers\TechScoutController::class, 'update'])->name('techscout.update')->whereNumber('id');
-    Route::post('/tech-scout/{id}/notas', [App\Http\Controllers\TechScoutController::class, 'storeNote'])->name('techscout.note.store')->whereNumber('id');
+    // `idempotent`: la nota se guarda en el DISPOSITIVO antes de tocar la red y la cola la envía
+    // (enseguida, o al recuperar señal). Si un reintento repite el envío, el middleware responde
+    // lo mismo en vez de crear la nota dos veces. Misma pieza que usan los 5 reportes de campo.
+    Route::post('/tech-scout/{id}/notas', [App\Http\Controllers\TechScoutController::class, 'storeNote'])->middleware('idempotent')->name('techscout.note.store')->whereNumber('id');
     Route::put('/tech-scout/{id}/notas/{noteId}', [App\Http\Controllers\TechScoutController::class, 'updateNote'])->name('techscout.note.update')->whereNumber('id')->whereNumber('noteId');
 });
 

@@ -87,6 +87,11 @@
             .catch(function () { /* sin red o servidor caído: se reintenta al siguiente ciclo */ });
     }
 
+    // Expuesto para que la captura de notas pida el refresco EN CUANTO el servidor confirma una,
+    // sin esperar al siguiente ciclo: al agregar una nota, verla aparecer es la confirmación.
+    window.CCTechScout = window.CCTechScout || {};
+    window.CCTechScout.refrescar = preguntar;
+
     setInterval(preguntar, CADA);
 
     // Al volver a la app (el móvil se bloqueó, se cambió de pestaña) se pregunta YA: es justo el
