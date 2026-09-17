@@ -75,6 +75,73 @@ class TechScoutController extends Controller
             ->with('success', 'Recorrido iniciado. Empieza a capturar notas.');
     }
 
+    /**
+     * Guarda el PANEL GENERAL del recorrido (datos de cabecera, viabilidad y acuerdos).
+     *
+     * Va aparte de las notas a propósito: las notas son de quien las pone y se añaden; esto es la
+     * cabecera compartida, que cambia poco y la puede completar cualquiera del departamento. Si
+     * ambos estuvieran en el mismo formulario, guardar una nota arrastraría toda la cabecera y dos
+     * personas capturando a la vez se pisarían — que es justo lo que este módulo evita por diseño.
+     */
+    public function update(Request $request, $id)
+    {
+        $scout = TechScout::findOrFail($id);
+
+        $data = $request->validate([
+            'location_name'    => 'required|string|max:255',
+            'location_address' => 'nullable|string|max:500',
+            'latitude'         => 'nullable|numeric|between:-90,90',
+            'longitude'        => 'nullable|numeric|between:-180,180',
+            'production_type'  => 'nullable|string|max:60',
+            'manager_name'     => 'nullable|string|max:255',
+            'loc_setting'      => 'nullable|string|max:60',
+            'shoot_time'       => 'nullable|string|max:60',
+            'date_prep'        => 'nullable|date',
+            'date_shoot'       => 'nullable|date',
+            // Igual que en el scouting: el fin no puede ser ANTERIOR al inicio; igual sí se acepta.
+            'date_shoot_end'   => 'nullable|date|after_or_equal:date_shoot',
+            'date_wrap'        => 'nullable|date',
+            'viability'        => 'nullable|array',
+            'agreements'       => 'nullable|array',
+            'hero_image'       => 'nullable|mimes:jpeg,png,jpg,gif,webp,heic,heif|heic_ok|max:12288',
+        ]);
+
+        $scout->fill(collect($data)->except(['viability', 'agreements', 'hero_image'])->all());
+
+        // Imagen de portada del documento. Se reemplaza sólo si suben una nueva: guardar el panel
+        // sin tocar el archivo NO puede borrar la que ya había.
+        if ($request->hasFile('hero_image') && $request->file('hero_image')->isValid()) {
+            $scout->hero_image_path = $this->storePhoto($request->file('hero_image'));
+        }
+
+        $scout->viability_checklist = $this->cleanRows($request->input('viability', []));
+        $scout->agreements          = $this->cleanRows($request->input('agreements', []));
+        $scout->save();
+
+        return redirect()->route('techscout.show', $scout->id)->with('success', 'Datos del recorrido guardados.');
+    }
+
+    /**
+     * Normaliza las filas de viabilidad / acuerdos: {item, detail}, sin renglones vacíos.
+     *
+     * Las filas se auto-agregan en pantalla (siempre hay una en blanco al final), así que llegan
+     * vacías casi siempre. Guardarlas ensuciaría el documento y haría ruido en la revisión.
+     */
+    private function cleanRows($rows): array
+    {
+        $out = [];
+        foreach ((array) $rows as $r) {
+            $item   = trim((string) ($r['item'] ?? ''));
+            $detail = trim((string) ($r['detail'] ?? ''));
+            if ($item === '' && $detail === '') {
+                continue;
+            }
+            $out[] = ['item' => mb_substr($item, 0, 255), 'detail' => mb_substr($detail, 0, 2000)];
+        }
+
+        return $out;
+    }
+
     /** La vista de trabajo: cabecera + notas en orden de recorrido + captura de la siguiente. */
     public function show($id)
     {

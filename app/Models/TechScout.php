@@ -27,7 +27,53 @@ class TechScout extends Model
     protected $fillable = [
         'production_id', 'unit_id', 'location_name', 'location_address',
         'latitude', 'longitude', 'created_by_id',
+        // Panel general — MISMOS nombres que el Scouting H&S a propósito: es el mismo dato del
+        // mundo real, y llamarlo distinto en cada documento es cómo empiezan a divergir.
+        'hero_image_path',
+        'production_type', 'manager_name', 'loc_setting', 'shoot_time',
+        'date_prep', 'date_shoot', 'date_shoot_end', 'date_wrap',
+        // Permisos, solicitudes especiales y lo pactado entre departamentos y locaciones.
+        'viability_checklist', 'agreements',
     ];
+
+    protected $casts = [
+        'date_prep'           => 'date',
+        'date_shoot'          => 'date',
+        'date_shoot_end'      => 'date',
+        'date_wrap'           => 'date',
+        'viability_checklist' => 'array',
+        'agreements'          => 'array',
+    ];
+
+    /** ¿El rodaje ocupa más de un día? (rango real, no un fin igual al inicio). */
+    public function hasShootRange(): bool
+    {
+        return $this->date_shoot
+            && $this->date_shoot_end
+            && $this->date_shoot_end->gt($this->date_shoot);
+    }
+
+    /** Filas de viabilidad / acuerdos, ya limpias de renglones vacíos. */
+    public function rows(string $campo): array
+    {
+        $out = [];
+        foreach ((array) ($this->{$campo} ?? []) as $r) {
+            if (! is_array($r)) {
+                continue;
+            }
+            // Un renglón sin nada escrito no es un acuerdo: ensucia el documento y hace ruido
+            // en la revisión. Se descarta al leer, no al guardar, para no perder nada por error.
+            if (trim((string) ($r['item'] ?? '')) === '' && trim((string) ($r['detail'] ?? '')) === '') {
+                continue;
+            }
+            $out[] = [
+                'item'   => (string) ($r['item'] ?? ''),
+                'detail' => (string) ($r['detail'] ?? ''),
+            ];
+        }
+
+        return $out;
+    }
 
     public function notes(): HasMany
     {

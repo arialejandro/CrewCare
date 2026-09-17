@@ -426,6 +426,7 @@ Route::middleware(['auth','permission:locations.create'])->group(function () {
     // El DOCUMENTO va antes que `{id}` a secas por el mismo motivo de siempre (rutas fijas primero).
     Route::get('/tech-scout/{id}/documento', [App\Http\Controllers\TechScoutController::class, 'document'])->name('techscout.document')->whereNumber('id');
     Route::get('/tech-scout/{id}', [App\Http\Controllers\TechScoutController::class, 'show'])->name('techscout.show')->whereNumber('id');
+    Route::put('/tech-scout/{id}', [App\Http\Controllers\TechScoutController::class, 'update'])->name('techscout.update')->whereNumber('id');
     Route::post('/tech-scout/{id}/notas', [App\Http\Controllers\TechScoutController::class, 'storeNote'])->name('techscout.note.store')->whereNumber('id');
     Route::put('/tech-scout/{id}/notas/{noteId}', [App\Http\Controllers\TechScoutController::class, 'updateNote'])->name('techscout.note.update')->whereNumber('id')->whereNumber('noteId');
 

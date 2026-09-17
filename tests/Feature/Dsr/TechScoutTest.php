@@ -231,6 +231,100 @@ class TechScoutTest extends QaTestCase
         $this->assertLessThan(strpos($html, 'Tercera parada'), strpos($html, 'Segunda parada'));
     }
 
+    // =====================================================================
+    //  PANEL GENERAL · viabilidad · acuerdos
+    // =====================================================================
+
+    public function test_el_panel_general_se_guarda_y_sale_en_el_documento(): void
+    {
+        $this->actingAsRole('safety-officer');
+        $scout = $this->nuevoRecorrido(['location_name' => 'Casa Pantalla']);
+
+        $this->put(route('techscout.update', $scout->id), [
+            'location_name'   => 'Casa Pantalla',
+            'production_type' => 'Película',
+            'manager_name'    => 'Adrián Aldana',
+            'loc_setting'     => 'Interior',
+            'shoot_time'      => 'Día',
+            'date_shoot'      => '2026-10-14',
+            'date_shoot_end'  => '2026-10-17',
+            'viability'       => [['item' => 'Permiso de filmación', 'detail' => 'Lo tramita producción']],
+            'agreements'      => [['item' => 'Arte', 'detail' => 'Se retiran las cortinas el día 13']],
+        ])->assertSessionHasNoErrors();
+
+        $s = $scout->fresh();
+        $this->assertSame('Película', $s->production_type);
+        $this->assertTrue($s->hasShootRange());
+        $this->assertCount(1, $s->rows('viability_checklist'));
+        $this->assertCount(1, $s->rows('agreements'));
+
+        $doc = $this->get(route('techscout.document', $scout->id))->assertOk();
+        $doc->assertSee('Permiso de filmación');
+        $doc->assertSee('Se retiran las cortinas el día 13');
+        $doc->assertSee('14/10/2026 – 17/10/2026');   // el rango, no sólo el primer día
+    }
+
+    /**
+     * Las filas se auto-agregan en pantalla, así que llegan vacías casi siempre. Guardarlas
+     * ensuciaría el documento que va a arte y haría ruido en la revisión.
+     */
+    public function test_las_filas_vacias_no_se_guardan(): void
+    {
+        $this->actingAsRole('safety-officer');
+        $scout = $this->nuevoRecorrido();
+
+        $this->put(route('techscout.update', $scout->id), [
+            'location_name' => $scout->location_name,
+            'viability'     => [
+                ['item' => 'Permiso', 'detail' => 'Sí'],
+                ['item' => '', 'detail' => ''],
+                ['item' => '  ', 'detail' => '   '],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertCount(1, $scout->fresh()->rows('viability_checklist'));
+    }
+
+    /**
+     * 🪤 Guardar el panel SIN tocar el archivo no puede borrar la portada que ya había. Es el
+     * tropiezo clásico de los campos de imagen en formularios que se reguardan seguido.
+     */
+    public function test_guardar_el_panel_no_borra_la_portada_existente(): void
+    {
+        Storage::fake('public');
+        $this->actingAsRole('safety-officer');
+        $scout = $this->nuevoRecorrido();
+
+        $this->put(route('techscout.update', $scout->id), [
+            'location_name' => $scout->location_name,
+            'hero_image'    => UploadedFile::fake()->image('portada.jpg'),
+        ])->assertSessionHasNoErrors();
+
+        $portada = $scout->fresh()->hero_image_path;
+        $this->assertNotNull($portada);
+
+        // Segundo guardado SIN archivo: la portada debe seguir ahí.
+        $this->put(route('techscout.update', $scout->id), [
+            'location_name'   => $scout->location_name,
+            'production_type' => 'TV',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame($portada, $scout->fresh()->hero_image_path,
+            'reguardar el panel NO puede llevarse la portada por delante.');
+    }
+
+    public function test_el_fin_de_rodaje_no_puede_ser_anterior_al_inicio(): void
+    {
+        $this->actingAsRole('safety-officer');
+        $scout = $this->nuevoRecorrido();
+
+        $this->put(route('techscout.update', $scout->id), [
+            'location_name'  => $scout->location_name,
+            'date_shoot'     => '2026-10-14',
+            'date_shoot_end' => '2026-10-09',
+        ])->assertSessionHasErrors('date_shoot_end');
+    }
+
     public function test_el_modulo_exige_sesion(): void
     {
         $this->post(route('techscout.store'), ['location_name' => 'X'])->assertRedirect();
