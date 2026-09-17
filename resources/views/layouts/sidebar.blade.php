@@ -426,6 +426,12 @@
                                 @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.loc_scoutings') }}</span>
                             </a>
+                            {{-- Tech Scout: el recorrido técnico de Locaciones. Nombre de la FASE real
+                                 de producción, no una etiqueta inventada, y no se traduce. --}}
+                            <a href="{{ route('techscout.index') }}" class="cc-item">
+                                @include('componentes._icon', ['name' => 'camera', 'class' => 'cc-item__ico', 'label' => null])
+                                <span>Tech Scout</span>
+                            </a>
                         @endcan
                         @can('riskmap.issue')
                             <a href="{{ route('riskmaps.index') }}" class="cc-item">
@@ -936,6 +942,10 @@
                                 <a href="{{ route('scoutings.index') }}" class="cc-item">
                                     @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-item__ico', 'label' => null])
                                     <span>{{ __('nav.loc_scoutings') }}</span>
+                                </a>
+                                <a href="{{ route('techscout.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'camera', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>Tech Scout</span>
                                 </a>
                             @endcan
                             @can('riskmap.issue')
