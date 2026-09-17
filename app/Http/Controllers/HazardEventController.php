@@ -344,4 +344,205 @@ class HazardEventController extends Controller
 
         return $code;
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  MEDIDAS DE CONTROL POR CSV (captura fluida · Paso 3 / decisión owner)
+    //  Editar 207 renglones se hace MEJOR en una hoja de cálculo que en una
+    //  pantalla web. El export sale ORDENADO POR USO REAL (cuántas veces aparece
+    //  el evento en scoutings) para empezar por los ~20-30 que de verdad se usan.
+    //  El import es IDEMPOTENTE y NUNCA pisa una medida escrita con un vacío.
+    //  ⚠ Este controlador NO REDACTA ninguna medida: solo guarda lo que trae el
+    //     CSV (contenido del owner). Vacío se queda vacío.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Cuántas veces aparece cada evento (event_id) en el risk_assessment de los scoutings.
+     * Se decodifica el JSON por reporte (no hay columna indexable); es un conteo de curación,
+     * no de ruta caliente. Devuelve [event_id => usos]. Degrade-safe si no existe la tabla.
+     */
+    protected function eventUsageCounts()
+    {
+        $counts = [];
+        if (!Schema::hasTable('scouting_reports')) {
+            return $counts;
+        }
+        $rows = \Illuminate\Support\Facades\DB::table('scouting_reports')->select('risk_assessment')->get();
+        foreach ($rows as $r) {
+            $ra = json_decode($r->risk_assessment ?? '[]', true);
+            if (!is_array($ra)) {
+                continue;
+            }
+            foreach ($ra as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $eid = isset($row['event_id']) ? (int) $row['event_id'] : 0;
+                if ($eid > 0) {
+                    $counts[$eid] = ($counts[$eid] ?? 0) + 1;
+                }
+            }
+        }
+        return $counts;
+    }
+
+    /**
+     * Descarga el CSV editable de medidas de control. Columnas: code, usos, name_es,
+     * categoria, actividad, normas (REFERENCIA, no se reimportan) + control_measure_es/_en
+     * (EDITABLES). Orden: por uso DESC, luego code. BOM UTF-8 para que Excel abra los acentos.
+     */
+    public function exportControlCsv()
+    {
+        if ($resp = $this->guard()) {
+            return $resp;
+        }
+
+        $usage  = $this->eventUsageCounts();
+        $events = HazardEvent::with('standards')->get()->sort(function ($a, $b) use ($usage) {
+            $ua = $usage[$a->id] ?? 0;
+            $ub = $usage[$b->id] ?? 0;
+            if ($ua !== $ub) {
+                return $ub <=> $ua;               // más usados primero
+            }
+            return strcmp((string) $a->code, (string) $b->code);
+        })->values();
+
+        $columns  = ['code', 'usos', 'name_es', 'categoria', 'actividad', 'normas', 'control_measure_es', 'control_measure_en'];
+        $filename = 'medidas-control-eventos-'.date('Ymd').'.csv';
+
+        $callback = function () use ($events, $usage, $columns) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");         // BOM UTF-8 (Excel)
+            fputcsv($out, $columns);
+            foreach ($events as $e) {
+                $act      = \App\Support\HazardActivities::activityForCategory($e->category);
+                $actLabel = $act
+                    ? \App\Support\HazardActivities::label($act, 'es')
+                    : \App\Support\HazardActivities::label(\App\Support\HazardActivities::OTHER_KEY, 'es');
+                $norms = $e->standards->map(function ($s) {
+                    return trim($s->regulation_badge.' '.$s->regulation_code);
+                })->implode(' · ');
+                fputcsv($out, [
+                    $e->code,
+                    $usage[$e->id] ?? 0,
+                    $e->name_es,
+                    $e->category,
+                    $actLabel,
+                    $norms,
+                    (string) $e->control_measure_es,
+                    (string) $e->control_measure_en,
+                ]);
+            }
+            fclose($out);
+        };
+
+        return response()->streamDownload($callback, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /** Contexto (varchar NOT NULL) derivado del prefijo del código, por la convención del seed. */
+    protected static $contextByPrefix = [
+        'LOC' => 'location',      // Locaciones
+        'SET' => 'film_set',      // Set de filmación
+        'CON' => 'construction',  // Construcción
+        'ADP' => 'set_build',     // Adaptación de foros y sets
+        'TRV' => 'transversal',   // Transversal
+    ];
+
+    /**
+     * Importa el CSV de medidas de control. Idempotente y por CÓDIGO:
+     *   - Si el código EXISTE: actualiza control_measure_es/_en SOLO cuando la celda trae
+     *     texto Y cambia (nunca pisa lo escrito con un vacío) y RELLENA `category` solo si
+     *     estaba vacía (nunca pisa una categoría ya asignada).
+     *   - Si el código NO EXISTE: CREA el evento con code + name_es + category (validada
+     *     contra el catálogo cerrado) + context (derivado del prefijo) + medidas. Así el
+     *     mismo CSV sirve para AGREGAR eventos nuevos a futuro (decisión del owner 2026-08-17).
+     * NUNCA redacta texto ni inventa: vacío se queda vacío; categoría fuera del catálogo
+     * cerrado se guarda como NULL. Las normas del CSV son REFERENCIA (no se ligan aquí; el
+     * evento nuevo nace sin normas y se ligan luego con el norm-picker de la edición).
+     */
+    public function importControlCsv(Request $request)
+    {
+        if ($resp = $this->guard()) {
+            return $resp;
+        }
+
+        $request->validate(['csv' => 'required|file|max:4096']);
+
+        $path = $request->file('csv')->getRealPath();
+        $fh   = $path ? fopen($path, 'r') : false;
+        if ($fh === false) {
+            return back()->with('error', 'No se pudo leer el archivo.');
+        }
+
+        $header = fgetcsv($fh);
+        if ($header === false) {
+            fclose($fh);
+            return back()->with('error', 'El archivo está vacío.');
+        }
+        if (isset($header[0])) {
+            $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $header[0]);  // quita BOM
+        }
+        $idx = array_flip(array_map(function ($h) {
+            return strtolower(trim((string) $h));
+        }, $header));
+
+        if (!isset($idx['code'])) {
+            fclose($fh);
+            return back()->with('error', 'Falta la columna «code» en el CSV. Descarga la plantilla y vuelve a intentar.');
+        }
+
+        // Catálogo CERRADO de categorías: solo estas claves se aceptan (label + validación del form).
+        $validCats = array_flip(array_keys(HazardEvent::categories()));
+
+        $created = 0; $updated = 0; $catFilled = 0; $skipped = 0; $incomplete = 0; $rows = 0;
+        while (($data = fgetcsv($fh)) !== false) {
+            if (count(array_filter($data, function ($c) { return trim((string) $c) !== ''; })) === 0) {
+                continue;                          // fila totalmente vacía
+            }
+            $rows++;
+            $code = trim((string) ($data[$idx['code']] ?? ''));
+            if ($code === '') { $skipped++; continue; }
+
+            $es   = isset($idx['control_measure_es']) ? trim((string) ($data[$idx['control_measure_es']] ?? '')) : '';
+            $en   = isset($idx['control_measure_en']) ? trim((string) ($data[$idx['control_measure_en']] ?? '')) : '';
+            $name = isset($idx['name_es'])   ? trim((string) ($data[$idx['name_es']]   ?? '')) : '';
+            $cat  = isset($idx['categoria']) ? trim((string) ($data[$idx['categoria']] ?? '')) : '';
+            $cat  = ($cat !== '' && isset($validCats[$cat])) ? $cat : null;   // fuera del catálogo cerrado → NULL
+
+            $event = HazardEvent::where('code', $code)->first();
+
+            if (!$event) {
+                // CREAR: sin nombre no se crea (fila incompleta, no inventamos el evento).
+                if ($name === '') { $incomplete++; continue; }
+                $prefix  = strtoupper(strtok($code, '-'));
+                $context = self::$contextByPrefix[$prefix] ?? 'transversal';   // desconocido → transversal
+                $attrs = ['code' => $code, 'context' => $context, 'category' => $cat, 'name_es' => $name];
+                if ($es !== '') { $attrs['control_measure_es'] = $es; }        // vacío → NULL (columna)
+                if ($en !== '') { $attrs['control_measure_en'] = $en; }
+                // Nace VERIFICADO: el CSV es el catálogo CURADO del owner y la ruta ya exige
+                // hazardevents.manage (autoridad). verified_by_id queda NULL = verificado de ORIGEN.
+                if (HazardEvent::supportsVerification()) { $attrs['verified_at'] = now(); }
+                HazardEvent::create($attrs);
+                $created++;
+                continue;
+            }
+
+            // ACTUALIZAR existente: medidas idempotentes (solo si cambian) + rellenar categoría vacía.
+            $dirty = false;
+            if ($es !== '' && (string) $event->control_measure_es !== $es) { $event->control_measure_es = $es; $dirty = true; }
+            if ($en !== '' && (string) $event->control_measure_en !== $en) { $event->control_measure_en = $en; $dirty = true; }
+            if ($cat !== null && trim((string) $event->category) === '') {   // rellena hueco, NUNCA pisa
+                $event->category = $cat; $dirty = true; $catFilled++;
+            }
+
+            if ($dirty) { $event->save(); $updated++; } else { $skipped++; }
+        }
+        fclose($fh);
+
+        $msg = "Importación: {$created} eventos creados · {$updated} actualizados · {$catFilled} categoría rellenada · {$skipped} sin cambio · de {$rows} filas.";
+        if ($incomplete > 0) {
+            $msg .= " ({$incomplete} filas nuevas sin nombre se omitieron).";
+        }
+
+        return back()->with('success', $msg);
+    }
 }

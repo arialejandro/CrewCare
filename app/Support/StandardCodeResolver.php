@@ -41,6 +41,23 @@ class StandardCodeResolver
     private const ADJUDICATED = [
         '29 CFR 1910.178(q)(7)'                    => '29 CFR 1910.178',
         'CA Labor Code §§9150-9161 (SB 132, 2023)' => 'Cal/OSHA CA Labor Code §§9150-9161 (SB 132)',
+        // (2026-08-17) Resolución de parqueadas — dos normalizaciones de CADENA CRUDA:
+        //   · '1910.243(a)(1)' viene SIN el prefijo "29 CFR" y a un grano por debajo del que
+        //     existe en el catálogo → colapsa a la sección '29 CFR 1910.243' (misma lógica que
+        //     1910.178(q)(7)→1910.178; el catálogo no tiene fila propia del sub-inciso (a)(1)).
+        //   · 'NOM-010-STPS' viene SIN año; la vigente es la 2014 → mapea a 'NOM-010-STPS-2014'.
+        '1910.243(a)(1)' => '29 CFR 1910.243',
+        'NOM-010-STPS'   => 'NOM-010-STPS-2014',
+        // (2026-08-17 · 2ª tanda) Addenda CSATF: el raw '#NNA <tema>' NO cae en el matcher csatf
+        // (la lookahead corta el sufijo 'A') → se mapea por cadena cruda a su FILA PROPIA 'Bulletin #NNA'
+        // (NUNCA al boletín base #NN, que sería subir de grano). Y FAA: 'FAA Part 107' → '14 CFR Part 107'.
+        '#36A FAA Regulations'      => 'Bulletin #36A',
+        '#4A Specialized Activities' => 'Bulletin #4A',
+        '#8A Process Trailers'      => 'Bulletin #8A',
+        'FAA Part 107'              => '14 CFR Part 107',
+        // RPAS/drones: la NORMA es la NOM (marco SCT), no la circular AFAC (AFAC es la autoridad
+        // que emite el PERMISO de vuelo → external_authorizations, no safety_standards).
+        'Regulación AFAC de RPAS'   => 'NOM-107-SCT3-2019',
     ];
 
     /** @var array<string,int>  regulation_code exacto => id */

@@ -4,6 +4,32 @@ Referencia del routing (auditoría read-only). El detalle fila-por-fila vive en 
 (~210 líneas); aquí está el **modelo de acceso, los bugs de routing y las listas completas** de
 rutas problemáticas. Complementa [SECURITY.md](SECURITY.md) y [ARCHITECTURE.md](ARCHITECTURE.md).
 
+> ## ⚠ ACTUALIZACIÓN 2026-08-06 (catch-up post-compact — deltas #40-#51)
+> `route:list` real hoy = **226 rutas** (el cuerpo de abajo audita ~210 y es del 2026-06-28; sus bugs
+> y notas de acceso siguen válidos para lo viejo). El acceso ya **NO es binario admin/auth**: los módulos
+> nuevos gatean por **permiso Spatie** (`permission:xxx`). Rutas/permisos por módulo nuevo (nombre → permiso):
+> - **Mapeo de riesgos (#50):** `mapeo-riesgos` `riskmaps.{index,store,edit,updateMeta,seal,document,destroy}` +
+>   `riskmaps.views.*` + `riskmaps.markers.*` → `RiskMapController` · permiso **`riskmap.issue`**.
+> - **MEDEVAC (#46):** `medevac/emitir/{scouting}` `medevac.{create,store,show}` → `MedevacController` · **`medevac.issue`**.
+> - **Permisos de trabajo (#44):** `permisos` `permits.{index,create,store,show,close,reverify,suspend}` → `PermitController` · **`permits.issue`**.
+> - **Inspección de herramienta (#41-#43):** `inspeccion` `tools.{index,search,show,inspect.form,inspect.store,inspection.show,inspection.unblock,inspection.retire}` → `InspectionController` · **`tools.inspect`**.
+> - **Vigilancia epi (#45):** `vigilancia` `epi.{index,outbreak.create,outbreak.store,outbreak.show}` → `EpiController` · **`epi.view`**.
+> - **Wrap report:** `wrap` `wrap.{index,store,preview,show,addendum}` → `WrapReportController`.
+> - **Médico/LITE:** `pacientes-lite` `lite.{index,store,merge,consulta.create,consulta.store,historial}` (`LitePatientController`+`cmedicController`);
+>   `medico/{bitacora,materiales,materialidad}` (+`/pdf`) `medical.*` → `MedicalReportController`; `expediente/{id}/anexo` `expediente.anexo.*` → `HealthRecordAddendumController`.
+> - **Consumibles/SFX:** `consumables` `consumables.*` (`ConsumableController`); `sfx` `sfx.*` (`SfxController`); `sfx-effects` `sfx-effects.*` (`SfxEffectTypeController`).
+> - **Catálogos H&S:** `hazard-events` `hazardevents.*` (`HazardEventController`); `standards` `standards.*` (`SafetyStandardController`).
+> - **Scouting:** `scoutings` `scoutings.{index,create,store,show,edit,update,amazon}` + `geo/scoutings-nearby` → `ScoutingReportController`.
+> - **Aviso privacidad:** `aviso-privacidad` `privacidad.{aviso,aceptar}` → `PrivacyConsentController`.
+> - **Verificador público de sellos** (sin sesión): `verificar/{tipo}/{uuid}` `seal.verify` → `SealVerificationController`
+>   (tipos: `insp`,`perm`,`mdvc`,`rmap`,`brote`,`injury`,`dsr`,`scout`… en `SealVerifier::TYPES`).
+> - **RBAC UI:** `rolescrud` `roles.*` (+`roles.medical.grant/revoke`) `RoleAssignmentController`; `permisoscrud` `roles.permissions.*` `RolePermissionController`.
+> - **API offline:** `POST api/sync/up` `api.sync.up` → `Api\SyncController` (borradores offline).
+> El detalle vivo por módulo (parámetros, candados de emisión, 3-estados del verificador) está en la **memoria**.
+
+---
+
+
 ## Modelo de control de acceso (importante)
 - El grupo **`web`** aplica a todo `web.php`. Solo **2 controllers** ponen middleware en su
   constructor: `HomeController` (`auth`) y `AdminController` (`admin`). **Todos los demás**

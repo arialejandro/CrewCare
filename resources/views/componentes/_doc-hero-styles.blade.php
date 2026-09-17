@@ -22,6 +22,10 @@
     .hero-callbox { display:inline-block; background:#000; padding:5px 10px; margin-top:8px; text-align:center; }
     .hero-callbox .cl-loc { font-family:'Courier Prime', monospace; font-weight:700; color:#fff; font-size:12px; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; overflow:hidden; }
     .hero-callbox .cl-date { font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; color:#e7e7e7; font-size:10px; letter-spacing:.08em; margin-top:2px; text-transform:uppercase; }
+    /* Sub-línea del "llamado" (Int./Ext. · día/noche | escenas). MISMA familia monospace que la
+       fecha: sin esta regla heredaba la sans del body y salía en otra tipografía que el resto del
+       cuadro. El resto (tamaño/color/margen) lo fija el estilo inline del parcial _doc-hero. */
+    .hero-callbox .cl-meta { font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
     /* CrewCare + módulo (pie del hero): blanco esmerilado + esquinas superiores redondeadas + negro. */
     .hero-brand { position:absolute; left:50%; bottom:0; transform:translateX(-50%); z-index:2; text-align:center;
         padding:2px 14px 3px; border-radius:8px 8px 0 0; background:rgba(255,255,255,.55); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }

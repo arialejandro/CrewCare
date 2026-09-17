@@ -121,6 +121,18 @@
     .fx-cta .cc-ico{width:16px;height:16px}
     .fx-matches{color:var(--text-muted);font-size:.75rem;margin:.45rem 0 0}
 
+    /* ── Imagen principal del tipo de efecto (referencia visual de la card) ── */
+    .fx-imgcard__view{border-radius:var(--radius-sm);overflow:hidden;background:var(--glass-2);border:1px solid var(--stroke);
+        display:flex;align-items:center;justify-content:center;min-height:170px;max-height:340px;margin-bottom:.9rem}
+    .fx-imgcard__view img{width:100%;max-height:340px;object-fit:contain;display:block}
+    .fx-imgcard__ph{display:inline-flex;flex-direction:column;align-items:center;gap:.45rem;color:var(--text-muted);font-size:.82rem;padding:2rem}
+    .fx-imgcard__ph .cc-ico{width:34px;height:34px;opacity:.6}
+    .fx-imgcard__row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+    .fx-file{flex:1 1 220px;min-width:0;min-height:44px;font-size:.9rem;color:var(--text);background:var(--glass);
+        border:1px solid var(--stroke);border-radius:var(--radius-sm);padding:.5rem .7rem}
+    .fx-file::file-selector-button{margin-right:.7rem;padding:.4rem .8rem;border-radius:8px;border:1px solid var(--stroke);
+        background:var(--glass-2);color:var(--text);font-weight:600;font-size:.82rem;cursor:pointer}
+
     .cc-idx-empty{text-align:center;padding:2.5rem 1.5rem;color:var(--text-muted)}
     .cc-idx-empty .cc-ico{width:42px;height:42px;color:var(--text-muted);opacity:.55;margin-bottom:.7rem}
     .cc-idx-empty .fw-semibold{color:var(--text)}
@@ -324,6 +336,36 @@
             </ul>
         </div>
     @endif
+
+    {{-- Imagen principal del tipo de efecto (referencia visual de la card del catálogo). --}}
+    <div class="fx-card fx-imgcard mb-4">
+        <h2 class="fx-card-title">
+            @include('componentes._icon', ['name' => 'camera']) Imagen principal
+        </h2>
+        <div class="fx-imgcard__view">
+            @if($effect->imageUrl())
+                <img src="{{ $effect->imageUrl() }}" alt="{{ $effect->name }}">
+            @else
+                <span class="fx-imgcard__ph">
+                    @include('componentes._icon', ['name' => 'camera']) Sin imagen
+                </span>
+            @endif
+        </div>
+        @can('sds.manage')
+            <form method="POST" action="{{ route('sfx-effects.image.store', $effect->id) }}" enctype="multipart/form-data">
+                @csrf
+                <label class="fx-label" for="fx-img">{{ $effect->imageUrl() ? 'Reemplazar imagen' : 'Subir imagen principal' }}</label>
+                <div class="fx-imgcard__row">
+                    <input type="file" id="fx-img" name="image" class="fx-file"
+                           accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg,.heic,.heif" data-cc-photo required>
+                    <button type="submit" class="fx-cta">
+                        @include('componentes._icon', ['name' => 'upload']) {{ $effect->imageUrl() ? 'Reemplazar' : 'Subir' }}
+                    </button>
+                </div>
+                <p class="fx-hint" style="margin-top:.55rem">Referencia visual del tipo de efecto; se muestra en la tarjeta del catálogo. No bloquea nada.</p>
+            </form>
+        @endcan
+    </div>
 
     <div class="row g-4">
 
@@ -570,6 +612,11 @@ Solo deshace la relación en el catálogo: la ficha del insumo NO se borra.">
 @endsection
 
 @push('scripts')
+@can('sds.manage')
+{{-- La cámara del set convierte HEIC→JPEG en el navegador; para SVG/PNG es passthrough. --}}
+<script src="/js/cc-photo.js"></script>
+<script src="/js/cc-photo-auto.js"></script>
+@endcan
 <script>
 (function () {
     var sel = document.getElementById('fx-attach-select');

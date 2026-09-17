@@ -29,6 +29,12 @@
         z-index: -1;
         overflow: hidden;
         pointer-events: none;
+        /* Los blobs están COMPOSITADOS (will-change:transform + animación con scale) y sangran fuera
+           del viewport a propósito. `overflow:hidden` por sí solo NO recorta de forma confiable a un
+           hijo con su propia capa de composición → a veces se escapaba y empujaba un scroll horizontal
+           (se veía como si el contenido "se desbordara"). `contain: layout paint` hace de esta capa una
+           frontera dura de pintura y layout: los blobs no pueden pintar ni afectar nada fuera de aquí. */
+        contain: layout paint;
     }
     .cc-amb__blob {
         position: absolute;

@@ -75,7 +75,7 @@ return [
     "dsr_meeting_held_no"            => "It was not held",
     "dsr_meeting_photo_label"        => "Safety meeting photo",
     "dsr_meeting_photo_hint"         => "Use a wide-angle shot of the crew gathered.",
-    "dsr_meeting_topics_hint"        => "They come from the event catalogue, so they speak set, not factory.",
+    "dsr_meeting_topics_hint"        => "Pick or type the topics you covered.",
     "dsr_ppe_from_findings"          => "Highlighted items were not foreseen at call time: the day's findings required them.",
     // (2026-07-21) Cierre de hallazgos: las dos verdades del acta.
     "dsr_finding_resolved"           => "Finding resolved",
@@ -238,6 +238,9 @@ return [
     "scouting_no_production"             => "No production",
     "scouting_no_sb132"                  => "No SB132",
     "scouting_label_support"             => "Support",
+    "scouting_label_has_ambulance"       => "Ambulance planned",
+    "scouting_yes"                       => "Yes",
+    "scouting_no"                        => "No",
     "scouting_label_assembly_point"      => "Assembly point",
     "scouting_gps_registered"            => "GPS location recorded",
     "scouting_sb132_banner_title"        => "REQUIRES SPECIFIC RISK ASSESSMENT (SB132)",

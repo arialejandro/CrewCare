@@ -65,9 +65,57 @@ return [
     | will be used by the PHP date and date-time functions. We have gone
     | ahead and set this to a sensible default for you out of the box.
     |
+    | ⏰ SE LEE DEL .env — CrewCare NO puede vivir en UTC. Esto estuvo clavado en 'UTC'
+    | (el default de fábrica de Laravel, que nunca se cambió) y la consecuencia no era
+    | cosmética: un DSR sellado en flor.crewcare.mx imprimía "Sellado 13:29:53" cuando en
+    | realidad eran las 07:29:53 de Ciudad de México. Seis horas de error en la cara de un
+    | documento con valor probatorio, que además NO se puede re-sellar. También afectaba al
+    | `display_timezone` que ContractEventLog estampa en el certificado de conclusión de cada
+    | contrato, y hacía que los crons corrieran seis horas corridos (el aviso "de las 07:00"
+    | salía a la 1 de la madrugada).
+    |
+    | 🪤 Ojo: `APP_TIMEZONE` en el .env NO servía de nada mientras esta línea fuera literal.
+    | La variable se puso en producción de buena fe y no la leía nadie. Si algún día vuelves a
+    | fijar aquí un valor literal, esa variable se vuelve decorativa otra vez y en silencio.
+    |
+    | El sello NO depende de esto: `created_at`/`updated_at` están excluidos del payload y se
+    | verificó en producción que el hash es idéntico bajo UTC y bajo America/Mexico_City.
+    |
+    |--------------------------------------------------------------------------
+    | CÓMO SE CAMBIA (es un dato POR INSTANCIA, no del producto)
+    |--------------------------------------------------------------------------
+    |
+    | Una instancia = una producción = un país. La zona se pone en el `.env` de esa instancia:
+    |
+    |     APP_TIMEZONE=America/Bogota
+    |
+    | y después `php artisan config:cache` (con la config cacheada el .env no se relee solo).
+    | NO hace falta tocar este archivo para operar en otro país: el default de abajo es sólo la
+    | red para una instancia a la que se le olvidó la variable.
+    |
+    | El default es **México** porque hoy el producto opera en México y un default correcto para
+    | el caso real vale más que uno "neutro": UTC no es la hora de NINGÚN cliente, así que como
+    | respaldo sólo garantiza estar mal. Cuando el grueso de las instancias deje de ser mexicano,
+    | este default deja de tener sentido y toca revisarlo — no es una constante del producto.
+    |
+    | Zonas de la región, para cuando toque (nombres IANA, que respetan el horario de verano):
+    |     México (centro) ....... America/Mexico_City      Colombia ...... America/Bogota
+    |     México (noroeste) ..... America/Tijuana          Perú .......... America/Lima
+    |     México (Cancún) ....... America/Cancun           Ecuador ....... America/Guayaquil
+    |     Argentina ............. America/Argentina/Buenos_Aires
+    |     Chile ................. America/Santiago         Uruguay ....... America/Montevideo
+    |     Brasil (São Paulo) .... America/Sao_Paulo        Panamá ........ America/Panama
+    |     Costa Rica ............ America/Costa_Rica       Guatemala ..... America/Guatemala
+    |     R. Dominicana ......... America/Santo_Domingo    España ........ Europe/Madrid
+    |
+    | ⚠ Ponla ANTES de sellar el primer documento. Cambiarla después NO corrige los ya emitidos:
+    | un sello no se rehace, así que cada acta se queda con la hora que tenía al firmarse. Si una
+    | instancia lleva meses corriendo con la zona equivocada, eso ya no tiene arreglo retroactivo.
+    | El preflight (`php artisan crewcare:preflight`) lo comprueba y avisa antes de que pase.
+    |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'America/Mexico_City'),
 
     /*
     |--------------------------------------------------------------------------

@@ -13,7 +13,12 @@
       haz-toxic|haz-animal|haz-drone|haz-firearm|haz-explosive|haz-exit
     especiales: hazard (alias warn) | area
 --}}
-@php $__k = $key ?? ''; $__c = $class ?? ''; @endphp
+@php $__k = $key ?? ''; $__c = $class ?? ''; $__sign = \App\Support\RiskSigns::uriFor($__k); @endphp
+@if($__sign)
+{{-- Señal industrial real (ISO/hazmat/EPP) como <img data:> AISLADO: trae su color,
+     no colisiona con otras señales y no lleva gota (la omite quien la pinta). --}}
+<img class="rm-sign {{ $__c }}" src="{{ $__sign }}" alt="" aria-hidden="true" draggable="false">
+@else
 <svg class="{{ $__c }}" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
 @switch($__k)
     {{-- ── RECURSOS (símbolo blanco) ─────────────────────────────────── --}}
@@ -172,3 +177,4 @@
         <circle cx="12" cy="12" r="4.2"/>
 @endswitch
 </svg>
+@endif

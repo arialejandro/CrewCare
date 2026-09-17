@@ -51,8 +51,9 @@ class formulario extends Model
      * prevent    → Papanicolaou / Mastografía (sólo se pintan si sex = F)
      */
     const CHECKBOXES = [
-        'momdat1', 'momdat2', 'momdat3', 'momdat4', 'momdat5', 'momdat6', 'momdat7',
-        'daddat1', 'daddat2', 'daddat3', 'daddat4', 'daddat5', 'daddat6', 'daddat7',
+        // momdat8/daddat8 = "Sano" (2026-08-12): antes "Vivo" y "Sano" iban juntos en el índice 1.
+        'momdat1', 'momdat2', 'momdat3', 'momdat4', 'momdat5', 'momdat6', 'momdat7', 'momdat8',
+        'daddat1', 'daddat2', 'daddat3', 'daddat4', 'daddat5', 'daddat6', 'daddat7', 'daddat8',
         'pers_nopat1', 'pers_nopat2', 'pers_nopat3',
         'vacci1', 'vacci2', 'vacci3', 'vacci4', 'vacci5',
         'prevent1', 'prevent2',
@@ -113,8 +114,8 @@ class formulario extends Model
         'pathology',
         'alergy',
         'trauma',
-        'momdat1', 'momdat2', 'momdat3', 'momdat4', 'momdat5', 'momdat6', 'momdat7',
-        'daddat1', 'daddat2', 'daddat3', 'daddat4', 'daddat5', 'daddat6', 'daddat7',
+        'momdat1', 'momdat2', 'momdat3', 'momdat4', 'momdat5', 'momdat6', 'momdat7', 'momdat8',
+        'daddat1', 'daddat2', 'daddat3', 'daddat4', 'daddat5', 'daddat6', 'daddat7', 'daddat8',
         'pers_nopat1', 'pers_nopat2', 'pers_nopat3',
         'vacci1', 'vacci2', 'vacci3', 'vacci4', 'vacci5',
         // (2026-07-24) `vacci2_date`: fecha de la influenza. La etiqueta promete vigencia
@@ -127,8 +128,8 @@ class formulario extends Model
         'prevent1', 'prevent2',
     ];
 
-    protected $dates = ['created_at', 'updated_at'];
-
+    // (2026-08-11 upgrade) `$dates` (deprecado L9+) retirado: created_at/updated_at los castea
+    // Eloquent automáticamente por timestamps.
     protected $casts = [
         'vacci2_date' => 'date',
     ];

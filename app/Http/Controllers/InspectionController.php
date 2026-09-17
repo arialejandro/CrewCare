@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Department;
 use App\Models\Tool;
 use App\Models\ToolInspection;
+use App\Models\User;
 use App\Support\CurrentProduction;
+use App\Support\CurrentUnit;
+use App\Support\ImageCompressor;
 use App\Support\InspectionVerdict;
 use App\Support\InvolvedResolver;
 use App\Support\ProductionCalendar;
@@ -54,14 +57,13 @@ class InspectionController extends Controller
 
         $wildcard = Tool::where('is_wildcard', 1)->first();
 
-        // LA LISTA DEL DÍA (A3): la DEUDA — qué exige inspección hoy. Solo `por_jornada`
-        // sin acta vigente para el shoot_day actual. Corta por diseño.
-        $dayList = $this->dayList();
+        // (2026-08-08) Se retiró "la lista del día" (deuda por_jornada): era una suposición del
+        // catálogo, no lo que realmente llega al set → engañosa. Ver inspection/index.blade.php.
 
         // Puerta (A4): si se llegó desde un hallazgo/DSR/accidente, se arrastra el vínculo.
         $launch = $this->launchParams($request);
 
-        return view('inspection.index', compact('tools', 'wildcard', 'dayList', 'launch'));
+        return view('inspection.index', compact('tools', 'wildcard', 'launch'));
     }
 
     /** Parámetros de "puerta" (origen + momento) que sobreviven del reporte al acta. */
@@ -127,6 +129,53 @@ class InspectionController extends Controller
         return view('inspection.show', compact('tool', 'points'));
     }
 
+    /* ===================== CONSULTA · ACTAS (POR UNIDAD FÍSICA) ===================== */
+
+    /**
+     * Histórico de actas para CONSULTAR (lo que faltaba: solo se veía el acta recién creada o
+     * por su QR). La "unidad física" NO es tabla: EMERGE del número de serie. Por eso la consulta
+     * busca por serie (además de dueño, tipo, marca/modelo y folio) y, sin filtro, AGRUPA por
+     * serie para juntar las inspecciones de la MISMA herramienta; con `?serial=` da la línea de
+     * tiempo de esa unidad concreta.
+     */
+    public function records(Request $request)
+    {
+        $q      = trim((string) $request->query('q', ''));
+        $serial = trim((string) $request->query('serial', ''));
+
+        $query = ToolInspection::query();
+
+        if ($serial !== '') {
+            $query->where('tool_serial', $serial);              // unidad concreta (llave exacta)
+        } elseif ($q !== '') {
+            $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $q) . '%';
+            $query->where(function ($w) use ($like) {
+                $w->where('tool_serial', 'like', $like)
+                  ->orWhere('owner_name', 'like', $like)
+                  ->orWhere('tool_name', 'like', $like)
+                  ->orWhere('tool_code', 'like', $like)
+                  ->orWhere('tool_brand', 'like', $like)
+                  ->orWhere('tool_model', 'like', $like);
+            });
+            if (preg_match('/(\d+)/', $q, $m)) {
+                $query->orWhere('id', (int) $m[1]);             // folio INSP-000N por número
+            }
+        }
+
+        if ($serial !== '') {
+            $query->orderBy('created_at', 'desc');              // línea de tiempo de la unidad
+        } else {
+            // Agrupa por serie (las sin serie al final) y dentro, lo más reciente primero.
+            $query->orderByRaw("(tool_serial IS NULL OR tool_serial = '') asc")
+                  ->orderBy('tool_serial')
+                  ->orderBy('created_at', 'desc');
+        }
+
+        $inspections = $query->paginate(30)->withQueryString();
+
+        return view('inspection.records', compact('inspections', 'q', 'serial'));
+    }
+
     /* ===================== PASO 2 · EJECUTAR EL CHECKLIST ===================== */
 
     public function create(Request $request, Tool $tool)
@@ -145,6 +194,11 @@ class InspectionController extends Controller
             : $this->pointsFor($tool);
 
         $departments = Department::where('active', 1)->orderBy('sort_order')->orderBy('name')->get();
+
+        // Dueño de la herramienta (delta #47): crew activo para el selector. Si el dueño es de
+        // una casa de renta / externo, el form ofrece además un campo de texto libre.
+        $crew = User::where('activo', 1)->orderBy('name')->orderBy('lname')
+            ->get(['id', 'name', 'lname', 'ncreditos']);
 
         // Momento (A2): default previo_al_uso; una puerta (hallazgo/DSR/accidente) puede prefijarlo.
         $moment = in_array($request->query('moment'), ToolInspection::MOMENTS, true)
@@ -169,7 +223,7 @@ class InspectionController extends Controller
         }
 
         return view('inspection.execute', compact(
-            'tool', 'points', 'departments', 'isWildcard', 'families', 'familyKey',
+            'tool', 'points', 'departments', 'crew', 'isWildcard', 'families', 'familyKey',
             'moment', 'origin', 'originId', 'vigente', 'permit', 'permitVigente'
         ));
     }
@@ -181,6 +235,12 @@ class InspectionController extends Controller
         $rules = [
             'department_id'  => 'required|integer|exists:departments,id',
             'tool_model'     => 'nullable|string|max:255',
+            // Unidad FÍSICA (delta #47): marca/serie + dueño (crew o texto libre) + foto real.
+            'tool_brand'     => 'nullable|string|max:120',
+            'tool_serial'    => 'nullable|string|max:120',
+            'owner_user_id'  => 'nullable|integer|exists:users,id',
+            'owner_name'     => 'nullable|string|max:160',
+            'tool_photo'     => 'nullable|mimes:jpeg,png,jpg,gif,webp,heic,heif|heic_ok|max:12288',
             'checklist_mode' => 'nullable|in:safety,operator',
             'inspection_moment' => 'nullable|in:'.implode(',', ToolInspection::MOMENTS),
             'origin'         => 'nullable|string|in:'.implode(',', array_keys(self::ORIGIN_MAP)),
@@ -250,14 +310,34 @@ class InspectionController extends Controller
 
         $toolStandards = $tool->standards()->pluck('regulation_code')->all();
 
+        // Dueño (delta #47): si es crew, se CONGELA su nombre a mostrar; si no, texto libre.
+        $ownerId   = $data['owner_user_id'] ?? null;
+        $ownerName = trim((string) ($data['owner_name'] ?? ''));
+        if ($ownerId) {
+            $ownerUser = User::find($ownerId);
+            $ownerName = $ownerUser ? User::displayName($ownerUser) : $ownerName;
+        }
+
+        // Foto REAL de la unidad: se guarda ANTES de sellar (su RUTA entra en el hash, misma
+        // doctrina que las fotos del DSR). El HEIC del iPad ya llega convertido por el navegador;
+        // ImageCompressor cubre el resto y NUNCA pierde la evidencia (fallback al original). Si el
+        // contenido no es una imagen reconocible, queda sin foto (no rompe el sellado).
+        $photoPath = $request->hasFile('tool_photo')
+            ? ImageCompressor::store($request->file('tool_photo'), 'tool_inspections/photos')
+            : null;
+
         $payload = [
             'production_id'           => CurrentProduction::id(),
+            'unit_id'                 => CurrentUnit::id(),   // 2b: la unidad vigente (null = principal), sella con su día
             'shoot_day'               => $this->currentShootDay(),
             'tool_id'                 => $tool->id,
             'tool_code'               => $tool->code,
             'tool_name'               => $tool->name,
             'tool_family_key'         => $familyKey,
             'tool_model'              => $data['tool_model'] ?? null,
+            'tool_brand'              => $data['tool_brand'] ?? null,
+            'tool_serial'             => $data['tool_serial'] ?? null,
+            'tool_photo_path'         => $photoPath,
             'tool_standards_snapshot' => $toolStandards,
             'checklist_mode'          => ($data['checklist_mode'] ?? ToolInspection::MODE_SAFETY),
             'inspection_moment'       => $moment,
@@ -269,8 +349,12 @@ class InspectionController extends Controller
             'observations'            => $observations,
             'department_id'           => $dept ? $dept->id : null,
             'department_name'         => $dept ? $dept->name : null,
+            'owner_user_id'           => $ownerId ?: null,
+            'owner_name'              => $ownerName !== '' ? $ownerName : null,
             'inspector_user_id'       => $author ? $author->id : null,
-            'inspector_name'          => $author ? $author->fullName() : null,
+            // Nombre del que firma: NOMBRE DE CRÉDITOS (User::displayName → ncreditos si existe,
+            // si no cae al nombre corto). Como se acredita a la persona en la producción.
+            'inspector_name'          => $author ? User::displayName($author) : null,
             'inspector_role'          => $author ? optional($author->getRoleNames())->first() : null,
             'inspector_cedula'        => $cred ? $cred->cedula : null,
             'is_active'               => 1,
@@ -306,7 +390,17 @@ class InspectionController extends Controller
         $actionItem = \Illuminate\Support\Facades\Schema::hasTable('action_items')
             ? $inspection->actionItems()->where('source_field', 'inspection_paro')->latest('id')->first()
             : null;
-        return view('inspection.acta', compact('inspection', 'actionItem'));
+
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+        // MISMA vista/datos y la pasa por Browsershot (Chrome headless) → descarga idéntica a
+        // window.print(). Márgenes 0 (el @page Oficio manda). Ver [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = view('inspection.acta', compact('inspection', 'actionItem'))->render();
+            return \App\Support\PdfExporter::download($html, 'INSP-' . substr($inspection->uuid, 0, 8), [0, 0, 0, 0]);
+        }
+
+        return view('inspection.acta', compact('inspection', 'actionItem')
+            + ['pdfUrl' => request()->fullUrlWithQuery(['pdf' => 1])]);
     }
 
     /* ===================== PASO 3 · DESBLOQUEO DEL PARO ===================== */
@@ -363,6 +457,49 @@ class InspectionController extends Controller
             ->with('success', 'Acta retirada. El sello sigue siendo válido; solo cambió el estado a retirado.');
     }
 
+    /* ===================== ADMIN · IMAGEN GENÉRICA DEL TIPO ===================== */
+
+    /**
+     * Grid para poblar (con el tiempo, fuera del código) la imagen GENÉRICA de referencia de cada
+     * TIPO de herramienta. No bloquea nada: mientras no haya imagen, la UI pinta un placeholder.
+     * Gate = el mismo `tools.inspect` — la imagen es dato de REFERENCIA (no un documento), y quien
+     * inspecciona conoce las herramientas; se puede endurecer a un permiso propio si hace falta.
+     */
+    public function toolImages(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+        $query = Tool::query()->active()->where('is_wildcard', 0)->with('family');
+        if ($q !== '') {
+            $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $q) . '%';
+            $query->where(function ($w) use ($like) {
+                $w->where('name', 'like', $like)->orWhere('code', 'like', $like)->orWhere('aliases', 'like', $like);
+            });
+        }
+        $tools = $query->orderBy('code')->paginate(60)->withQueryString();
+        return view('inspection.tool-images', compact('tools', 'q'));
+    }
+
+    /** Sube/reemplaza la imagen genérica de un TIPO (borra la anterior para no acumular basura). */
+    public function storeToolImage(Request $request, Tool $tool)
+    {
+        $request->validate([
+            'image' => 'required|mimes:jpg,jpeg,png,gif,bmp,svg,webp,heic,heif|heic_ok|max:8192',
+        ]);
+
+        $path = ImageCompressor::store($request->file('image'), 'tools/reference');
+        if ($path === null) {
+            return back()->with('error', __('No se pudo guardar la imagen (formato no reconocido).'));
+        }
+
+        if ($tool->image_path) {
+            try { \Illuminate\Support\Facades\Storage::disk('public')->delete($tool->image_path); } catch (\Throwable $e) {}
+        }
+        $tool->image_path = $path;
+        $tool->save();
+
+        return back()->with('success', "{$tool->code} — ".__('imagen de referencia actualizada.'));
+    }
+
     /* ============================ Helpers ============================ */
 
     /** Puertas de origen (A4): valida la clave + que el reporte exista → [clase, id] o [null, null]. */
@@ -386,22 +523,12 @@ class InspectionController extends Controller
         if ($tool->inspection_regime === 'por_jornada') {
             $q->where('shoot_day', $this->currentShootDay());
         }
+        // (2026-09-07 · Unidades 2b) La vigencia es POR UNIDAD (el día colisiona entre unidades). Con una
+        // sola unidad no filtra → idéntico a hoy.
+        CurrentUnit::applyTo($q);
         // por_colocacion y por_evento: no caducan por día → la última vigente vale.
         $acta = $q->first();
         return ($acta && $acta->isVigente()) ? $acta : null;
-    }
-
-    /** LA LISTA DEL DÍA (A3): tipos por_jornada sin acta vigente para el shoot_day actual. */
-    private function dayList(): \Illuminate\Support\Collection
-    {
-        $shootDay = $this->currentShootDay();
-        return Tool::active()->where('is_wildcard', 0)->where('inspection_regime', 'por_jornada')
-            ->orderBy('code')->get()
-            ->filter(function ($tool) use ($shootDay) {
-                $acta = ToolInspection::where('tool_id', $tool->id)->where('shoot_day', $shootDay)
-                    ->latest('id')->first();
-                return ! ($acta && $acta->isVigente()); // sin acta vigente HOY → aparece en la lista
-            })->values();
     }
 
     /** A5: crea el action item de la obligación (PDCA existente), ligado al acta, con vía y plazo. */
@@ -497,10 +624,11 @@ class InspectionController extends Controller
         return "FIELD(p.scope,'universal','universal_energizada','familia','tipo','actividad')";
     }
 
+    /** El shoot day de hoy EN LA UNIDAD VIGENTE (2b). null = principal = idéntico a hoy. Blindado. */
     private function currentShootDay()
     {
         try {
-            return ProductionCalendar::shootDayFor(now()->toDateString());
+            return ProductionCalendar::shootDayFor(now()->toDateString(), CurrentUnit::id());
         } catch (\Throwable $e) {
             return null;
         }

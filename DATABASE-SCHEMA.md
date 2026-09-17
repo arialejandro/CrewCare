@@ -1,5 +1,34 @@
 # DATABASE-SCHEMA.md — Esquema real de la BD + reconstrucción
 
+> ## ⚠ ACTUALIZACIÓN 2026-08-06 (catch-up post-compact — deltas #40-#51)
+> El cuerpo de abajo es el **snapshot de auditoría del 2026-06-24 (27 tablas)** y quedó atrás.
+> **Estado REAL hoy (BD local `crewcare`, `SHOW TABLES`): 84 tablas.** El dump versionado
+> `database/schema/mysql-schema.dump` está en **56 tablas** (baseline 2026-07-22) → **NO tiene
+> las 28 tablas de los deltas #41-#50** (se aplicaron por SQL local, el dump no se regeneró).
+> **🔴 Pendiente owner:** regenerar el dump para que prod arranque completo (afecta bootstrap → territorio owner).
+>
+> **28 tablas nuevas desde el baseline de 56, por módulo (con su delta):**
+> - **Wrap report:** `wrap_reports`.
+> - **Herramientas — catálogo + inspección (#41/#42/#43):** `tools`, `tool_families`, `tool_variants`,
+>   `tool_check_points`, `tool_inspections`, `check_point_tool`, `check_point_standard`, `tool_standard`.
+> - **Permisos de trabajo — catálogo + emisión (#44):** `permits`, `permit_points`, `issued_permits`,
+>   `permit_standard`, `permit_tool`.
+> - **Vigilancia epidemiológica (#45):** `indicator_terms`, `outbreak_studies`.
+> - **Registro LITE + médico:** `lite_patients`, `health_record_addendums`, `medical_access_grants`.
+> - **MEDEVAC (#46):** `medevac_posters`.
+> - **Mapeo de riesgos (#50):** `risk_maps`, `risk_map_views`, `risk_map_markers`.
+> - **Aviso de privacidad:** `privacy_consents`. **Catálogo:** `catalog_pending_standards`.
+> - **⛔ SIN USO (superseded #48 por [[risk-map-module]]):** `scouting_canvases` (1 fila prueba), `canvas_pins` (0).
+> - **⚠ Residual beta (0 filas, drop candidato):** `clinic_attestations` (quedó tras eliminar BETA, delta `3b52b69a`).
+>
+> Modelos reales de estas tablas: `WrapReport, Tool, ToolFamily, ToolVariant, ToolCheckPoint, ToolInspection,
+> Permit, PermitPoint, IssuedPermit, IndicatorTerm, OutbreakStudy, LitePatient, HealthRecordAddendum,
+> MedicalAccessGrant, MedevacPoster, RiskMap, RiskMapView, RiskMapMarker, PrivacyConsent, CatalogPendingStandard`.
+> El detalle vivo por módulo está en la **memoria** (`/memory/*.md`, índice `MEMORY.md`) y en `PROGRESS.md`.
+> Las notas del snapshot de abajo (charset mixto, PK tinyint, huérfanas COVID) **siguen vigentes** para las tablas viejas.
+
+---
+
 Capturado de la **BD local en vivo** (`crewcare`, MySQL 5.7) el 2026-06-24 + reconstruido
 desde modelos/controladores (no hay migraciones para las tablas de negocio). Es la base
 para escribir las migraciones reales (Bloque 1 de [RECIPE.md](RECIPE.md)).

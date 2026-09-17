@@ -78,10 +78,10 @@
     $brandName   = $branding['brand_name'] ?? 'CrewCare';
     $projectName = (isset($tpl['project_name']) && trim((string) $tpl['project_name']) !== '')
         ? $tpl['project_name'] : $brandName;
-    // El nombre del gafete proviene de "Nombre en Créditos" (ncreditos); si está vacío,
-    // cae al nombre + apellido del registro.
-    $creditsName = trim((string) ($user->ncreditos ?? ''));
-    $fullName    = $creditsName !== '' ? $creditsName : trim(($user->name ?? '') . ' ' . ($user->lname ?? ''));
+    // El nombre del gafete = "Nombre en Créditos" (ncreditos) si es REAL (con letras), si no un
+    // nombre corto (1ª palabra + 1er apellido). Fuente única User::displayName — antes usaba el
+    // crédito aunque fuera basura de semilla ("0") y ahora la ignora.
+    $fullName    = \App\Models\User::displayName($user);
     $position    = \App\Models\User::positionNameFor($user->id ?? null, $user->puestodepartamento ?? null) ?? '';
     $consecutive = '0000' . ($user->id ?? '');
 

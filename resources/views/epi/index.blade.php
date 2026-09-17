@@ -1,5 +1,14 @@
 @extends('layouts.app')
 @section('content')
+@push('scripts')
+<script>
+    // Auto-envío del filtro al cambiar un select (CSP: sin onchange inline).
+    document.addEventListener('change', function (e) {
+        var el = e.target.closest('[data-autosubmit]');
+        if (el && el.form) { el.form.submit(); }
+    });
+</script>
+@endpush
 @php
     // Orden fijo de grupos + SIN CLASIFICAR. Colores concretos (Chart.js no lee tokens CSS).
     $groupOrder = array_keys(\App\Models\IndicatorTerm::GROUPS);
@@ -58,7 +67,7 @@
         <form method="get" action="{{ route('epi.index') }}" class="row g-2 align-items-end mb-3">
             <div class="col-md-4">
                 <label class="form-label small fw-semibold">{{ __('Locación') }}</label>
-                <select name="location" class="form-select form-select-sm" onchange="this.form.submit()">
+                <select name="location" class="form-select form-select-sm" data-autosubmit>
                     <option value="">{{ __('Todas') }}</option>
                     @foreach ($epi['locations'] as $loc)
                         <option value="{{ $loc }}" @selected(($filters['location'] ?? null) === $loc)>{{ $loc }}</option>
@@ -67,7 +76,7 @@
             </div>
             <div class="col-md-4">
                 <label class="form-label small fw-semibold">{{ __('Departamento') }}</label>
-                <select name="department" class="form-select form-select-sm" onchange="this.form.submit()">
+                <select name="department" class="form-select form-select-sm" data-autosubmit>
                     <option value="">{{ __('Todos') }}</option>
                     @foreach ($epi['departments'] as $dep)
                         <option value="{{ $dep }}" @selected(($filters['department'] ?? null) === $dep)>{{ $dep }}</option>

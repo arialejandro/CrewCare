@@ -11,5 +11,4 @@ class departamento extends Model
     protected $table = 'departamentos';
     protected $primaryKey = 'id_departamentos';
     protected $fillable = ['departamento','activo'];
-    protected $dates = ['created_at', 'updated_at'];
 }

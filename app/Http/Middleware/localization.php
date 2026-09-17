@@ -23,6 +23,13 @@ class localization
         if ($locale && in_array($locale, config('app.locales', []), true)) {
             App::setLocale($locale);
         }
+
+        // (2026-08-12) Carbon NO sigue a App::setLocale por su cuenta. Sin esto,
+        // translatedFormat()/isoFormat() imprimen los meses en inglés aunque la app esté en
+        // español (p. ej. "12 Aug 2026" en un documento en español). Se sincroniza al locale
+        // ACTIVO: el default de config o el de sesión ya aplicado arriba.
+        \Carbon\Carbon::setLocale(App::getLocale());
+
         return $next($request);
     }
 }

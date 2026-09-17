@@ -5,6 +5,21 @@
 para usarse como **semilla** de las entidades `Department` y `positions` de la fundación RBAC
 ([AUTH-RBAC-PLAN.md](AUTH-RBAC-PLAN.md) B.2, [DATABASE-SCHEMA.md](DATABASE-SCHEMA.md)).
 
+> ## ⚠ ACTUALIZACIÓN 2026-08-06 (catch-up post-compact)
+> La taxonomía de departamentos/puestos de abajo **sigue vigente** (es referencia del call sheet, no caduca).
+> Lo que cambió: **el RBAC ya NO es "plan" — está VIVO** (`spatie/laravel-permission`, tablas `roles`,
+> `permissions`, `model_has_roles`, `role_has_permissions`; `Gate::before` = super-admin pasa todo). Los puestos
+> van como **datos** (`positions`), no como roles — tal cual anticipaba §0. **Catálogo real de permisos hoy**
+> (de los seeders, gatean rutas vía `permission:xxx`):
+> `crew.{register,view,view.contact,view.personal}`, `users.{create,update,view,deactivate}`,
+> `productions.{create,update,view,delete}`, `catalogs.{view,manage}`, `documents.{create,view,sign,assign}`,
+> `reports.{view,export}`, `settings.manage`, `badge.design`,
+> **H&S:** `hazards.{create,view,manage}`, `hazardevents.{create,view,manage}`, `standards.{create,view,manage}`,
+> `locations.{create,view,manage}`, `injury.{create,view,manage}`, `dsr.{create,view,update,export}`,
+> `sds.{create,view,manage}`, `tools.inspect`, `permits.issue`, `medevac.issue`, `riskmap.issue`, `epi.view`,
+> **Médico:** `medical.{create,view,update,materials,consolidate}`, `medic.credential.manage`.
+> Fuente de rol médico = `User::isMedic()` (rol Spatie `medic`), no el viejo `daytest`. Detalle vivo en la **memoria**.
+
 **Alcance / reglas:**
 - Solo **lectura** del código y la BD. El único archivo escrito es este.
 - **Sin PII:** se extrae solo la **estructura** (nombres de departamento y títulos de puesto).

@@ -51,8 +51,9 @@
         $addressValue = $addressValue ?? old($addressName);
         $label        = $label ?? 'Dirección';
         $required     = $required ?? false;
+        $auto         = $auto ?? false;
     @endphp
-    <div data-geo-address>
+    <div data-geo-address @if($auto) data-geo-auto @endif>
         <label class="form-label fw-semibold" for="{{ $addressName }}">{{ $label }}@if($required) <span class="text-danger">*</span>@endif</label>
         <div class="input-group">
             <input type="text" name="{{ $addressName }}" id="{{ $addressName }}"
@@ -112,6 +113,6 @@
 
 @once
     @push('scripts')
-        <script src="{{ asset('js/crewcare-geo.js') }}?v=4"></script>
+        <script src="{{ asset('js/crewcare-geo.js') }}?v=5"></script>
     @endpush
 @endonce

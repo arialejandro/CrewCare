@@ -73,7 +73,8 @@ return [
     'n_hospitalizations' => '{0} No hospital stays|{1} 1 hospital stay|[2,*] :count hospital stays',
 
     // ---- Checkboxes ----
-    'c_alive'        => 'Living/Healthy',
+    'c_alive'        => 'Living',
+    'c_healthy'      => 'Healthy',
     'c_dead'         => 'Deceased',
     'c_diabetes'     => 'Diabetes mellitus',
     'c_hypertension' => 'High blood pressure',

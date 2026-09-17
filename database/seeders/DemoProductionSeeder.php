@@ -138,6 +138,11 @@ class DemoProductionSeeder extends Seeder
         $this->crearSpfx($ids);
         $this->crearAccionesPendientes();
 
+        // (2026-09-05 · Integridad) Autochequeo: nada de lo que se creó o re-fechó debe quedar con el
+        // sello viejo. Solo verifica y AVISA (no re-sella): un sello viejo aquí = un creador que firmó
+        // antes de su última escritura, y hay que arreglar ESE orden, no re-sellar a ciegas.
+        $this->verificarSellos();
+
         $this->command->info('Producción demo lista: ' . count($this->dias) . ' días de rodaje, prep de '
             . self::SEMANAS_PREP . ' semanas. Día 1 ' . $this->inicio . ', wrap ' . $this->wrap . '.');
     }
@@ -262,6 +267,53 @@ class DemoProductionSeeder extends Seeder
         }
         if (Schema::hasTable('standardables')) {
             DB::table('standardables')->where('standardable_type', $clase)->where('standardable_id', $id)->delete();
+        }
+    }
+
+    /**
+     * (2026-09-05 · Integridad) AUTOCHEQUEO al final del run: ningún documento que este seeder crea o
+     * RE-FECHA debe quedar con el sello viejo. reubicarDsrExistentes() re-sella los DSR que re-fecha, y
+     * crearScoutings()/crearGemelos()/crearAccidentes() firman DESPUÉS de su última escritura → esto
+     * debe pasar SIEMPRE. Si un cambio futuro rompe ese orden (fue lo que dejó al scouting #4 "alterado"
+     * en una versión vieja del seeder), aquí SE GRITA en vez de dejar el sello silenciosamente viejo.
+     * SOLO verifica y avisa: NO re-sella nada — no toca documentos ajenos ni anomalías previas (un #4
+     * sin marca ni siquiera entra a este barrido).
+     */
+    private function verificarSellos()
+    {
+        if (! Schema::hasTable('digital_signatures')) {
+            return;
+        }
+        $marca = '%' . self::MARCA . '%';
+        $tipos = [
+            [ScoutingReport::class,     'location_name'],
+            [hazardnotification::class, 'description_hazard_unsafe_act'],
+            [unsafecond::class,         'description_unsafe_cond'],
+            [InjuryReport::class,       'what_happened'],
+            [DailyReport::class,        'location_name'],
+        ];
+
+        $viejos = [];
+        foreach ($tipos as $par) {
+            list($clase, $campo) = $par;
+            foreach ($clase::where($campo, 'like', $marca)->get() as $doc) {
+                if ($doc->signatures()->exists() && $doc->verifyLatestSignature() === false) {
+                    $viejos[] = class_basename($clase) . '#' . $doc->getKey();
+                }
+            }
+        }
+        // Los 5 DSR con foto se RE-FECHAN (no llevan marca): su re-sello es justo el caso a cuidar.
+        foreach (DailyReport::whereIn('id', [1, 2, 3, 4, 5])->get() as $d) {
+            if ($d->signatures()->exists() && $d->verifyLatestSignature() === false) {
+                $viejos[] = 'DailyReport#' . $d->getKey();
+            }
+        }
+
+        if (! empty($viejos)) {
+            $this->command->warn('⚠ Sellos VIEJOS tras el seeder (se re-fechó sin re-sellar): '
+                . implode(', ', $viejos) . '. Un creador firmó ANTES de su última escritura: arregla ese orden.');
+        } else {
+            $this->command->info('Sellos del corpus: todos verifican.');
         }
     }
 

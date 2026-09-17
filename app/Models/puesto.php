@@ -12,5 +12,4 @@ class puesto extends Model
     protected $primaryKey = 'id_puestos';
     protected $fillable = ['id_departamento',
     'name'];
-    protected $dates = ['created_at', 'updated_at'];
 }

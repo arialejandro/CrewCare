@@ -77,7 +77,8 @@
             <details class="mt-3">
                 <summary class="cc-muted small" style="cursor:pointer">{{ __('¿Alguien quedó registrado dos veces? Fusionar duplicados') }}</summary>
                 <form method="POST" action="#" id="cc-merge-form" class="d-flex flex-wrap gap-2 align-items-end mt-2"
-                      onsubmit="this.action='{{ url('pacientes-lite') }}/'+document.getElementById('cc-merge-dup').value+'/fusionar';">
+                      data-merge-base="{{ url('pacientes-lite') }}"
+                      data-merge-confirm="{{ __('Fusionar: ambas historias quedarán juntas y ninguna consulta se pierde. ¿Continuar?') }}">
                     @csrf
                     <div>
                         <label class="cc-label">{{ __('Duplicado (se absorbe)') }}</label>
@@ -95,8 +96,7 @@
                             @endforeach
                         </select>
                     </div>
-                    <button type="submit" class="btn btn-sm btn-outline-primary"
-                            onclick="return confirm('{{ __('Fusionar: ambas historias quedarán juntas y ninguna consulta se pierde. ¿Continuar?') }}');">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">
                         {{ __('Fusionar') }}
                     </button>
                 </form>
@@ -105,3 +105,21 @@
     </div>
 </details>
 @endif
+
+@once
+@push('scripts')
+<script>
+    // Fusión de duplicados SIN on* en atributo (CSP). En el submit: confirma y arma la acción
+    // dinámica leyendo el <select> + la base de URL desde data-* (nada de Blade dentro del JS).
+    document.addEventListener('submit', function (e) {
+        var f = e.target;
+        if (!f || f.id !== 'cc-merge-form') { return; }
+        var msg = f.getAttribute('data-merge-confirm');
+        if (msg && !window.confirm(msg)) { e.preventDefault(); return; }
+        var dup  = document.getElementById('cc-merge-dup');
+        var base = f.getAttribute('data-merge-base') || '';
+        if (dup && base) { f.action = base + '/' + dup.value + '/fusionar'; }
+    });
+</script>
+@endpush
+@endonce

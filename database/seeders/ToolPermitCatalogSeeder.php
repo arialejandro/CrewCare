@@ -61,6 +61,32 @@ class ToolPermitCatalogSeeder extends Seeder
     /** Permisos de montaje temporal cuyo alcance_sitio "por_definir" se resuelve a reverificacion. */
     private const TEMP_ASSEMBLY_PERMITS = ['PER-05', 'PER-06', 'PER-07'];
 
+    /**
+     * (2026-08-17) Requisitos de AUTORIDAD LOCAL que la fuente listaba como "norma" pero NO lo son:
+     * son permisos/autorizaciones que emite una autoridad (con folio/vigencia), no una regla citable.
+     * Se EXCLUYEN de la resolución/parqueo de normas (nunca entran a safety_standards) porque su lugar
+     * es la AUTORIZACIÓN EXTERNA del permiso (ext_auth_* del catálogo) + el registro a runtime en
+     * `external_authorizations`. Decisión del owner: "no son norma; decláralas como autoridad local".
+     */
+    private const NON_NORM_LOCAL_REQUIREMENTS = [
+        'Reglamentos de tránsito estatales y municipales',
+        'Normatividad estatal de protección animal',
+        'Permiso de efectos especiales del fire department local',
+    ];
+
+    /**
+     * Declaración de AUTORIDAD EXTERNA que la fuente NO trae y que aquí se corrige (patrón de la
+     * REVERIFY_RULE). PER-11 (municipal: cierre de vía) y PER-03 (SEDENA: pólvora) ya la declaran en
+     * el JSON; PER-12 (animales) NO → se declara aquí como requisito de autoridad estatal.
+     */
+    private const LOCAL_AUTH_FIX = [
+        'PER-12' => [
+            'autoridad'   => 'estatal',
+            'que'         => 'Autorización / normatividad estatal de protección y bienestar animal para el uso de animales en escena.',
+            'obligatorio' => true,
+        ],
+    ];
+
     /** Contadores para el report() final. */
     private array $stats = [];
 
@@ -278,6 +304,7 @@ class ToolPermitCatalogSeeder extends Seeder
     {
         $map = [];
         $reverifCorregidos = 0;
+        $localAuthFixed = 0;
         $i = 0;
         foreach ($per['permisos'] as $p) {
             $code = $p['id'];
@@ -296,6 +323,16 @@ class ToolPermitCatalogSeeder extends Seeder
             $extAuthority = is_array($ae) ? ($ae['autoridad'] ?? null) : null;
             $extWhat      = is_array($ae) ? ($ae['que'] ?? null) : null;
             $extMandatory = is_array($ae) ? (isset($ae['obligatorio']) ? (bool) $ae['obligatorio'] : null) : null;
+
+            // Corrección: declara la autoridad externa que la FUENTE NO trae (requisito de autoridad
+            // local que antes venía como "norma"). Solo si el JSON no declaró ninguna.
+            if ($extAuthority === null && isset(self::LOCAL_AUTH_FIX[$code])) {
+                $fix = self::LOCAL_AUTH_FIX[$code];
+                $extAuthority = $fix['autoridad'];
+                $extWhat      = $fix['que'];
+                $extMandatory = $fix['obligatorio'];
+                $localAuthFixed++;
+            }
 
             $permit = Permit::updateOrCreate(
                 ['code' => $code],
@@ -329,6 +366,7 @@ class ToolPermitCatalogSeeder extends Seeder
         }
         $this->stats['permisos'] = count($map);
         $this->stats['reverif_corregidos'] = $reverifCorregidos;
+        $this->stats['autoridad_local_declarada'] = $localAuthFixed;
         return $map;
     }
 
@@ -401,6 +439,12 @@ class ToolPermitCatalogSeeder extends Seeder
                 foreach ((array) $vals as $raw) {
                     $raw = trim((string) $raw);
                     if ($raw === '') continue;
+                    // Requisito de AUTORIDAD LOCAL (no es norma): no se resuelve ni se parquea como
+                    // norma; su lugar es la autorización externa del permiso (ext_auth + external_authorizations).
+                    if (in_array($raw, self::NON_NORM_LOCAL_REQUIREMENTS, true)) {
+                        $this->stats['requisitos_autoridad_local'] = ($this->stats['requisitos_autoridad_local'] ?? 0) + 1;
+                        continue;
+                    }
                     $r = $resolver->resolve($raw, $bucket);
                     if ($r['id'] !== null) {
                         $resolvedIds[$r['id']] = true;

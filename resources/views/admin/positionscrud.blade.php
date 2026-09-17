@@ -1,6 +1,8 @@
 @extends('layouts.app')
 
 @section('content')
+{{-- Confirmación de submits destructivos por delegación (data-confirm), sin onsubmit inline (CSP). --}}
+@include('componentes._confirm-submit')
 
 {{-- Sistema de estilos de formularios reutilizable (tarjetas, campos, controles, CTA, iconos). --}}
 @include('componentes._form-kit')
@@ -181,7 +183,7 @@
                                 </a>
                                 @if($pos->active)
                                 <form method="POST" action="{{ route('desactivarposition', $pos->id) }}"
-                                      onsubmit="return confirm('¿Desactivar esta posición?');" class="d-inline">
+                                      data-confirm="¿Desactivar esta posición?" class="d-inline">
                                     @csrf
                                     <button type="submit" class="cc-cat-act cc-cat-act--danger" title="Desactivar" aria-label="Desactivar">
                                         @include('componentes._icon', ['name' => 'x-circle', 'class' => 'cc-ico-16', 'label' => null])

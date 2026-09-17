@@ -29,6 +29,7 @@ class RoleAssignmentController extends Controller
      */
     private const ASSIGNABLE = [
         'line-producer', 'coordinator', 'hod', 'medic', 'safety-officer', 'crew', 'auditor',
+        'representante-legal', // figura legal: firma documentos + crea contratos (2026-08-14)
     ];
 
     /**
@@ -102,10 +103,24 @@ class RoleAssignmentController extends Controller
                 ->where('role_has_permissions.permission_id', $permId)
                 ->pluck('roles.name')->all()
             : [];
+
+        // (2026-08-11 · BUG-04) Mismo cálculo para `medical.consolidate` (consolidación de la
+        // bitácora / key medic). SIN esto el compact no los pasaba → $keyMedicPermReady quedaba
+        // false y el toggle NUNCA se pintaba. Ahora el super-admin puede darlo/quitarlo desde el panel.
+        $consolidatePermId = DB::table('permissions')->where('name', 'medical.consolidate')->value('id');
+        $keyMedicPermReady = (bool) $consolidatePermId;
+        $keyMedicIds = $consolidatePermId
+            ? DB::table('model_has_permissions')
+                ->where('permission_id', $consolidatePermId)
+                ->where('model_type', $userMorph)
+                ->whereIn('model_id', $users->pluck('id')->all())
+                ->pluck('model_id')->all()
+            : [];
+
         $isSuperAdmin = (bool) $request->user()->hasRole('super-admin');
 
         $data = compact('users', 'departments', 'roles', 'deptByUser', 'q',
-            'directMedicalIds', 'rolesWithMedical', 'isSuperAdmin');
+            'directMedicalIds', 'rolesWithMedical', 'keyMedicIds', 'keyMedicPermReady', 'isSuperAdmin');
 
         // Buscador en vivo: el front pide SOLO la tabla (?partial=1) y reemplaza #rolesResults
         // (mismo patrón AJAX que el Crew List).
@@ -128,6 +143,14 @@ class RoleAssignmentController extends Controller
         // SEGURIDAD (2026-07-06): guarda de scope por departamento, igual que useredit/acountupdate.
         // Super-admin (crew.view.all-departments) pasa; roles acotados solo dentro de su depto.
         abort_unless(auth()->user()->canManageCrewMember($user), 403);
+
+        // (2026-08-13) EL SUPER-ADMIN NO SE REASIGNA DESDE AQUÍ. Como no está en ASSIGNABLE, el
+        // <select> lo mostraba como line-producer (primera opción) → cualquier operador con
+        // users.assign-role podía DEGRADARLO a line-producer y quitarle god-mode (lockout). El rol
+        // máximo se concede/retira solo por seeder o a mano, nunca por esta pantalla.
+        if ($user->hasRole('super-admin')) {
+            return back()->with('error', 'El super-admin no se reasigna desde aquí: es el rol máximo (permisos, marca, feature flags).');
+        }
 
         // Un operador no puede cambiar su PROPIO rol (evita auto-escalada/lockout).
         if ($user->id === auth()->id()) {
@@ -152,7 +175,7 @@ class RoleAssignmentController extends Controller
 
             // Si el departamento cambia, el puesto previo pertenecía a otro depto → se limpia
             // (no hay selector de puesto en esta v1; se reasigna cuando lo agreguemos).
-            $newDept = $data['department_id'] !== null ? (int) $data['department_id'] : null;
+            $newDept = ($data['department_id'] ?? null) !== null ? (int) $data['department_id'] : null; // BUG-03: la clave puede faltar (validada nullable)
             $positionId = $existing->position_id ?? null;
             if (!$existing || (int) ($existing->department_id ?? 0) !== (int) ($newDept ?? 0)) {
                 $positionId = null;
@@ -190,15 +213,28 @@ class RoleAssignmentController extends Controller
         // resolver del request.
         abort_unless(auth()->user()->hasRole('super-admin'), 403);
 
+        // (2026-08-11 · BUG-04) Se honra el permiso posteado (whitelist), no un hardcode. Así el
+        // panel puede otorgar TANTO `medical.view` (acceso al expediente) COMO `medical.consolidate`
+        // (KEY MEDIC: ve todas las consultas + emite la bitácora). Antes se ignoraba el campo y el
+        // botón "key medic" terminaba dando medical.view.
+        $permission = in_array($request->input('permission'), ['medical.view', 'medical.consolidate'], true)
+            ? $request->input('permission')
+            : 'medical.view';
+
         $user = User::findOrFail($id);
 
+        // El super-admin ya ve/consolida todo por Gate::before → un otorgamiento directo sería ruido.
+        if ($user->hasRole('super-admin')) {
+            return back()->with('status', 'El super-admin ya tiene acceso total por diseño; no requiere otorgamiento.');
+        }
+
         // Idempotente: si ya lo tiene DIRECTO, no dupliques ni el permiso ni el registro.
-        if (! $user->hasDirectPermission('medical.view')) {
-            $user->givePermissionTo('medical.view');
+        if (! $user->hasDirectPermission($permission)) {
+            $user->givePermissionTo($permission);
             if (MedicalAccessGrant::supportsGrants()) {
                 MedicalAccessGrant::create([
                     'user_id'       => $user->id,
-                    'permission'    => 'medical.view',
+                    'permission'    => $permission,
                     'granted_by_id' => auth()->id(),
                     'granted_at'    => now(),
                     'note'          => 'Otorgado directo desde /rolescrud',
@@ -206,7 +242,11 @@ class RoleAssignmentController extends Controller
             }
         }
 
-        return back()->with('status', "Acceso al expediente clínico OTORGADO a {$user->name} {$user->lname}. Ve a todo el crew.");
+        $msg = $permission === 'medical.consolidate'
+            ? "Consolidación de la bitácora clínica OTORGADA a {$user->name} {$user->lname} (ve todas las consultas y emite el reporte semanal)."
+            : "Acceso al expediente clínico OTORGADO a {$user->name} {$user->lname}. Ve a todo el crew.";
+
+        return back()->with('status', $msg);
     }
 
     /**
@@ -219,15 +259,25 @@ class RoleAssignmentController extends Controller
     {
         abort_unless(auth()->user()->hasRole('super-admin'), 403);
 
+        // (2026-08-11 · BUG-04) Paramétrico igual que grantMedical: revoca el permiso posteado.
+        $permission = in_array($request->input('permission'), ['medical.view', 'medical.consolidate'], true)
+            ? $request->input('permission')
+            : 'medical.view';
+
         $user = User::findOrFail($id);
 
-        if ($user->hasDirectPermission('medical.view')) {
-            $user->revokePermissionTo('medical.view');
+        // No se le retira acceso al super-admin desde aquí: lo conserva por Gate::before (god-mode).
+        if ($user->hasRole('super-admin')) {
+            return back()->with('status', 'El super-admin conserva el acceso por diseño; no se retira desde esta pantalla.');
+        }
+
+        if ($user->hasDirectPermission($permission)) {
+            $user->revokePermissionTo($permission);
         }
 
         if (MedicalAccessGrant::supportsGrants()) {
             MedicalAccessGrant::where('user_id', $user->id)
-                ->where('permission', 'medical.view')
+                ->where('permission', $permission)
                 ->whereNull('revoked_at')
                 ->update([
                     'revoked_by_id' => auth()->id(),
@@ -236,10 +286,11 @@ class RoleAssignmentController extends Controller
                 ]);
         }
 
-        $msg = "Acceso clínico directo REVOCADO a {$user->name} {$user->lname}.";
+        $label = $permission === 'medical.consolidate' ? 'Consolidación de la bitácora' : 'Acceso clínico directo';
+        $msg = "{$label} REVOCADO a {$user->name} {$user->lname}.";
         // hasPermissionTo (sin Gate::before) refleja rol + directo: si sigue en true, viene del ROL.
-        if ($user->hasPermissionTo('medical.view')) {
-            $msg .= ' OJO: aún conserva acceso por su ROL (cambia el rol si quieres retirarlo del todo).';
+        if ($user->hasPermissionTo($permission)) {
+            $msg .= ' OJO: aún conserva el acceso por su ROL (cambia el rol si quieres retirarlo del todo).';
         }
 
         return back()->with('status', $msg);

@@ -123,7 +123,8 @@
       <br /> 
 		¡Bienvenido a la plataforma <strong>CrewCare!</strong> <br>
 		Nos alegra contar contigo en este nuevo proyecto. <br>
-        Te pedimos por favor no olvides llenar tu <strong>REPORTE DE SALUD,</strong> antes de integrarte para ello, ingresa a la aplicación en el siguiente enlace: <a href="https://ddemo.crewcare.mx"><strong>https://demo.crewcare.mx</strong></a> 
+        @php $ccApp = rtrim($appUrl ?? config('app.url'), '/'); @endphp
+        Te pedimos por favor no olvides llenar tu <strong>REPORTE DE SALUD,</strong> antes de integrarte para ello, ingresa a la aplicación en el siguiente enlace: <a href="{{ $ccApp }}"><strong>{{ $ccApp }}</strong></a>
 		<br><br>
 		Con el siguiente usuario: <br>
 		Usuario: <strong>{{$email}}</strong> <br><br>
@@ -131,6 +132,12 @@
 		<br><br>
 		<a href="{{$resetUrl}}" style="display:inline-block;background-color:#ff0046;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:5px;font-weight:bold;">Establecer/Restablecer tu contraseña</a>
 		<br><br><br>
+		@isset($intakeUrl)
+		También necesitamos que <strong>completes tu hoja de información</strong> (datos fiscales, documentos y contacto). Solo tú tienes tu CLABE, tu identificación y tu domicilio; con eso se genera tu contrato. Puedes hacerlo desde aquí, sin necesidad de contraseña:
+		<br><br>
+		<a href="{{$intakeUrl}}" style="display:inline-block;background-color:#0b6bcb;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:5px;font-weight:bold;">Llenar mi hoja de información</a>
+		<br><br><br>
+		@endisset
 		Además, te invitamos a subir una <strong>foto de perfil</strong> dentro de la aplicación para facilitar tu identificación por parte del equipo. <br>
 		¡Gracias y bienvenido nuevamente!
   </div>

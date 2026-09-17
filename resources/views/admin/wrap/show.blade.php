@@ -25,6 +25,16 @@
     $primary   = isset($brand['primary_color']) ? $brand['primary_color'] : '#ff9900';
     $esBorrador = isset($borrador) ? (bool) $borrador : false;
 
+    // Membrete VIVO: el nombre del proyecto se toma de la Marca en CADA visita, nunca del payload
+    // congelado. El proyecto puede renombrarse (p.ej. QMAS → QPCS → QAAS) y eso debe reflejarse en
+    // TODO documento, incluso ya emitido — igual que los demás reportes ($heroProject = $brandName).
+    // El sello protege el CONTENIDO (las cifras del payload), no el membrete. Misma nota en
+    // admin/medevac/show.blade.php.
+    $brandName = isset($brand['brand_name']) && $brand['brand_name'] !== '' ? $brand['brand_name'] : 'CrewCare';
+    // ¿Hay una tira superior (borrador o mensaje de sesión)? Si la hay, la hoja de abajo no repite
+    // el respiro de 74px que deja para el toolbar (lo puso ya la tira).
+    $hasTop = $esBorrador || session('status');
+
     $P  = is_array($payload) ? $payload : [];
     $s1 = isset($P['s1_alcance'])      ? $P['s1_alcance']      : [];
     $s2 = isset($P['s2_anticipado'])   ? $P['s2_anticipado']   : [];
@@ -41,16 +51,57 @@
     $v = function ($arr, $k, $def = null) { return isset($arr[$k]) ? $arr[$k] : $def; };
     $num = function ($n) { return $n === null ? '—' : number_format((float) $n, (floor((float) $n) == (float) $n) ? 0 : 2); };
 
+    // --- Bloque 2: elecciones del editor CONGELADAS en el payload (omitir apartados / notas). ---
+    // En el BORRADOR el payload aún no las trae → se ven todos los apartados y las notas se
+    // previsualizan EN VIVO por JS. En el SELLADO, el payload manda: los apartados omitidos se
+    // ocultan con un <style> generado (display:none = fuera del PDF, omisión "silenciosa") y las
+    // notas frozen se pintan dentro de su apartado. Al emitir, el controlador las sella.
+    $editor  = $v($P, 'editor', []);
+    $omit    = array_values(array_filter((array) $v($editor, 'omit', [])));
+    $notes   = (array) $v($editor, 'notes', []);
+    $secNote = function ($k) use ($notes) { return isset($notes[$k]) ? trim((string) $notes[$k]) : ''; };
+
+    // --- Corrección NARRATIVA (arreglar un texto redactado impreciso). Override congelado o auto. ---
+    // Los CONTEOS no se editan; sólo la narrativa. En BORRADOR los textos son editables in-place
+    // (contenteditable, el JS los recoge al emitir); en el SELLADO son texto plano (override o auto).
+    $overrides = (array) $v($editor, 'overrides', []);
+    $ov = function ($key, $auto) use ($overrides) {
+        return array_key_exists($key, $overrides) && $overrides[$key] !== '' ? $overrides[$key] : $auto;
+    };
+    $editAttr = function ($key) use ($esBorrador) {
+        return $esBorrador ? ' contenteditable="true" data-edit="' . $key . '" spellcheck="false"' : '';
+    };
+
+    // --- Imágenes del documento: congeladas en el payload al emitir (ver editorImages() en el
+    // controlador). En el BORRADOR aún no existen (se eligen en el panel y se suben al emitir). La
+    // principal es el fondo del encabezado; las adicionales pintan la sección Evidencia. Rutas
+    // raíz-relativas (/storage/...) para que el <img> funcione en el documento standalone. ---
+    $images   = (array) $v($editor, 'images', []);
+    $imgMain  = $v($images, 'main');
+    $imgExtra = (array) $v($images, 'extra', []);
+    // Apartados y si son OMITIBLES (s1 y el sello son fijos). Rótulos para el panel del borrador.
+    $sectionMeta = [
+        's1' => ['1 · Identificación y alcance', false],
+        's2' => ['2 · Lo que se anticipó',       true],
+        's3' => ['3 · Lo que realmente pasó',    true],
+        's4' => ['4 · Predicho vs. real',        true],
+        's5' => ['5 · Desglose cronológico',     true],
+        's6' => ['6 · Cumplimiento',             true],
+        's7' => ['7 · Tendencias',               true],
+        's8' => ['8 · Continuidad',              true],
+    ];
+
     $folio = $wrap->exists ? $wrap->folio() : 'BORRADOR';
     $periodoIni = $v($s1, 'periodo_desde');
     $periodoFin = $v($s1, 'periodo_hasta');
-    $fmt = function ($f) { return $f ? \Carbon\Carbon::parse($f)->format('d M Y') : '—'; };
+    $fmt = function ($f) { return $f ? \Carbon\Carbon::parse($f)->translatedFormat('d M Y') : '—'; };
 
     $nivelClase = ['Bajo' => 'n1', 'Medio' => 'n2', 'Alto' => 'n3', 'Extremo' => 'n4'];
     $nivelNombre = [1 => 'Bajo', 2 => 'Medio', 3 => 'Alto', 4 => 'Extremo'];
 
     $heroDate = $fmt($periodoIni) . ' — ' . $fmt($periodoFin);
-    $footUuid = $wrap->uuid ? mb_strtoupper(mb_substr((string) $wrap->uuid, 0, 8)) : '—';
+    // UUID REAL completo del documento (el mismo del sello CFDI), homologado con los demás docs.
+    $footUuid = 'UUID: ' . ($wrap->uuid ?: '—') . ' | ' . config('crewcare.doc_version');
 @endphp
 <!DOCTYPE html>
 <html lang="{{ app()->getLocale() }}">
@@ -181,7 +232,90 @@
     .wkpi{grid-template-columns:repeat(2,1fr)}
     .wtli{grid-template-columns:1fr}
   }
+
+  /* ===== CUERPO EN FLUJO DE BLOQUES (no tabla) — reemplaza el motor `report-wrap` =============
+     El cuerpo vivía en UNA celda <td> del tbody, y Chrome IGNORA break-inside dentro de una celda
+     que pagina → cortaba texto/gráficas a media hoja en documentos largos. En FLUJO NORMAL (divs)
+     Chrome SÍ respeta break-inside:avoid, así que los saltos caen ENTRE bloques, nunca dentro.
+     Costo: el hero ya no se repite por hoja (dependía del <thead> de la tabla); sale en la 1ª.
+     El pie fijo (.print-foot) SÍ se repite y el @page da respiro arriba y sitio abajo. ============ */
+  .doc-body{padding:var(--pad)}
+  /* Tira superior (borrador / mensaje): NO es un .stage de 100vh — antes empujaba el documento una
+     pantalla completa hacia abajo y parecía que "no se renderizaba nada". Es compacta. */
+  .wrap-controls{padding:86px 20px 0}
+  .stage.below-controls{padding-top:16px}
+
+  @media print{
+    /* MOTOR DE TABLA (2026-08-09): hereda @page{margin:0} del chrome (_report-v2-head) → el hero
+       (<thead>) y el pie (fixed + <tfoot> espaciador) van a sangre y se REPITEN en CADA hoja, sin
+       bandas en blanco. Aquí sólo el padding lateral del cuerpo (12mm) y que las secciones largas
+       puedan partirse entre hojas. */
+    .doc-body{padding:6mm 12mm 0}
+    /* Las secciones LARGAS (cronología, predicho-vs-real) SÍ pueden partirse entre hojas; lo que
+       nunca se parte es cada bloque atómico de adentro (.wtli/.wloc/.wkpi/.wchart/.wnote, ya
+       protegidos arriba). Sin esto, una sección más alta que una hoja se recorta. */
+    .sec{break-inside:auto!important;page-break-inside:auto!important}
+  }
+
+  @media (max-width:720px){
+    .wrap-controls{padding:78px 14px 0}
+    /* Tablas anchas: desplazables en horizontal en vez de desbordar la hoja (una sola tabla, las
+       columnas siguen alineadas; nowrap conserva su ancho y activa el scroll). */
+    .doc-body .tbl{display:block;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch}
+  }
+  @media (max-width:640px){
+    /* Hero en móvil: la caja del proyecto tiene ancho definido (56vw) para que el auto-ajuste del
+       nombre lo encoja al ancho en vez de recortarlo, y no desborde el logo. */
+    .doc-hero{height:160px}
+    .doc-hero .hero-side{width:56vw;left:auto;right:12px;top:12px}
+  }
+
+  /* ===== Panel de ajuste del BORRADOR (Bloque 2): omitir apartados + notas por apartado ========
+     No se imprime (vive en .wrap-controls .no-print). El <details> colapsa sin JS. ============= */
+  .weditor{max-width:860px;margin:10px auto 0;border:1px solid var(--stroke);border-radius:var(--radius-sm);background:var(--panel)}
+  .weditor-h{cursor:pointer;list-style:none;padding:11px 14px;font:700 .82rem/1.2 var(--font);color:var(--text);display:flex;align-items:center;gap:8px}
+  .weditor-h::-webkit-details-marker{display:none}
+  .weditor-h svg{width:15px;height:15px;color:var(--brand)}
+  .weditor[open] .weditor-h{border-bottom:1px solid var(--stroke)}
+  .weditor-grid{display:flex;flex-direction:column;gap:8px;padding:12px 14px}
+  .weditor-row{display:grid;grid-template-columns:minmax(160px,230px) 1fr;gap:10px;align-items:center}
+  .weditor-inc{display:flex;align-items:center;gap:8px;font:600 .8rem/1.2 var(--font);color:var(--text);cursor:pointer;min-width:0}
+  .weditor-inc input{width:16px;height:16px;flex:none;accent-color:var(--brand)}
+  .weditor-inc.fixed{color:var(--muted);cursor:default}
+  .weditor-inc.fixed .dot{width:8px;height:8px;border-radius:50%;background:var(--stroke-2);flex:none}
+  .weditor-inc em{font-style:normal;font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}
+  .weditor-note-in{width:100%;height:36px}
+  .weditor-foot{padding:0 14px 12px;font:500 .72rem/1.45 var(--font);color:var(--faint)}
+  @media (max-width:620px){ .weditor-row{grid-template-columns:1fr;gap:5px} }
+
+  /* Miniaturas EN VIVO de las imágenes elegidas en el borrador (FileReader; sólo pantalla). */
+  .wimg-in{width:100%}
+  .wimg-previews{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px;grid-column:1/-1}
+  .wimg-previews figure{margin:0;width:88px}
+  .wimg-previews img{width:88px;height:62px;object-fit:cover;border-radius:6px;border:1px solid var(--stroke);display:block;background:#141a26}
+  .wimg-previews figcaption{margin-top:3px;font:600 .58rem/1.2 var(--font);color:var(--faint);text-align:center;text-transform:uppercase;letter-spacing:.05em}
+
+  /* Nota del editor por apartado: cinta discreta bajo el encabezado de su sección (imprimible). El
+     rótulo "Nota del editor —" es ::before para que el JS del borrador sobrescriba sólo el texto. */
+  .wsec-note{margin:0 0 12px;padding:9px 13px;border-left:3px solid var(--brand);border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+    background:color-mix(in srgb,var(--brand) 7%,var(--panel));font:500 .82rem/1.5 var(--font);color:var(--text);
+    white-space:pre-wrap;overflow-wrap:break-word;break-inside:avoid}
+  .wsec-note::before{content:"Nota del editor — ";font-weight:700;color:var(--brand)}
+  .wsec-note.is-empty{display:none}
+
+  /* Edición NARRATIVA in-place (sólo borrador): los textos editables se marcan con un filo tenue
+     y realce al enfocar. En papel NO se marca nada. */
+  [contenteditable="true"]{outline:1px dashed color-mix(in srgb,var(--brand) 45%,transparent);outline-offset:2px;border-radius:3px;cursor:text}
+  [contenteditable="true"]:hover{outline-color:var(--brand)}
+  [contenteditable="true"]:focus{outline:2px solid var(--brand);background:color-mix(in srgb,var(--brand) 7%,transparent)}
+  @media print{ [contenteditable]{outline:none !important;background:none !important} }
 </style>
+@if(!empty($omit))
+{{-- Omisión SILENCIOSA (elección del owner): los apartados omitidos se ocultan por CSS → no salen
+     en el PDF exportado. No se @unless en el markup para no reordenar la vista; el efecto entregado
+     (el PDF) es idéntico: el apartado no existe en el papel. --}}
+<style>@foreach($omit as $wk)[data-sec-block="{{ $wk }}"]{display:none!important}@endforeach</style>
+@endif
 </head>
 <body>
 
@@ -190,51 +324,171 @@
 @include('componentes._report-v2-toolbar', ['backRoute' => route('wrap.index')])
 
 @if(session('status'))
-  <div class="stage"><div class="alert ok no-print">@include('componentes._icon', ['name' => 'check-circle']) {{ session('status') }}</div></div>
+<div class="wrap-controls no-print">
+  <div class="alert ok">@include('componentes._icon', ['name' => 'check-circle']) {{ session('status') }}</div>
+</div>
 @endif
 
 @if($esBorrador)
 @php $emitBloqueado = isset($emitBloqueado) ? $emitBloqueado : null; @endphp
-<div class="stage">
-  <div class="wops no-print">
-    <div class="ops-note">Borrador en vivo. Al emitirlo, el cálculo se congela y se sella.</div>
-    @if($emitBloqueado)
-      {{-- Ventana de emisión CERRADA: el botón NO se pinta. El congelamiento no puede dispararse
-           antes de la fecha de finalización — ni por accidente ni a propósito. Se explica el porqué
-           y hasta cuándo, en vez de un botón muerto que invite a insistir. --}}
-      <div class="wlock">@include('componentes._icon', ['name' => 'lock']) <span>{{ $emitBloqueado }}</span></div>
-    @else
-    <form method="POST" action="{{ route('wrap.store') }}">
-      @csrf
-      <input type="hidden" name="desde" value="{{ request('desde') }}">
-      <input type="hidden" name="hasta" value="{{ request('hasta') }}">
-      <button class="btn brand" type="submit">@include('componentes._icon', ['name' => 'shield']) Emitir y sellar</button>
-    </form>
+<div class="wrap-controls no-print">
+  {{-- El panel de ajuste + el botón viven en el MISMO form para que los checkbox/notas viajen al
+       emitir. Si la ventana está cerrada no hay form (no se puede emitir), pero el panel sí se
+       muestra para previsualizar en vivo. --}}
+  @if(! $emitBloqueado)
+  <form method="POST" action="{{ route('wrap.store') }}" id="wrapEmit" enctype="multipart/form-data">
+    @csrf
+    <input type="hidden" name="desde" value="{{ request('desde') }}">
+    <input type="hidden" name="hasta" value="{{ request('hasta') }}">
+    {{-- Correcciones narrativas: el JS vuelca aquí (JSON) el texto de los bloques contenteditable al emitir. --}}
+    <input type="hidden" name="editor_overrides" id="editorOverrides">
+  @endif
+
+    <div class="wops">
+      <div class="ops-note">Borrador en vivo. Debajo se ve el documento completo, tal como se emitirá. Ajusta qué apartados incluir y añade notas; al emitir se congela y se sella.</div>
+      @if($emitBloqueado)
+        {{-- Ventana CERRADA: sin botón (no se puede congelar antes de la fecha de finalización); se
+             explica el porqué y hasta cuándo, en vez de un botón muerto que invite a insistir. --}}
+        <div class="wlock">@include('componentes._icon', ['name' => 'lock']) <span>{{ $emitBloqueado }}</span></div>
+      @else
+        <button class="btn brand" type="submit">@include('componentes._icon', ['name' => 'shield']) Emitir y sellar</button>
+      @endif
+    </div>
+
+    <details class="weditor" open>
+      <summary class="weditor-h">@include('componentes._icon', ['name' => 'list']) Ajustar documento (opcional)</summary>
+      <div class="weditor-grid">
+        @foreach($sectionMeta as $key => $meta)
+          <div class="weditor-row">
+            @if($meta[1])
+              <label class="weditor-inc"><input type="checkbox" name="include[]" value="{{ $key }}" checked data-sec="{{ $key }}"><span>{{ $meta[0] }}</span></label>
+            @else
+              <span class="weditor-inc fixed"><span class="dot"></span><span>{{ $meta[0] }}</span> <em>fijo</em></span>
+            @endif
+            <input type="text" class="field weditor-note-in" name="note[{{ $key }}]" data-note="{{ $key }}" maxlength="500" autocomplete="off" placeholder="Nota para este apartado (opcional)…">
+          </div>
+        @endforeach
+      </div>
+      <div class="weditor-foot">Los apartados desmarcados no aparecerán en el documento emitido. Las notas se sellan junto con el documento.</div>
+    </details>
+
+    {{-- Imágenes del documento. Sólo tiene sentido cuando SÍ se puede emitir (si la ventana está
+         cerrada no hay <form> abierto, así que estos inputs no viajarían). Se suben al emitir y se
+         congelan en el payload; la principal es el fondo del encabezado, las adicionales la evidencia. --}}
+    @if(! $emitBloqueado)
+    <details class="weditor" open>
+      <summary class="weditor-h">@include('componentes._icon', ['name' => 'camera']) Imágenes del documento (opcional)</summary>
+      <div class="weditor-grid">
+        <div class="weditor-row">
+          <label class="weditor-inc" for="wrapMainImage"><span>Imagen principal (fondo del encabezado)</span></label>
+          <input type="file" id="wrapMainImage" class="field wimg-in" name="main_image" accept="image/*">
+        </div>
+        <div class="weditor-row">
+          <label class="weditor-inc" for="wrapExtraImages"><span>Imágenes adicionales (evidencia)</span></label>
+          <input type="file" id="wrapExtraImages" class="field wimg-in" name="extra_images[]" accept="image/*" multiple>
+        </div>
+        <div class="wimg-previews" id="wrapImgPreviews"></div>
+      </div>
+      <div class="weditor-foot">JPG, PNG o WEBP, hasta 8 MB cada una (máx. 8 adicionales). Se comprimen al subir y se sellan junto con el documento.</div>
+    </details>
     @endif
-  </div>
+
+  @if(! $emitBloqueado)
+  </form>
+  @endif
 </div>
+
+{{-- Previsualización EN VIVO del panel (sólo borrador): ocultar/mostrar apartados y volcar notas. --}}
+<script>
+(function(){
+  var panel = document.querySelector('.weditor');
+  if (panel) {
+    panel.addEventListener('change', function(e){
+      var cb = e.target.closest('input[type=checkbox][data-sec]'); if (!cb) return;
+      var b = document.querySelector('[data-sec-block="' + cb.value + '"]');
+      if (b) b.style.display = cb.checked ? '' : 'none';
+    });
+    panel.addEventListener('input', function(e){
+      var inp = e.target.closest('[data-note]'); if (!inp) return;
+      var out = document.querySelector('[data-note-out="' + inp.getAttribute('data-note') + '"]');
+      if (!out) return;
+      var val = (inp.value || '').trim();
+      out.textContent = val;
+      out.classList.toggle('is-empty', val === '');
+    });
+  }
+  // Al EMITIR: recoger las correcciones narrativas (bloques contenteditable) en el hidden JSON.
+  var form = document.getElementById('wrapEmit');
+  if (form) {
+    form.addEventListener('submit', function(){
+      var map = {};
+      document.querySelectorAll('[data-edit]').forEach(function(el){
+        map[el.getAttribute('data-edit')] = (el.innerText || el.textContent || '').trim();
+      });
+      var hid = document.getElementById('editorOverrides');
+      if (hid) hid.value = JSON.stringify(map);
+    });
+  }
+})();
+</script>
+
+{{-- Miniaturas EN VIVO de las imágenes elegidas (mejora progresiva; sin FileReader el <input>
+     nativo sigue funcionando y las imágenes se suben igual al emitir). --}}
+<script>
+(function(){
+  var box = document.getElementById('wrapImgPreviews');
+  if (!box || typeof FileReader === 'undefined') return;
+  var main  = document.getElementById('wrapMainImage');
+  var extra = document.getElementById('wrapExtraImages');
+  function collect(){
+    var out = [];
+    if (main && main.files)  { for (var i = 0; i < main.files.length; i++)  { out.push({ f: main.files[i],  tag: 'Principal' }); } }
+    if (extra && extra.files){ for (var j = 0; j < extra.files.length; j++) { out.push({ f: extra.files[j], tag: 'Evidencia' }); } }
+    return out;
+  }
+  function render(){
+    box.innerHTML = '';
+    collect().forEach(function(item){
+      if (!item.f || !item.f.type || item.f.type.indexOf('image/') !== 0) return; // HEIC no previsualiza; se sube igual
+      var fig = document.createElement('figure');
+      var img = document.createElement('img');
+      var cap = document.createElement('figcaption');
+      cap.textContent = item.tag;
+      var r = new FileReader();
+      r.onload = function(e){ img.src = e.target.result; };
+      r.readAsDataURL(item.f);
+      fig.appendChild(img); fig.appendChild(cap); box.appendChild(fig);
+    });
+  }
+  if (main)  main.addEventListener('change', render);
+  if (extra) extra.addEventListener('change', render);
+})();
+</script>
 @endif
 
-<div class="stage">
+<div class="stage {{ $hasTop ? 'below-controls' : '' }}">
   <article class="sheet">
-    {{-- Motor de paginación: <thead> (hero) y <tfoot> (espaciador) se REPITEN en cada hoja. --}}
+    {{-- MOTOR DE TABLA (report-wrap): <thead>=hero y <tfoot>=espaciador que Chrome REPITE por hoja
+         → hero y pie en CADA página, full-bleed, sin bandas en blanco. El editor (contenteditable
+         + [data-edit]) vive DENTRO del cuerpo y NO depende de este envoltorio. (Se revirtió el
+         flujo de bloques por pedido del owner; ver [[doc-hero-band-homologation]].) --}}
     <table class="report-wrap">
     <thead><tr><td>
       @include('componentes._doc-hero', [
-        'heroImage'    => null,
-        'heroProject'  => $v($s1, 'produccion', '—'),
+        'heroImage'    => $imgMain ?: null,
+        'heroProject'  => $brandName,
         'heroLocation' => $v($s1, 'casa_productora') ?: 'Reporte final de producción',
         'heroDate'     => $heroDate,
         'heroTime'     => null,
         'heroModule'   => $wrap->isAddendum() ? 'Anexo al reporte de wrap' : 'Wrap Report',
       ])
-      @if($esBorrador)
-      <div class="wdraft">@include('componentes._icon', ['name' => 'alert-triangle'])
-        <div><b>BORRADOR — sin emitir</b> <span class="n">Las cifras se recalculan en cada visita y el documento no está sellado. No entregar en este estado.</span></div>
-      </div>
-      @endif
     </td></tr></thead>
     <tbody><tr><td>
+    @if($esBorrador)
+    <div class="wdraft">@include('componentes._icon', ['name' => 'alert-triangle'])
+      <div><b>BORRADOR — sin emitir</b> <span class="n">Las cifras se recalculan en cada visita y el documento no está sellado. No entregar en este estado.</span></div>
+    </div>
+    @endif
 
     {{-- ══ BANDA DE LECTURA RÁPIDA ═══════════════════════════════════════════════════════ --}}
     <div class="band">
@@ -253,14 +507,15 @@
       </div>
     </div>
 
-    <div class="body">
+    <div class="doc-body">
 
     {{-- ══ 1 · IDENTIFICACIÓN Y ALCANCE ═════════════════════════════════════════════════ --}}
-    <section class="sec">
+    <section class="sec" data-sec-block="s1">
       <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'film'])<h2>1 · Identificación y alcance</h2><span class="line"></span></div>
+      @include('admin.wrap._editor-note', ['wnKey' => 's1', 'wnTxt' => $secNote('s1')])
 
       <div class="facts">
-        <div class="fact"><div class="k">Producción</div><div class="v">{{ $v($s1, 'produccion', '—') }}</div></div>
+        <div class="fact"><div class="k">Producción</div><div class="v">{{ $brandName }}</div></div>
         <div class="fact"><div class="k">Clave</div><div class="v mono">{{ $v($s1, 'codigo') ?: '—' }}</div></div>
         <div class="fact"><div class="k">Casa productora</div><div class="v">{{ $v($s1, 'casa_productora') ?: 'No registrada' }}</div></div>
         <div class="fact"><div class="k">Periodo cubierto</div><div class="v">{{ $fmt($periodoIni) }} — {{ $fmt($periodoFin) }}</div></div>
@@ -275,7 +530,7 @@
         <div class="k"><div class="n">{{ $num(isset($s1['crew']['maximo']) ? $s1['crew']['maximo'] : null) }}</div><div class="l">Crew máximo</div><div class="s">Promedio {{ $num(isset($s1['crew']['promedio']) ? $s1['crew']['promedio'] : null) }}</div></div>
       </div>
 
-      @if($v($s1, 'nota_dias'))<div class="wnote">{{ $v($s1, 'nota_dias') }}</div>@endif
+      @if($v($s1, 'nota_dias'))<div class="wnote"{!! $editAttr("s1.notadias") !!}>{{ $ov("s1.notadias", $v($s1, 'nota_dias')) }}</div>@endif
 
       <div class="facts">
         <div class="fact"><div class="k">Locaciones evaluadas</div><div class="v">{{ $num($v($s1, 'locaciones_evaluadas')) }}</div></div>
@@ -295,8 +550,9 @@
     </section>
 
     {{-- ══ 2 · LO QUE SE ANTICIPÓ ═══════════════════════════════════════════════════════ --}}
-    <section class="sec">
+    <section class="sec" data-sec-block="s2">
       <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'map-pin'])<h2>2 · Lo que se anticipó</h2><span class="line"></span></div>
+      @include('admin.wrap._editor-note', ['wnKey' => 's2', 'wnTxt' => $secNote('s2')])
 
       <div class="wkpi">
         <div class="k"><div class="n">{{ $num($v($s2, 'scoutings')) }}</div><div class="l">Scoutings</div></div>
@@ -307,7 +563,7 @@
           <div class="l">Sin clasificar</div><div class="s">{{ $num($v($s2, 'sin_clasificar')) }} declarados</div></div>
       </div>
 
-      @if($v($s2, 'nota_clasificacion'))<div class="wnote">{{ $v($s2, 'nota_clasificacion') }}</div>@endif
+      @if($v($s2, 'nota_clasificacion'))<div class="wnote"{!! $editAttr("s2.notaclas") !!}>{{ $ov("s2.notaclas", $v($s2, 'nota_clasificacion')) }}</div>@endif
 
       <h3 class="sec-sub" style="margin:12px 0 6px;font:700 .82rem/1 var(--font);color:var(--muted)">Distribución por nivel de riesgo previsto</h3>
       @php $pn = $v($s2, 'por_nivel', []); $pnTot = max(1, array_sum(array_map('intval', (array) $pn))); @endphp
@@ -353,8 +609,9 @@
     </section>
 
     {{-- ══ 3 · LO QUE REALMENTE PASÓ ════════════════════════════════════════════════════ --}}
-    <section class="sec">
+    <section class="sec" data-sec-block="s3">
       <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'activity'])<h2>3 · Lo que realmente pasó</h2><span class="line"></span></div>
+      @include('admin.wrap._editor-note', ['wnKey' => 's3', 'wnTxt' => $secNote('s3')])
 
       <div class="wkpi">
         <div class="k"><div class="n">{{ $num($v($s3, 'hallazgos_dsr')) }}</div><div class="l">Hallazgos de bitácora</div></div>
@@ -374,7 +631,7 @@
         <div class="fact"><div class="k">Registrables / 100 persona-día</div><div class="v mono">{{ isset($t['registrables']) && $t['registrables'] !== null ? $t['registrables'] : 'sin dato' }}</div></div>
       </div>
 
-      @if($v($s3, 'nota_tasa'))<div class="wnote">{{ $v($s3, 'nota_tasa') }}</div>@endif
+      @if($v($s3, 'nota_tasa'))<div class="wnote"{!! $editAttr("s3.notatasa") !!}>{{ $ov("s3.notatasa", $v($s3, 'nota_tasa')) }}</div>@endif
 
       @if($v($s3, 'departamentos'))
       <h3 style="margin:14px 0 5px;font:700 .82rem/1 var(--font);color:var(--muted)">Departamentos involucrados</h3>
@@ -407,15 +664,16 @@
     </section>
 
     {{-- ══ 4 · PREDICHO vs. REAL ════════════════════════════════════════════════════════ --}}
-    <section class="sec">
+    <section class="sec" data-sec-block="s4">
       <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'git-compare'])<h2>4 · Lo que se predijo contra lo que pasó</h2><span class="line"></span></div>
+      @include('admin.wrap._editor-note', ['wnKey' => 's4', 'wnTxt' => $secNote('s4')])
 
       {{-- HONESTIDAD OBLIGATORIA: el tamaño de muestra va ARRIBA de los porcentajes, no al pie.
            Un lector que ve primero "87.5 %" y después la advertencia ya se formó la conclusión. --}}
       @php $mu = $v($s4, 'muestra', []); @endphp
       <div class="wnote {{ $v($mu, 'fuerza') === 'suficiente' ? '' : 'strong' }}">
         @include('componentes._icon', ['name' => 'info'])
-        <b>Tamaño de muestra:</b> {{ $v($mu, 'texto', '—') }}
+        <b>Tamaño de muestra:</b> <span{!! $editAttr("s4.muestra") !!}>{{ $ov("s4.muestra", $v($mu, 'texto', '—')) }}</span>
       </div>
 
       <div class="wkpi">
@@ -426,7 +684,7 @@
           <div class="l">Sin locación evaluada</div><div class="s">No cruzables</div></div>
       </div>
 
-      @if($v($s4, 'nota_no_materializados'))<div class="wnote">{{ $v($s4, 'nota_no_materializados') }}</div>@endif
+      @if($v($s4, 'nota_no_materializados'))<div class="wnote"{!! $editAttr("s4.notanomat") !!}>{{ $ov("s4.notanomat", $v($s4, 'nota_no_materializados')) }}</div>@endif
 
       {{-- (a) POR LOCACIÓN --}}
       <h3 style="margin:14px 0 8px;font:700 .86rem/1 var(--font);color:var(--text)">a · Por locación</h3>
@@ -509,12 +767,13 @@
     </section>
 
     {{-- ══ 5 · DESGLOSE CRONOLÓGICO ═════════════════════════════════════════════════════ --}}
-    <section class="sec">
+    <section class="sec" data-sec-block="s5">
       <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'list'])<h2>5 · Desglose cronológico y sus conclusiones</h2><span class="line"></span></div>
+      @include('admin.wrap._editor-note', ['wnKey' => 's5', 'wnTxt' => $secNote('s5')])
       <div class="wchart-note" style="margin-bottom:10px">{{ $num($v($s5, 'total')) }} asuntos registrados, en orden. Se identifica el departamento involucrado; nunca a la persona.</div>
 
       <div class="wtl">
-      @forelse((array) $v($s5, 'entradas', []) as $e)
+      @forelse((array) $v($s5, 'entradas', []) as $ei => $e)
         <div class="wtli">
           <div class="when">{{ $fmt($v($e, 'fecha')) }}<span class="d">{{ $v($e, 'dia', '—') }}</span></div>
           <div class="what">
@@ -528,10 +787,10 @@
               @if($v($e, 'evento'))<span class="chip">{{ $v($e, 'evento') }}</span>@endif
               @if($v($e, 'norma'))<span class="chip">{{ $v($e, 'norma') }}</span>@endif
             </div>
-            @if($v($e, 'hallazgo'))<p><b>Qué se encontró:</b> {{ $v($e, 'hallazgo') }}</p>@endif
-            @if($v($e, 'causa'))<p><b>Por qué ocurrió:</b> {{ $v($e, 'causa') }}</p>@endif
-            @if($v($e, 'decision'))<p><b>Qué se decidió:</b> {{ $v($e, 'decision') }}</p>@endif
-            @if($v($e, 'repercusion'))<p><b>Repercusión:</b> {{ $v($e, 'repercusion') }}</p>@endif
+            @if($v($e, 'hallazgo'))<p><b>Qué se encontró:</b> <span{!! $editAttr("s5.$ei.h") !!}>{{ $ov("s5.$ei.h", $v($e, 'hallazgo')) }}</span></p>@endif
+            @if($v($e, 'causa'))<p><b>Por qué ocurrió:</b> <span{!! $editAttr("s5.$ei.c") !!}>{{ $ov("s5.$ei.c", $v($e, 'causa')) }}</span></p>@endif
+            @if($v($e, 'decision'))<p><b>Qué se decidió:</b> <span{!! $editAttr("s5.$ei.d") !!}>{{ $ov("s5.$ei.d", $v($e, 'decision')) }}</span></p>@endif
+            @if($v($e, 'repercusion'))<p><b>Repercusión:</b> <span{!! $editAttr("s5.$ei.r") !!}>{{ $ov("s5.$ei.r", $v($e, 'repercusion')) }}</span></p>@endif
           </div>
         </div>
       @empty
@@ -541,8 +800,9 @@
     </section>
 
     {{-- ══ 6 · CUMPLIMIENTO ═════════════════════════════════════════════════════════════ --}}
-    <section class="sec">
+    <section class="sec" data-sec-block="s6">
       <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'shield-check'])<h2>6 · Cumplimiento</h2><span class="line"></span></div>
+      @include('admin.wrap._editor-note', ['wnKey' => 's6', 'wnTxt' => $secNote('s6')])
 
       @php $ju = $v($s6, 'juntas', []); $ac = $v($s6, 'acciones', []); @endphp
 
@@ -590,8 +850,9 @@
     </section>
 
     {{-- ══ 7 · TENDENCIAS ═══════════════════════════════════════════════════════════════ --}}
-    <section class="sec">
+    <section class="sec" data-sec-block="s7">
       <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'trending-up'])<h2>7 · Tendencias</h2><span class="line"></span></div>
+      @include('admin.wrap._editor-note', ['wnKey' => 's7', 'wnTxt' => $secNote('s7')])
 
       @php
         $serie = (array) $v($s7, 'serie_dias', []);
@@ -650,8 +911,9 @@
     </section>
 
     {{-- ══ 8 · CONTINUIDAD ══════════════════════════════════════════════════════════════ --}}
-    <section class="sec">
+    <section class="sec" data-sec-block="s8">
       <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'compass'])<h2>8 · Continuidad</h2><span class="line"></span></div>
+      @include('admin.wrap._editor-note', ['wnKey' => 's8', 'wnTxt' => $secNote('s8')])
       <div class="wchart-note" style="margin-bottom:10px">Cada recomendación nace de una cifra de este reporte y la cita. No son buenas intenciones: son conclusiones con evidencia detrás.</div>
 
       @php
@@ -660,11 +922,11 @@
       @foreach(['corto', 'medio', 'largo'] as $pz)
         @php $lista = array_filter((array) $v($s8, 'recomendaciones', []), function ($r) use ($pz) { return isset($r['plazo']) && $r['plazo'] === $pz; }); @endphp
         @if($lista)
-          @foreach($lista as $r)
+          @foreach($lista as $ri => $r)
             <div class="wreco">
-              <h5>{{ $v($r, 'titulo') }}<span class="wplazo">{{ $plazoTxt[$pz] }}</span></h5>
-              <p class="ev">{{ $v($r, 'evidencia') }}</p>
-              <p class="ac">{{ $v($r, 'accion') }}</p>
+              <h5><span{!! $editAttr("s8.$pz.$ri.t") !!}>{{ $ov("s8.$pz.$ri.t", $v($r, 'titulo')) }}</span><span class="wplazo">{{ $plazoTxt[$pz] }}</span></h5>
+              <p class="ev"{!! $editAttr("s8.$pz.$ri.e") !!}>{{ $ov("s8.$pz.$ri.e", $v($r, 'evidencia')) }}</p>
+              <p class="ac"{!! $editAttr("s8.$pz.$ri.a") !!}>{{ $ov("s8.$pz.$ri.a", $v($r, 'accion')) }}</p>
             </div>
           @endforeach
         @endif
@@ -702,7 +964,24 @@
     </section>
     @endif
 
-    <section class="sec">
+    {{-- ══ EVIDENCIA ════════════════════════════════════════════════════════════════════
+         Imágenes adicionales que el editor adjuntó y se congelaron en el payload. NO es un
+         apartado omitible por checkbox (no va en $sectionMeta); el data-sec-block sólo evita que
+         el JS de omitir/ocultar tropiece. Se pinta sólo si de verdad hay imágenes. --}}
+    @if(count($imgExtra) > 0)
+    <section class="sec" data-sec-block="s_evi">
+      <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'camera'])<h2>Evidencia</h2><span class="line"></span></div>
+      <div class="photos">
+        @foreach($imgExtra as $ei => $ruta)
+          <div class="photo"><img src="{{ $ruta }}" loading="lazy" alt="Evidencia {{ $ei + 1 }}"><span class="cap">Evidencia {{ $ei + 1 }}</span></div>
+        @endforeach
+      </div>
+    </section>
+    @endif
+
+    {{-- sec--flow: firmas + sello son unidades cerradas pero pueden fluir entre sí, para que el
+         bloque no salte ENTERO a una hoja nueva cuando queda poco espacio (ver _report-v2-head). --}}
+    <section class="sec sec--flow">
       <div class="sec-h"><span class="bar"></span>@include('componentes._icon', ['name' => 'file-check'])<h2>Validación del documento</h2><span class="line"></span></div>
 
       {{-- FIRMA AUTÓGRAFA: el hueco en blanco. El sello de abajo es de INTEGRIDAD (dice que el
@@ -733,7 +1012,7 @@
       @endif
     </section>
 
-    </div>{{-- /.body --}}
+    </div>{{-- /.doc-body --}}
     </td></tr></tbody>
     <tfoot><tr><td><div class="footer-spacer"></div></td></tr></tfoot>
     </table>
@@ -742,8 +1021,7 @@
          venían sellados, no lo redacta alguien. Atribuirlo a quien apretó el botón sería falso. --}}
     @include('componentes._report-v2-foot', [
       'footPreparedName' => 'CrewCare · cálculo automático',
-      'footPreparedMeta' => 'Derivado de los reportes sellados de la producción'
-          . (isset($P['meta']['generado_en']) ? ' · ' . \Carbon\Carbon::parse($P['meta']['generado_en'])->format('d M Y H:i') : ''),
+      'footPreparedMeta' => 'Derivado de los reportes sellados de la producción', // pie SIN fecha (owner 2026-08)
       'footUuid'         => $footUuid,
     ])
 

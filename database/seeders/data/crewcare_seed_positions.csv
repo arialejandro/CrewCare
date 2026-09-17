@@ -1,0 +1,148 @@
+position_id,department_id,name_es,name_en,rank,hod_capable,binding,default_grade,existence,jurisdictions,aliases_es,aliases_en
+executive.showrunner,executive,Showrunner,Showrunner,5,1,production,manager,core,,showrunner|creador|creadora|creador/escritor,showrunner|creator
+executive.executive_producer,executive,Productor Ejecutivo,Executive Producer,10,1,production,manager,core,,productor ejecutivo|productora ejecutiva|ep,executive producer|ep
+executive.producer,executive,Productor,Producer,20,0,production,manager,core,,productor|productora,producer
+executive.co_producer,executive,Coproductor,Co-Producer,30,0,production,,core,,coproductor|coproductora|productor asociado,co-producer|associate producer
+executive.line_producer,executive,Productor en Línea,Line Producer,25,0,production,manager,core,,productor en linea|productora en linea|produccion en linea,line producer
+executive.exec_assistant,executive,Asistente Ejecutivo,Executive Assistant,50,0,production,assistant,core,,asistente ejecutivo|asistente ejecutiva|asistente de productor,executive assistant|assistant to producer
+writers.head_writer,writers,Jefe de Guion,Head Writer,10,1,production,manager,core,,jefe de guion|jefa de guion|head writer,head writer|showrunner writer
+writers.writer,writers,Escritor,Writer,30,0,block,,core,,escritor|escritora|guionista|escritor ep,writer|staff writer|episode writer
+writers.script_coordinator,writers,Coordinador de Guiones,Script Coordinator,40,0,production,coordinator,core,,coordinador de guiones|coordinadora de guiones,script coordinator
+direction.director,direction,Director,Director,10,1,block,manager,core,,director|directora|director ep|director de episodio,director
+direction.first_ad,direction,1er Asistente de Dirección,First AD,20,1,unit,manager,core,,1er ad|1er asistente de direccion|primer asistente de direccion|1st ad,1st ad|first ad|first assistant director
+direction.key_second_ad,direction,Key 2nd AD,Key 2nd AD,30,0,unit,key,core,,key 2nd ad|key segundo ad,key 2nd ad|key second ad
+direction.second_ad,direction,2do Asistente de Dirección,Second AD,40,0,unit,assistant,core,,2do ad|2nd ad|segundo asistente de direccion,2nd ad|second ad
+direction.third_ad,direction,3er Asistente de Dirección,Second Second AD,50,0,unit,assistant,core,,3er ad|2nd 2nd ad|tercer ad|tercer asistente de direccion,2nd 2nd ad|third ad
+direction.script_supervisor,direction,Continuidad,Script Supervisor,40,0,unit,key,core,,continuidad|continuista|script,script supervisor|scripty|continuity
+direction.set_pa,direction,Asistente de Set,Set PA,60,0,unit,assistant,core,,set pa|pa de set|asistente de set|cast pa|key set pa,set pa|key set pa|set production assistant
+casting.casting_director,casting,Director de Casting,Casting Director,10,1,production,manager,core,,director de casting|directora de casting|director de reparto,casting director
+casting.casting_coordinator,casting,Coordinador de Casting,Casting Coordinator,30,1,production,coordinator,core,,coordinador de casting|coordinadora de casting,casting coordinator
+casting.extras_coordinator,casting,Coordinador de Extras,Extras Casting,30,1,unit,coordinator,core,,coordinador de extras|casting de extras|director de casting extras,extras casting|background casting
+casting.cast_supervisor,casting,Supervisor de Elenco,Cast Supervisor,30,0,production,coordinator,core,,supervisor de elenco|supervisora de elenco|wrangler de cast,cast supervisor|talent wrangler
+casting.extras_wrangler,casting,Wrangler de Extras,Background Wrangler,50,0,unit,assistant,core,,wrangler de extras|apoyo extras|asistente de extras,background wrangler|bg wrangler
+production.upm,production,Gerente de Producción,Unit Production Manager,10,1,unit,manager,core,,gerente de produccion|gerente de produccion fisica|jefe de produccion|upm,unit production manager|upm|production manager
+production.unit_manager,production,Gerente de Unidad,Unit Manager,20,1,unit,manager,core,,gerente de unidad|jefe de unidad,unit manager
+production.coordinator,production,Coordinador de Producción,Production Coordinator,30,1,production,coordinator,core,,coordinador de produccion|coordinadora de produccion,production coordinator|poc
+production.apoc,production,Asistente de Coordinación,APOC,40,0,production,assistant,core,,apoc|asistente coordinador de produccion|asistente de coordinacion,apoc|assistant production coordinator
+production.travel_coordinator,production,Coordinador de Viajes,Travel Coordinator,40,0,production,coordinator,core,,coordinador de viajes|coordinadora de viajes,travel coordinator
+production.office_pa,production,Asistente de Oficina,Office PA,60,0,production,assistant,core,,asistente de oficina de produccion|office pa|recepcion de produccion,office pa|production office assistant
+production.production_assistant,production,Asistente de Producción,Production Assistant,60,0,unit,assistant,core,,asistente de produccion|pa de produccion,production assistant|pa
+accounting.accountant,accounting,Contador de Producción,Production Accountant,10,1,production,manager,core,,contador de produccion|contadora de produccion|contador,production accountant|accountant
+accounting.first_assistant,accounting,1er Asistente Contable,First Assistant Accountant,40,0,production,key,core,,1er asistente contable|primer asistente contable|1er asst contable,first assistant accountant|1st assistant accountant
+accounting.assistant,accounting,Asistente Contable,Assistant Accountant,50,0,production,assistant,core,,asistente contable|asistente de contabilidad|2do asst contable|3er asst contable,assistant accountant|accounting clerk
+accounting.payroll,accounting,Nómina,Payroll Accountant,50,0,production,assistant,core,,nomina|contador de nomina,payroll|payroll accountant
+camera.dop,camera,Director de Fotografía,Director of Photography,10,1,unit,manager,core,,director de fotografia|directora de fotografia|fotografo|dop|dp,director of photography|dop|dp|cinematographer
+camera.operator,camera,Operador de Cámara,Camera Operator,30,0,unit,key,core,,operador de camara|operadora de camara|op cam|camarografo,camera operator|operator|a camera operator
+camera.steadicam,camera,Operador de Steadicam,Steadicam Operator,30,0,unit,key,conditional,,steadicam|operador de steadicam,steadicam operator|steadicam
+camera.first_ac,camera,1er Asistente de Cámara,First AC,40,0,unit,key,core,,1er ac|primer ac|1er asistente de camara|foquista,1st ac|first ac|focus puller
+camera.second_ac,camera,2do Asistente de Cámara,Second AC,50,0,unit,assistant,core,,2do ac|segundo ac|2do asistente de camara|claquetista,2nd ac|second ac|clapper loader
+camera.loader,camera,Cargador,Loader,60,0,unit,assistant,conditional,,cargador|loader,loader|film loader
+camera.drone_operator,camera,Operador de Drone,Drone Operator,50,0,unit,operator,conditional,,drone|operador de drone|piloto de drone,drone operator|uav pilot
+camera.stills,camera,Foto Fija,Stills Photographer,50,0,unit,key,core,,foto fija|fotografo fijo|fotografa fija,stills photographer|unit stills|set photographer
+video.dit,video,DIT,DIT,10,1,unit,key,core,,dit|tecnico de imagen digital,dit|digital imaging technician
+video.data_manager,video,Data Manager,Data Manager,40,0,unit,operator,core,,data|data manager|data wrangler|dmt,data manager|data wrangler
+video.video_assist,video,Video Assist,Video Assist,40,0,unit,operator,core,,video assist|videoasistente|vtr|playback,video assist|playback operator
+electric.gaffer,electric,Gaffer,Gaffer,10,1,unit,manager,core,,gaffer|jefe de electricos|jefe electricos|jefe de luces|enc. luces,gaffer|chief lighting technician|clt
+electric.rigging_gaffer,electric,Rigging Gaffer,Rigging Gaffer,20,0,unit,manager,conditional,,rigging gaffer|gaffer de rigging,rigging gaffer
+electric.best_boy,electric,Best Boy Electric,Best Boy Electric,30,0,unit,key,core,,best boy electric|bb electric|segundo de electricos,best boy electric|best boy|assistant chief lighting technician
+electric.board_op,electric,Operador de Consola,Board Operator,50,0,unit,operator,core,,board op|operador de consola|dimmer|consolista,board operator|dimmer board operator
+electric.technician,electric,Eléctrico,Set Lighting Technician,60,0,unit,operator,core,,electrico|encargado de luces|encargado de skypanel|encargado de asteras|lamparero,electrician|set lighting technician|lamp operator
+electric.genny_operator,electric,Operador de Planta,Genny Operator,60,0,unit,operator,core,,planta|encargado de planta|operador de planta,genny operator|generator operator
+grip.key_grip,grip,Key Grip,Key Grip,10,1,unit,manager,core,,key grip|jefe de tramoya|jefe tramoya|jefe de grip,key grip
+grip.rigging_key,grip,Rigging Key Grip,Rigging Key Grip,20,0,unit,manager,conditional,,rigging key grip|key grip de rigging|jefe de rigging,rigging key grip
+grip.best_boy,grip,Best Boy Grip,Best Boy Grip,30,0,unit,key,core,,best boy grip|bb grip|segundo de tramoya,best boy grip
+grip.dolly_grip,grip,Dolly Grip,Dolly Grip,40,0,unit,key,core,,dolly grip|dolly|dollero,dolly grip
+grip.grip,grip,Tramoyista,Grip,60,0,unit,operator,core,,grip|tramoyista|tramoya|staff de montaje,grip|company grip
+grip.crane_operator,grip,Operador de Grúa,Crane Operator,50,0,unit,operator,conditional,,operador de grua|gruero|tecnocrane,crane operator|technocrane operator
+sound.mixer,sound,Sonidista,Production Sound Mixer,10,1,unit,manager,core,,sonidista|sonido directo|mixer|jefe de sonido,production sound mixer|sound mixer|mixer
+sound.boom_operator,sound,Microfonista,Boom Operator,40,0,unit,key,core,,microfonista|operador de boom|perchista,boom operator|boom op
+sound.utility,sound,Utility de Sonido,Sound Utility,50,0,unit,assistant,core,,utility|cablista|utility de sonido,sound utility|utility|cable person
+art.production_designer,art,Diseñador de Producción,Production Designer,10,1,production,manager,core,,diseñador de produccion|diseñadora de produccion,production designer|designer
+art.supervising_art_director,art,Director de Arte Supervisor,Supervising Art Director,15,0,production,manager,conditional,,director de arte supervisor|supervisor de arte,supervising art director
+art.art_director,art,Director de Arte,Art Director,20,1,unit,manager,core,,director de arte|directora de arte,art director
+art.assistant_art_director,art,Asistente de Dirección de Arte,Assistant Art Director,40,0,unit,assistant,core,,asistente de direccion de arte|asistente de director de arte,assistant art director
+art.art_coordinator,art,Coordinador de Arte,Art Coordinator,30,1,production,coordinator,core,,coordinador de arte|coordinadora de arte,art coordinator
+art.set_designer,art,Dibujante de Arte,Set Designer,40,0,production,key,conditional,,dibujante|set designer|planos,set designer|draftsman
+art.concept_artist,art,Ilustrador,Concept Artist,40,0,production,key,conditional,,ilustrador|ilustradora|concept artist|storyboard,concept artist|illustrator|storyboard artist
+art.art_assistant,art,Asistente de Arte,Art PA,60,0,unit,assistant,core,,asistente de arte|art pa,art pa|art department assistant
+set_dec.set_decorator,set_dec,Ambientador,Set Decorator,10,1,production,manager,core,,ambientador|ambientadora|set decorator|decorador|decoradora,set decorator
+set_dec.leadman,set_dec,Leadman,Leadman,30,0,unit,key,core,,leadman|lead man|jefe de ambientacion,leadman|lead man
+set_dec.buyer,set_dec,Comprador de Ambientación,Set Dec Buyer,40,0,production,key,core,,comprador de ambientacion|compradora de ambientacion,set dec buyer|buyer
+set_dec.on_set_dresser,set_dec,Ambientador de Set,On-Set Dresser,50,0,unit,assistant,core,,ambientador de set|on set dresser|asistente decoracion,on set dresser|set dresser
+set_dec.swing_gang,set_dec,Swing Gang,Swing Gang,60,0,unit,operator,core,,swing gang|cuadrilla de ambientacion,swing gang|swing
+set_dec.warehouse,set_dec,Encargado de Bodega,Warehouse Manager,50,0,production,operator,core,,encargado de bodega|encargada de bodega|bodeguero,warehouse manager|warehouse
+props.prop_master,props,Jefe de Props,Property Master,10,1,unit,manager,core,,jefe de props|jefa de props|utilero jefe|prop master,property master|prop master|props master
+props.assistant_props,props,Asistente de Props,Assistant Props,50,0,unit,assistant,core,,asistente de props|utilero|asst props,assistant props|props assistant
+props.armorer,props,Armero,Armorer,40,0,unit,key,conditional,,armero|armera|encargado de armas,armorer|weapons master
+construction.coordinator,construction,Coordinador de Construcción,Construction Coordinator,10,1,production,coordinator,core,,coordinador de construccion|coordinadora de construccion|constructor|jefe de construccion,construction coordinator|construction manager
+construction.foreman,construction,Foreman,Construction Foreman,40,0,unit,key,core,,foreman|capataz|jefe de cuadrilla,foreman|construction foreman
+construction.carpenter,construction,Carpintero,Carpenter,60,0,unit,operator,core,,carpintero|carpintera|asst construccion,carpenter|construction
+construction.paint_foreman,construction,Jefe de Pintura,Paint Foreman,30,0,unit,key,core,,jefe de pintura|jefa de pintura,paint foreman|key painter|charge scenic
+construction.painter,construction,Pintor,Painter,60,0,unit,operator,core,,pintor|pintora|escenografo pintor,painter|scenic painter
+greens.greensman,greens,Jardinero de Escena,Greensman,10,1,unit,key,conditional,,jardinero de escena|jardinero|verdes|greensman,greensman|greens|landscaper
+greens.greens_assistant,greens,Asistente de Jardinería,Greens Assistant,50,0,unit,assistant,conditional,,asistente de jardineria|ayudante de verdes,greens assistant
+costume.costume_designer,costume,Diseñador de Vestuario,Costume Designer,10,1,production,manager,core,,diseñador de vestuario|diseñadora de vestuario,costume designer
+costume.supervisor,costume,Supervisor de Vestuario,Costume Supervisor,20,1,production,supervisor,core,,supervisor de vestuario|supervisora de vestuario,costume supervisor|wardrobe supervisor
+costume.coordinator,costume,Coordinador de Vestuario,Costume Coordinator,30,1,production,coordinator,core,,coordinador de vestuario|coordinadora de vestuario|jefe de vestuario,costume coordinator
+costume.key_costumer,costume,Vestuarista On Set,Key Costumer,40,0,unit,key,core,,vestuarista on set|vestuarista|key costumer,key costumer|set costumer|on set costumer
+costume.assistant,costume,Asistente de Vestuario,Costume Assistant,50,0,unit,assistant,core,,asistente de vestuario|asst vestuario|asistente vestuario,costume assistant|wardrobe assistant
+costume.buyer,costume,Comprador de Vestuario,Costume Buyer,50,0,production,key,core,,comprador de vestuario|compradora de vestuario|shopper,costume buyer|shopper
+costume.tailor,costume,Sastre,Tailor,60,0,production,operator,core,,sastre|sastreria|jefa de sastreria|costurero|costurera,tailor|seamstress|cutter fitter
+costume.ager_dyer,costume,Envejecedor,Ager/Dyer,60,0,production,operator,conditional,,envejecedor|envejecimiento|tenido,ager|dyer|ager/dyer
+hmu.makeup_designer,hmu,Diseñador de Maquillaje,Makeup Department Head,10,1,production,manager,core,,diseñador de maquillaje|diseñadora de maquillaje|diseñadora de m&p|jefe de maquillaje|jefa de maquillaje,makeup department head|department head makeup|key makeup designer
+hmu.hair_designer,hmu,Jefe de Peinados,Hair Department Head,10,1,production,manager,core,,jefe de peinados|jefa de peinados|diseñadora de peinados,hair department head|department head hair
+hmu.coordinator,hmu,Coordinador de M&P,HMU Coordinator,30,1,production,coordinator,core,,coordinador de maquillaje|coordinadora de maquillaje|coordinador de m&p,hmu coordinator|makeup coordinator
+hmu.key_makeup,hmu,Key de Maquillaje,Key Makeup Artist,40,0,unit,key,core,,key maquillaje|key de maquillaje,key makeup|key makeup artist
+hmu.key_hair,hmu,Key de Peinados,Key Hair Stylist,40,0,unit,key,core,,key peinados|key de peinados,key hair|key hair stylist
+hmu.makeup_artist,hmu,Maquillista,Makeup Artist,50,0,unit,assistant,core,,maquillista|asistente de maquillaje|asst maquillaje,makeup artist|assistant makeup
+hmu.hair_stylist,hmu,Peinador,Hair Stylist,50,0,unit,assistant,core,,peinador|peinadora|asistente de peinados|asst peinados,hair stylist|assistant hair
+hmu.sfx_makeup,hmu,Maquillaje de Efectos,SFX Makeup Artist,40,0,unit,key,conditional,,maquillaje de efectos|efectos de maquillaje|protesis,sfx makeup|prosthetics|special makeup effects
+locations.manager,locations,Gerente de Locaciones,Location Manager,10,1,unit,manager,core,,gerente de locaciones|jefe de locaciones|location manager,location manager|locations manager
+locations.key_assistant,locations,Asistente Clave de Locaciones,Key Assistant Location Manager,30,0,unit,key,core,,asistente clave de locaciones|key de locaciones,key assistant location manager|kalm
+locations.coordinator,locations,Coordinador de Locaciones,Locations Coordinator,30,1,production,coordinator,core,,coordinador de locaciones|coordinadora de locaciones,locations coordinator
+locations.scout,locations,Scout de Locaciones,Location Scout,40,0,production,key,core,,scout|scouter|buscador de locaciones,location scout|scout
+locations.assistant,locations,Asistente de Locaciones,Assistant Location Manager,50,0,unit,assistant,core,,asistente de locaciones|asst de locaciones|asst. de locaciones,assistant location manager|location assistant
+locations.support,locations,Soporte de Locaciones,Locations Support,60,0,unit,operator,core,,soporte de locaciones|apoyo de locaciones|personal de locaciones|cleanstage|limpieza|encargado de basecamp,locations support|cleanup|basecamp attendant
+transport.coordinator,transport,Coordinador de Transporte,Transportation Coordinator,10,1,unit,coordinator,core,,coordinador de transporte|coordinador de transpo|coordinadora de transporte,transportation coordinator|transpo coordinator
+transport.captain,transport,Capitán de Transporte,Transportation Captain,30,0,unit,key,core,,capitan de transporte|co capitan de transporte,transportation captain|transpo captain
+transport.dispatcher,transport,Despachador,Dispatcher,40,0,unit,operator,core,,dispatcher|despachador|despachadora,dispatcher
+transport.driver,transport,Conductor,Driver,60,0,unit,operator,core,,conductor|chofer|operador de unidad|conductor de unidad,driver|teamster
+picture_cars.coordinator,picture_cars,Coordinador de Picture Cars,Picture Car Coordinator,10,1,unit,coordinator,conditional,,coordinador de picture cars|jefe de picture cars|jefa de picture cars|coord de picture cars,picture car coordinator|picture cars coordinator
+picture_cars.assistant,picture_cars,Asistente de Picture Cars,Picture Car Assistant,50,0,unit,assistant,conditional,,asistente de picture cars|asst picture cars,picture car assistant
+picture_cars.driver,picture_cars,Conductor de Action Cars,Action Car Driver,60,0,unit,operator,conditional,,conductor action cars|conductor de picture cars|precision driver,action car driver|precision driver
+stunts.coordinator,stunts,Coordinador de Stunts,Stunt Coordinator,10,1,unit,coordinator,conditional,,coordinador de stunts|coordinadora de stunts|jefe de dobles,stunt coordinator
+stunts.rigger,stunts,Rigger de Stunts,Stunt Rigger,40,0,unit,key,conditional,,rigger|rigger de stunts,stunt rigger|rigger
+stunts.performer,stunts,Doble,Stunt Performer,60,0,unit,operator,conditional,,doble|stunt|stunt performer|especialista,stunt performer|stunt double|stunt
+sfx.supervisor,sfx,Supervisor de Efectos Especiales,SFX Supervisor,10,1,unit,supervisor,conditional,,supervisor de efectos especiales|supervisora de efectos especiales|jefe de fx,sfx supervisor|special effects supervisor
+sfx.coordinator,sfx,Coordinador de Efectos Especiales,SFX Coordinator,30,1,unit,coordinator,conditional,,coordinador de fx|coordinador de efectos especiales|coord de fx,sfx coordinator|special effects coordinator
+sfx.technician,sfx,Técnico de Efectos Especiales,SFX Technician,60,0,unit,operator,conditional,,tecnico de efectos especiales|tecnico fx|efectos especiales,sfx technician|special effects technician
+vfx.supervisor,vfx,Supervisor de VFX,VFX Supervisor,10,1,production,supervisor,conditional,,supervisor de vfx|supervisora de vfx|supervisor de efectos visuales,vfx supervisor|visual effects supervisor
+vfx.producer,vfx,Productor de VFX,VFX Producer,20,0,production,manager,conditional,,productor de vfx|productora de vfx,vfx producer
+vfx.coordinator,vfx,Coordinador de VFX,VFX Coordinator,30,1,production,coordinator,conditional,,coordinador de vfx|coordinadora de vfx,vfx coordinator
+vfx.on_set_data,vfx,Data Wrangler de VFX,VFX Data Wrangler,50,0,unit,assistant,conditional,,data wrangler vfx|vfx pa|asistente de vfx,vfx data wrangler|vfx pa
+animals.head_trainer,animals,Entrenador Principal,Head Animal Trainer,10,1,unit,key,conditional,,entrenador de animales|animalero|jefe animalero,head animal trainer|animal wrangler|head wrangler
+animals.assistant,animals,Asistente Animalero,Animal Handler,50,0,unit,assistant,conditional,,asistente animalero|asst animalero|manejador de animales,animal handler|assistant wrangler
+catering.coordinator,catering,Coordinador de Alimentación,Catering Coordinator,10,1,unit,coordinator,core,,coordinador de catering|coordinadora de catering|coordinador de alimentacion,catering coordinator|catering manager
+catering.chef,catering,Chef,Head Chef,20,0,unit,key,core,,chef|cocinero principal|jefe de cocina,head chef|chef
+catering.craft_service,catering,Coordinador de Craft,Craft Service,30,1,unit,coordinator,core,,coordinador de craft|craft service|crafty,craft service|craft services
+catering.crew,catering,Personal de Cocina,Catering Crew,60,0,unit,operator,core,,crew cocina|personal de cocina|cafetero|asst cafetero|ayudante de cocina,catering crew|kitchen crew|craft assistant
+medical.department_lead,medical,Jefatura de Salud y Seguridad,Health & Safety Lead,10,1,unit,,core,,gerente de salud y seguridad|coordinador de salud y seguridad|coordinadora de salud y seguridad|supervisor de salud y seguridad|supervisora de salud y seguridad|jefe de salud y seguridad|salud y seguridad|seguridad y salud|s&s,health & safety supervisor|health and safety supervisor|health & safety coordinator|health & safety manager|health and safety officer|health & safety officer|health & safety
+medical.set_medic,medical,Médico en Set,Set Medic,30,0,unit,key,core,,medico en set|doctor en set|doctora en set,set medic|on set medic|doctor
+medical.paramedic,medical,Paramédico,Paramedic,50,0,unit,operator,core,,paramedico|ambulancia|enfermero|enfermera,paramedic|emt|ambulance
+medical.assistant,medical,Asistente de S&S,H&S Assistant,50,0,unit,assistant,core,,asistente de s&s|asistente de salud y seguridad,h&s assistant|safety assistant
+medical.covid_officer,medical,Oficial de Protocolos,Compliance Officer,40,0,unit,key,conditional,,oficial de protocolos|covid officer|ipc|monitor covid,covid compliance officer|health safety officer|ipc
+security.coordinator,security,Coordinador de Seguridad,Security Coordinator,10,1,unit,coordinator,core,,coordinador de seguridad|coordinadora de seguridad|jefe de seguridad,security coordinator|security manager
+security.guard,security,Elemento de Seguridad,Security Guard,60,0,unit,operator,core,,elemento de seguridad|elementos de seguridad|guardia|seguridad adicional,security guard|security officer
+sustainability.lead,sustainability,Jefatura de Sustentabilidad,Sustainability Lead,10,1,production,,conditional,,jefe de sustentabilidad|jefa de sustentabilidad|coordinador de sustentabilidad|coordinadora de sustentabilidad|supervisor de sustentabilidad,sustainability lead|eco supervisor|green supervisor|sustainability coordinator
+sustainability.eco_pa,sustainability,Eco PA,Eco PA,60,0,unit,assistant,conditional,,eco pa|greener en set|asistente de sustentabilidad|encargado de logistica greener,eco pa|green pa|sustainability assistant
+welfare.studio_teacher,welfare,Maestro Tutor,Studio Teacher,10,1,unit,key,conditional,,maestro tutor|maestra tutora|tutor|tutora,studio teacher|welfare worker|on set teacher
+welfare.chaperone,welfare,Acompañante de Menores,Chaperone,50,0,unit,assistant,conditional,,acompañante de menores|chaperon|responsable de menores,chaperone|minor guardian
+publicity.unit_publicist,publicity,Prensa de Unidad,Unit Publicist,10,1,production,manager,conditional,,prensa de unidad|publicista|relaciones publicas,unit publicist|publicist
+publicity.epk,publicity,EPK,EPK Crew,40,0,unit,key,conditional,,epk|making of|detras de camaras,epk|behind the scenes|bts
+post.supervisor,post,Supervisor de Postproducción,Post Supervisor,10,1,production,supervisor,core,,supervisor de postproduccion|supervisora de postproduccion|jefe de post,post supervisor|post production supervisor
+post.coordinator,post,Coordinador de Postproducción,Post Coordinator,30,1,production,coordinator,core,,coordinador de postproduccion|coordinadora de postproduccion,post coordinator
+post.editor,post,Editor,Editor,20,0,production,key,core,,editor|editora|montajista,editor|picture editor
+post.assistant_editor,post,Asistente de Edición,Assistant Editor,50,0,production,assistant,core,,asistente de edicion|asistente de postproduccion|post pa,assistant editor|post pa
+compliance.talent_union_rep,compliance,Delegado del ANDA,Talent Union Rep,10,1,unit,key,jurisdictional,MX,delegado del anda|delegada del anda|delegado anda|anda|anda clerk,talent union rep|anda delegate
+compliance.crew_union_rep,compliance,Delegado Sindical,Crew Union Rep,10,1,unit,key,jurisdictional,MX,delegado sindical|delegado|delegada|representante sindical|stpc|stic,crew union rep|shop steward
+compliance.localizer,compliance,Tropicalizador,Localization Advisor,30,0,production,coordinator,jurisdictional,MX,tropicalizador|tropicalizadora|asesor de localizacion,localization advisor|cultural consultant

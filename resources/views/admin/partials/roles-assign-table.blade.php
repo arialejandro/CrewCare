@@ -24,7 +24,12 @@
         <tbody>
             @forelse($users as $u)
                 @php
-                    $currentRole = $u->getRoleNames()->first();
+                    $roleNames   = $u->getRoleNames();
+                    $currentRole = $roleNames->first();
+                    // El super-admin es el ROL MÁXIMO: no está en la lista asignable, así que NO se
+                    // reasigna desde aquí (si se pintara el <select>, saldría "line-producer" por
+                    // defecto y un operador podría degradarlo). Fila en modo LECTURA + badge bloqueado.
+                    $isRowSuper  = $roleNames->contains('super-admin');
                     $currentDept = $deptByUser[$u->id] ?? null;
                     $fid = 'rolef-'.$u->id;
                 @endphp
@@ -38,22 +43,37 @@
                     </td>
                     <td data-label="Email" class="small cc-muted">{{ $u->email }}</td>
                     <td data-label="Rol">
-                        <select name="role" form="{{ $fid }}" class="form-select form-select-sm">
-                            @foreach($roles as $r)
-                                <option value="{{ $r }}" {{ $currentRole === $r ? 'selected' : '' }}>{{ $r }}</option>
-                            @endforeach
-                        </select>
+                        @if($isRowSuper)
+                            <span class="badge bg-warning text-dark d-inline-flex align-items-center gap-1"
+                                  title="Rol máximo: gestiona permisos, marca y feature flags. No se reasigna desde esta pantalla.">
+                                @include('componentes._icon', ['name' => 'shield-check', 'class' => 'cc-ico-16', 'label' => null])
+                                super-admin
+                            </span>
+                        @else
+                            <select name="role" form="{{ $fid }}" class="form-select form-select-sm">
+                                @foreach($roles as $r)
+                                    <option value="{{ $r }}" {{ $currentRole === $r ? 'selected' : '' }}>{{ $r }}</option>
+                                @endforeach
+                            </select>
+                        @endif
                     </td>
                     <td data-label="Departamento">
-                        <select name="department_id" form="{{ $fid }}" class="form-select form-select-sm">
-                            <option value="">— sin departamento —</option>
-                            @foreach($departments as $d)
-                                <option value="{{ $d->id }}" {{ (int) $currentDept === (int) $d->id ? 'selected' : '' }}>{{ $d->name }}</option>
-                            @endforeach
-                        </select>
+                        @if($isRowSuper)
+                            <span class="cc-muted small">Acceso total</span>
+                        @else
+                            <select name="department_id" form="{{ $fid }}" class="form-select form-select-sm">
+                                <option value="">— sin departamento —</option>
+                                @foreach($departments as $d)
+                                    <option value="{{ $d->id }}" {{ (int) $currentDept === (int) $d->id ? 'selected' : '' }}>{{ $d->name }}</option>
+                                @endforeach
+                            </select>
+                        @endif
                     </td>
                     @if($isSuperAdmin ?? false)
                     <td data-label="Acceso clínico">
+                        @if($isRowSuper)
+                        <span class="badge bg-secondary" title="El super-admin ve y consolida todo el expediente por diseño (Gate::before).">Acceso total</span>
+                        @else
                         @php
                             // Acceso DIRECTO (permiso Spatie sobre la persona) vs por ROL. El toggle
                             // solo controla el directo; si viene por rol se avisa (cambiar el rol es
@@ -77,33 +97,37 @@
                             </form>
                         @endif
 
-                        {{-- (2026-07-24 · PASO 2/3, item 5) KEY MEDIC. Sólo tiene sentido sobre un
-                             MÉDICO: le deja ver TODAS las consultas (no sólo las suyas) y emitir la
-                             bitácora y el conteo consolidados. Mismo patrón que arriba: permiso
-                             DIRECTO, nunca por rol, sólo el super-admin, con registro. Si el SQL
-                             owner-apply no se ha aplicado el permiso no existe → no se pinta. --}}
-                        @if($currentRole === 'medic' && ($keyMedicPermReady ?? false))
+                        {{-- (2026-08-11 · BUG-01 opción B / BUG-04) CONSOLIDACIÓN DE LA BITÁCORA
+                             (medical.consolidate): ve TODAS las consultas y emite la bitácora y el
+                             conteo semanal. Permiso DIRECTO, nunca por rol, sólo el super-admin lo
+                             da/quita, con registro. Aplica al MÉDICO y también a safety-officer /
+                             producción — el super-admin decide quién consolida (respaldo si no hay
+                             médico key). Si el permiso no existe aún (SQL owner-apply) no se pinta. --}}
+                        @if(in_array($currentRole, ['medic', 'safety-officer', 'line-producer', 'coordinator', 'hod'], true) && ($keyMedicPermReady ?? false))
                             <div class="mt-1">
                                 @if($isKey)
-                                    <span class="badge bg-primary me-1" title="Ve todas las consultas y emite la bitácora y el conteo.">Key medic</span>
+                                    <span class="badge bg-primary me-1" title="Ve todas las consultas y emite la bitácora y el conteo.">Consolida bitácora</span>
                                     <form method="POST" action="{{ route('roles.medical.revoke', $u->id) }}" class="d-inline">
                                         @csrf
                                         <input type="hidden" name="permission" value="medical.consolidate">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">Quitar key</button>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">Quitar consolidación</button>
                                     </form>
                                 @else
                                     <form method="POST" action="{{ route('roles.medical.grant', $u->id) }}" class="d-inline">
                                         @csrf
                                         <input type="hidden" name="permission" value="medical.consolidate">
-                                        <button type="submit" class="btn btn-sm btn-outline-primary py-0 px-2" title="Consolida la función semanal: ve todas las consultas y emite los reportes.">Hacer key medic</button>
+                                        <button type="submit" class="btn btn-sm btn-outline-primary py-0 px-2" title="Deja ver todas las consultas y emitir la bitácora y el conteo semanal.">Dar consolidación</button>
                                     </form>
                                 @endif
                             </div>
                         @endif
+                        @endif {{-- cierra @if($isRowSuper) --}}
                     </td>
                     @endif
                     <td class="text-end pe-3">
+                        @unless($isRowSuper)
                         <button form="{{ $fid }}" type="submit" class="btn btn-sm btn-primary">Guardar</button>
+                        @endunless
                     </td>
                 </tr>
             @empty

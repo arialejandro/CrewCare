@@ -15,9 +15,14 @@
 
         <div class="d-flex justify-content-between align-items-start gap-3 mb-3 flex-wrap">
             <div class="d-flex align-items-start gap-3">
-                <span class="crew-header-icon d-inline-flex align-items-center justify-content-center rounded-3">
-                    @include('componentes._icon', ['name' => 'wrench', 'class' => 'cc-ico', 'label' => null])
-                </span>
+                @if ($tool->imageUrl())
+                    <img src="{{ $tool->imageUrl() }}" alt="{{ $tool->name }}"
+                         class="rounded-3" style="width:56px;height:56px;object-fit:contain;background:var(--surface-2);padding:4px;">
+                @else
+                    <span class="crew-header-icon d-inline-flex align-items-center justify-content-center rounded-3">
+                        @include('componentes._icon', ['name' => 'wrench', 'class' => 'cc-ico', 'label' => null])
+                    </span>
+                @endif
                 <div>
                     <h1 class="crew-title mb-0">{{ $tool->name }}</h1>
                     <p class="text-muted mb-0 small">{{ $tool->code }} @if($tool->name_en) · {{ $tool->name_en }} @endif</p>

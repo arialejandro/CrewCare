@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use App\Models\BadgeTemplate;
 use App\Models\LitePatient;
+use App\Support\ContractStatus;
+use App\Support\CrewRosterBuilder;
 
 /**
  * CrewListController — PRIMER CORTE del God Object AdminController (strangler, 2026-06-27).
@@ -20,16 +23,30 @@ use App\Models\LitePatient;
  */
 class CrewListController extends Controller
 {
-    public function usuarioscrud()
+    public function usuarioscrud(Request $request)
     {
         // Scope por departamento (#2): un HOD (sin crew.view.all-departments) solo ve a su
         // propio departamento; super-admin/coordinador/line-producer (con all-departments)
         // ven a todos. Mismo helper que usa SearchController → una sola fuente de verdad.
-        $query = DB::table('users')->where('activo', '=', 1);
-        $query = User::applyDepartmentScope($query, auth()->user());
-        $usuarios = $query->orderBy('users.id', 'desc')->paginate(50);
+        $base = DB::table('users')->where('activo', '=', 1);
+        $base = User::applyDepartmentScope($base, auth()->user());
 
-        return view ('admin/usuarioscrud', compact('usuarios'));
+        // MARCADOR DE CONTRATO (2026-09-10). Filtro por estado ("muéstrame a los que les falta
+        // contrato" — el uso real, no mirar 150 filas) + conteo por TODO el alcance (no la página).
+        // El filtro es SQL para que la paginación sea exacta. NO bloquea nada: sólo informa.
+        $filter = $request->query('contract');
+        $filter = in_array($filter, ContractStatus::filters(), true) ? $filter : null;
+
+        $counts = ContractStatus::counts($base);              // clona por dentro; no muta $base
+        ContractStatus::applyFilter($base, $filter);          // muta $base con el filtro elegido
+
+        // Orden jerárquico depto→puesto (HOD arriba), igual que el export. Antes: users.id DESC.
+        $usuarios = User::applyRosterOrder($base)->paginate(50)->appends(array_filter(['contract' => $filter]));
+
+        // Estado por persona SÓLO de la página visible (sin N+1: 2 consultas para las ~50 filas).
+        $contractStatus = ContractStatus::forUserIds($usuarios->getCollection()->pluck('id')->all());
+
+        return view('admin/usuarioscrud', compact('usuarios', 'counts', 'filter', 'contractStatus'));
     }
 
     // RETIRADO (2026-07-19): comcrud(). Servía la pantalla huérfana /comcrud, redundante con
@@ -55,7 +72,7 @@ class CrewListController extends Controller
         // (SearchController::PRESET_MEDICAL): nunca SELECT * — no arrastra el hash de contraseña —
         // y las dos rutas alimentan el MISMO parcial de cards con las mismas columnas. Sin
         // teléfono ni email: la lista médica no los muestra.
-        $usuarios = $query->orderBy('users.id', 'desc')
+        $usuarios = User::applyRosterOrder($query)
             ->paginate(50, ['users.id', 'users.name', 'users.lname', 'users.lname2',
                 'users.puestodepartamento', 'users.zone', 'users.imgperfil',
                 'users.borndate', 'users.sex']);
@@ -90,9 +107,31 @@ class CrewListController extends Controller
         ];
 
         // withCount('badgePrint') → cada fila expone badge_print_count (0/1 = impreso).
-        $usuarios = (clone $base)->withCount('badgePrint')->orderBy('id', 'desc')->paginate(50);
+        // Orden jerárquico depto→puesto (HOD arriba), igual que el export. Antes: id DESC.
+        $usuarios = User::applyRosterOrder((clone $base)->withCount('badgePrint'))->paginate(50);
 
         return view('admin/idcardscrud', compact('usuarios', 'counts'));
+    }
+
+    /**
+     * (2026-08-07) EXPORT del Crew List como DOCUMENTO vertical (reemplaza el CSV genérico
+     * /nophoto, que se conserva como endpoint sin enlace). Agrupa por departamento en el orden
+     * canónico del llamado y, dentro de cada uno, por la jerarquía del puesto (ver CrewRosterBuilder).
+     * Respeta el scope por departamento del visor. El "propósito" opcional se pinta como marca de
+     * agua diagonal (se elige al exportar); vacío = sin marca de agua. Solo presentación + lectura.
+     */
+    public function crewExport(Request $request)
+    {
+        $roster  = CrewRosterBuilder::build(auth()->user());
+
+        $purpose = trim((string) $request->query('purpose', ''));
+        if (function_exists('mb_substr')) {
+            $purpose = mb_substr($purpose, 0, 60);
+        } else {
+            $purpose = substr($purpose, 0, 60);
+        }
+
+        return view('admin.crew-export', compact('roster', 'purpose'));
     }
 
     public function idcard($id){

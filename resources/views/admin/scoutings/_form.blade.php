@@ -142,7 +142,7 @@
     <div class="alert alert-danger">{{ session('error') }}</div>
 @endif
 
-<form action="{{ $isEdit ? route('scoutings.update', $report->id) : route('scoutings.store') }}" method="POST" enctype="multipart/form-data" data-cc-autosave="scouting-report" data-cc-sections>
+<form action="{{ $isEdit ? route('scoutings.update', $report->id) : route('scoutings.store') }}" method="POST" enctype="multipart/form-data" @if(!$isEdit) data-cc-drafts="scouting-report" @endif data-cc-sections>
     @csrf
 
     {{-- (2026-08-01 · captura fluida, Paso 7) Secciones plegables + estado por sección.
@@ -153,6 +153,14 @@
     @include('componentes._collapsible-sections')
     @if($isEdit)
         @method('PUT')
+    @endif
+
+    {{-- (captura fluida · Paso A) BORRADORES en el dispositivo. Solo en ALTA: al editar,
+         el reporte ya vive en el servidor. Varios a la vez, sobreviven al cierre y a la
+         falta de red; se retoma cualquiera. El scouting registra abajo su reconstructor
+         de filas de peligro (window.CCDraftRehydrate['scouting-report']). --}}
+    @if(!$isEdit)
+        @include('componentes._drafts-tray', ['draftType' => 'scouting-report', 'formSel' => 'form[data-cc-drafts]'])
     @endif
 
     {{-- ============ SECCIÓN: GENERAL ============ --}}
@@ -182,7 +190,7 @@
                 </div>
                 <div class="col-md-8">
                     <label for="location_name" class="form-label fw-semibold">Locación <span class="text-danger">*</span></label>
-                    <input type="text" id="location_name" name="location_name" class="form-control @error('location_name') is-invalid @enderror" value="{{ old('location_name', $report->location_name ?? '') }}" required>
+                    <input type="text" id="location_name" name="location_name" data-draft-title class="form-control @error('location_name') is-invalid @enderror" value="{{ old('location_name', $report->location_name ?? '') }}" required>
                     @error('location_name')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
 
@@ -194,6 +202,7 @@
                     @include('componentes._geo-capture', [
                         'mode'         => 'address',
                         'required'     => false,
+                        'auto'         => ! ($isEdit ?? false), {{-- auto-captura solo en ALTA, nunca en edición --}}
                         'latValue'     => old('latitude', $report->latitude ?? ''),
                         'lngValue'     => old('longitude', $report->longitude ?? ''),
                         'addressValue' => old('location_address', $report->location_address ?? ''),
@@ -208,9 +217,17 @@
                     <label class="form-label fw-semibold">Fecha Prep</label>
                     <input type="date" name="date_prep" class="form-control" value="{{ old('date_prep', $isEdit ? optional($report->date_prep)->format('Y-m-d') : '') }}">
                 </div>
+                {{-- RANGO de rodaje: una locación puede ocuparse varios días ("del 14 al 17") y
+                     declarar uno solo obligaba a mentir o a duplicar el scouting. El fin es OPCIONAL
+                     — vacío significa un solo día, que es como se comporta todo lo ya capturado. --}}
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Fecha Shoot</label>
-                    <input type="date" name="date_shoot" class="form-control" value="{{ old('date_shoot', $isEdit ? optional($report->date_shoot)->format('Y-m-d') : '') }}">
+                    <input type="date" name="date_shoot" id="date_shoot" class="form-control" value="{{ old('date_shoot', $isEdit ? optional($report->date_shoot)->format('Y-m-d') : '') }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Último día de rodaje</label>
+                    <input type="date" name="date_shoot_end" class="form-control" value="{{ old('date_shoot_end', $isEdit ? optional($report->date_shoot_end)->format('Y-m-d') : '') }}">
+                    <small class="cc-muted d-block mt-1">Sólo si la locación se ocupa <strong>más de un día</strong>. Déjalo vacío para un día único.</small>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Fecha Wrap</label>
@@ -250,22 +267,29 @@
                      y responsables. Se capturan una vez y el documento Amazon los usa; el
                      resto del encabezado ya sale de la Marca / autofirma. No son obligatorios. --}}
                 <div class="col-12"><hr class="my-1"><small class="cc-muted fw-semibold">Encabezado Amazon MGM <span class="fw-normal">(opcional)</span></small></div>
+                {{-- Estos tres NO son de la locación, son de la PRODUCCIÓN: se repiten idénticos en
+                     todos los scoutings. Al crear uno nuevo llegan prellenados con lo del último
+                     ($prefill, ScoutingReportController@defaultsFromLastScouting) y siguen siendo
+                     campos normales: si algo cambia, se borra y se escribe lo nuevo.
+                     Precedencia: old() › el reporte que se edita › el prellenado › vacío. Así nunca
+                     pisa lo tecleado ni lo ya guardado. --}}
+                @php $prefill = $prefill ?? []; @endphp
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Tipo de producción</label>
                     <select name="production_type" class="form-select">
                         <option value="">—</option>
                         @foreach(['TV', 'Película', 'Comercial', 'Game Show', 'Documental', 'Otro'] as $pt)
-                            <option value="{{ $pt }}" {{ old('production_type', $report->production_type ?? '') === $pt ? 'selected' : '' }}>{{ $pt }}</option>
+                            <option value="{{ $pt }}" {{ old('production_type', $report->production_type ?? ($prefill['production_type'] ?? '')) === $pt ? 'selected' : '' }}>{{ $pt }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Gerente de producción</label>
-                    <input type="text" name="manager_name" class="form-control" value="{{ old('manager_name', $report->manager_name ?? '') }}">
+                    <input type="text" name="manager_name" class="form-control" value="{{ old('manager_name', $report->manager_name ?? ($prefill['manager_name'] ?? '')) }}">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Rep. de seguridad</label>
-                    <input type="text" name="safety_rep_name" class="form-control" value="{{ old('safety_rep_name', $report->safety_rep_name ?? '') }}">
+                    <input type="text" name="safety_rep_name" class="form-control" value="{{ old('safety_rep_name', $report->safety_rep_name ?? ($prefill['safety_rep_name'] ?? '')) }}">
                 </div>
             </div>
         </div>
@@ -314,7 +338,20 @@
                 <div class="col-md-3">
                     <label class="form-label fw-semibold">Distancia al hospital (km)</label>
                     <input type="number" step="0.01" min="0" inputmode="decimal" name="hospital_distance_km" class="form-control" placeholder="Ej: 3.2" value="{{ old('hospital_distance_km', $report->hospital_distance_km ?? '') }}">
-                    <small class="cc-muted d-block mt-1">La llena el buscador (ruta real en auto). Ajústala si hace falta.</small>
+                    <small class="cc-muted d-block mt-1">Ajústala si hace falta.</small>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">¿Habrá ambulancia?</label>
+                    @php
+                        $haVal = old('has_ambulance', (isset($report) && $report->has_ambulance !== null) ? (int) $report->has_ambulance : '');
+                        $haVal = ($haVal === '' || $haVal === null) ? '' : (string) $haVal;
+                    @endphp
+                    <select name="has_ambulance" class="form-select">
+                        <option value="" @selected($haVal === '')>— Sin declarar —</option>
+                        <option value="1" @selected($haVal === '1')>Sí</option>
+                        <option value="0" @selected($haVal === '0')>No</option>
+                    </select>
+                    <small class="cc-muted d-block mt-1">Planeación; la unidad se verifica aparte.</small>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label fw-semibold">Compañía de ambulancia</label>
@@ -535,6 +572,12 @@
                  El <style> de abajo hace que en móvil cada control ocupe el 100% con su
                  etiqueta encima, en vez de compartir renglón (celdas ricas: select+input). --}}
             <style>
+                /* (captura fluida · Paso C) Revelación condicional: el guion se ve mientras
+                   la fila NO está calificada; el control/residual/personal aparecen al calificar
+                   (clase .is-rated puesta por JS). Solo presentación; el POST no cambia. */
+                #hazards-table .hz-locked { display: none; color: var(--text-muted, #6c757d); padding-left: .15rem; }
+                #hazards-table .hz-row:not(.is-rated) .hz-locked { display: inline; }
+                #hazards-table .hz-row:not(.is-rated) .hz-cond { display: none; }
                 @media (max-width: 767px) {
                     #hazards-table.cc-stack td { flex-wrap: wrap; text-align: left; }
                     #hazards-table.cc-stack td::before { flex: 1 1 100%; }
@@ -585,7 +628,7 @@
             {{-- Casilla SB132: actividades especiales declaradas (gatilla el RA específico) --}}
             <div class="mt-3 p-3 border rounded {{ $specialChecked ? 'border-danger' : '' }}" id="sb132-box">
                 <div class="form-check mb-0">
-                    <input class="form-check-input" type="checkbox" name="special_activities" value="1" id="special_activities" {{ $specialChecked ? 'checked' : '' }} onchange="toggleSpecial()">
+                    <input class="form-check-input" type="checkbox" name="special_activities" value="1" id="special_activities" {{ $specialChecked ? 'checked' : '' }}>
                     <label class="form-check-label fw-semibold" for="special_activities">
                         Se declaran <u>actividades especiales</u> (armas / pirotecnia / stunts / aéreo / agua / off-road / fuego abierto / altura)
                     </label>
@@ -823,7 +866,7 @@
                             <small class="cc-muted">Imagen actual — sube una nueva para <strong>reemplazarla</strong>.</small>
                         </div>
                     @endif
-                    <input type="file" id="main-image-input" name="main_image" class="form-control" accept="image/*">
+                    <input type="file" id="main-image-input" name="main_image" class="form-control" accept="image/*,.heic,.heif" data-cc-noauto>
                     <small class="cc-muted d-block mt-1">JPG, PNG o GIF · hasta 12 MB. Se optimiza sola al subir.</small>
                 </div>
                 <div class="col-md-6">
@@ -871,13 +914,29 @@
                     {{-- Uploader múltiple con mejora progresiva: el input real funciona solo;
                          el JS (si el navegador lo permite) lo oculta y muestra botón + miniaturas con pie de foto. --}}
                     <div id="ai-uploader">
-                        <input type="file" id="ai-input" name="additional_images[]" accept="image/*" multiple class="form-control">
+                        <input type="file" id="ai-input" name="additional_images[]" accept="image/*,.heic,.heif" multiple class="form-control" data-cc-noauto>
                         <button type="button" id="ai-add" class="ai-add-btn d-inline-flex align-items-center gap-1" style="display:none;">
                             @include('componentes._icon', ['name' => 'plus', 'class' => 'cc-ico'])
                             <span>Agregar imágenes</span>
                         </button>
                         <span id="ai-count" class="cc-muted small ms-2"></span>
                         <div id="ai-grid" class="ai-grid mt-2"></div>
+
+                        {{-- FOTOS YA A SALVO (borrador en servidor, sólo al crear).
+                             Suben en cuanto se capturan: si se cierra la pestaña, se recarga o se
+                             acaba la batería, estas YA no se pierden. Al guardar viajan como RUTAS,
+                             no como archivos — por eso el guardado final es instantáneo. --}}
+                        @if(!$isEdit)
+                            <div id="sd-saved-wrap" class="mt-2" hidden>
+                                <div class="cc-muted small mb-1 d-flex align-items-center gap-1">
+                                    @include('componentes._icon', ['name' => 'file-check', 'class' => 'cc-ico'])
+                                    <span><strong id="sd-saved-count">0</strong> a salvo en el servidor — ya no se pierden si cierras la vista.</span>
+                                </div>
+                                <div id="sd-saved-grid" class="ai-grid"></div>
+                            </div>
+                            <div id="sd-status" class="cc-muted small mt-1" role="status"></div>
+                        @endif
+
                         <small id="ai-help" class="cc-muted d-block mt-1" style="display:none;">
                             Pon un pie de foto y marca las que sean <strong>mapeo de riesgos</strong>.
                         </small>
@@ -910,7 +969,7 @@
             <div class="row g-3">
                 <div class="col-md-5">
                     <label class="form-label fw-semibold">Elaborado por</label>
-                    <input type="text" class="form-control bg-light" value="{{ $isEdit ? $report->make_by : auth()->user()->name }}" readonly>
+                    <input type="text" class="form-control bg-light" value="{{ $isEdit ? $report->make_by : \App\Models\User::displayName(auth()->user()) }}" readonly>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label fw-semibold">Fecha</label>
@@ -939,6 +998,12 @@
      maneja HEIC de iPhone) para todos los caminos de imagen. Se carga ANTES del script
      inline de abajo (script clásico = ejecución en orden) para que window.CCPhoto exista. --}}
 <script src="{{ asset('js/cc-photo.js') }}?v=1"></script>
+{{-- Borrador en SERVIDOR: sube cada foto en cuanto se captura para que cerrar la pestaña no
+     cueste la jornada, y para que el guardado final no tenga que mandar 30 MB de golpe.
+     Sólo al CREAR: al editar, las imágenes ya viven en el reporte. --}}
+@if(!$isEdit)
+    <script src="{{ asset('js/cc-scouting-draft.js') }}?v=1"></script>
+@endif
 
 <script>
     // Aviso SB132: muestra/oculta según la casilla de actividades especiales.
@@ -953,6 +1018,10 @@
         if (box) box.classList.toggle('border-danger', cb.checked);
     }
     document.addEventListener('DOMContentLoaded', toggleSpecial);
+    // Aviso SB132 al cambiar la casilla (CSP: sin onchange inline).
+    document.addEventListener('change', function (e) {
+        if (e.target && e.target.id === 'special_activities') { toggleSpecial(); }
+    });
 
     // Tabla de peligros: auto-clasificación (matriz Amazon), agregar y quitar filas.
     (function () {
@@ -980,6 +1049,20 @@
                 out.removeAttribute('style');
                 out.textContent = '—';
             }
+            stageRow(tr);
+        }
+        // (captura fluida · Paso C) Revela control/residual/personal cuando la fila ya está
+        // calificada (Prob+Cons) o ya trae contenido (medida pre-propuesta / edición / borrador).
+        // Solo alterna la clase .is-rated; el POST sigue enviando todos los campos → sello intacto.
+        function stageRow(tr) {
+            var l = tr.querySelector('.hz-l'), c = tr.querySelector('.hz-c');
+            var rated = !!(l && c && l.value && c.value);
+            var filled = false;
+            ['hz_control[]', 'hz_residual[]', 'hz_personnel[]'].forEach(function (n) {
+                var e = tr.querySelector('[name="' + n + '"]');
+                if (e && e.value && String(e.value).trim() !== '') { filled = true; }
+            });
+            tr.classList.toggle('is-rated', rated || filled);
         }
         var body = document.getElementById('hazards-body');
         if (!body) return;
@@ -1037,6 +1120,7 @@
                 }
             });
             refreshRow(tr, false);
+            stageRow(tr);
         }
         body.querySelectorAll('.hz-row').forEach(wire);
 
@@ -1097,6 +1181,7 @@
             // Vacío = vacío: nunca texto inventado.
             var ctrl = tr.querySelector('input[name="hz_control[]"]');
             if (ctrl && ev && ev.control && !ctrl.value) { ctrl.value = ev.control; }
+            stageRow(tr); // revela control/residual/personal si llegó medida pre-propuesta o P/C sugeridas
             if (activeFrames.length) { applyFacetsAll(tr); }
             contarSinEvento();
             if (tr.scrollIntoView) { tr.scrollIntoView({ block: 'nearest' }); }
@@ -1142,6 +1227,30 @@
                 setTimeout(contarSinEvento, 0);
             }
         });
+
+        // (captura fluida · Paso A) RECONSTRUCTOR de la tabla de peligros para retomar un
+        // borrador: crea tantas filas VACÍAS como valores guardados haya; luego CCDrafts.restore
+        // asigna cada valor por orden del DOM (el change del evento repone norma y sugiere
+        // Prob/Cons, que restore sobrescribe con lo guardado por venir después en el DOM).
+        window.CCDraftRehydrate = window.CCDraftRehydrate || {};
+        window.CCDraftRehydrate['scouting-report'] = function (buckets) {
+            if (!tpl || !tpl.content) { return; }
+            var need = 0;
+            ['hz_event_id[]', 'hz_hazard[]', 'hz_likelihood[]', 'hz_consequence[]',
+             'hz_control[]', 'hz_residual[]', 'hz_personnel[]'].forEach(function (n) {
+                if (buckets[n]) { need = Math.max(need, buckets[n].length); }
+            });
+            var have = body.querySelectorAll('.hz-row').length;
+            for (var i = have; i < need; i++) {
+                body.appendChild(tpl.content.cloneNode(true));
+                var rows = body.querySelectorAll('.hz-row');
+                var tr = rows[rows.length - 1];
+                wire(tr);
+                if (window.CCTypeahead) { window.CCTypeahead.enhanceAll(tr); }
+            }
+            setTimeout(contarSinEvento, 0);
+        };
+
         contarSinEvento();
     })();
 
@@ -1301,6 +1410,7 @@
             }
 
             var busy = false;
+            var recienAgregadas = [];   // las de ESTA tanda, para ponerlas a salvo en cuanto entren
             aiAdd.addEventListener('click', function () { aiInput.click(); });
             aiInput.addEventListener('change', function () {
                 if (busy) return; // ignora eventos disparados por nuestra propia reasignación
@@ -1314,7 +1424,10 @@
                         return processFile(f).then(function (out) {
                             if (window.CCPhoto && window.CCPhoto.unconverted(f, out)) { heicBad = true; }
                             var k = keyOf(out);
-                            if (!seen[k]) { seen[k] = true; store.items.add(out); captions.push(''); riskmaps.push(false); }
+                            if (!seen[k]) {
+                                seen[k] = true; store.items.add(out); captions.push(''); riskmaps.push(false);
+                                recienAgregadas.push(out);   // ya comprimida: es la que se sube
+                            }
                         });
                     });
                 });
@@ -1323,8 +1436,172 @@
                     aiAdd.disabled = false;
                     render();
                     ccHeicWarn(document.getElementById('ai-uploader'), heicBad);
+                    sdUpload(recienAgregadas);   // ponerlas a salvo YA (ver bloque de abajo)
+                    recienAgregadas = [];
                 });
             });
+
+            /* ============================================================================
+             *  BORRADOR EN SERVIDOR — que cerrar la pestaña no cueste la jornada
+             * ============================================================================
+             *  El 2026-09-14 se perdió un scouting con más de 20 fotos al cerrarse la vista.
+             *  El borrador local guarda el texto pero NO puede guardar un <input type=file>.
+             *  Aquí cada foto se sube EN CUANTO se captura y pasa a la rejilla "a salvo":
+             *  sale del acumulador local y queda como RUTA (draft_photos[]). Al guardar el
+             *  scouting no se re-sube nada — de paso, el guardado deja de tardar un minuto.
+             *
+             *  Si la subida falla, la foto NO se pierde ni se interrumpe la captura: se queda
+             *  en la rejilla normal, se reintenta al volver la red, y si nunca vuelve viaja por
+             *  el camino de siempre al guardar. Los dos caminos acaban igual.
+             * ============================================================================ */
+            var sdWrap   = document.getElementById('sd-saved-wrap');
+            var sdGrid   = document.getElementById('sd-saved-grid');
+            var sdCount  = document.getElementById('sd-saved-count');
+            var sdStatus = document.getElementById('sd-status');
+            var sdOn     = !!(sdWrap && sdGrid && window.CCScoutDraft);
+            var sdTotal  = 0;
+
+            function sdSay(txt, cls) {
+                if (!sdStatus) { return; }
+                sdStatus.textContent = txt || '';
+                sdStatus.className = 'small mt-1 ' + (cls || 'cc-muted');
+            }
+
+            // La clave del borrador viaja con el formulario: el servidor sólo acepta rutas que
+            // ESE borrador, de ESE autor, registró al subirlas.
+            function sdKeyInput() {
+                var f = aiInput.form;
+                if (!f) { return; }
+                if (f.querySelector('input[name="draft_key"]')) { return; }
+                var h = document.createElement('input');
+                h.type = 'hidden'; h.name = 'draft_key'; h.value = window.CCScoutDraft.key();
+                f.appendChild(h);
+            }
+
+            // Celda de foto YA a salvo: miniatura + pie + switch, con los hidden que la mandan
+            // como ruta. Mismos nombres alineados por orden del DOM, igual que las locales.
+            function sdCell(entry) {
+                var cell = document.createElement('div'); cell.className = 'ai-cell';
+
+                var thumb = document.createElement('div'); thumb.className = 'ai-thumb';
+                var img = document.createElement('img'); img.src = entry.path; img.alt = '';
+                var ok = document.createElement('span'); ok.className = 'ai-sz'; ok.textContent = 'a salvo ✓';
+
+                // Quitar: la saca de ESTE scouting. NO la borra del servidor — sigue en el
+                // borrador, así que si se quitó por error reaparece al volver a entrar.
+                var quitar = document.createElement('button');
+                quitar.type = 'button'; quitar.className = 'ai-rm'; quitar.innerHTML = '&times;';
+                quitar.title = 'Quitar de este scouting';
+                quitar.addEventListener('click', function () {
+                    cell.remove();
+                    sdTotal = Math.max(0, sdTotal - 1);
+                    if (sdCount) { sdCount.textContent = sdTotal; }
+                    if (!sdTotal) { sdWrap.hidden = true; }
+                });
+
+                thumb.appendChild(img); thumb.appendChild(ok); thumb.appendChild(quitar);
+
+                var hid = document.createElement('input');
+                hid.type = 'hidden'; hid.name = 'draft_photos[]'; hid.value = entry.path;
+
+                var cap = document.createElement('input');
+                cap.type = 'text'; cap.name = 'draft_photos_captions[]';
+                cap.className = 'form-control form-control-sm ai-cap mt-1';
+                cap.maxLength = 300; cap.placeholder = 'Pie de foto (hallazgo / acción)…';
+                cap.value = entry.caption || '';
+
+                var riskWrap = document.createElement('div');
+                riskWrap.className = 'ai-risk form-check form-switch';
+                var riskChk = document.createElement('input');
+                riskChk.type = 'checkbox'; riskChk.className = 'form-check-input';
+                riskChk.setAttribute('role', 'switch');
+                riskChk.id = 'sdrisk-' + (sdTotal);
+                riskChk.checked = !!entry.risk_map;
+                var riskHid = document.createElement('input');
+                riskHid.type = 'hidden'; riskHid.name = 'draft_photos_riskmap[]';
+                riskHid.value = entry.risk_map ? '1' : '0';
+                var riskLbl = document.createElement('label');
+                riskLbl.className = 'form-check-label';
+                riskLbl.setAttribute('for', riskChk.id);
+                riskLbl.textContent = 'Mapeo de riesgos';
+                if (entry.risk_map) { cell.classList.add('is-risk'); }
+                riskChk.addEventListener('change', function () {
+                    riskHid.value = riskChk.checked ? '1' : '0';
+                    cell.classList.toggle('is-risk', riskChk.checked);
+                });
+                riskWrap.appendChild(riskChk); riskWrap.appendChild(riskHid); riskWrap.appendChild(riskLbl);
+
+                cell.appendChild(thumb); cell.appendChild(hid);
+                cell.appendChild(cap); cell.appendChild(riskWrap);
+                sdGrid.appendChild(cell);
+
+                sdTotal++;
+                if (sdCount) { sdCount.textContent = sdTotal; }
+                sdWrap.hidden = false;
+            }
+
+            // Saca del acumulador local la foto que ya viajó (por identidad, no por índice: el
+            // usuario puede haber quitado otras mientras subía).
+            function sdDropLocal(file) {
+                var files = Array.prototype.slice.call(store.files);
+                var i = files.indexOf(file);
+                if (i >= 0) { removeAt(i); }
+            }
+
+            /* AL ABRIR: recuperar lo que ya viajó y quedó esperando.
+             *
+             * 🪤 Esta llamada faltaba, y su ausencia volvió trampa a todo lo demás. El 2026-09-16
+             * se capturaron 27 fotos que subieron bien y NO había forma de que volvieran: el
+             * scouting se guardó vacío y las fotos quedaron vivas en disco, sin dueño. Subir sin
+             * poder recuperar promete una red que no existe. */
+            function sdRestore() {
+                if (!sdOn) { return; }
+                window.CCScoutDraft.restore().then(function (fotos) {
+                    if (!fotos.length) { return; }
+                    sdKeyInput();
+                    fotos.forEach(sdCell);
+                    sdSay('Recuperadas ' + fotos.length + (fotos.length === 1 ? ' foto' : ' fotos')
+                        + ' de tu captura anterior. Se guardarán con este scouting; quita las que no quieras.', 'text-success');
+                });
+            }
+            sdRestore();
+
+            function sdUpload(nuevas) {
+                if (!sdOn || !nuevas || !nuevas.length) { return; }
+                sdKeyInput();
+                sdSay('Poniendo a salvo ' + nuevas.length + (nuevas.length === 1 ? ' foto…' : ' fotos…'));
+
+                window.CCScoutDraft.upload(nuevas).then(function (res) {
+                    var saved = (res && res.saved) || [];
+                    var okN = 0;
+                    saved.forEach(function (entry, i) {
+                        if (!entry || !entry.path) { return; }  // null = esa falló; se queda local
+                        sdDropLocal(nuevas[i]);
+                        sdCell(entry);
+                        okN++;
+                    });
+                    if (okN === nuevas.length) {
+                        sdSay(sdTotal + (sdTotal === 1 ? ' foto a salvo en el servidor.' : ' fotos a salvo en el servidor.'), 'text-success');
+                    } else {
+                        sdSay('Se pusieron a salvo ' + okN + ' de ' + nuevas.length + '. El resto se manda al guardar.', 'text-warning');
+                    }
+                }).catch(function () {
+                    // Sin red: NO se interrumpe la captura. Se reintenta solo y, si nunca vuelve
+                    // la red, estas fotos viajan por el camino normal al guardar.
+                    sdSay('Sin conexión: sigue capturando. Estas fotos se subirán solas en cuanto vuelva la red.', 'text-warning');
+                    window.CCScoutDraft.enqueue({
+                        files: nuevas,
+                        onDone: function (saved) {
+                            (saved || []).forEach(function (entry, i) {
+                                if (!entry || !entry.path) { return; }
+                                sdDropLocal(nuevas[i]);
+                                sdCell(entry);
+                            });
+                            sdSay(sdTotal + ' fotos a salvo en el servidor.', 'text-success');
+                        }
+                    });
+                });
+            }
         }
 
         // ---- Existentes (edición): quitar una imagen ya guardada (fuera del gate canDT

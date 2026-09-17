@@ -46,7 +46,9 @@ trait HasMagicMitigation
      */
     public function waLink()
     {
-        $phone = preg_replace('/\D/', '', (string) ($this->responsible_phone ?? ''));
+        // Normalizado para wa.me: un número local de 10 dígitos recibe código de país (+52),
+        // si no WhatsApp lee la lada como país y abre un chat equivocado ({@see \App\Support\Phone}).
+        $phone = \App\Support\Phone::whatsapp($this->responsible_phone ?? '');
 
         $msg = "Hola " . ($this->responsible_name ?? '')
             . ", por favor sube la foto de la acción correctiva: "

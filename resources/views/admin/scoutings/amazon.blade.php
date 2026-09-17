@@ -98,6 +98,12 @@
 @php
     $L = function ($k) use ($lang) { return __('scouting.' . $k, [], $lang); };
 
+    // NOMBRE DE CRÉDITOS de quien elaboró — misma fuente que show.blade.php, para que el formato
+    // Amazon-MGM y el documento propio no firmen con nombres distintos. El snapshot `make_by` sólo
+    // se usa como respaldo para reportes viejos sin autor.
+    $__author  = ! empty($report->created_by_id) ? \App\Models\User::find($report->created_by_id) : null;
+    $creditName = $__author ? \App\Models\User::displayName($__author) : ($report->make_by ?: $L('none'));
+
     $ratingChip = function ($r) {
         $map = [
             'L' => 'background:#C0DD97;color:#173404;',
@@ -158,9 +164,22 @@
             <a href="{{ route('scoutings.amazon', [$report->id, 'lang' => 'es']) }}" class="{{ $lang === 'es' ? 'on' : 'off' }}">ES</a>
             <a href="{{ route('scoutings.amazon', [$report->id, 'lang' => 'en']) }}" class="{{ $lang === 'en' ? 'on' : 'off' }}">EN</a>
         </div>
-        <button onclick="window.print();" class="amz-btn amz-btn-dark">{{ $L('btn_print') }}</button>
+        {{-- Descarga server-side (Browsershot): idéntica a window.print() pero de un clic; conserva ?lang. --}}
+        <button data-amz-pdf data-pdf-url="{{ request()->fullUrlWithQuery(['pdf' => 1]) }}" class="amz-btn amz-btn-dark">{{ $lang === 'en' ? 'Download PDF' : 'Descargar PDF' }}</button>
+        <button data-amz-print class="amz-btn">{{ $L('btn_print') }}</button>
     </div>
 </div>
+
+@push('scripts')
+<script>
+    // Barra de acciones (CSP: sin onclick inline). La URL del PDF viaja en data-pdf-url.
+    document.addEventListener('click', function (e) {
+        var pdf = e.target.closest('[data-amz-pdf]');
+        if (pdf) { window.location.href = pdf.getAttribute('data-pdf-url'); return; }
+        if (e.target.closest('[data-amz-print]')) { window.print(); }
+    });
+</script>
+@endpush
 
 <div class="amz amz-page">
 <table class="amz-wrap">
@@ -201,7 +220,7 @@
                  mal rotulado, la misma fabricación que se quitó en la compañía). --}}
             <td>{{ $report->location_address ?: $L('none') }}</td>
             <td>{{ optional($report->make_date)->format('d/m/Y') ?: $L('none') }}</td>
-            <td>{{ optional($report->date_shoot)->format('d/m/Y') ?: $L('none') }}</td>
+            <td>{{ optional($report->date_shoot)->format('d/m/Y') ?: $L('none') }}@if($report->hasShootRange()) – {{ $report->date_shoot_end->format('d/m/Y') }}@endif</td>
         </tr>
     </table>
 
@@ -312,7 +331,7 @@
     {{-- ===== FIRMA (sin sello ni hash: el documento del estudio sale limpio) ===== --}}
     <div class="amz-firma amz-break">
         <div class="lbl">{{ $L('compiled_by') }}</div>
-        <div class="name">{{ $report->make_by ?: $L('none') }}</div>
+        <div class="name">{{ $creditName }}</div>
     </div>
 
 </td></tr></tbody>

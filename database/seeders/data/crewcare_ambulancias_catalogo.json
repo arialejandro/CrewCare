@@ -1,0 +1,1903 @@
+{
+ "meta": {
+  "nombre": "Catalogo de verificacion de ambulancias",
+  "version": "1.0",
+  "fecha": "2026-08-07",
+  "norma_base": {
+   "code": "NOM-034-SSA3-2013",
+   "nombre": "Regulacion de los servicios de salud. Atencion medica prehospitalaria",
+   "marco": "SSA",
+   "dof": "23/09/2014",
+   "codigo_dof": "5361072",
+   "url": "https://dof.gob.mx/nota_detalle.php?codigo=5361072&fecha=23/09/2014"
+  },
+  "herencia": {
+   "regla": "Los apendices normativos de las ambulancias TERRESTRES son acumulativos: A subset B subset C subset D. Un tipo hereda todos los puntos de su rama con min_level menor o igual al suyo.",
+   "excepcion": "AMBV-104 (DEA) lleva max_level=2 porque la norma indica que el numeral B.2.4 no aplica a los apendices C y D, donde se sustituye por el desfibrilador-monitor de C.1.1.",
+   "ramas": "Las ramas aerea y maritima NO son peldanos de la escalera terrestre: cumplen los apendices A a D segun su capacidad resolutiva y ademas sus propios puntos. Por eso rama y nivel son campos distintos."
+  },
+  "disparadores": {
+   "identidad": "Confirmacion diaria de un toque: misma unidad y misma tripulacion que ayer.",
+   "persona": "Cambio de tripulante: solo nivel persona.",
+   "unidad": "Cambio de ambulancia o primera llegada de la unidad.",
+   "consumo": "La unidad salio a un servicio y regreso: solo lo que se gasta.",
+   "riesgo": "Subio el riesgo del dia: correspondencia entre tipo de ambulancia y actividad."
+  },
+  "leyenda_verificacion": "Los puntos fueron derivados del texto publicado de NOM-034-SSA3-2013 y NO han sido auditados contra campo ni validados por un responsable sanitario. Entran con verificado=false.",
+  "pendientes": [
+   "La correspondencia entre tipo de ambulancia y riesgo del dia (que tipo se requiere para stunts, fuego, altura, agua) NO esta en la norma: es criterio de industria y lo debe fijar el owner.",
+   "Los puntos de origen contractual (lo que exige el contratante y no la norma) no estan en este catalogo: se agregan como perfil de requisitos del proyecto.",
+   "La norma no fija vigencias de los documentos del prestador; el dictamen y el holograma dependen de la autoridad sanitaria estatal."
+  ],
+  "totales": {
+   "tipos": 6,
+   "puntos": 92,
+   "compuertas": 72,
+   "pide_documento": 13
+  }
+ },
+ "tipos": [
+  {
+   "code": "AMB-01",
+   "name_es": "Ambulancia terrestre de traslado",
+   "name_en": "Ground transfer ambulance",
+   "rama": "terrestre",
+   "level": 1,
+   "apendice": "A",
+   "personal_minimo": "Operador de ambulancia TAMP capacitado en conduccion para traslado de pacientes ambulatorios y, en su caso, copiloto TAMP para la atencion del usuario (6.1.1.1)",
+   "dimensiones_minimas": "Compartimento de atencion: 1.35 m de altura, 1.50 m de ancho, 2.00 m de largo (6.1.2.1)",
+   "capacidad": "Traslado de pacientes ambulatorios que no requieren atencion medica de urgencia ni cuidados criticos (4.1.2)"
+  },
+  {
+   "code": "AMB-02",
+   "name_es": "Ambulancia terrestre de urgencias basicas",
+   "name_en": "Ground basic life support ambulance",
+   "rama": "terrestre",
+   "level": 2,
+   "apendice": "B",
+   "personal_minimo": "Operador de ambulancia y al menos un copiloto, ambos TAMP, capacitados conforme a la capacidad operativa de la unidad (6.2.1.1)",
+   "dimensiones_minimas": "Compartimento de atencion: 1.60 m de altura, 1.90 m de ancho, 2.50 m de largo (6.2.2.1)",
+   "capacidad": "Pacientes que requieren atencion prehospitalaria mediante soporte basico de vida (4.1.4)"
+  },
+  {
+   "code": "AMB-03",
+   "name_es": "Ambulancia terrestre de urgencias avanzadas",
+   "name_en": "Ground advanced life support ambulance",
+   "rama": "terrestre",
+   "level": 3,
+   "apendice": "C",
+   "personal_minimo": "Operador de ambulancia y al menos un copiloto, ambos TAMP, capacitados conforme a la capacidad operativa de la unidad (6.2.1.1)",
+   "dimensiones_minimas": "Compartimento de atencion: 1.60 m de altura, 1.90 m de ancho, 2.50 m de largo (6.2.2.1)",
+   "capacidad": "Pacientes que requieren atencion prehospitalaria mediante soporte avanzado de vida (4.1.3)"
+  },
+  {
+   "code": "AMB-04",
+   "name_es": "Ambulancia terrestre de cuidados intensivos",
+   "name_en": "Ground critical care ambulance",
+   "rama": "terrestre",
+   "level": 4,
+   "apendice": "D",
+   "personal_minimo": "Operador de ambulancia TAMP y al menos un TAMP mas que acrediten documentalmente cursos para manejo de paciente critico, avalados por autoridad educativa; ademas medico con capacitacion en atencion prehospitalaria y manejo de paciente critico (6.3.1.1, 6.3.1.2)",
+   "dimensiones_minimas": "Compartimento de atencion: 1.60 m de altura, 1.90 m de ancho, 2.50 m de largo (6.3.2.1)",
+   "capacidad": "Atencion interhospitalaria de pacientes que por su gravedad requieren soporte avanzado de vida y cuidados criticos (4.1.5)"
+  },
+  {
+   "code": "AMB-05",
+   "name_es": "Ambulancia aerea",
+   "name_en": "Air ambulance",
+   "rama": "aerea",
+   "level": null,
+   "apendice": "E",
+   "personal_minimo": "TAMP o personal de enfermeria con capacitacion prehospitalaria que acredite documentalmente cursos de medicina aeroespacial e interaccion con la aeronave; tripulacion de vuelo supeditada a la Direccion General de Aeronautica Civil. En cuidados intensivos, ademas medico con cursos de paciente critico (6.4.1.1, 6.4.1.2, 6.4.1.3)",
+   "dimensiones_minimas": "No especificadas por la norma para unidades aereas",
+   "capacidad": "Cumple los apendices A, B, C y D segun el grado de complejidad y capacidad resolutiva que le corresponda (Apendice E)"
+  },
+  {
+   "code": "AMB-06",
+   "name_es": "Ambulancia maritima",
+   "name_en": "Maritime ambulance",
+   "rama": "maritima",
+   "level": null,
+   "apendice": "F",
+   "personal_minimo": "Operador de ambulancia TAMP autorizado para operaciones maritimas, y TAMP o personal de enfermeria con capacitacion prehospitalaria que acredite documentalmente cursos de salvamento acuatico (6.5.1.1, 6.5.1.2)",
+   "dimensiones_minimas": "No especificadas por la norma para unidades maritimas",
+   "capacidad": "Cumple los apendices A, B, C y D segun el grado de complejidad y capacidad resolutiva que le corresponda (Apendice F)"
+  }
+ ],
+ "puntos_de_verificacion": [
+  {
+   "code": "AMBV-001",
+   "texto_punto": "Porta la leyenda AMBULANCIA al frente (en espejo), en costados y en la parte posterior, en material reflejante y color contrastante, con letras no menores a 10 cm.",
+   "referencia_norma": "5.1.8",
+   "rama": "terrestre",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "identidad",
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-002",
+   "texto_punto": "En los costados se especifica el tipo de ambulancia: traslado, urgencias basicas, avanzadas o cuidados intensivos.",
+   "referencia_norma": "5.1.8",
+   "rama": "terrestre",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "identidad",
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-003",
+   "texto_punto": "El compartimento de atencion tiene vidrios que impiden la visibilidad desde el exterior (polarizados, entintados, esmerilados u opacos).",
+   "referencia_norma": "5.1.8",
+   "rama": "terrestre",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-004",
+   "texto_punto": "Porta rotulo reflejante con la institucion o razon social y el numero economico, en costados y parte posterior con caracteres no menores a 8 cm, y en el toldo no menores a 40 cm.",
+   "referencia_norma": "5.1.9",
+   "rama": "terrestre",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "identidad",
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-005",
+   "texto_punto": "El numero economico y las placas de la unidad coinciden con los declarados para el servicio.",
+   "referencia_norma": "7.1.9.3",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "identidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-010",
+   "texto_punto": "Sistema de iluminacion de advertencia con luces rojas y blancas intermitentes sobre el toldo, proyeccion de 360 grados y visibles a 150 metros.",
+   "referencia_norma": "5.2.1",
+   "rama": "terrestre",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-011",
+   "texto_punto": "Sirena que genera entre 120 y 130 decibeles en promedio.",
+   "referencia_norma": "5.2.2",
+   "rama": "terrestre",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-012",
+   "texto_punto": "Cinturones de seguridad en todos los asientos.",
+   "referencia_norma": "A.1.1.1",
+   "rama": "terrestre",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-013",
+   "texto_punto": "Extintor contra fuego tipo ABC, como minimo, presente y con carga vigente.",
+   "referencia_norma": "A.1.1.7",
+   "rama": "terrestre",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-014",
+   "texto_punto": "Equipo basico de senalizacion: traficonos y triangulos reflejantes.",
+   "referencia_norma": "A.1.1.3",
+   "rama": "terrestre",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-015",
+   "texto_punto": "Lampara portatil de emergencia.",
+   "referencia_norma": "A.1.1.5",
+   "rama": "terrestre",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-016",
+   "texto_punto": "Neumatico de refaccion con gato y llave de cruz.",
+   "referencia_norma": "A.1.1.6",
+   "rama": "terrestre",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-017",
+   "texto_punto": "Equipo basico de herramientas de mano.",
+   "referencia_norma": "A.1.1.2",
+   "rama": "terrestre",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-018",
+   "texto_punto": "Juego de cables pasa-corriente.",
+   "referencia_norma": "A.1.1.4",
+   "rama": "terrestre",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-020",
+   "texto_punto": "El compartimento de atencion cuenta con dispositivos de sujecion y espacio libre para al menos un paciente en carro camilla mas el personal responsable sentado.",
+   "referencia_norma": "5.2.3",
+   "rama": "terrestre",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-021",
+   "texto_punto": "El compartimento cuenta con iluminacion de intensidad suficiente para evaluar al paciente e identificar insumos.",
+   "referencia_norma": "5.2.3",
+   "rama": "terrestre",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-022",
+   "texto_punto": "El compartimento de atencion cumple las dimensiones minimas que corresponden al tipo de ambulancia.",
+   "referencia_norma": "6.1.2.1, 6.2.2.1, 6.3.2.1",
+   "rama": "terrestre",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": "Traslado 1.35 x 1.50 x 2.00 m; urgencias basicas, avanzadas y cuidados intensivos 1.60 x 1.90 x 2.50 m.",
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-030",
+   "texto_punto": "La unidad cuenta con operador de ambulancia TAMP.",
+   "referencia_norma": "6.1.1.1, 6.2.1.1, 6.3.1.1",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "persona",
+    "identidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-031",
+   "texto_punto": "La unidad cuenta con al menos un copiloto TAMP para la atencion del paciente.",
+   "referencia_norma": "6.2.1.1",
+   "rama": "terrestre",
+   "min_level": 2,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "persona",
+    "identidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-032",
+   "texto_punto": "El personal a bordo acredita documentalmente su formacion como TAMP, autorizada por la autoridad educativa competente.",
+   "referencia_norma": "4.1.12, 5.1.1",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "persona"
+   ],
+   "pide_documento": true,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-033",
+   "texto_punto": "El TAMP adicional acredita documentalmente cursos para el manejo de pacientes en estado critico, avalados por la autoridad educativa competente.",
+   "referencia_norma": "6.3.1.1",
+   "rama": "terrestre",
+   "min_level": 4,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "persona"
+   ],
+   "pide_documento": true,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-034",
+   "texto_punto": "La unidad cuenta con medico con capacitacion en atencion prehospitalaria y manejo de paciente en estado critico.",
+   "referencia_norma": "6.3.1.2",
+   "rama": "terrestre",
+   "min_level": 4,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "persona",
+    "identidad"
+   ],
+   "pide_documento": true,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-035",
+   "texto_punto": "El personal a bordo acredita documentalmente cursos de medicina aeroespacial e interaccion con la aeronave.",
+   "referencia_norma": "6.4.1.1",
+   "rama": "aerea",
+   "min_level": null,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "persona"
+   ],
+   "pide_documento": true,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-036",
+   "texto_punto": "El operador esta autorizado para realizar operaciones maritimas y el personal de atencion acredita cursos de salvamento acuatico.",
+   "referencia_norma": "6.5.1.1, 6.5.1.2",
+   "rama": "maritima",
+   "min_level": null,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "persona"
+   ],
+   "pide_documento": true,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-040",
+   "texto_punto": "Tanque de oxigeno fijo de al menos 3 metros cubicos, con manometro de alta presion, flujometro de 2 a 15 litros por minuto y salida para humidificador. Manometro con presion suficiente para el servicio.",
+   "referencia_norma": "A.2.11",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-041",
+   "texto_punto": "Tanque de oxigeno portatil tamano D con manometro, regulador de presion y flujometro de 2 a 15 litros por minuto o mayor. Manometro con presion suficiente para el servicio.",
+   "referencia_norma": "A.2.12",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-042",
+   "texto_punto": "Reanimadores tipo bolsa con valvula de no reinhalacion en los cuatro tamanos (neonato 250 ml, lactante 500 ml, pediatrico 750 ml, adulto 1000 ml) con mascarillas 0 a 5.",
+   "referencia_norma": "A.2.1",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-043",
+   "texto_punto": "Equipo de aspiracion de secreciones fijo o portatil, funcionando.",
+   "referencia_norma": "A.2.6",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-044",
+   "texto_punto": "Juego completo de canulas orofaringeas en tamanos prematuro, neonatal, infantil, pediatrica y adulto.",
+   "referencia_norma": "A.2.7",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-045",
+   "texto_punto": "Puntas nasales, mascarilla con bolsa reservorio y mascarilla simple, en tamanos adulto y pediatrico.",
+   "referencia_norma": "A.3.15",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-050",
+   "texto_punto": "Carro camilla en condiciones de operacion.",
+   "referencia_norma": "A.2.3",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-051",
+   "texto_punto": "Camilla rigida con sistema de sujecion.",
+   "referencia_norma": "A.2.2",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-052",
+   "texto_punto": "Gancho portasuero doble.",
+   "referencia_norma": "A.2.8",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-060",
+   "texto_punto": "Baumanómetro aneroide con brazaletes para adulto y pediatrico.",
+   "referencia_norma": "A.2.4",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-061",
+   "texto_punto": "Estetoscopio biauricular.",
+   "referencia_norma": "A.2.5",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-062",
+   "texto_punto": "Glucometro o sustituto tecnologico, con tiras reactivas disponibles.",
+   "referencia_norma": "A.2.9",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-063",
+   "texto_punto": "Termometro digital o sustituto tecnologico.",
+   "referencia_norma": "A.2.13",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-064",
+   "texto_punto": "Mascarillas con filtro HEPA o N95.",
+   "referencia_norma": "A.2.10",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-070",
+   "texto_punto": "Material de curacion completo: apositos, gasas estériles y no estériles, vendas elasticas de 5, 10, 20 y 30 cm, tela adhesiva y torundas secas y con alcohol.",
+   "referencia_norma": "A.3.1, A.3.19, A.3.20, A.3.21",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-071",
+   "texto_punto": "Equipo de terapia intravenosa: cateteres venosos cortos estériles calibres 12 a 24, equipos de venoclisis con normogotero y microgotero, ligaduras y jeringas de 3, 5, 10 y 20 ml con agujas.",
+   "referencia_norma": "A.3.3, A.3.8, A.3.11, A.3.13",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-072",
+   "texto_punto": "Contenedor rigido rojo para punzocortantes, bolsa roja y bolsa amarilla para RPBI, en uso y sin desbordar.",
+   "referencia_norma": "A.3.5, 5.1.4",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-073",
+   "texto_punto": "Guantes estériles y no estériles, cubrebocas, jabon quirurgico y desinfectante para manos.",
+   "referencia_norma": "A.3.6, A.3.9, A.3.10",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-074",
+   "texto_punto": "Desinfectante para equipos y superficies.",
+   "referencia_norma": "A.3.7",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-075",
+   "texto_punto": "Cobertores y sabanas.",
+   "referencia_norma": "A.3.2, A.3.17",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-076",
+   "texto_punto": "Sondas de aspiracion suaves.",
+   "referencia_norma": "A.3.18",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-077",
+   "texto_punto": "Comodo, pato orinal y rinon.",
+   "referencia_norma": "A.3.4, A.3.14, A.3.16",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-078",
+   "texto_punto": "Jeringas con aguja para insulina.",
+   "referencia_norma": "A.3.12",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-080",
+   "texto_punto": "Soluciones basicas disponibles y sin caducar: cloruro de sodio al 0.9 por ciento, glucosa al 5 por ciento, solucion Hartman y electrolitos orales.",
+   "referencia_norma": "A.4",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": true,
+   "nota": "La vigencia de las soluciones se comprueba pidiendo el registro de caducidades, no revisando envase por envase.",
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-100",
+   "texto_punto": "Equipo para comunicacion funcionando.",
+   "referencia_norma": "B.1.1",
+   "rama": "todas",
+   "min_level": 2,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-101",
+   "texto_punto": "Collarines rigidos en los tres tamanos: chico, mediano y grande.",
+   "referencia_norma": "B.2.1",
+   "rama": "todas",
+   "min_level": 2,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-102",
+   "texto_punto": "Canulas nasofaringeas.",
+   "referencia_norma": "B.2.2",
+   "rama": "todas",
+   "min_level": 2,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-103",
+   "texto_punto": "Dispositivo para inmovilizar la cabeza.",
+   "referencia_norma": "B.2.3",
+   "rama": "todas",
+   "min_level": 2,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-104",
+   "texto_punto": "Desfibrilador automatizado externo, encendido, con bateria y parches vigentes.",
+   "referencia_norma": "B.2.4",
+   "rama": "todas",
+   "min_level": 2,
+   "max_level": 2,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": "La norma indica que este punto no aplica a los apendices C y D, donde se sustituye por desfibrilador-monitor.",
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-105",
+   "texto_punto": "Dispositivo de estabilizacion pelvica o elemento sustituto.",
+   "referencia_norma": "B.2.5",
+   "rama": "todas",
+   "min_level": 2,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-106",
+   "texto_punto": "Ferulas para miembros toracicos y pelvicos.",
+   "referencia_norma": "B.2.8",
+   "rama": "todas",
+   "min_level": 2,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-107",
+   "texto_punto": "Oximetro de pulso funcionando.",
+   "referencia_norma": "B.2.9",
+   "rama": "todas",
+   "min_level": 2,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-108",
+   "texto_punto": "Sistema de inmovilizacion pediatrica.",
+   "referencia_norma": "B.2.10",
+   "rama": "todas",
+   "min_level": 2,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-109",
+   "texto_punto": "Tabla corta con sistema de sujecion o chaleco de extraccion.",
+   "referencia_norma": "B.2.11",
+   "rama": "todas",
+   "min_level": 2,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-110",
+   "texto_punto": "Equipo esterilizado para atencion de parto, completo y sellado: dos pinzas Rochester, onfalotomo, tijera Mayo, cinta umbilical, perilla de aspiracion, campos y bata quirurgicos desechables.",
+   "referencia_norma": "B.2.7",
+   "rama": "todas",
+   "min_level": 2,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-111",
+   "texto_punto": "Estetoscopio de Pinard o sustituto tecnologico.",
+   "referencia_norma": "B.2.6",
+   "rama": "todas",
+   "min_level": 2,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-112",
+   "texto_punto": "Canula de Yankauer.",
+   "referencia_norma": "B.3.2",
+   "rama": "todas",
+   "min_level": 2,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-113",
+   "texto_punto": "Sabana termica y sabana para quemados.",
+   "referencia_norma": "B.3.5, B.3.6",
+   "rama": "todas",
+   "min_level": 2,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-114",
+   "texto_punto": "Elementos materiales para clasificacion de lesionados (triage).",
+   "referencia_norma": "B.3.7",
+   "rama": "todas",
+   "min_level": 2,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-115",
+   "texto_punto": "Guia para identificacion de materiales peligrosos.",
+   "referencia_norma": "B.3.3",
+   "rama": "todas",
+   "min_level": 2,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-116",
+   "texto_punto": "Rastrillo desechable para afeitar.",
+   "referencia_norma": "B.3.4",
+   "rama": "todas",
+   "min_level": 2,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-117",
+   "texto_punto": "Medicamentos de nivel basico disponibles y sin caducar: acido acetilsalicilico e isosorbida en tabletas, trinitrato de glicerilo en perlas sublinguales, adrenalina, atropina y epinefrina inyectables, dextrosa al 50 por ciento y salbutamol en aerosol.",
+   "referencia_norma": "B.4",
+   "rama": "todas",
+   "min_level": 2,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": true,
+   "nota": "Se comprueba pidiendo el registro de caducidades del botiquin, no revisando ampolleta por ampolleta.",
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-150",
+   "texto_punto": "Desfibrilador-monitor para registro de signos vitales y marcapaso externo, funcionando.",
+   "referencia_norma": "C.1.1",
+   "rama": "todas",
+   "min_level": 3,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-151",
+   "texto_punto": "Laringoscopios adulto y pediatrico con hojas rectas 0 a 4 y curvas 1 a 4, con luz funcionando.",
+   "referencia_norma": "C.1.5",
+   "rama": "todas",
+   "min_level": 3,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-152",
+   "texto_punto": "Tubos endotraqueales para adulto con globo, calibres 6.0 a 9.0, y pediatricos sin globo, calibres 2.0 a 5.5.",
+   "referencia_norma": "C.2.5, C.2.6",
+   "rama": "todas",
+   "min_level": 3,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-153",
+   "texto_punto": "Estilete para tubo endotraqueal en tamanos neonatal, infantil, pediatrico y adulto.",
+   "referencia_norma": "C.1.2",
+   "rama": "todas",
+   "min_level": 3,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-154",
+   "texto_punto": "Equipo invasivo para la via aerea: mascarilla laringea u otros.",
+   "referencia_norma": "C.2.2",
+   "rama": "todas",
+   "min_level": 3,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-155",
+   "texto_punto": "Pinzas de Magill adulto y pediatrica.",
+   "referencia_norma": "C.1.7",
+   "rama": "todas",
+   "min_level": 3,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-156",
+   "texto_punto": "Ventilador de traslado pediatrico-adulto funcionando.",
+   "referencia_norma": "C.1.8",
+   "rama": "todas",
+   "min_level": 3,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-157",
+   "texto_punto": "Equipo para infusion intraosea.",
+   "referencia_norma": "C.1.4",
+   "rama": "todas",
+   "min_level": 3,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-158",
+   "texto_punto": "Micro-nebulizador o sustituto tecnologico.",
+   "referencia_norma": "C.1.6",
+   "rama": "todas",
+   "min_level": 3,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-159",
+   "texto_punto": "Estuche de diagnostico basico: mango, oftalmoscopio con luz, selector de aperturas y lentes, otoscopio con luz y conos reutilizables.",
+   "referencia_norma": "C.1.3",
+   "rama": "todas",
+   "min_level": 3,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-160",
+   "texto_punto": "Electrodos de parche autoadheribles adulto y pediatrico y electrodos para marcapaso transcutaneo, compatibles con el desfibrilador de la unidad.",
+   "referencia_norma": "C.2.1",
+   "rama": "todas",
+   "min_level": 3,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-161",
+   "texto_punto": "Sondas de Nelaton, Levin y Foley con bolsas de recoleccion.",
+   "referencia_norma": "C.2.4",
+   "rama": "todas",
+   "min_level": 3,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-162",
+   "texto_punto": "Jalea lubricante hidrosoluble y pasta conductiva para monitoreo electrocardiografico.",
+   "referencia_norma": "C.2.3",
+   "rama": "todas",
+   "min_level": 3,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-163",
+   "texto_punto": "Medicamentos de urgencias avanzadas disponibles y sin caducar: ketorolaco, metamizol y clorhidrato de nalbufina; midazolam; captopril o enalapril; hidrocortisona; butilhioscina, difenidol y ranitidina; hidralazina; y diazepam.",
+   "referencia_norma": "C.3",
+   "rama": "todas",
+   "min_level": 3,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "paro_inmediato",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": true,
+   "nota": "Se comprueba pidiendo el registro de caducidades del botiquin. Varios de estos medicamentos son controlados y su custodia corresponde al proveedor.",
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-180",
+   "texto_punto": "Haloperidol en solucion inyectable, disponible y sin caducar.",
+   "referencia_norma": "D.1.1.1",
+   "rama": "todas",
+   "min_level": 4,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": true,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-200",
+   "texto_punto": "Equipo de comunicacion con el CRUM o su equivalente, funcionando.",
+   "referencia_norma": "E.1.1",
+   "rama": "aerea",
+   "min_level": null,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-201",
+   "texto_punto": "Bomba de infusion a bordo.",
+   "referencia_norma": "E.3.2",
+   "rama": "aerea",
+   "min_level": null,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": "Exigible en ambulancias aereas de urgencias avanzadas y de cuidados intensivos.",
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-202",
+   "texto_punto": "Estetoscopio con supresor de ruido y capnometro o capnografo, instalados con aprobacion del fabricante de la aeronave.",
+   "referencia_norma": "E.2.1",
+   "rama": "aerea",
+   "min_level": null,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": "Exigible cuando se proporciona servicio de cuidados intensivos.",
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-203",
+   "texto_punto": "Las soluciones vienen en bolsa o contenedor de plastico.",
+   "referencia_norma": "E.4.2",
+   "rama": "aerea",
+   "min_level": null,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-220",
+   "texto_punto": "Equipo de comunicacion con el CRUM o su equivalente, funcionando.",
+   "referencia_norma": "F.1.1",
+   "rama": "maritima",
+   "min_level": null,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-221",
+   "texto_punto": "Las soluciones vienen en bolsa o contenedor de plastico.",
+   "referencia_norma": "F.4.2",
+   "rama": "maritima",
+   "min_level": null,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad",
+    "consumo"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-240",
+   "texto_punto": "Presenta bitacora de mantenimiento preventivo o correctivo del equipo medico a bordo.",
+   "referencia_norma": "5.1.5.2",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": true,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-241",
+   "texto_punto": "Presenta constancia de mantenimiento periodico de la unidad conforme a las disposiciones aplicables.",
+   "referencia_norma": "5.1.5.1",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": false,
+   "outcome_if_fail": null,
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": true,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-242",
+   "texto_punto": "Cuenta con el formato para el registro de la atencion medica prehospitalaria, con los campos minimos que exige la norma.",
+   "referencia_norma": "7.1.9",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": true,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-243",
+   "texto_punto": "Cuenta con protocolos escritos de atencion, avalados y firmados por la autoridad medica o el responsable sanitario del servicio de ambulancias.",
+   "referencia_norma": "7.1.8",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": true,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  },
+  {
+   "code": "AMBV-244",
+   "texto_punto": "La unidad se destina unicamente al proposito notificado en su aviso de funcionamiento y no transporta ni almacena material que ponga en peligro al paciente o al personal.",
+   "referencia_norma": "5.1.2",
+   "rama": "todas",
+   "min_level": 1,
+   "max_level": null,
+   "es_compuerta": true,
+   "outcome_if_fail": "actividad_no_ejecutable",
+   "origen": "normativo",
+   "exigido_por": null,
+   "disparadores": [
+    "unidad"
+   ],
+   "pide_documento": false,
+   "nota": null,
+   "norma": "NOM-034-SSA3-2013",
+   "verificado": false
+  }
+ ]
+}

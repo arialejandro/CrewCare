@@ -134,7 +134,7 @@
 
                     <label class="label" for="mitigation_image">Foto de la acción correctiva</label>
                     <input type="file" id="mitigation_image" name="mitigation_image"
-                           accept="image/*" capture="environment" required>
+                           accept="image/*,.heic,.heif" capture="environment" required data-cc-photo>
                     <p class="hint">Puedes tomar la foto con la cámara. Formatos: JPG o PNG (máx. 12 MB).</p>
 
                     <label class="label" for="mitigation_note">Nota (opcional)</label>
@@ -148,5 +148,8 @@
 
         <p class="foot">Enlace seguro y temporal. CrewCare.</p>
     </div>
+    {{-- HEIC (iPhone): conversión a JPEG en el navegador antes de subir (el servidor no decodifica HEIC). --}}
+    <script src="/js/cc-photo.js"></script>
+    <script src="/js/cc-photo-auto.js"></script>
 </body>
 </html>

@@ -166,9 +166,26 @@ class SafetyCatalogSeeder extends Seeder
         $hasUrlColumn = Schema::hasColumn('safety_standards', 'reference_url');
         $hasEnColumn  = Schema::hasColumn('safety_standards', 'category_name_en');
 
+        // ── GUARD anti-duplicado del BUMP STPS (2026-08-17) ──────────────────────────────
+        // EnrichedCatalogSeeder RENOMBRA in-place la fila vieja al año nuevo (mismo id):
+        //   NOM-017-STPS-2008 → -2024   ·   NOM-006-STPS-2014 → -2023  (ver EnrichedCatalogSeeder::$stpsBump).
+        // Este catálogo SIGUE listando el año VIEJO A PROPÓSITO: los hazard_events lo CITAN
+        // por ese código y HazardEventSeeder corre ANTES del bump, así que la 1ª pasada DEBE
+        // crear la vieja para que esos eventos resuelvan; luego el bump la renombra. El problema
+        // es re-correr este seeder DESPUÉS del bump: recrearía la vieja como DUPLICADO de la
+        // nueva. El guard lo evita: si la versión BUMPEADA ya existe, se salta la vieja.
+        // (No se cambia el año aquí a propósito: eso obligaría a tocar la data de eventos/SFX
+        //  que cita el año viejo — en uso, fuera del alcance de este arreglo.)
+        $bumpedAway = ['NOM-017-STPS-2008' => 'NOM-017-STPS-2024', 'NOM-006-STPS-2014' => 'NOM-006-STPS-2023'];
+
         $urlsWritten = 0;
         $enWritten   = 0;
+        $bumpSkipped = 0;
         foreach ($catalog as [$name, $badge, $code, $url, $nameEn]) {
+            if (isset($bumpedAway[$code]) && SafetyStandard::where('regulation_code', $bumpedAway[$code])->exists()) {
+                $bumpSkipped++;
+                continue;   // ya bumpeada → NO recrear la vieja (evita el duplicado post-bump)
+            }
             // Clave de idempotencia = regulation_code. updateOrCreate CORRIGE name/badge si
             // quedaron mal (antes firstOrCreate los conservaba). category_name y regulation_badge
             // SÍ están en $fillable de SafetyStandard, así que el mass-assign los escribe.
@@ -201,6 +218,9 @@ class SafetyCatalogSeeder extends Seeder
         }
 
         $this->command->info('SafetyCatalogSeeder: catálogo normativo sincronizado ('.SafetyStandard::count().' filas totales).');
+        if ($bumpSkipped > 0) {
+            $this->command->info("SafetyCatalogSeeder: {$bumpSkipped} norma(s) STPS ya bumpeada(s) → NO recreada(s) (guard anti-duplicado).");
+        }
         if ($hasUrlColumn) {
             $this->command->info("SafetyCatalogSeeder: reference_url actualizado en {$urlsWritten} filas (boletines CSATF en español).");
         } else {

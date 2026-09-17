@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use App\Models\ScoutingReport;
+use App\Models\ScoutingDraft;
 use App\Models\SafetyStandard;
 use App\Models\HazardEvent;
 use App\Models\Production;
@@ -86,6 +87,12 @@ class ScoutingReportController extends Controller
             'crowd_action'      => 'Multitudes en escena / figuración de acción',
             'minors_physical'   => 'Menores en actividad física',
             'base_camp'         => 'Base camp / logística',
+            // --- 4 categorías del catálogo del owner (CSV medidas_control, 2026-08-17) ---
+            // Espejo de HazardEvent::categories() para no divergir de la taxonomía compartida.
+            'health'            => 'Salud ocupacional / ergonomía',
+            'security'          => 'Seguridad y protección (delitos / terceros)',
+            'tools_machinery'   => 'Herramientas y maquinaria de taller',
+            'safety_program'    => 'Programa de seguridad (gestión)',
         ];
     }
 
@@ -122,7 +129,9 @@ class ScoutingReportController extends Controller
     public function index()
     {
         // paginate(12): divisible entre las 1/2/3 columnas del grid de cards.
-        $reports = ScoutingReport::orderBy('id', 'desc')->paginate(12);
+        // Aislamiento por propiedad (auditoría #1): autor, con bypass safety.consolidate.
+        $reports = \App\Support\ReportVisibility::forCurrentUnit(ScoutingReport::query(), auth()->user())
+            ->orderBy('id', 'desc')->paginate(12);
         return view('admin.scoutings.index', compact('reports'));
     }
 
@@ -161,7 +170,7 @@ class ScoutingReportController extends Controller
             ->orderBy('id', 'desc')
             ->limit(50)
             ->get(['id', 'location_name', 'location_address', 'latitude', 'longitude',
-                   'date_prep', 'date_shoot', 'date_wrap']);
+                   'date_prep', 'date_shoot', 'date_shoot_end', 'date_wrap']);
 
         $today   = now()->startOfDay();
         $matches = [];
@@ -175,14 +184,18 @@ class ScoutingReportController extends Controller
             // si no, días de distancia a la ventana; null = scouting sin fechas.
             $dateScore = null;
             $start = $c->date_prep ?: $c->date_shoot;
-            $end   = $c->date_wrap ?: $c->date_shoot;
+            // El fin del rango de rodaje cuenta como cierre de la ventana cuando no hay wrap: una
+            // locación "del 14 al 17" sigue siendo la locación de hoy el día 16. Sin esto, un rodaje
+            // de varios días dejaba de sugerirse a partir del segundo.
+            $end   = $c->date_wrap ?: ($c->date_shoot_end ?: $c->date_shoot);
             if ($start && $end) {
                 $startDay = $start->copy()->startOfDay();
                 $endDay   = $end->copy()->endOfDay();
                 if ($today->between($startDay, $endDay)) {
                     $dateScore = 0;
                 } else {
-                    $dateScore = min($today->diffInDays($startDay), $today->diffInDays($endDay));
+                    // Carbon 3: diffInDays es float con SIGNO → abs() para rankear por proximidad absoluta (como Carbon 2).
+                    $dateScore = min(abs($today->diffInDays($startDay)), abs($today->diffInDays($endDay)));
                 }
             }
 
@@ -244,8 +257,219 @@ class ScoutingReportController extends Controller
         $standards    = SafetyStandard::orderBy('category_name')->get();
         $categories   = $this->categories();
         $hazardEvents = $this->hazardEventsCatalog();
+        $prefill      = $this->defaultsFromLastScouting();
 
-        return view('admin.scoutings.create', compact('productions', 'standards', 'categories', 'hazardEvents'));
+        // Borradores VIVOS de esta persona con fotos ya subidas. La vista los ofrece para retomar,
+        // que es la diferencia entre "cerré la pestaña" y "perdí la jornada".
+        $drafts = $this->draftsAvailable()
+            ? ScoutingDraft::where('created_by_id', auth()->id())
+                ->latest('updated_at')->limit(10)->get()
+                ->map(fn ($d) => [
+                    'key'    => $d->client_key,
+                    'at'     => optional($d->updated_at)->toDateTimeString(),
+                    'photos' => count($d->photoList()),
+                ])->values()->all()
+            : [];
+
+        return view('admin.scoutings.create', compact('productions', 'standards', 'categories', 'hazardEvents', 'prefill', 'drafts'));
+    }
+
+    // =====================================================================================
+    //  BORRADOR EN SERVIDOR (2026-09-15) — que cerrar la pestaña no cueste la jornada
+    // =====================================================================================
+    //
+    // El borrador local (cc-drafts, IndexedDB) guarda el texto pero NO puede guardar las fotos:
+    // un <input type=file> no es serializable, y así lo advierte su propia cabecera. El
+    // 2026-09-14 eso costó un scouting con más de 20 fotos al cerrarse la vista por error.
+    //
+    // Aquí las fotos dejan de vivir en la pestaña: viajan EN CUANTO se capturan y el borrador
+    // recuerda sus rutas. Al guardar el scouting no se re-suben — se referencian. Efecto lateral
+    // bienvenido: el guardado final deja de tardar un minuto subiendo 30 MB de golpe.
+    //
+    // Las tres rutas son del AUTOR y sólo tocan SU borrador. Nada de esto se sella.
+
+    /**
+     * ¿Está disponible el borrador en servidor?
+     *
+     * 🪤 DEGRADE-SAFE a propósito, igual que el resto del esquema opcional de la app. Desplegar el
+     * código ANTES de correr la migración es un orden perfectamente normal —Plesk copia los
+     * archivos y la migración se corre después—, y en esa ventana `scouting_drafts` no existe. Sin
+     * esta comprobación, la pantalla de captura devolvería 500: el módulo que existe para no perder
+     * trabajo sería justo el que impide capturarlo. Sin tabla, todo se comporta como antes: las
+     * fotos viajan al guardar, por el camino de siempre.
+     */
+    private ?bool $draftsOk = null;
+
+    private function draftsAvailable(): bool
+    {
+        // Se memoiza POR PETICIÓN (propiedad de instancia), no por proceso. Con `static` el valor
+        // sobreviviría en los workers de PHP-FPM ya calientes: tras correr la migración, los que
+        // siguieran vivos mantendrían el borrador apagado hasta reciclarse, y el owner vería que
+        // "no funciona" sin ninguna razón visible.
+        if ($this->draftsOk === null) {
+            try {
+                $this->draftsOk = Schema::hasTable('scouting_drafts');
+            } catch (\Throwable $e) {
+                $this->draftsOk = false;
+            }
+        }
+
+        return $this->draftsOk;
+    }
+
+    /**
+     * RECUPERAR el borrador del autor: devuelve las fotos que ya viajaron.
+     *
+     * 🪤 ESTA MITAD FALTABA, y su ausencia convirtió la función en una trampa. El 2026-09-16 se
+     * capturaron 27 fotos que subieron correctamente al borrador… y no había NINGUNA forma de que
+     * volvieran a un scouting: `create()` calculaba los borradores y la vista los ignoraba. El
+     * owner guardó el scouting y salió VACÍO, con las 27 fotos vivas en disco pero sin dueño.
+     *
+     * Guardar sin poder recuperar no es media función: es peor que nada, porque promete una red
+     * que no existe. Un mecanismo de recuperación se prueba RECUPERANDO.
+     */
+    public function draftShow(Request $request)
+    {
+        if (! $this->draftsAvailable()) {
+            return response()->json(['ok' => false, 'photos' => []]);
+        }
+
+        $draft = ScoutingDraft::forAuthor((string) $request->query('client_key', ''), auth()->id());
+
+        return response()->json([
+            'ok'     => true,
+            'photos' => $draft ? $draft->photoList() : [],
+        ]);
+    }
+
+    /** Autoguardado de los CAMPOS (sin fotos). Upsert por (autor, clave local). */
+    public function draftSave(Request $request)
+    {
+        if (! $this->draftsAvailable()) {
+            // Sin tabla, el navegador se queda con sus fotos y las manda al guardar: como antes.
+            return response()->json(['ok' => false, 'reason' => 'unavailable'], 200);
+        }
+
+        $data = $request->validate([
+            'client_key' => 'required|string|max:64',
+            'values'     => 'nullable|array',
+        ]);
+
+        $draft = ScoutingDraft::updateOrCreate(
+            ['created_by_id' => auth()->id(), 'client_key' => $data['client_key']],
+            ['production_id' => \App\Support\CurrentProduction::id(), 'values' => $data['values'] ?? []]
+        );
+
+        return response()->json(['ok' => true, 'id' => $draft->id, 'photos' => $draft->photoList()]);
+    }
+
+    /**
+     * Subida de fotos EN LOTE. Acepta varias por petición a propósito: una por petición
+     * multiplica la latencia por el número de fotos, y en campo la red es justo lo escaso.
+     *
+     * Devuelve las rutas ya guardadas para que el formulario las pinte y las mande al guardar.
+     * Tolerante a lo parcial: si una foto falla, las demás SÍ se guardan y se informa cuáles —
+     * perder las nueve buenas porque la décima venía corrupta sería exactamente el bug que esto
+     * viene a resolver.
+     */
+    public function draftPhotos(Request $request)
+    {
+        if (! $this->draftsAvailable()) {
+            // 200 con ok:false, no 500: el navegador lo trata como "no se pudo poner a salvo",
+            // conserva las fotos y las manda por el camino normal. Nada se pierde, nada se rompe.
+            return response()->json(['ok' => false, 'reason' => 'unavailable', 'saved' => []], 200);
+        }
+
+        $data = $request->validate([
+            'client_key' => 'required|string|max:64',
+            'photos'     => 'required|array|min:1',
+            'photos.*'   => 'required|mimes:jpeg,png,jpg,gif,webp,heic,heif|heic_ok|max:12288',
+        ]);
+
+        $draft = ScoutingDraft::firstOrCreate(
+            ['created_by_id' => auth()->id(), 'client_key' => $data['client_key']],
+            ['production_id' => \App\Support\CurrentProduction::id(), 'values' => []]
+        );
+
+        $saved  = $draft->photos ?? [];
+        $nuevas = [];
+        $fallos = 0;
+
+        // El resultado conserva la POSICIÓN de entrada (null donde falló). Sin eso, el navegador no
+        // podría emparejar cada foto con su resultado y, si una fallara a media tanda, daría por
+        // subidas las que no lo están — o al revés. Con null en su sitio, la que falló se queda en
+        // el formulario y viaja por el camino normal.
+        foreach ($request->file('photos') as $image) {
+            if (! $image || ! $image->isValid()) {
+                $nuevas[] = null;
+                $fallos++;
+                continue;
+            }
+            try {
+                $entry    = ['path' => $this->storeUploadedImage($image, 'additional'), 'caption' => '', 'risk_map' => false];
+                $saved[]  = $entry;
+                $nuevas[] = $entry;
+            } catch (\Throwable $e) {
+                $nuevas[] = null;
+                $fallos++;
+                Log::warning('scouting draft: foto no guardada', ['e' => $e->getMessage()]);
+            }
+        }
+
+        $draft->photos = $saved;
+        $draft->save();
+
+        return response()->json(['ok' => true, 'saved' => $nuevas, 'failed' => $fallos, 'total' => count($saved)]);
+    }
+
+    /** Descarta el borrador del autor (botón "descartar", o tras guardar el scouting). */
+    public function draftDiscard(Request $request)
+    {
+        if (! $this->draftsAvailable()) {
+            return response()->json(['ok' => true]);
+        }
+
+        $key   = (string) $request->input('client_key', '');
+        $draft = ScoutingDraft::forAuthor($key, auth()->id());
+
+        if ($draft) {
+            // Las fotos NO se borran aquí: si el scouting se guardó, son suyas. Las que queden
+            // realmente huérfanas las barre el aseo de archivos, no este botón.
+            $draft->delete();
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * PRELLENADO de los datos que NO son de la locación sino de la PRODUCCIÓN.
+     *
+     * Tipo de producción, Gerente de Producción y Rep. de Seguridad son idénticos en todos los
+     * scoutings de una misma producción, y hasta ahora había que teclearlos en cada uno. Se toman
+     * del último scouting capturado: si algo cambia, se borra el campo y se escribe lo nuevo — el
+     * siguiente ya hereda lo corregido.
+     *
+     * Sugerencia, no imposición: son campos normales y editables. La precedencia en la vista es
+     * old() › el reporte que se edita › esto › vacío, así que NUNCA pisa lo que el usuario escribió
+     * ni lo que ya tiene un reporte guardado. Sólo actúa al crear uno nuevo.
+     *
+     * Acotado a la producción en curso para que una instancia con varias no mezcle datos.
+     */
+    private function defaultsFromLastScouting(): array
+    {
+        $last = ScoutingReport::query()
+            ->when(
+                Schema::hasColumn('scouting_reports', 'production_id') && \App\Support\CurrentProduction::id(),
+                fn ($q) => $q->where('production_id', \App\Support\CurrentProduction::id())
+            )
+            ->latest('id')
+            ->first(['production_type', 'manager_name', 'safety_rep_name']);
+
+        return [
+            'production_type' => (string) ($last->production_type ?? ''),
+            'manager_name'    => (string) ($last->manager_name ?? ''),
+            'safety_rep_name' => (string) ($last->safety_rep_name ?? ''),
+        ];
     }
 
     /**
@@ -263,13 +487,54 @@ class ScoutingReportController extends Controller
         // capturan del usuario autenticado y del servidor → no se pueden falsear. Esto es lo
         // que permite saber con certeza QUIÉN registró QUÉ y CUÁNDO (trazabilidad real).
         // Solo se fija aquí (creación); update() NUNCA toca estos campos.
-        $reportData['make_by']       = auth()->user()->name;
+        // NOMBRE DE CRÉDITOS, no `->name`. `name` es sólo el PRIMER nombre ("Ari"), y en un
+        // documento con valor probatorio eso es AMBIGUO: con dos Genaros en la producción, la
+        // instantánea deja de identificar a nadie. Además el propio documento ya mostraba el
+        // crédito completo en el bloque de firma, así que la misma hoja traía dos nombres
+        // distintos para la misma persona. displayName() cae al nombre corto si no hay crédito.
+        // La trazabilidad dura sigue siendo `created_by_id`; esto es la etiqueta legible.
+        $reportData['make_by']       = \App\Models\User::displayName(auth()->user());
         $reportData['created_by_id'] = auth()->id();
         $reportData['make_date']     = now()->toDateString();
+
+        // (2026-09-07 · Unidades 2b) Unidad VIGENTE del contexto (null = principal → idéntico a hoy).
+        if (\Illuminate\Support\Facades\Schema::hasColumn('scouting_reports', 'unit_id')) {
+            $reportData['unit_id'] = \App\Support\CurrentUnit::id();
+        }
 
         // ---- Imágenes (mismo patrón que locationController@store) ----
         if ($request->hasFile('main_image')) {
             $reportData['main_image_path'] = $this->storeUploadedImage($request->file('main_image'), 'main');
+        }
+
+        // ---- Fotos que YA viajaron (borrador en servidor) ----
+        // Llegan como RUTAS, no como archivos: se subieron mientras se capturaba, así que aquí no
+        // se re-suben. Por eso guardar un scouting de 20 fotos es instantáneo en vez de tardar un
+        // minuto mandando 30 MB — y por eso cerrar la pestaña ya no cuesta el trabajo del día.
+        //
+        // 🔒 Cada ruta se comprueba contra el borrador DEL AUTOR (ScoutingDraft::owns). La ruta la
+        // propone el navegador; sin esta verificación alguien podría mandar una cualquiera y colar
+        // como evidencia un archivo que no subió — en un documento sellable eso no es aceptable.
+        $items = [];
+        $draftKey   = (string) $request->input('draft_key', '');
+        $draftPaths = (array) $request->input('draft_photos', []);
+        if ($draftKey !== '' && $draftPaths && $this->draftsAvailable()) {
+            $draft = ScoutingDraft::forAuthor($draftKey, auth()->id());
+            if ($draft) {
+                $dCaptions = (array) $request->input('draft_photos_captions', []);
+                $dRiskmap  = (array) $request->input('draft_photos_riskmap', []);
+                foreach (array_values($draftPaths) as $i => $path) {
+                    $path = (string) $path;
+                    if (! $draft->owns($path)) {
+                        continue; // ruta ajena o inventada: fuera, en silencio
+                    }
+                    $item = ['path' => $path, 'caption' => $this->cleanCaption($dCaptions[$i] ?? '')];
+                    if (! empty($dRiskmap[$i])) {
+                        $item['risk_map'] = true;
+                    }
+                    $items[] = $item;
+                }
+            }
         }
 
         if ($request->hasFile('additional_images')) {
@@ -277,7 +542,6 @@ class ScoutingReportController extends Controller
             // (mismo orden del DOM). additional_images_riskmap[] es "0"/"1" por imagen.
             $captions = $request->input('additional_images_captions', []);
             $riskmap  = $request->input('additional_images_riskmap', []);
-            $items = [];
             foreach ($request->file('additional_images') as $idx => $image) {
                 if (!$image || !$image->isValid()) {
                     continue; // ignora slots vacíos/corruptos del arreglo
@@ -291,10 +555,17 @@ class ScoutingReportController extends Controller
                 }
                 $items[] = $item;
             }
-            // El cast 'array' serializa; se asigna como LISTA de {path, caption} (sin json_encode).
-            if (!empty($items)) {
-                $reportData['additional_images_paths'] = $items;
-            }
+        }
+
+        // El cast 'array' serializa; se asigna como LISTA de {path, caption} (sin json_encode).
+        //
+        // 🪤 Esta asignación vivía DENTRO del `if (hasFile(...))`. Con el borrador en servidor eso
+        // se vuelve un bug silencioso: el caso normal pasa a ser que las fotos YA viajaron y no
+        // llegue ni un archivo en el envío final — y entonces el scouting se guardaba sin ninguna
+        // imagen, sin error, después de que el usuario las capturó todas. Fuera del `if`, las dos
+        // procedencias (subidas antes o adjuntas ahora) se guardan igual.
+        if (! empty($items)) {
+            $reportData['additional_images_paths'] = $items;
         }
 
         try {
@@ -318,6 +589,41 @@ class ScoutingReportController extends Controller
                 $report->signDocument(auth()->user(), $request);
             }
 
+            // El borrador cumplió: el scouting ya existe. Se retira para que no reaparezca al
+            // abrir otro nuevo. SOLO aquí — si el guardado falla más abajo, el borrador SIGUE VIVO
+            // con sus fotos, que es justo la red que esto viene a tender.
+            //
+            // 🪤 BLINDADO A PROPÓSITO. Esto es limpieza contable, y una limpieza JAMÁS puede tumbar
+            // un guardado que ya salió bien. Sin el try, bastaba con que la tabla no existiera
+            // —código desplegado antes de correr la migración, que es un orden perfectamente
+            // normal— para que el `catch` de abajo dijera "No se pudo guardar el reporte" DESPUÉS
+            // de haberlo creado. El usuario lo daría por perdido y lo capturaría otra vez:
+            // duplicado, por un borrador que no se pudo borrar. Si esto falla, el borrador se
+            // queda huérfano y no pasa nada — reaparece una vez y se descarta.
+            try {
+                if ($draftKey !== '' && $this->draftsAvailable()) {
+                    $vivo = ScoutingDraft::forAuthor($draftKey, auth()->id());
+
+                    // 🪤 SÓLO se retira si sus fotos SE USARON (o si no tenía). Borrarlo a ciegas
+                    // fue el segundo eslabón del desastre del 2026-09-16: el borrador guardaba 27
+                    // fotos, el formulario no las mandó —no había forma de recuperarlas—, y al
+                    // guardar el scouting se destruyó la ÚNICA referencia que quedaba a esos
+                    // archivos. Quedaron vivos en disco y sin dueño.
+                    //
+                    // Si el borrador conserva fotos que nadie usó, SIGUE VIVO: reaparecerá la
+                    // próxima vez y el owner decidirá si las usa o las descarta. Que reaparezca un
+                    // borrador molesta; perder la jornada de fotos, no.
+                    $sinUsar = $vivo && count($vivo->photoList()) > 0 && count($items) === 0;
+                    if ($vivo && ! $sinUsar) {
+                        $vivo->delete();
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('scouting: no se pudo retirar el borrador (el reporte SÍ se guardó)', [
+                    'report' => $report->id, 'e' => $e->getMessage(),
+                ]);
+            }
+
             return redirect()->route('scoutings.show', $report->id)
                 ->with('success', 'Reporte de scouting guardado correctamente.');
         } catch (\Exception $e) {
@@ -333,7 +639,17 @@ class ScoutingReportController extends Controller
     public function show($id)
     {
         $report = ScoutingReport::findOrFail($id);
-        return view('admin.scoutings.show', compact('report'));
+
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+        // MISMA vista/datos y la pasa por Browsershot (Chrome headless) → descarga de un clic,
+        // idéntica a window.print(). Márgenes 0 (el @page Oficio manda). Ver [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = view('admin.scoutings.show', compact('report'))->render();
+            return \App\Support\PdfExporter::download($html, 'SCOUT-' . str_pad((string) $id, 4, '0', STR_PAD_LEFT), [0, 0, 0, 0]);
+        }
+
+        return view('admin.scoutings.show', compact('report')
+            + ['pdfUrl' => request()->fullUrlWithQuery(['pdf' => 1])]);
     }
 
     /**
@@ -353,6 +669,15 @@ class ScoutingReportController extends Controller
             ? $request->query('lang')
             : 'es';
 
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+        // MISMA vista/datos (conserva ?lang) y la pasa por Browsershot (Chrome headless) → descarga
+        // idéntica a window.print(). Formato CARTA (letter, márgenes 12mm); el botón vive en la
+        // propia vista (chrome propio, no _report-v2-foot). Ver [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = view('admin.scoutings.amazon', compact('report', 'lang'))->render();
+            return \App\Support\PdfExporter::download($html, 'SCOUT-' . $report->id . '-RA', [12, 12, 12, 12]);
+        }
+
         return view('admin.scoutings.amazon', compact('report', 'lang'));
     }
 
@@ -364,6 +689,9 @@ class ScoutingReportController extends Controller
     public function edit($id)
     {
         $report       = ScoutingReport::findOrFail($id);
+        // Aislamiento por autor (auditoría #1): editar sólo el autor o la consolidación (leer es transversal).
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $report), 403,
+            'Solo el autor o la consolidación de seguridad pueden editar este scouting.');
         $productions  = Production::orderBy('name')->get();
         $standards    = SafetyStandard::orderBy('category_name')->get();
         $categories   = $this->categories();
@@ -385,6 +713,10 @@ class ScoutingReportController extends Controller
     public function update(Request $request, $id)
     {
         $report = ScoutingReport::findOrFail($id);
+
+        // Aislamiento por autor (auditoría #1): sólo el autor o la consolidación pueden editar/re-sellar.
+        abort_unless(\App\Support\ReportVisibility::canMutate(auth()->user(), $report), 403,
+            'Solo el autor o la consolidación de seguridad pueden editar este scouting.');
 
         $this->validateReport($request);
 
@@ -473,7 +805,15 @@ class ScoutingReportController extends Controller
             //       firmas duplicadas en cada guardado). Si SÍ cambió, se re-sella y esa firma nueva
             //       queda en el historial (digital_signatures) con su autor y fecha: el "final"
             //       siempre refleja el contenido actual, y cada re-sello queda registrado.
-            if ($report->status === 'final') {
+            // (2026-09-05 · Integridad) El re-sellado se guarda por "¿ya estaba SELLADO?", no solo por
+            // "¿está en final?". Un scouting con FIRMA PREVIA DEBE re-sellarse al editarse, quede en el
+            // estado que quede: antes, bajarlo de final dejaba su sello viejo sin que nadie se enterara
+            // (un documento sellado es un documento que no cambió). Se CONSERVA la doctrina "un borrador
+            // nunca sellado no se sella; 'final' siempre queda sellado" → por eso la condición también
+            // entra cuando el estado nuevo es final aunque no hubiera firma (primer sellado al pasar a
+            // final, igual que store()). hash_equals evita apilar firmas idénticas si nada cambió.
+            $tieneFirmaPrevia = Schema::hasTable('digital_signatures') && $report->signatures()->exists();
+            if ($report->status === 'final' || $tieneFirmaPrevia) {
                 $report->refresh();
                 $nuevoHash = $report->computeDocumentHash();
                 $ultima    = Schema::hasTable('digital_signatures')
@@ -767,6 +1107,8 @@ class ScoutingReportController extends Controller
             'scene'               => $request->input('scene'),
             'date_prep'           => $request->input('date_prep'),
             'date_shoot'          => $request->input('date_shoot'),
+            // Vacío → null, nunca '' (columna DATE en modo estricto no acepta cadena vacía).
+            'date_shoot_end'      => $request->input('date_shoot_end') ?: null,
             'date_wrap'           => $request->input('date_wrap'),
             'loc_setting'         => $request->input('loc_setting'),
             'shoot_time'          => $request->input('shoot_time'),
@@ -822,6 +1164,13 @@ class ScoutingReportController extends Controller
         // (2026-07-12) MÓDULO 8 (EPP) — captura del EPP requerido (no obligatorio en scouting).
         if (Schema::hasColumn('scouting_reports', 'required_ppe')) {
             $data['required_ppe'] = $this->buildRequiredPpe($request);
+        }
+
+        // (2026-08-08 · Parte D) Bandera "¿habrá ambulancia?" — tri-estado (null/1/0). Guarda
+        // defensiva por columna (prod puede no tener el delta #54 aún). Vacío = sin declarar → null.
+        if (Schema::hasColumn('scouting_reports', 'has_ambulance')) {
+            $ha = $request->input('has_ambulance');
+            $data['has_ambulance'] = ($ha === null || $ha === '') ? null : (bool) $ha;
         }
 
         return $data;
@@ -923,6 +1272,8 @@ class ScoutingReportController extends Controller
      */
     private function storeUploadedImage($image, $tag)
     {
+        // HEIC (iPhone) → JPEG si el servidor puede convertir; si no, la validación ya lo rechazó.
+        $image    = \App\Support\ImageCompressor::normalizeForUpload($image);
         $filename = time() . '_' . $tag . '_' . uniqid() . '.' . \App\Support\ImageCompressor::safeExtensionOrBin($image);
         $path     = $image->storeAs('scouting_images', $filename, 'public');
         return Storage::url($path);

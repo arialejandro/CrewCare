@@ -81,7 +81,7 @@
             <div class="card-header d-flex align-items-center gap-2 py-2 border-0">
                 <div class="crew-search flex-grow-1">
                     <label for="search" class="visually-hidden">{{ __('listas.buscar_label') }}</label>
-                    <form onsubmit="return false;">
+                    <form data-search-noop>
                         <div class="input-group">
                             <span class="input-group-text">
                                 @include('componentes._icon', ['name' => 'search', 'class' => 'cc-ico', 'label' => null])
@@ -176,6 +176,10 @@
                 t = setTimeout(runSearch, 250);
             });
         }
+        // El buscador NO envía el form (búsqueda por keyup/AJAX): veta el submit sin on* (CSP).
+        document.addEventListener('submit', function (e) {
+            if (e.target.closest('[data-search-noop]')) { e.preventDefault(); }
+        });
     })();
 </script>
 

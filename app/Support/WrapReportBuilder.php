@@ -335,13 +335,14 @@ class WrapReportBuilder
             'dias_prep'         => $diasPrep,
             'dias_rodaje'       => $diasRodaje,
             'dias_trabajados'   => $diasPrep + $diasRodaje,
-            'dias_naturales'    => $ini->diffInDays($fin) + 1,
+            // Carbon 3: diffInDays devuelve float con signo; $fin=endOfDay da N.9999 → (int) trunca al día completo.
+            'dias_naturales'    => (int) $ini->diffInDays($fin) + 1,
             // Se imprimen las DOS cifras. Los días trabajados son los que cuentan para las tasas
             // y para lo que se pagó; los naturales son los que ve un calendario. Enseñar sólo una
             // deja al lector sin saber cuál está leyendo, y la diferencia son los domingos.
             'nota_dias'         => 'Se cuentan DÍAS TRABAJADOS, no naturales: ' . $diasPrep . ' de prep (lunes a sábado, '
                 . 'el domingo no cuenta) más ' . $diasRodaje . ' días distintos con reporte diario. En el mismo periodo '
-                . 'transcurrieron ' . ($ini->diffInDays($fin) + 1) . ' días de calendario.',
+                . 'transcurrieron ' . ((int) $ini->diffInDays($fin) + 1) . ' días de calendario.',
             'primer_dia_rodaje' => $primerRodaje ? $primerRodaje->toDateString() : null,
             'ultimo_dia_rodaje' => $diasRodaje ? Carbon::parse($fechasRodaje->last())->toDateString() : null,
             'dsr_emitidos'      => $dsrs->count(),
@@ -1021,7 +1022,8 @@ class WrapReportBuilder
                 'cerradas'       => $cerradas,
                 'vencidas'       => $vencidas,
                 'dias_cierre_promedio' => count($diasCierre) ? round(array_sum($diasCierre) / count($diasCierre), 1) : null,
-                'dias_cierre_max'      => count($diasCierre) ? max($diasCierre) : null,
+                // Carbon 3: diffInDays es float (created_at→closed_at con hora) → redondear a día entero.
+                'dias_cierre_max'      => count($diasCierre) ? (int) round(max($diasCierre)) : null,
             ],
             'notificaciones_autoridad' => $notificaciones,
             'lesiones_pendientes_notificar' => $lesiones->filter(function ($i) {

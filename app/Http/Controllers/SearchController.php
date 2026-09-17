@@ -180,7 +180,9 @@ class SearchController extends Controller
      */
     public function users(Request $request, $valor)
     {
-        return $this->runSearch(self::PRESET_USERS, $request, $valor);
+        // withContractStatus: el Crew List pinta el marcador de contrato junto a cada persona; el
+        // swap AJAX del buscador debe conservarlo (si no, el marcador "desaparece" al escribir).
+        return $this->runSearch(self::PRESET_USERS, $request, $valor, true);
     }
 
     /**
@@ -196,7 +198,7 @@ class SearchController extends Controller
      *
      * @param array   $preset  ['view' => string, 'columns' => string[], 'searchable' => string[]]
      */
-    protected function runSearch(array $preset, Request $request, $valor)
+    protected function runSearch(array $preset, Request $request, $valor, bool $withContractStatus = false)
     {
         $user = $request->user();
 
@@ -207,8 +209,13 @@ class SearchController extends Controller
         $canPersonal = $user->can('crew.view.personal');   // birthdate / sex
         $canMedical  = $user->can('medical.view');         // clinical (none rendered yet)
 
+        // Marcador de contrato (sólo el directorio de crew lo pide). El parcial lo pinta si llega.
+        $contractStatus = $withContractStatus
+            ? \App\Support\ContractStatus::forUserIds($usuarios->getCollection()->pluck('id')->all())
+            : [];
+
         return view($preset['view'], compact(
-            'usuarios', 'canContact', 'canPersonal', 'canMedical'
+            'usuarios', 'canContact', 'canPersonal', 'canMedical', 'contractStatus'
         ));
     }
 

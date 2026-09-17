@@ -160,6 +160,16 @@ class HazardEvent extends Model
             'crowd_action'      => 'Multitudes en escena / figuración de acción',
             'minors_physical'   => 'Menores en actividad física',
             'base_camp'         => 'Base camp / logística',
+            // --- 4 categorías del catálogo del owner (CSV medidas_control, 2026-08-17) ---
+            // Nacen del archivo del owner: los eventos que agregó (fatiga, ergonomía,
+            // ruido, catering, alergias = salud; robo/agresión = protección) y 8 eventos
+            // existentes de talleres (sierras/clavadora) y de PROGRAMA (sin EPP, sin
+            // inducción, subregistro) que él etiquetó. 'tools_machinery' y 'safety_program'
+            // los aprobó explícitamente; 'health' y 'security' salieron del mismo archivo.
+            'health'            => 'Salud ocupacional / ergonomía',
+            'security'          => 'Seguridad y protección (delitos / terceros)',
+            'tools_machinery'   => 'Herramientas y maquinaria de taller',
+            'safety_program'    => 'Programa de seguridad (gestión)',
         ];
     }
 
@@ -220,6 +230,11 @@ class HazardEvent extends Model
             'crowd_action'      => 'Crowd action / action background',
             'minors_physical'   => 'Minors - physical activity',
             'base_camp'         => 'Base camp / logistics',
+            // --- 4 categorías del catálogo del owner (CSV, 2026-08-17), MISMO orden que categories() ---
+            'health'            => 'Occupational health / ergonomics',
+            'security'          => 'Security & protection (crime / third parties)',
+            'tools_machinery'   => 'Shop tools & machinery',
+            'safety_program'    => 'Safety program (management)',
         ];
     }
 

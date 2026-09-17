@@ -11,6 +11,34 @@ Al final hay una sección de **hallazgos de seguridad / deuda técnica** consoli
 > **no hay** sub-app React/Vite ni ruta `/ordenar/`. Frontend = Blade + Bootstrap 5 +
 > jQuery; Vue 2 está instalado pero solo como scaffold sin usar.
 
+> ## ⚠ ACTUALIZACIÓN 2026-08-06 (catch-up post-compact — deltas #40-#51)
+> El cuerpo de abajo es del **2026-07-07** y describe bien Auth/COVID/scouting, pero **NO refleja
+> los ~12 módulos H&S nuevos**. Estado real hoy: **53 controllers · 51 modelos · 26 servicios · 226 rutas · 84 tablas · 188 vistas**.
+> **La autorización YA es RBAC Spatie real** (no solo el flag `admin`): roles + permisos (`spatie/laravel-permission`),
+> `Gate::before` = super-admin pasa todo, permisos por módulo (ver [ORG-TAXONOMY.md](ORG-TAXONOMY.md) y `route:list`).
+> `daytest` como "rol" está **neutralizado**; la fuente de rol médico es `User::isMedic()` (rol Spatie `medic`).
+>
+> **Módulos nuevos → controller · modelos · servicio(s) · vistas** (índice de rutas/símbolos; detalle vivo en `/memory`):
+> - **Scouting H&S:** `ScoutingReportController` · `ScoutingReport` · `ScoutingLocator`,`HazardActivities` · `admin/scoutings/*`.
+> - **Reportes sellables (motor de documentos):** chrome compartido `componentes/_report-v2-*` + `_doc-hero`; sello vía
+>   trait `HasDigitalSignatures` + `DigitalSignature` + servicio `SealVerifier` (verificador público `SealVerificationController`).
+> - **Injury/Addendum:** `InjuryReportController`,`AddendumController` · `InjuryReport`,`Addendum`,`Witness` · `InvolvedResolver`.
+> - **DSR:** `DailyReportController` · `DailyReport`,`DailyLog`,`ActionItem` · `DsrHub`,`DsrContext`,`ImageCompressor`.
+> - **Catálogo de eventos/normas:** `HazardEventController`,`SafetyStandardController` · `HazardEvent`,`SafetyStandard`,`CatalogPendingStandard` · `StandardCodeResolver`.
+> - **SFX/Consumibles:** `SfxController`,`SfxEffectTypeController`,`ConsumableController` · `SfxEffectType`,`SfxEvent`,`Consumable`.
+> - **Herramientas + inspección (#41-#43):** `InspectionController` · `Tool`,`ToolFamily`,`ToolVariant`,`ToolCheckPoint`,`ToolInspection` · `InspectionVerdict`.
+> - **Permisos de trabajo (#44):** `PermitController` · `Permit`,`PermitPoint`,`IssuedPermit`.
+> - **MEDEVAC (#46):** `MedevacController` · `MedevacPoster` · `MedevacPosterBuilder`,`MedevacContacts`.
+> - **Vigilancia epi (#45):** `EpiController` · `IndicatorTerm`,`OutbreakStudy` · `EpiSurveillance`,`ClinicalTextNormalizer`.
+> - **Mapeo de riesgos (#50):** `RiskMapController` · `RiskMap`,`RiskMapView`,`RiskMapMarker` · `RiskSigns` (librería de 80 señales ISO en `resources/rm-signs.generated.php`).
+> - **Wrap report:** `WrapReportController` · `WrapReport` · `WrapReportBuilder` (solo-lectura, payload congelado).
+> - **Médico/LITE:** `MedicalReportController`,`LitePatientController`,`cmedicController`,`HealthRecordAddendumController`,`MedicCredentialController` ·
+>   `LitePatient`,`MedicalAccessGrant`,`HealthRecordAddendum`,`MedicCredential`,`Medication`,`cmedic` · `SepRegistry`,`CedulaVerifier`.
+> - **Cédula profesional (robot APAGADO):** `CedulaVerifier`,`CedulaResult`,`CredentialTelemetry` (flag `CEDULA_AUTO_VERIFY=false`).
+> - **Privacidad:** `PrivacyConsentController` · `PrivacyConsent` · `PrivacyNotice`.
+> - **Transversales:** `CurrentProduction` (fuente única de producción), `ProductionCalendar` (día de rodaje derivado),
+>   `Features` (feature flags), `Branding`/`Avatar`/`SafetyAlertRecipients`; `Api\SyncController` (borradores offline `api/sync/up`).
+
 ---
 
 ## 1. Auth & Permisos

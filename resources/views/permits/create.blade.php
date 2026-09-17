@@ -53,7 +53,7 @@
             </div>
         @endif
 
-        <form method="post" action="{{ route('permits.store', $permit->id) }}">
+        <form method="post" action="{{ route('permits.store', $permit->id) }}" enctype="multipart/form-data">
             @csrf
             @if (! empty($prefill['tool_id']))<input type="hidden" name="tool_id" value="{{ $prefill['tool_id'] }}">@endif
             @if (! empty($supersedes))<input type="hidden" name="supersedes" value="{{ $supersedes }}">@endif
@@ -181,6 +181,18 @@
                 </div>
             </div>
 
+            {{-- FOTOGRAFÍAS (opcional): prueba del sitio / montaje / autorización en papel.
+                 Sus rutas se CONGELAN con el sello (cambiarlas en un permiso emitido = ALTERADO). --}}
+            <div class="card border-0 shadow-sm rounded-3 p-3 p-md-4 mb-3">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    @include('componentes._icon', ['name' => 'camera', 'label' => null])
+                    <strong>{{ __('Fotografías (opcional)') }}</strong>
+                </div>
+                <p class="small text-muted mb-3">{{ __('Adjunta fotos del sitio, el montaje o la autorización en papel. Quedan congeladas dentro del permiso sellado. Hasta 6, 8 MB cada una.') }}</p>
+                <input type="file" id="permit_photos" name="permit_photos[]" class="form-control" accept="image/*" multiple>
+                <div id="permit_photos_preview" class="d-flex flex-wrap gap-2 mt-3"></div>
+            </div>
+
             @if ($requiresFireWatch)
                 <div class="alert alert-warning d-flex align-items-start gap-2 py-2 small">
                     @include('componentes._icon', ['name' => 'flame', 'label' => null])
@@ -199,6 +211,28 @@
 
     </div>
 </div>
+
+{{-- Miniaturas de las fotos seleccionadas (mejora progresiva; sin directivas Blade adentro). --}}
+<script>
+(function () {
+    var input = document.getElementById('permit_photos');
+    var box   = document.getElementById('permit_photos_preview');
+    if (!input || !box || typeof FileReader === 'undefined') { return; }
+    input.addEventListener('change', function () {
+        box.innerHTML = '';
+        Array.prototype.slice.call(input.files || []).slice(0, 6).forEach(function (file) {
+            if (!/^image\//.test(file.type) && !/\.(jpe?g|png|webp|heic|heif)$/i.test(file.name)) { return; }
+            var img = document.createElement('img');
+            img.alt = file.name;
+            img.style.cssText = 'width:84px;height:84px;object-fit:cover;border-radius:8px;border:1px solid rgba(0,0,0,.12)';
+            var reader = new FileReader();
+            reader.onload = function (e) { img.src = e.target.result; };
+            reader.readAsDataURL(file);
+            box.appendChild(img);
+        });
+    });
+})();
+</script>
 
 @push('styles')
     @include('componentes._crew-list-styles')

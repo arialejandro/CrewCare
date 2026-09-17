@@ -72,6 +72,7 @@ class SfxEffectType extends Model
         'code',
         'family',
         'name',
+        'image_path',
         'definition',
         'variants',
         'main_risk',
@@ -155,6 +156,17 @@ class SfxEffectType extends Model
     public function isVerified()
     {
         return $this->verified_at !== null;
+    }
+
+    /**
+     * URL de la imagen principal del tipo de efecto (referencia visual), o null si aún no se
+     * sube (la UI pinta un mono-icono). La ruta se guarda como la devuelve ImageCompressor::store()
+     * sobre el disco 'public'. Degrade-safe: sin la columna `image_path`, Eloquent lee null.
+     */
+    public function imageUrl(): ?string
+    {
+        $p = trim((string) $this->image_path);
+        return $p !== '' ? \Illuminate\Support\Facades\Storage::url($p) : null;
     }
 
     /**

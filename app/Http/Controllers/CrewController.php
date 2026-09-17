@@ -62,15 +62,34 @@ class CrewController extends Controller
             ->when($lockedDeptId, function ($q) use ($lockedDeptId) { $q->where('id', $lockedDeptId); })
             ->orderBy('name')->get(['id', 'name']);
 
-        $positions = \App\Models\Position::whereNull('production_id')->where('active', 1)
+        $posRows = \App\Models\Position::whereNull('production_id')->where('active', 1)
             ->when($lockedDeptId, function ($q) use ($lockedDeptId) { $q->where('department_id', $lockedDeptId); })
-            ->orderBy('name')->get(['id', 'name', 'department_id']);
+            ->orderBy('rank')->orderBy('name')->get(['id', 'name', 'name_en', 'department_id']);
+
+        // Alias es/en por puesto → texto extra buscable (data-search del typeahead). Consulta única.
+        $aliasByPos = [];
+        foreach (\Illuminate\Support\Facades\DB::table('catalog_aliases')
+                     ->where('entity_type', 'position')->whereIn('entity_id', $posRows->pluck('id'))
+                     ->get(['entity_id', 'alias']) as $a) {
+            $aliasByPos[$a->entity_id][] = $a->alias;
+        }
+        $positions = $posRows->map(function ($p) use ($aliasByPos) {
+            return [
+                'id'            => $p->id,
+                'name'          => $p->name,
+                'department_id' => $p->department_id,
+                'search'        => trim(($p->name_en ?? '') . ' ' . implode(' ', $aliasByPos[$p->id] ?? [])),
+            ];
+        })->values();
+
+        // ¿Puede crear puestos desde el alta (Opción B)? Global o acotado por depto.
+        $canCreatePos = $viewer->can('catalogs.manage') || $viewer->can('catalogs.manage.own-department');
 
         // (2026-07-24) Selector de rol: sólo se pinta a quien pueda asignar roles. Quien no,
         // no ve el campo Y aunque lo mande por POST el store lo ignora (ver newuser()).
         $assignableRoles = auth()->user()->can('users.assign-role') ? self::ASSIGNABLE_ROLES : [];
 
-        return view('admin.newuser', compact('lockedDept', 'lockedDeptId', 'restricted', 'departments', 'positions', 'assignableRoles'));
+        return view('admin.newuser', compact('lockedDept', 'lockedDeptId', 'restricted', 'departments', 'positions', 'assignableRoles', 'canCreatePos'));
     }
 
     public function newuser(Request $request)
@@ -86,7 +105,6 @@ class CrewController extends Controller
             'ncreditos'     => 'required|string|max:255',
             'borndate'      => 'required|date|before:today',
             'sex'           => 'nullable|in:M,F',
-            'labn'          => 'required|string|max:255',
             'phone'         => 'required|string|max:50',
             'email'         => 'required|email|max:255|unique:users,email',
             'password'      => 'required|string|min:8|confirmed',
@@ -96,6 +114,12 @@ class CrewController extends Controller
             // /rolescrud (super-admin excluido a propósito: god-mode nunca desde una pantalla).
             // Que llegue el campo NO basta: abajo se exige `users.assign-role` para respetarlo.
             'role'          => 'nullable|in:' . implode(',', self::ASSIGNABLE_ROLES),
+        ], [
+            // (2026-09-08) SOLO cambio de MENSAJE (no de flujo): la regla unique:users,email sigue
+            // rechazando igual. El texto apunta a la lista de "Dados de baja" para que, si la persona
+            // ya existe pero fue dada de baja (p. ej. se apagó con una unidad), quien intenta el alta no
+            // quede atorado: la reintegra desde ahí en vez de intentar crearla de nuevo.
+            'email.unique' => 'Ese correo ya está registrado. Si la persona fue dada de baja, búscala en «Dados de baja» y reintégrala en vez de crearla de nuevo.',
         ]);
 
         $viewer = auth()->user();
@@ -146,7 +170,6 @@ class CrewController extends Controller
             'email' => $request->email,
             'phone' => $request->phone,
             'sex' => $request->sex,
-            'labn' => $request->labn,
             'zone' => $deptName,
             'ncreditos' => $request->ncreditos,
             'borndate' => $request->borndate,
@@ -195,6 +218,12 @@ class CrewController extends Controller
             );
         }
 
+        // (PASO 3 · quien cobra) DISPARA LA INVITACIÓN AL INTAKE: link firmado y expirable para que
+        // la persona llene ella misma sus datos fiscales y documentos (solo ella tiene su CLABE/INE
+        // y su domicilio). Se comparte por el mismo canal de llamados (correo del alta / WhatsApp);
+        // el alta sigue CORTA (identidad/rol/depto/contacto), no se vuelve un asistente largo.
+        $intakeUrl = \App\Http\Controllers\IntakeController::invitationUrl($user);
+
         // Correo de bienvenida. El alta NO se rompe si el correo falla, pero YA NO falla en silencio.
         //
         // BUG que esto corrige (2026-07-25): este bloque pasaba `password` (que la plantilla
@@ -210,9 +239,12 @@ class CrewController extends Controller
             $resetUrl = url(route('password.reset', ['token' => $token, 'email' => $user->email], false));
             $subject = 'Bienvenido a CrewCare';
             $data = [
-                'nombre'   => $user->name,
-                'email'    => $user->email,
-                'resetUrl' => $resetUrl,
+                'nombre'    => $user->name,
+                'email'     => $user->email,
+                'resetUrl'  => $resetUrl,
+                'intakeUrl' => $intakeUrl, // invitación al intake (la plantilla puede incluirla)
+                // Base de ESTA instalación (subdominio real de la petición); el correo no hardcodea dominio.
+                'appUrl'    => rtrim(url('/'), '/'),
             ];
             $for = $user->email;
             Mail::send('correos.welcomeuser', $data, function ($msj) use ($subject, $for) {
@@ -231,7 +263,9 @@ class CrewController extends Controller
                 .'Reenvíalo desde consola con:  php artisan crew:welcome-resend '.$user->id;
         }
 
-        $redirect = redirect('/adduser')->with('status', 'Miembro de crew dado de alta: '.$user->name.' '.$user->lname.'.');
+        $redirect = redirect('/adduser')
+            ->with('status', 'Miembro de crew dado de alta: '.$user->name.' '.$user->lname.'.')
+            ->with('intake_url', $intakeUrl); // el coordinador puede compartir la invitación (WhatsApp)
         if ($mailWarning) {
             $redirect->with('error', $mailWarning);
         }
@@ -336,7 +370,6 @@ class CrewController extends Controller
             'ncreditos'          => 'nullable',
             'phone'              => 'nullable|string|max:50',
             'borndate'           => 'nullable|date',
-            'labn'               => 'nullable',
             'email'              => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'sex'                => 'nullable|string|max:10',
             // PASO A (2026-07-19): `zone` y `puestodepartamento` SALEN de la whitelist. Dejan de
@@ -349,8 +382,11 @@ class CrewController extends Controller
         // --- Guarda de auto-edición (espeja RoleAssignmentController.php:102-104) ---
         // Un operador no reasigna su propio departamento/puesto: reescribiría su propio scope.
         // Sí puede editar el resto de SU ficha (nombre, teléfono, contraseña…).
+        // EXCEPCIÓN: el super-admin (el owner) SÍ puede asignarse un puesto — su scope ya es
+        // total (Gate::before lo deja pasar todo), así que no hay nada que "reescribir".
         $isSelf = ((int) $user->id === (int) auth()->id());
-        if ($isSelf && ($request->filled('department_id') || $request->filled('position_id'))) {
+        if ($isSelf && ! auth()->user()->hasRole('super-admin')
+            && ($request->filled('department_id') || $request->filled('position_id'))) {
             return back()
                 ->with('error', 'No puedes cambiar tu propio departamento o puesto; pídelo a un coordinador.')
                 ->withInput();

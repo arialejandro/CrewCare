@@ -168,7 +168,10 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // (2026-08-30 · endurecimiento) La cookie de sesión viaja SÓLO por HTTPS en producción.
+    // Se puede forzar con SESSION_SECURE_COOKIE; si no está, cae al entorno: true en producción,
+    // false en local (el local sigue en http, sin cambio). http_only + same_site ya estaban.
+    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV') === 'production'),
 
     /*
     |--------------------------------------------------------------------------

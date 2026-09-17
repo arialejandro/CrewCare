@@ -20,5 +20,9 @@
   .badge-DOT{background:#1e40af;color:#fff}
   .badge-SCT{background:#047857;color:#fff}
   .badge-GENERAL{background:#6b7280;color:#fff}
+  {{-- Marcos nuevos (2026-08-17): FAA (aviación EE.UU.), CAL (estado de California), SEDENA (militar MX). --}}
+  .badge-FAA{background:#0369a1;color:#fff}
+  .badge-CAL{background:#b45309;color:#fff}
+  .badge-SEDENA{background:#4d7c0f;color:#fff}
 </style>
 @endonce

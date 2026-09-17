@@ -63,6 +63,11 @@ class StoreScoutingReportRequest extends FormRequest
             'scene'               => 'nullable|string|max:255',
             'date_prep'           => 'nullable|date',
             'date_shoot'          => 'nullable|date',
+            // Fin del rango de rodaje. Vacío = un solo día. No puede ser ANTERIOR al inicio; que sea
+            // igual sí se acepta (es lo mismo que dejarlo vacío y no vale la pena rechazárselo a nadie
+            // en campo). `after_or_equal` sólo actúa si date_shoot viene: sin inicio no hay rango que
+            // validar, y el formulario ya no deja capturar el fin sin el inicio.
+            'date_shoot_end'      => 'nullable|date|after_or_equal:date_shoot',
             'date_wrap'           => 'nullable|date',
             'loc_setting'         => 'nullable|string|max:30',
             'shoot_time'          => 'nullable|string|max:30',
@@ -76,6 +81,7 @@ class StoreScoutingReportRequest extends FormRequest
             'emergency_access'    => 'nullable|string|max:500',
             'assembly_point'      => 'nullable|string|max:255',
             'ambulance_company'   => 'nullable|string|max:255',
+            'has_ambulance'       => 'nullable|in:0,1',   // Parte D: tri-estado (vacío=sin declarar)
             'emergency_phone'     => 'nullable|string|max:50',
 
             // Capa (2) Peligros — tabla de riesgo 5×5 (arrays repetibles)
@@ -131,8 +137,8 @@ class StoreScoutingReportRequest extends FormRequest
             'required_ppe.*'                                   => 'nullable|string|max:100',
 
             // Imágenes — 12 MB por archivo.
-            'main_image'          => 'nullable|image|mimes:jpeg,png,jpg,gif|max:12288',
-            'additional_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:12288',
+            'main_image'          => 'nullable|mimes:jpeg,png,jpg,gif,heic,heif|heic_ok|max:12288',
+            'additional_images.*' => 'nullable|mimes:jpeg,png,jpg,gif,heic,heif|heic_ok|max:12288',
 
             // Pies de foto + gestión de existentes al editar.
             'additional_images_captions'   => 'nullable|array',

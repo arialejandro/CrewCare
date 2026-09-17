@@ -1,5 +1,6 @@
 @extends('layouts.app')
 @section('title', 'Mapeo de riesgos y recursos - ' . ($branding['brand_name'] ?? 'CrewCare'))
+@include('componentes._confirm-submit')
 
 @push('styles')
 <style>
@@ -85,7 +86,7 @@
                         @else
                             <a href="{{ route('riskmaps.edit', $r['id']) }}" class="rm-btn rm-btn--accent">@include('componentes._icon', ['name' => 'pencil']) Editar</a>
                             <a href="{{ route('riskmaps.document', $r['id']) }}" class="rm-btn">@include('componentes._icon', ['name' => 'eye']) Vista previa</a>
-                            <form action="{{ route('riskmaps.destroy', $r['id']) }}" method="POST" onsubmit="return confirm('¿Eliminar este mapeo?');" style="display:inline">
+                            <form action="{{ route('riskmaps.destroy', $r['id']) }}" method="POST" data-confirm="¿Eliminar este mapeo?" style="display:inline">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="rm-btn rm-btn--danger">@include('componentes._icon', ['name' => 'trash-2']) Eliminar</button>
                             </form>

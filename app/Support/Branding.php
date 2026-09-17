@@ -25,6 +25,11 @@ class Branding
         // Datos de producción para el encabezado del formato Amazon MGM (opcionales).
         'company_name'    => '',           // "Production Company"; vacío => se usa brand_name
         'office_address'  => '',           // "Production Office Address"; vacío => se muestra "—"
+        // Datos del CONTRATANTE para la carátula del contrato (Paso B). company_name = razón social,
+        // office_address = domicilio; estos tres los agrega B5. La carátula CONGELA lo que use al emitir.
+        'rfc'                 => '',        // RFC del contratante
+        'representante_legal' => '',        // representante legal
+        'correo_contratante'  => '',        // correo del contratante
     ];
 
     const CACHE_KEY = 'branding.settings';
@@ -50,7 +55,26 @@ class Branding
             }
         }
 
-        return array_merge(self::DEFAULTS, $clean);
+        $merged = array_merge(self::DEFAULTS, $clean);
+
+        // TÍTULO DE LA PESTAÑA — se COMPONE si nadie lo escribió.
+        //
+        // `app_title` es el único origen del <title> en toda la app (login incluido). Su default
+        // es 'CrewCare' a secas, y eso en una instancia de cliente dice menos de lo que podría: en
+        // la pestaña conviven el producto y el proyecto, y quien tiene diez pestañas abiertas
+        // necesita distinguir DE QUÉ producción es cada una. Así que si el título no se ha tocado
+        // —vacío, o el 'CrewCare' de fábrica— se arma solo: "CrewCare | <proyecto>".
+        //
+        // Un `app_title` escrito a mano SIEMPRE gana: es una decisión editorial del owner y aquí no
+        // se discute. Esto es sólo la red para la instancia a la que nadie le puso título.
+        $title = trim((string) ($merged['app_title'] ?? ''));
+        $brand = trim((string) ($merged['brand_name'] ?? ''));
+        if (($title === '' || strcasecmp($title, 'CrewCare') === 0)
+            && $brand !== '' && strcasecmp($brand, 'CrewCare') !== 0) {
+            $merged['app_title'] = 'CrewCare | ' . $brand;
+        }
+
+        return $merged;
     }
 
     /** Lee un solo valor con default. */

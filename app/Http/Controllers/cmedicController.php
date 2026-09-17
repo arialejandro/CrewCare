@@ -485,6 +485,10 @@ class cmedicController extends Controller
         $target = User::findOrFail($id);
         abort_unless(auth()->user()->canManageCrewMember($target), 403);
 
+        // (2026-08-30) BITÁCORA de lectura clínica (invisible). Producción puede leer expedientes;
+        // esto deja el rastro de quién abrió el de quién y cuándo. Best-effort, nunca rompe la vista.
+        \App\Support\ClinicalReadLog::record(\App\Support\ClinicalReadLog::T_EXPEDIENTE, null, (int) $id);
+
         // (2026-07-24 · PIEZA 3) EXPEDIENTE VIGENTE, misma fuente única que usa create() —
         // antes cada método resolvía "el expediente" por su cuenta. `$usuario` trae UNA sola
         // fila: el `@foreach` de historiamr pintaba una ficha COMPLETA por cada fila, con los
@@ -530,11 +534,38 @@ class cmedicController extends Controller
         // (2026-07-25) $target es el User real del crew (ya resuelto para el gate). La cabecera de
         // historiamr mostraba el PUESTO leyendo la columna legacy $datos->puestodepartamento (fila
         // cruda, a veces sin ese campo); ahora lo lee del FK vía $target->positionName().
-        return view("componentes.historiamr", compact(
+        $viewData = compact(
             'usuario', 'target', 'datos', 'consultas', 'medicos', 'intakeState',
             'expedienteModelo', 'anexosExpediente'
-        ));
+        );
+
+        // (2026-08-10) IMPRESIÓN LIMPIA — ?print=1 devuelve el DOCUMENTO dedicado (componentes/
+        // historiamr-print): HTML autocontenido, SIN nada del shell de la app, así ningún elemento de
+        // GUI (la hamburguesa `position:fixed`) se cuela al papel y el layout clínico de 2 columnas se
+        // controla por entero. La pantalla (historiamr) queda igual. Mismo candado, mismos datos.
+        // Reemplaza el window.print() sobre la vista de pantalla, que salía desordenado. Ver
+        // [[health-record-module]].
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del print/return normal.
+        // Reusa EXACTAMENTE el mismo documento de impresión (historiamr-print) y lo pasa por
+        // Browsershot (Chrome headless) → descarga de un clic, idéntica a window.print(). Ver
+        // [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = view('componentes.historiamr-print', $viewData)->render();
+            return \App\Support\PdfExporter::download($html, 'HISTORIAL-' . ($target->id ?? ($datos->id ?? 0)), [13, 12, 13, 12]);
+        }
+
+        if (request()->boolean('print')) {
+            return view('componentes.historiamr-print', $viewData);
+        }
+
+        return view('componentes.historiamr', $viewData);
     }
+
+    // (2026-08-09) historialImprimir() + componentes/historiamr-print (vista standalone chrome-v2)
+    // se RETIRARON: el owner pidió que el historial médico NO se imprimiera como los demás
+    // documentos, sino conservando el formato de su propia pantalla (componentes/historiamr),
+    // sólo ajustado para verse bien en papel. La impresión ahora es window.print() sobre esa
+    // vista, cuyo @media print aísla el reporte y lo deja paginar. Ver [[health-record-module]].
 
     /**
      * (2026-07-25) HISTORIAL COMPLETO del paciente SIN CUENTA (lite). No existía: sólo había el
@@ -548,6 +579,7 @@ class cmedicController extends Controller
         abort_unless(LitePatient::supported(), 404);
 
         $paciente = LitePatient::findOrFail($liteId);
+        \App\Support\ClinicalReadLog::record(\App\Support\ClinicalReadLog::T_EXPEDIENTE_LITE, null, (int) $liteId);
         // Si abrieron un duplicado ya fundido, el historial vive en la superviviente.
         if ($paciente->isMerged() && $paciente->mergedInto) {
             return redirect()->route('lite.historial', $paciente->mergedInto->id);
@@ -570,6 +602,11 @@ class cmedicController extends Controller
         abort_unless(auth()->user()->isClinician(), 403);
 
         $consulta    = cmedic::findOrFail($id);   // {id} = id_cmedic (clave primaria)
+        \App\Support\ClinicalReadLog::record(
+            \App\Support\ClinicalReadLog::T_CONSULTA,
+            (int) $consulta->id_cmedic,
+            (int) ($consulta->id_user ?: $consulta->lite_patient_id)
+        );
         $canSeeNotes = cmedic::visibleTo(auth()->user())
             ->where('id_cmedic', $consulta->id_cmedic)->exists();
 

@@ -42,6 +42,17 @@
     .sfx-empty{text-align:center;padding:2.25rem 1rem;color:var(--text-muted)}
     .sfx-empty .cc-ico{width:40px;height:40px;opacity:.55;margin-bottom:.6rem}
     .sfx-empty .fw-semibold{color:var(--text)}
+
+    /* Resumen (KPIs) + estado "ninguno en curso" — para que el panel no se vea vacío. */
+    .sfx-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem;margin-bottom:1.5rem}
+    .sfx-stat{background:var(--glass);border:1px solid var(--stroke);border-radius:var(--radius-sm);padding:.9rem 1.1rem}
+    .sfx-stat__n{font-family:'Poppins',sans-serif;font-weight:800;font-size:1.7rem;line-height:1;color:var(--text)}
+    .sfx-stat__l{margin-top:.25rem;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--text-muted)}
+    .sfx-stat.is-live{border-color:color-mix(in srgb,var(--ok) 40%,transparent);background:color-mix(in srgb,var(--ok) 8%,var(--glass))}
+    .sfx-stat.is-live .sfx-stat__n{color:var(--ok)}
+    .sfx-none{display:flex;align-items:center;gap:.5rem;color:var(--text-muted);font-size:.88rem;padding:.6rem .2rem}
+    .sfx-dot-idle{display:inline-block;width:.6rem;height:.6rem;border-radius:50%;background:var(--text-muted);opacity:.5;flex:none}
+    @media (max-width:560px){.sfx-stats{grid-template-columns:1fr 1fr}}
 </style>
 @endpush
 
@@ -79,6 +90,22 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     @endif
+
+    {{-- Resumen: el panel SIEMPRE tiene algo que decir, aunque no haya efectos en curso. --}}
+    <div class="sfx-stats">
+        <div class="sfx-stat {{ $active->count() ? 'is-live' : '' }}">
+            <div class="sfx-stat__n">{{ $active->count() }}</div>
+            <div class="sfx-stat__l">En curso</div>
+        </div>
+        <div class="sfx-stat">
+            <div class="sfx-stat__n">{{ $closedToday }}</div>
+            <div class="sfx-stat__l">Cerrados hoy</div>
+        </div>
+        <div class="sfx-stat">
+            <div class="sfx-stat__n">{{ $totalEver }}</div>
+            <div class="sfx-stat__l">Registrados</div>
+        </div>
+    </div>
 
     <div class="row g-4">
 
@@ -145,14 +172,16 @@
             </div>
         </div>
 
-        {{-- ─────────── Efectos ACTIVOS (toggle) ─────────── --}}
-        <div class="col-12 col-lg-7">
-            <div class="card border-0 rounded-3 sfx-active-card h-100">
+        {{-- ─────────── Columna viva: en curso + bitácora reciente ─────────── --}}
+        <div class="col-12 col-lg-7 d-flex flex-column gap-4">
+
+            {{-- Efectos ACTIVOS (toggle) --}}
+            <div class="card border-0 rounded-3 sfx-active-card">
                 <div class="card-body p-4">
                     <h5 class="sfx-label mb-3">
                         <i class="fa-solid fa-tower-broadcast text-success me-1"></i>
                         Efectos en curso
-                        <span class="cc-chip cc-chip-ok ms-1">{{ $active->count() }}</span>
+                        <span class="cc-chip {{ $active->count() ? 'cc-chip-ok' : 'cc-chip-neutral' }} ms-1">{{ $active->count() }}</span>
                     </h5>
 
                     @forelse($active as $sfx)
@@ -192,16 +221,23 @@
                         </form>
                     </div>
                     @empty
-                    <div class="sfx-empty">
-                        @include('componentes._icon', ['name' => 'flame', 'label' => 'Sin efectos activos'])
-                        <div class="fw-semibold">No hay efectos activos.</div>
-                        <small>Inicia uno con el panel de la izquierda.</small>
+                    <div class="sfx-none">
+                        <span class="sfx-dot-idle"></span> Ninguno en curso ahora. Inicia uno con el panel de la izquierda.
                     </div>
                     @endforelse
+                </div>
+            </div>
 
-                    @if($recent->count() > 0)
-                        <hr class="my-3" style="border-color:var(--stroke)">
-                        <h6 class="sfx-recent-title text-uppercase small fw-bold mb-2">Recientes (cerrados)</h6>
+            {{-- Bitácora reciente — SIEMPRE visible: el panel no se ve vacío aunque no haya nada en curso. --}}
+            <div class="card border-0 rounded-3">
+                <div class="card-body p-4">
+                    <h5 class="sfx-label mb-3">
+                        <i class="fa-regular fa-rectangle-list text-secondary me-1"></i>
+                        Bitácora reciente
+                        @if($recent->count())<span class="cc-chip cc-chip-neutral ms-1">{{ $recent->count() }}</span>@endif
+                    </h5>
+
+                    @if($recent->count())
                         <ul class="list-unstyled mb-0 sfx-recent">
                             @foreach($recent as $sfx)
                             <li class="d-flex justify-content-between align-items-center py-1 small">
@@ -221,9 +257,16 @@
                             </li>
                             @endforeach
                         </ul>
+                    @else
+                        <div class="sfx-empty">
+                            @include('componentes._icon', ['name' => 'flame', 'label' => 'Sin registros todavía'])
+                            <div class="fw-semibold">Aún no se ha disparado ningún efecto.</div>
+                            <small>Cuando inicies y detengas efectos, aparecerán aquí y en el DSR del día.</small>
+                        </div>
                     @endif
                 </div>
             </div>
+
         </div>
 
     </div>

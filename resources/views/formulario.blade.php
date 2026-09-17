@@ -261,6 +261,14 @@
                     </div>
 
                     <div class="row g-2">
+                        {{-- Sano (índice 8): SEPARADO de "Vivo" (2026-08-12). Antes iban juntos en el
+                             índice 1 ("Vivo/Sano"). Encabeza los padecimientos: sano = sin condiciones. --}}
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <label class="cc-check">
+                                <input class="form-check-input" name="{{ $linea['prefijo'] }}8" type="checkbox" @if(old($linea['prefijo'].'8')) checked @endif/>
+                                <span class="form-check-label">{{ __('health.c_healthy') }}</span>
+                            </label>
+                        </div>
                         @foreach($padecimientos as $idx => $clave)
                             <div class="col-12 col-sm-6 col-lg-4">
                                 <label class="cc-check">

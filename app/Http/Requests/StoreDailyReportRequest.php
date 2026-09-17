@@ -105,17 +105,17 @@ class StoreDailyReportRequest extends FormRequest
             'location_name'        => 'required|string',
             'slug_setting'         => 'required|string',
             'slug_time'            => 'required|string',
-            'call_time'            => 'nullable',
+            'call_time'            => 'nullable|date_format:H:i',
             'weather_condition'    => 'required|string',
             'weather_min_temp'     => 'nullable|integer',
             'weather_max_temp'     => 'nullable|integer',
-            'safety_meeting_time'  => 'nullable',
+            'safety_meeting_time'  => 'nullable|date_format:H:i',
             // (2026-07-21) ¿Se realizó la junta? nullable a propósito: si el formulario de
             // una instancia vieja no manda el campo, el reporte queda "sin declarar" (null)
             // en vez de mentir marcándolo como realizado.
             'safety_meeting_held'  => 'nullable|boolean',
             // Foto en gran angular del crew reunido (evidencia de la junta).
-            'safety_meeting_photo' => 'nullable|image|max:12288',
+            'safety_meeting_photo' => 'nullable|mimes:jpg,jpeg,png,gif,bmp,svg,webp,heic,heif|heic_ok|max:12288',
             // (2026-07-13) safety_meeting_topics pasó de texto libre a checkboxes (reusa el catálogo
             // de factores de riesgo + temas comunes). Llega como array; el controlador lo colapsa a
             // CSV para la columna string existente (sin cambio de esquema).
@@ -136,13 +136,18 @@ class StoreDailyReportRequest extends FormRequest
             // Vínculo con el scouting de origen del hospital. nullable|integer (sin 'exists:' para no
             // acoplar a prod antes del SQL); el controlador PISA lo que llegue con guard de columna.
             'scouting_report_id'   => 'nullable|integer',
+            // (2026-09-07 · Unidades 2b) UNIDAD del DSR. nullable|integer (mismo patrón que
+            // scouting_report_id: sin 'exists:' para no acoplar a prod; el controlador guarda con guard de
+            // columna). HOY ningún formulario la manda → llega null → principal → idéntico. El día que el
+            // contexto de unidad exista (§4), el store la persistirá y el día se sellará contra SU unidad.
+            'unit_id'              => 'nullable|integer',
             'ambulance_company'    => 'nullable|string',
             // medic_name: formaliza el campo huérfano (nullable, ahora con límite de longitud).
             'medic_name'           => 'nullable|string|max:255',
             'crew_count'           => 'required|integer',
             'executive_summary'    => 'nullable|string',
             // author_name NO se valida: es AUTOFIRMA (server-side con el usuario logueado).
-            'hero_image'           => 'nullable|image|max:12288', // 12 MB (foto de celular)
+            'hero_image'           => 'nullable|mimes:jpg,jpeg,png,gif,bmp,svg,webp,heic,heif|heic_ok|max:12288', // 12 MB (foto de celular)
 
             // --- Cimientos módulos 6-14 ---
             'humidity'             => 'nullable|integer|min:0|max:100',

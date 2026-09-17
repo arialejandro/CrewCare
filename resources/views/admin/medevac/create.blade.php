@@ -119,7 +119,7 @@
                     </small>
                 </div>
             @endif
-            <input type="file" id="map_image" name="map_image" accept="image/*" class="cc-control" style="padding-top:9px;">
+            <input type="file" id="map_image" name="map_image" accept="image/*,.heic,.heif" class="cc-control" style="padding-top:9px;" data-cc-photo>
             <small class="cc-muted d-block mt-1">
                 {{ $en
                     ? 'Attach a Google Maps screenshot of the route to the hospital. It is saved to the location (so it is not lost on re-issue), embedded in the poster and sealed — it prints offline.'
@@ -191,4 +191,10 @@
         .cc-medevac .mdv-contacts{grid-template-columns:1fr;}
     }
 </style>
+@endpush
+
+@push('scripts')
+{{-- HEIC (iPhone): conversión a JPEG en el navegador antes de subir (el servidor no decodifica HEIC). --}}
+<script src="/js/cc-photo.js"></script>
+<script src="/js/cc-photo-auto.js"></script>
 @endpush

@@ -658,6 +658,33 @@
         addrEl.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') { e.preventDefault(); geocodeTyped(); }
         });
+
+        // Auto-captura al cargar (GPS en segundo plano, como el modo silencioso): si aún no
+        // hay dirección ni coordenadas, intenta llenarlas solo. Silencioso si el permiso está
+        // denegado, no hay señal o no hay red → el campo se queda vacío y el form sigue manual.
+        function autoFill() {
+            if (addrEl.value.trim() !== '' || latEl.value.trim() !== '') { return; } // ya hay algo (old()/edición)
+            say('Ubicándote…');
+            locate().then(function (pos) {
+                if (latEl.value.trim() === '') { setCoords(pos.lat, pos.lng); }
+                reverseGeocode(pos.lat, pos.lng).then(function (a) {
+                    if (a && addrEl.value.trim() === '') {
+                        addrEl.value = a;
+                        lastGeocoded = a.trim();
+                        say('Dirección tomada de tu ubicación ✓ — edítala si no es correcta.', 'text-success');
+                    } else {
+                        say('Escribe la dirección (las coordenadas se guardan solas) o toca 📍 para usar tu ubicación.');
+                    }
+                }).catch(function () {
+                    // Coordenadas sí, dirección no (sin red): que la escriba a mano.
+                    say('Escribe la dirección (las coordenadas se guardan solas) o toca 📍 para usar tu ubicación.');
+                });
+            }).catch(function () {
+                // Sin permiso / sin señal: se queda vacío, form 100% manual.
+                say('Escribe la dirección (las coordenadas se guardan solas) o toca 📍 para usar tu ubicación.');
+            });
+        }
+        if (root.hasAttribute('data-geo-auto')) { permissionAllows(autoFill); }
     }
 
     document.addEventListener('DOMContentLoaded', function () {

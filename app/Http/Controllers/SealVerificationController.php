@@ -34,4 +34,30 @@ class SealVerificationController extends Controller
 
         return response()->view('public.verify', ['acuse' => $acuse]);
     }
+
+    /**
+     * Descarga el TOKEN de sello de tiempo (.tsr) de un documento. Público, sin sesión (igual que
+     * el verificador): es la pieza que un tercero necesita para verificar el timbre por su cuenta.
+     * El modelo muere dentro de SealVerifier::resolveTimbre(); aquí sólo llegan los bytes del token.
+     *
+     * 404 GENÉRICO: tipo inválido, uuid inexistente, documento sin sello o sin timbre → todos el
+     * mismo 404 (no filtra en qué estado está un documento que no es el que pide el que descarga).
+     */
+    public function timbre(Request $request, $tipo, $uuid)
+    {
+        $t = \App\Support\SealVerifier::resolveTimbre($tipo, $uuid);
+
+        if ($t === null || empty($t['tsr'])) {
+            abort(404);
+        }
+
+        $folio = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($t['folio'] ?? 'timbre'));
+
+        return response($t['tsr'], 200, [
+            'Content-Type'        => 'application/timestamp-reply',              // RFC 3161
+            'Content-Disposition' => 'attachment; filename="timbre-' . $folio . '.tsr"',
+            'Content-Length'      => (string) strlen($t['tsr']),
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
 }

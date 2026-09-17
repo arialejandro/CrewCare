@@ -11,7 +11,22 @@ class PerfilController extends Controller
 {
     public function indexb(){
         $users = User::findOrFail(auth()->user()->id);
-        return view('profile', compact('users'));
+
+        // EL INFOSHEET · la tarjeta del perfil muestra la mitad PERSONAL (intake, "qué falta", con
+        // enlace a su asistente) y la mitad del TRATO en SOLO LECTURA (el contrato crew_work de la
+        // producción vigente, si producción ya lo capturó). No crea contratos: solo consulta.
+        $payee = \App\Models\Payee::firstOrCreate(
+            ['user_id' => $users->id],
+            ['legal_nature' => \App\Models\Payee::NATURE_FISICA, 'name' => trim($users->name.' '.$users->lname), 'is_active' => 1]
+        );
+        $intakeSteps  = \App\Support\IntakeProgress::steps($payee);
+        $intakeUrl    = \App\Http\Controllers\IntakeController::invitationUrl($users);
+        $dealContract = $payee->contracts()
+            ->where('concept', \App\Models\PayeeContract::CONCEPT_CREW)
+            ->where('production_id', \App\Support\CurrentProduction::id())
+            ->first();
+
+        return view('profile', compact('users', 'payee', 'intakeSteps', 'intakeUrl', 'dealContract'));
     }
 
     // --- pruebachedule ELIMINADO (2026-06-26) — era un DUPLICADO GET-sin-auth del reset de

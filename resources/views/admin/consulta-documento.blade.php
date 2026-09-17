@@ -1,6 +1,12 @@
 @extends('layouts.app')
 @section('title', 'Documento de consulta - ' . ($branding['brand_name'] ?? 'CrewCare'))
 @section('content')
+@push('scripts')
+<script>
+    // Exportar PDF vía window.print (CSP: sin onclick inline).
+    document.addEventListener('click', function (e) { if (e.target.closest('[data-doc-print]')) { window.print(); } });
+</script>
+@endpush
 {{-- DOCUMENTO SELLADO de UNA consulta (crew o lite) — 2026-07-25. Se abre desde el historial; se
      exporta a PDF con window.print (convención del módulo). Reconciliación + sello a cualquier médico;
      la nota privada sólo si $canSeeNotes (propiedad / key medic). GATE doctor-only en el controlador. --}}
@@ -20,7 +26,7 @@
 
     <div class="d-flex justify-content-between align-items-center mb-3 no-print">
         <a href="{{ url()->previous() }}" class="btn btn-sm btn-outline-secondary">← {{ __('Volver') }}</a>
-        <button type="button" class="btn btn-sm btn-primary" onclick="window.print()">
+        <button type="button" class="btn btn-sm btn-primary" data-doc-print>
             @include('componentes._icon', ['name' => 'file-text', 'class' => 'cc-ico-16']) {{ __('Exportar PDF') }}
         </button>
     </div>

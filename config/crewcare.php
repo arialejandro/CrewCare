@@ -5,6 +5,13 @@
 // viene a resolver, sólo que con dos sitios en vez de ocho.
 $version = '3.5';
 
+// Clave del sello (HMAC): decodifica el prefijo `base64:` (igual que APP_KEY) para
+// hashear con bytes crudos. Vacía si no está configurada → el trait cae a APP_KEY.
+$sealKey = (string) env('CREWCARE_SEAL_KEY', '');
+if (str_starts_with($sealKey, 'base64:')) {
+    $sealKey = base64_decode(substr($sealKey, 7)) ?: $sealKey;
+}
+
 return [
 
     /*
@@ -38,5 +45,106 @@ return [
     |
     */
     'doc_version' => 'VER ' . $version,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Clave del sello digital (HMAC-SHA256)
+    |--------------------------------------------------------------------------
+    |
+    | El sello de integridad de los documentos (App\Traits\HasDigitalSignatures)
+    | pasó de SHA-256 SIN CLAVE a HMAC-SHA256 CON CLAVE. Sin clave, cualquiera que
+    | conociera el payload canónico podía FABRICAR un sello válido (el hash era
+    | público y reproducible). Con HMAC, sólo quien tiene la clave produce un sello
+    | que el verificador acepte.
+    |
+    | Clave DEDICADA (no se reusa APP_KEY): la integridad del sello se puede rotar
+    | sin invalidar sesiones/cookies, y rotar APP_KEY no tira todos los sellos. Se
+    | genera con `php -r "echo 'base64:'.base64_encode(random_bytes(32));"` y va en
+    | .env como CREWCARE_SEAL_KEY. Si falta, el trait cae a APP_KEY (siempre presente)
+    | como red de seguridad — nunca vuelve a un hash sin clave.
+    |
+    | ⚠ Cutover LIMPIO: al activar HMAC, los sellos SHA viejos dejan de casar. Válido
+    | porque cada deploy es migrate:fresh (prod nace sin sellos viejos) y el local se
+    | re-siembra. NO rotar esta clave en una instancia con sellos vivos sin re-sellar.
+    |
+    */
+    'seal' => [
+        'key' => $sealKey,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Contratos · caminos de escape (Fase 2)
+    |--------------------------------------------------------------------------
+    |
+    | `expire_days` — ventana de vigencia de un sobre en firma. Al ENVIAR se fija
+    | `expires_at = sent_at + expire_days`. El barrido `contracts:expire-stale`
+    | marca 'expired' los sobres cuyo plazo ya pasó (o, para sobres viejos sin
+    | expires_at, cuyo sent_at rebasó la ventana). El barrido es MANUAL/programable
+    | por el owner — no vence nada solo. Súbelo/bájalo según qué tan lentas sean
+    | las producciones; NO es agresivo (un contrato vencido es un estado terminal).
+    |
+    */
+    'contracts' => [
+        'expire_days' => (int) env('CONTRACTS_EXPIRE_DAYS', 45),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sello de tiempo TSA (RFC 3161)
+    |--------------------------------------------------------------------------
+    |
+    | Timbre EXTERNO sobre cada sello digital. Es lo único que sobrevive si se filtra
+    | CREWCARE_SEAL_KEY (que no se puede rotar con sellos vivos): con la llave alguien podría
+    | FABRICAR un sello, pero no un timbre fechado en el pasado por una TSA independiente.
+    | Sólo viaja el HASH (imprint = SHA-256 del document_hash) → confidencialidad intacta.
+    | Best-effort/async: el cron `tsa:stamp` lo hace aparte; el sellado NUNCA se bloquea.
+    |
+    | AUTORIDADES EN ORDEN: se intenta la primera; si no responde, la siguiente (respaldo), y se
+    | REGISTRA en la fila del timbre cuál emitió (columna `authority`) — a 3 años hay que saber
+    | contra qué certificado verificar. Principal DigiCert: su raíz (DigiCert Trusted Root G4) viene
+    | PREINSTALADA en todo sistema operativo → un tercero verifica apuntando `-CAfile` al bundle del
+    | sistema, SIN descargar ni archivar cert de la TSA. Respaldo freeTSA (⚠ la URL lleva `/tsr`; el
+    | dominio a secas falla), cuya raíz NO está en los almacenes estándar → sus timbres exigen su
+    | `cacert.pem`. El `.tsr` embebe su propia cadena de firma en ambos casos.
+    |
+    */
+    'tsa' => [
+        'enabled' => (bool) env('CREWCARE_TSA_ENABLED', true),
+        'timeout' => (int) env('CREWCARE_TSA_TIMEOUT', 8),
+        'authorities' => [
+            [
+                'name' => env('CREWCARE_TSA_PRIMARY_NAME', 'DigiCert'),
+                'url'  => env('CREWCARE_TSA_PRIMARY_URL', 'http://timestamp.digicert.com'),
+            ],
+            [
+                'name' => env('CREWCARE_TSA_BACKUP_NAME', 'freeTSA'),
+                'url'  => env('CREWCARE_TSA_BACKUP_URL', 'https://freetsa.org/tsr'),
+            ],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Endurecimiento (cabeceras + CSP)
+    |--------------------------------------------------------------------------
+    |
+    | La CSP es UNA sola política COMPLETA (SecurityHeaders::cspPolicy) que se emite en uno de dos modos,
+    | nunca ambos: con `csp_enforce=true` va como `Content-Security-Policy` (BLOQUEA todo: script/style/
+    | style-attr/img/font/object/base/connect); con enforce OFF va como `Content-Security-Policy-Report-Only`
+    | (sólo MIDE, mandando violaciones a /csp-report) — estado pre-cutover. `csp_report` gobierna esa emisión
+    | en reporte. Tras empaquetar librerías y autoalojar Google Fonts, la política quedó cerrada del todo:
+    | `script-src`/`style-src` = `'self' 'nonce-…'` (el sweep estampa los inline propios; lo inyectado sin
+    | nonce se bloquea), `style-src-attr 'unsafe-inline'` (los `style=` sólo pintan su elemento; no se
+    | reescriben), `font-src 'self' data:` (gstatic FUERA), `img-src 'self' data: blob:`, `object-src 'none'`
+    | + `base-uri 'self'`. El cutover a prod es del owner (`CREWCARE_CSP_ENFORCE=true`); el default committeado
+    | mide. `hsts` — HSTS en producción sobre https (SecurityHeaders ya gatea el entorno). Sin fricción.
+    |
+    */
+    'security' => [
+        'csp_report'  => (bool) env('CREWCARE_CSP_REPORT', true),
+        'csp_enforce' => (bool) env('CREWCARE_CSP_ENFORCE', false),
+        'hsts'        => (bool) env('CREWCARE_HSTS', true),
+    ],
 
 ];

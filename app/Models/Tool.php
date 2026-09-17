@@ -54,6 +54,17 @@ class Tool extends Model
         });
     }
 
+    /**
+     * URL de la imagen GENÉRICA del tipo (referencia), o null si aún no se sube (la UI pinta
+     * un placeholder). Se puebla con el tiempo desde el admin de imágenes (delta #47). La ruta
+     * se guarda como la devuelve ImageCompressor::store() sobre el disco 'public'.
+     */
+    public function imageUrl(): ?string
+    {
+        $p = trim((string) $this->image_path);
+        return $p !== '' ? \Illuminate\Support\Facades\Storage::url($p) : null;
+    }
+
     public function family(): BelongsTo
     {
         return $this->belongsTo(ToolFamily::class, 'tool_family_id');

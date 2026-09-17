@@ -14,5 +14,4 @@ class usuariosnotificacione extends Model
     'nombre',
     'correo',
     'activo'];
-    protected $dates = ['created_at', 'updated_at'];
 }

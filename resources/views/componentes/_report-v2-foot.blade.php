@@ -56,8 +56,30 @@
   function beforeP(){ root.setAttribute('data-view', 'print'); }
   function afterP(){ root.setAttribute('data-view', manualPrint ? 'print' : 'screen'); }
   var pdfBtn = document.getElementById('pdfBtn');
+@isset($pdfUrl)
+  {{-- Descarga server-side (Browsershot): idéntica a window.print() pero de un clic. --}}
+  if(pdfBtn){ pdfBtn.addEventListener('click', function(){ window.location.href = '{{ $pdfUrl }}'; }); }
+@else
   if(pdfBtn){ pdfBtn.addEventListener('click', function(){ beforeP(); window.print(); }); }
+@endisset
   window.addEventListener('beforeprint', beforeP);
   window.addEventListener('afterprint', afterP);
+
+  // Confirmacion de submits destructivos por delegacion (data-confirm), sin onsubmit inline (CSP).
+  // El veto vive aqui, en el chrome compartido (no en un stack de scripts por-documento). OJO: NO
+  // escribir el nombre de una directiva Blade con arroba dentro de este bloque; aunque este en un
+  // comentario JS, Blade la compilaria e inyectaria contenido aqui, partiendo el <script>.
+  document.addEventListener('submit', function(ev){
+    var f = ev.target;
+    if(!f || typeof f.getAttribute !== 'function') return;
+    var msg = f.getAttribute('data-confirm');
+    if(msg === null || msg === '') return;
+    if(!window.confirm(msg)){ ev.preventDefault(); ev.stopPropagation(); }
+  }, true);
+
+  // Botón "volver/atrás" por delegación (CSP: sin onclick inline).
+  document.addEventListener('click', function(ev){
+    if(ev.target.closest('[data-history-back]')){ ev.preventDefault(); history.back(); }
+  });
 })();
 </script>

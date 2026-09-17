@@ -84,6 +84,31 @@ class SealVerifier
         // RiskMap::folio() (RMAP-####). Emisiones INDEPENDIENTES (sin cadena/sustituye-a) → sin
         // concepto de retiro: dos estados, vigente / alterado.
         'rmap'   => ['App\Models\RiskMap',                'Mapeo de riesgos y recursos', 'RMAP',  'CREWCARE-RMAP'],
+        // (2026-08-06) PAE — Plan de Atención a Emergencias, UNO por llamado (puede cubrir dos
+        // locaciones en company move). Segundo documento del motor de salida (hermano del MEDEVAC).
+        // Etiqueta genérica para el acuse público: dice que es un PAE, nunca de qué producción. El
+        // folio lo calcula EmergencyActionPlan::folio() (PAE-####). Emisiones INDEPENDIENTES (sin
+        // cadena/sustituye-a) → sin concepto de retiro: dos estados, vigente / alterado.
+        'pae'    => ['App\Models\EmergencyActionPlan',    'Plan de Atención a Emergencias', 'PAE', 'CREWCARE-PAE'],
+        // (2026-08-08 · delta #52) Acta de verificación de ambulancia en sitio. Etiqueta genérica
+        // para el acuse público: dice que es un acta de verificación de ambulancia, nunca de qué
+        // unidad ni el veredicto. El folio lo calcula AmbulanceInspection::folio() (AMBU-####).
+        // Vigencia de 3 estados: vigente / RETIRADO (con fecha y, si existe, folio que sustituye,
+        // vía sealRetirement()) / ALTERADO (solo si el hash no coincide). Retirar ≠ alterar.
+        'ambu'   => ['App\Models\AmbulanceInspection',    'Acta de verificación de ambulancia', 'AMBU', 'CREWCARE-AMBU'],
+        // (2026-08-15 · Fase 3) Sobre de contrato. Etiqueta genérica para el acuse público: dice que
+        // es un sobre de contrato, nunca de quién ni el monto. El folio lo calcula
+        // ContractEnvelope::folio() (CENV-####). Vigencia de 3 estados: vigente / RETIRADO (anulado /
+        // rechazado / vencido, con su fecha vía sealRetirement()) / ALTERADO (solo si el hash del
+        // paquete sellado no coincide). Un camino de escape NUNCA se lee como ALTERADO.
+        'cenv'   => ['App\Models\ContractEnvelope',       'Sobre de contrato',         'CENV',  'CREWCARE-CENV'],
+        // (2026-08-24 · Transportación · Bloque 1) Acta de verificación de vehículo. Etiqueta
+        // genérica para el acuse público: dice que es un acta de verificación de vehículo, nunca
+        // de qué unidad ni el veredicto (y NUNCA el nivel interno alto_riesgo/pobre/... que solo
+        // ven transpo y safety). El folio lo calcula VehicleInspection::folio() (VEHI-####).
+        // Vigencia de 3 estados: vigente / RETIRADO (con fecha y, si existe, folio que sustituye,
+        // vía sealRetirement()) / ALTERADO (solo si el hash no coincide). Retirar ≠ alterar.
+        'veh'    => ['App\Models\VehicleInspection',      'Acta de verificación de vehículo', 'VEHI', 'CREWCARE-VEHI'],
     ];
 
     /**
@@ -160,11 +185,67 @@ class SealVerifier
             'superseded_folio' => $retiro['superseded_folio'] ?? null,
         ];
 
+        // SELLO DE TIEMPO (TSA · RFC 3161): timbre externo sobre este sello, si existe. NO es PII
+        // (misma clase que el folio): es un tiempo autoritativo + el nombre de la autoridad. Se
+        // MUESTRA cuando existe, no se EXIGE (best-effort: un doc puede estar sellado y aún sin timbre).
+        $tsa = $firma ? \App\Support\TsaStamper::stampedFor((int) $firma->id) : null;
+        if ($tsa) {
+            $when = $tsa->gen_time ?: $tsa->stamped_at;
+            $dto['tsa_at']        = $when ? \Carbon\Carbon::parse($when)->format('d/m/Y H:i:s') . ' UTC' : null;
+            $dto['tsa_authority'] = $tsa->authority;
+            // El HASH que el timbre atestigua (imprint = SHA-256 del document_hash, hex) + el enlace
+            // para DESCARGAR el token .tsr. Las dos piezas que un tercero necesita para verificar el
+            // timbre SIN CrewCare (con OpenSSL). No es PII: son hashes/tokens sobre un hash.
+            $dto['tsa_imprint'] = $tsa->imprint;
+            $dto['timbre_url']  = route('seal.verify.timbre', ['tipo' => $tipo, 'uuid' => (string) $doc->uuid]);
+        }
+
         // El modelo muere aquí: fuera de este método sólo viajan esas claves (5 de integridad
         // + 4 de vigencia). Ninguna revela contenido ni identidad.
         unset($doc, $firma, $model);
 
         return $dto;
+    }
+
+    /**
+     * Resuelve (tipo, uuid) al TOKEN de sello de tiempo (.tsr) para DESCARGARLO desde el verificador
+     * público. Devuelve ['tsr'=>bytesCrudos, 'imprint'=>hex, 'folio'=>string] o null si no hay timbre
+     * (o el documento no existe). Mismo contrato de privacidad que resolve(): el modelo muere aquí y
+     * afuera sólo viajan el token, su imprint y el folio — ningún contenido ni identidad.
+     */
+    public static function resolveTimbre($tipo, $uuid)
+    {
+        if (! isset(self::TYPES[$tipo])) {
+            return null;
+        }
+        list($class, $label, $folioPrefix) = self::TYPES[$tipo];
+        if (! class_exists($class)) {
+            return null;
+        }
+        $model = new $class;
+        if (! Schema::hasColumn($model->getTable(), 'uuid')) {
+            return null;
+        }
+        $doc = $class::where('uuid', $uuid)->first();
+        if (! $doc) {
+            return null;
+        }
+        $firma = $doc->signatures()->latest('id')->first();
+        if (! $firma) {
+            return null;
+        }
+        $tsr = \App\Support\TsaStamper::tokenBytesFor((int) $firma->id);
+        if ($tsr === null) {
+            return null;   // el documento existe y está sellado, pero aún sin timbre.
+        }
+        $tsa   = \App\Support\TsaStamper::stampedFor((int) $firma->id);
+        $folio = method_exists($doc, 'folio')
+            ? (string) $doc->folio()
+            : $folioPrefix . '-' . str_pad((string) $doc->getKey(), 4, '0', STR_PAD_LEFT);
+
+        unset($doc, $firma, $model);
+
+        return ['tsr' => $tsr, 'imprint' => $tsa->imprint ?? null, 'folio' => $folio];
     }
 
     /**

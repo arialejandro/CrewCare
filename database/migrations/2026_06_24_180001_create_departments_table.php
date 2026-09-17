@@ -1,30 +1,27 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * RBAC foundation — additive / parallel (strangler).
- *
- * Reusable GLOBAL department catalog. Seeded from ORG-TAXONOMY.md as a TEMPLATE
- * (production_id = NULL on positions). Does NOT touch the legacy `departamentos`
- * table — that stays intact for the old code.
- */
 class CreateDepartmentsTable extends Migration
 {
     public function up()
     {
-        Schema::create('departments', function (Blueprint $table) {
-            $table->id();
-            $table->string('name', 120);
-            // Optional taxonomy metadata from ORG-TAXONOMY.md (Canales de Radio).
-            $table->string('radio_channel', 80)->nullable();
-            $table->boolean('active')->default(true);
-            $table->timestamps();
-
-            $table->unique('name');
-        });
+        DB::statement(<<<'SQL'
+CREATE TABLE `departments` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `radio_channel` varchar(80) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `sort_order` int(11) NOT NULL DEFAULT '0',
+  `name_en` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `departments_name_unique` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+SQL);
     }
 
     public function down()

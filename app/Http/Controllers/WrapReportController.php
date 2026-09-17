@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\WrapReport;
 use App\Support\CurrentProduction;
+use App\Support\ImageCompressor;
 use App\Support\WrapReportBuilder;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * WrapReportController — REPORTE FINAL DE WRAP (2026-07-24).
@@ -132,6 +134,14 @@ class WrapReportController extends Controller
         $payload = WrapReportBuilder::build($produccion, $desde, $hasta);
         $periodo = $this->periodoDe($payload, $desde, $hasta);
 
+        // Elecciones del editor (apartados a omitir + notas por apartado + CORRECCIONES de texto).
+        // Van DENTRO del payload a propósito: son parte del documento que se entrega, así que las
+        // protege el mismo sello. El borrador NO las lleva (se editan en vivo); aquí se congelan.
+        $editor = $this->editorChoices($request);
+        $editor['overrides'] = $this->editorOverrides($request);
+        $editor['images'] = $this->editorImages($request);
+        $payload['editor'] = $editor;
+
         $wrap = WrapReport::create([
             'production_id' => $produccion->id,
             'kind'          => WrapReport::KIND_FINAL,
@@ -217,11 +227,25 @@ class WrapReportController extends Controller
 
         $wrap = WrapReport::with(['production', 'parent', 'addendums'])->findOrFail($id);
 
+        // (2026-08-11) EXPORT PDF SERVER-SIDE (?pdf=1) — ADITIVO, antes del return normal. Reusa la
+        // MISMA vista/datos y la pasa por Browsershot (Chrome headless) → descarga idéntica a
+        // window.print(). Márgenes 0 (el @page Oficio manda). Ver [[browsershot-pdf-pipeline]].
+        if (request()->boolean('pdf')) {
+            $html = view('admin.wrap.show', [
+                'wrap'       => $wrap,
+                'payload'    => is_array($wrap->payload) ? $wrap->payload : [],
+                'produccion' => $wrap->production,
+                'borrador'   => false,
+            ])->render();
+            return \App\Support\PdfExporter::download($html, 'WRAP-' . $wrap->id, [0, 0, 0, 0]);
+        }
+
         return view('admin.wrap.show', [
             'wrap'       => $wrap,
             'payload'    => is_array($wrap->payload) ? $wrap->payload : [],
             'produccion' => $wrap->production,
             'borrador'   => false,
+            'pdfUrl'     => request()->fullUrlWithQuery(['pdf' => 1]),
         ]);
     }
 
@@ -284,5 +308,131 @@ class WrapReportController extends Controller
             isset($p['desde']) ? $p['desde'] : $desde,
             isset($p['hasta']) ? $p['hasta'] : $hasta,
         ];
+    }
+
+    /**
+     * Elecciones del editor en el borrador, saneadas y listas para congelar en el payload.
+     *
+     * `include[]` trae los apartados MARCADOS (los checkbox no marcados no viajan), así que lo
+     * omitido = los apartados omitibles que NO están en include. `note[sN]` trae la nota por
+     * apartado. Se SANEA (no se valida-para-fallar): la emisión de un wrap no debe reventar por un
+     * campo suelto; lo que no reconoce, lo ignora.
+     *
+     * Apartados: s1 (identificación) y el sello son FIJOS — no se pueden omitir. s2..s8 sí.
+     *
+     * @return array{omit: array<string>, notes: array<string,string>}
+     */
+    private function editorChoices(Request $request)
+    {
+        $omitibles = ['s2', 's3', 's4', 's5', 's6', 's7', 's8'];
+        $todos     = array_merge(['s1'], $omitibles);
+
+        $incluir = array_values(array_intersect((array) $request->input('include', []), $omitibles));
+        $omit    = array_values(array_diff($omitibles, $incluir));
+
+        $notasIn = (array) $request->input('note', []);
+        $notes = [];
+        foreach ($todos as $k) {
+            $t = isset($notasIn[$k]) ? trim((string) $notasIn[$k]) : '';
+            if ($t !== '') {
+                $notes[$k] = mb_substr($t, 0, 500);
+            }
+        }
+
+        return ['omit' => $omit, 'notes' => $notes];
+    }
+
+    /**
+     * Correcciones NARRATIVAS del editor (arreglar un texto que la app redactó mal o impreciso).
+     *
+     * Llegan como un JSON en `editor_overrides`, que el JS del borrador arma leyendo los bloques
+     * `contenteditable` (cada uno con su `data-edit="clave"`). Se SANEA fuerte:
+     *   · sólo TEXTO PLANO (strip_tags) — nunca HTML, para que no se pueda inyectar marcado al doc;
+     *   · clave limitada a un patrón conocido `s1..s8[.…]` (identifica el campo narrativo);
+     *   · tope de largo por campo.
+     * Los CONTEOS/estadísticas NO se editan aquí — sólo la narrativa (recomendaciones, notas,
+     * descripciones). La vista aplica el override congelado o, si no hay, el valor automático.
+     *
+     * @return array<string,string>
+     */
+    private function editorOverrides(Request $request)
+    {
+        $raw = $request->input('editor_overrides');
+        if (! is_string($raw) || $raw === '') {
+            return [];
+        }
+        $decoded = json_decode($raw, true);
+        if (! is_array($decoded)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($decoded as $key => $val) {
+            if (! is_string($key) || ! preg_match('/^s[1-8][a-z0-9._-]*$/i', $key)) {
+                continue;
+            }
+            $t = trim(strip_tags((string) $val));
+            if ($t !== '') {
+                $out[$key] = mb_substr($t, 0, 2000);
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * IMÁGENES del documento, subidas en el borrador y CONGELADAS al emitir: una imagen principal
+     * (fondo del encabezado) y varias adicionales (evidencia).
+     *
+     * Van DENTRO del payload —igual que las notas y las correcciones narrativas— así que el MISMO
+     * sello las cubre: cambiar la imagen de un wrap ya sellado lo marca ALTERADO, que es justo lo
+     * que se quiere para evidencia. No necesitan $signatureExcludes: son contenido legítimo del doc.
+     *
+     * CONVENCIÓN IDÉNTICA a los demás reportes con foto (injury/scouting/ambulance): ImageCompressor
+     * (GD, reduce el lado mayor y re-codifica; HEIC→JPEG si el servidor puede) al disco 'public', y
+     * se guarda la ruta RAÍZ-RELATIVA (/storage/...) vía Storage::url() — NUNCA asset()/url(), que
+     * fuera de una petición caen a APP_URL y romperían el <img> de un documento standalone.
+     *
+     * Se VALIDA (rebota al borrador si un archivo no es imagen o pesa de más) y se SANEA: lo que
+     * ImageCompressor no pudo guardar (HEIC sin soporte, contenido no-imagen) se descarta en
+     * silencio para no reventar la emisión por un archivo suelto. Sin imágenes → main null, extra [].
+     *
+     * @return array{main: string|null, extra: array<string>}
+     */
+    private function editorImages(Request $request)
+    {
+        // Mismo juego de reglas que injury/ambulance (mimes cubre jpg/png/webp + HEIC de iPhone; la
+        // regla 'heic_ok' rechaza el HEIC sólo si el servidor no puede convertirlo). 8 MB por archivo.
+        $regla = 'nullable|mimes:jpeg,png,jpg,webp,heic,heif|heic_ok|max:8192';
+        $request->validate([
+            'main_image'     => $regla,
+            'extra_images.*' => $regla,
+        ], [], [
+            'main_image'     => 'imagen principal',
+            'extra_images.*' => 'imagen adicional',
+        ]);
+
+        $out = ['main' => null, 'extra' => []];
+
+        if ($request->hasFile('main_image')) {
+            $rel = ImageCompressor::store($request->file('main_image'), 'wrap_images');
+            if ($rel !== null) {
+                $out['main'] = Storage::url($rel);
+            }
+        }
+
+        if ($request->hasFile('extra_images')) {
+            $tope = 8;   // tope sensato de adicionales: un wrap no es un álbum.
+            foreach ((array) $request->file('extra_images') as $file) {
+                if (! $file || count($out['extra']) >= $tope) {
+                    continue;
+                }
+                $rel = ImageCompressor::store($file, 'wrap_images');
+                if ($rel !== null) {
+                    $out['extra'][] = Storage::url($rel);
+                }
+            }
+        }
+
+        return $out;
     }
 }

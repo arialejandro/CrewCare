@@ -29,12 +29,52 @@ class ScoutingReport extends Model
     protected $table = 'scouting_reports';
 
     /**
+     * (2026-08-08 · Parte D) Columnas EXCLUIDAS del hash de firma. `has_ambulance` es una
+     * bandera de PLANEACIÓN añadida DESPUÉS de que ya había scoutings sellados: si entrara
+     * al payload canónico, attributesToArray la incluiría (como null) en esos documentos y
+     * su hash dejaría de casar → saldrían ALTERADOS. Excluyéndola, los sellos existentes
+     * siguen válidos y la bandera vive como dato editable no sellado. Ver [[ambulance-verification-module]].
+     */
+    protected $signatureExcludes = ['has_ambulance'];
+
+    /**
+     * (2026-09-05 · Unidades P1) `unit_id` EXCLUIDA del hash SOLO cuando es null: los scoutings sellados
+     * antes de sembrar la columna la traen en null → fuera del payload → su sello NO cambia; con valor
+     * (2ª unidad) SÍ entra al hash y la unidad queda sellada. La aplica el trait
+     * (HasDigitalSignatures::nullableHashExcludes). NO se cablea ningún filtro por unidad (eso es Paso 2).
+     *
+     * (2026-09-14 · rango de rodaje) `date_shoot_end` entra por la MISMA puerta y por la misma razón:
+     * una locación puede ocupar varios días y `date_shoot` sola no lo sabía decir. Vacía = un solo día
+     * → fuera del payload → los scoutings que se sellen sin rango no se mueven nunca; con valor, el
+     * rango queda sellado igual que el resto.
+     */
+    const NULLABLE_HASH_EXCLUDES = ['unit_id', 'date_shoot_end'];
+
+    /**
+     * Último día de rodaje EFECTIVO: el fin del rango si lo hay, si no el día único.
+     * Fuente única para no repetir el `?:` en cada vista y en el rankeo por fechas.
+     */
+    public function shootEndDate()
+    {
+        return $this->date_shoot_end ?: $this->date_shoot;
+    }
+
+    /** ¿La locación ocupa más de un día? (rango real, no un fin igual al inicio). */
+    public function hasShootRange(): bool
+    {
+        return $this->date_shoot
+            && $this->date_shoot_end
+            && $this->date_shoot_end->gt($this->date_shoot);
+    }
+
+    /**
      * $fillable explícito: solo estas columnas son asignables en masa.
      * Las columnas JSON se asignan como ARRAY de PHP; el cast 'array' las
      * serializa una sola vez (NO usar json_encode al guardar).
      */
     protected $fillable = [
         'production_id',
+        'unit_id',   // (2026-09-07 · Unidades 2b) unidad del scouting; NULL = principal
         'production_name',
         'production_type',   // Amazon MGM: Production Type (TV/Film/Game Show)
         'manager_name',      // Amazon MGM: Production Manager
@@ -46,6 +86,7 @@ class ScoutingReport extends Model
         'scene',
         'date_prep',
         'date_shoot',
+        'date_shoot_end',
         'date_wrap',
         'loc_setting',
         'shoot_time',
@@ -60,6 +101,7 @@ class ScoutingReport extends Model
         'emergency_access',
         'assembly_point',
         'ambulance_company',
+        'has_ambulance',     // (2026-08-08 · Parte D) tri-estado planeación: null/1/0 — NO entra al sello
         'emergency_phone',
 
         // Capa (2) Evaluación de riesgos H&S
@@ -97,6 +139,7 @@ class ScoutingReport extends Model
     protected $casts = [
         'date_prep'                => 'date',
         'date_shoot'              => 'date',
+        'date_shoot_end'          => 'date',
         'date_wrap'               => 'date',
         'make_date'               => 'date',
         'risk_assessment'         => 'array',
@@ -104,6 +147,7 @@ class ScoutingReport extends Model
         'agreements'              => 'array',
         'additional_images_paths' => 'array',
         'requires_specific_ra'    => 'boolean',
+        'has_ambulance'           => 'boolean',   // null se conserva (tri-estado); solo 1/0 castean
         'sb132_details'           => 'array',
         // (2026-07-12) Nuevos JSON de cimientos módulos 6-14.
         'required_ppe'                  => 'array',

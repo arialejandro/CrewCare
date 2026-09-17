@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CFDI 4.0 SINTÉTICO para pruebas (no es una factura real). Calibrado con los valores que el owner
+     confirmó de un CFDI real: Total verbatim, Sello que termina en "==", UUID en el TimbreFiscalDigital,
+     y una factura que cubre DOS semanas (2 SEM + 2 CA). El 4º concepto trae una ERRATA en el nombre de
+     la produccion ("Produccon" en vez de "Produccion") a propósito: el cotejo NO debe romper por eso. -->
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Fecha="2026-09-14T12:00:00" Total="1160.00" SubTotal="1160.00" Moneda="MXN" TipoDeComprobante="I"
+  Sello="kJ8Hn2Lp0QwErTyUiOpAsDfGhJkLzXcVbNm1234567890aBcDeFgHiJkLmNoPqRsTuVwXyZ0987654321QWERTYUIOPasdfghjklZXCVBNMaVfGh9kL3pQrStUvWx2Yz4AbCdEf6Gh8IjKlMnOpQrStUvWxYzABCDwXyZ12==">
+  <cfdi:Emisor Rfc="XAXX010101000" Nombre="PROVEEDOR DEMO SA DE CV" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="EKU9003173C9" Nombre="RECEPTOR DEMO" UsoCFDI="G03"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="84111506" Cantidad="1" ClaveUnidad="E48" Descripcion="SEM130926 Honorarios GRIP Produccion Demo" ValorUnitario="500.00" Importe="500.00"/>
+    <cfdi:Concepto ClaveProdServ="84111506" Cantidad="1" ClaveUnidad="E48" Descripcion="SEM060926 Honorarios GRIP Produccion Demo" ValorUnitario="500.00" Importe="500.00"/>
+    <cfdi:Concepto ClaveProdServ="80131500" Cantidad="1" ClaveUnidad="E48" Descripcion="CA130926 Car Allowance GRIP Produccion Demo" ValorUnitario="80.00" Importe="80.00"/>
+    <cfdi:Concepto ClaveProdServ="80131500" Cantidad="1" ClaveUnidad="E48" Descripcion="CA060926 Car Allowance GRIP Produccon Demo" ValorUnitario="80.00" Importe="80.00"/>
+  </cfdi:Conceptos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="A1B2C3D4-E5F6-7890-ABCD-EF1234567890"
+      FechaTimbrado="2026-09-14T12:00:05" NoCertificadoSAT="00001000000500000001"
+      SelloCFD="kJ8Hn2Lp0QwErTyUiOpAsDfGhJkLzXcVbNm1234567890aBcDeFgHiJkLmNoPqRsTuVwXyZ0987654321QWERTYUIOPasdfghjklZXCVBNMaVfGh9kL3pQrStUvWx2Yz4AbCdEf6Gh8IjKlMnOpQrStUvWxYzABCDwXyZ12=="
+      SelloSAT="ZZZ"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

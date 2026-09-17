@@ -8,6 +8,9 @@
     .cc-idx-eyebrow .cc-ico{width:15px;height:15px}
     .cc-idx-title{margin:.35rem 0 .2rem;font-family:'Poppins',sans-serif;font-weight:800;letter-spacing:-.02em;font-size:clamp(1.5rem,2.6vw,2rem);color:var(--text);line-height:1.05}
     .cc-idx-sub{margin:0;color:var(--text-muted);font-size:.9rem}
+    .cc-idx-cta{display:inline-flex;align-items:center;gap:.55rem;padding:.7rem 1.15rem;border-radius:14px;text-decoration:none;font-weight:700;font-size:.9rem;background:var(--brand-primary);color:var(--brand-on-primary);border:1px solid var(--brand-primary);box-shadow:0 12px 30px -10px var(--brand-glow);transition:transform .2s var(--ease,cubic-bezier(.16,1,.3,1)),box-shadow .2s,filter .2s}
+    .cc-idx-cta:hover{transform:translateY(-2px);color:var(--brand-on-primary);filter:brightness(1.04);box-shadow:0 18px 40px -10px var(--brand-glow)}
+    .cc-idx-cta .cc-ico{width:16px;height:16px}
 
     .cc-chip{display:inline-flex;align-items:center;gap:.35rem;font-size:.72rem;font-weight:700;letter-spacing:.02em;padding:.3rem .6rem;border-radius:999px;border:1px solid transparent;line-height:1;white-space:nowrap}
     .cc-chip .cc-ico{width:13px;height:13px}
@@ -54,10 +57,18 @@
             <h1 class="cc-idx-title">Condiciones Inseguras</h1>
             <p class="cc-idx-sub">Notificaciones de condiciones inseguras observadas.</p>
         </div>
-        <span class="cc-idx-count">
-            @include('componentes._icon', ['name' => 'alert-triangle'])
-            {{ $unsafenotifications->total() ?? $unsafenotifications->count() }} <span>registros</span>
-        </span>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="cc-idx-count">
+                @include('componentes._icon', ['name' => 'alert-triangle'])
+                {{ $unsafenotifications->total() ?? $unsafenotifications->count() }} <span>registros</span>
+            </span>
+            {{-- ACCIÓN PRIMARIA: crear (antes duplicada en el sidebar). --}}
+            @can('hazards.create')
+            <a href="/unsafenotifications/create" class="cc-idx-cta">
+                @include('componentes._icon', ['name' => 'plus']) Nueva condición
+            </a>
+            @endcan
+        </div>
     </div>
 
     @forelse ($grouped as $month => $reports)

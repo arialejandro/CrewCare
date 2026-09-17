@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 /**
@@ -44,6 +45,9 @@ class TestAccountsSeeder extends Seeder
             ['email' => 'test.hod@crewcare.test',         'role' => 'hod',           'name' => 'Test', 'lname' => 'HOD',            'puesto' => 'Arte-Director de Arte'],
             ['email' => 'test.medico@crewcare.test',      'role' => 'medic',         'name' => 'Test', 'lname' => 'Médico',         'puesto' => 'Salud y Seguridad-Médico'],
             ['email' => 'test.crew@crewcare.test',        'role' => 'crew',          'name' => 'Test', 'lname' => 'Crew',           'puesto' => 'Eléctrico-Eléctrico'],
+            ['email' => 'test.lineproducer@crewcare.test','role' => 'line-producer', 'name' => 'Test', 'lname' => 'Line Producer',   'puesto' => 'Producción-Productor de Línea'],
+            ['email' => 'test.safety@crewcare.test',      'role' => 'safety-officer','name' => 'Test', 'lname' => 'Safety',         'puesto' => 'Salud y Seguridad-Oficial de Seguridad'],
+            ['email' => 'test.auditor@crewcare.test',     'role' => 'auditor',       'name' => 'Test', 'lname' => 'Auditor',        'puesto' => 'Producción-Auditor'],
         ];
 
         foreach ($accounts as $a) {
@@ -76,9 +80,18 @@ class TestAccountsSeeder extends Seeder
             // syncRoles deja al usuario EXACTAMENTE con este rol (re-ejecutable).
             $user->syncRoles([$a['role']]);
 
+            // Enganchar a la producción vigente (para que sus vistas tengan datos de esa
+            // producción; el super-admin pasa por Gate::before, pero estos son RBAC puro).
+            if ($prod = \App\Support\CurrentProduction::get()) {
+                DB::table('production_user')->updateOrInsert(
+                    ['production_id' => $prod->id, 'user_id' => $user->id],
+                    ['role' => $a['role'], 'is_lead' => 0, 'updated_at' => now(), 'created_at' => now()]
+                );
+            }
+
             $this->command->info("  · {$a['email']}  →  rol {$a['role']}");
         }
 
-        $this->command->info('Cuentas de prueba listas (4). Password de todas: '.$password);
+        $this->command->info('Cuentas de prueba listas (7). Password de todas: '.$password);
     }
 }
