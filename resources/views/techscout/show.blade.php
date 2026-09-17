@@ -2,6 +2,9 @@
 @section('title', $scout->location_name . ' · Tech Scout')
 
 @push('styles')
+{{-- Sin esto, las clases btn-crew-* no existen y los botones se vuelven invisibles sobre el tema
+     oscuro (texto oscuro sin fondo). Ver la nota en create.blade.php. --}}
+@include('componentes._crew-list-styles')
 <style>
     .ts-doc-head{margin-bottom:1.5rem}
     .ts-doc-head h1{font-family:'Poppins',sans-serif;font-weight:800;font-size:clamp(1.3rem,2.4vw,1.8rem);margin:.3rem 0 .2rem;color:var(--text)}

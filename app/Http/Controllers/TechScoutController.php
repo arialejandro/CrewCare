@@ -130,6 +130,19 @@ class TechScoutController extends Controller
         ]);
 
         if (blank($data['note'] ?? null) && ! $request->hasFile('photo')) {
+            // 🪤 EL RECHAZO NO PUEDE SER MUDO. El 2026-09-16 el owner no pudo agregar NINGUNA nota
+            // y sólo veía este mensaje; sin rastro de qué llegó al servidor, diagnosticarlo fue
+            // adivinar. Una validación que rechaza tiene que dejar dicho QUÉ recibió, o el
+            // siguiente que la tropiece vuelve a empezar de cero.
+            \Illuminate\Support\Facades\Log::info('tech scout: nota rechazada por vacía', [
+                'scout'      => $scout->id,
+                'campos'     => array_keys($request->except(['_token', 'photo'])),
+                'note_len'   => strlen((string) $request->input('note')),
+                'tiene_file' => $request->hasFile('photo'),
+                'files'      => array_keys($request->allFiles()),
+                'tipo'       => $request->header('Content-Type'),
+            ]);
+
             return back()->withInput()->withErrors([
                 'note' => 'Escribe la nota o adjunta una foto — una nota vacía no dice nada.',
             ]);
