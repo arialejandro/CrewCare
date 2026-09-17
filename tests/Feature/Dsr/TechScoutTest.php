@@ -351,9 +351,46 @@ class TechScoutTest extends QaTestCase
         $res->assertDontSee('name="production_type"', false);
         $res->assertDontSee('name="manager_name"', false);
 
-        // Las notas se anuncian, pero aún no se pueden capturar.
-        $res->assertDontSee('name="story_label"', false);
-        $res->assertSee('Guarda los datos');
+        // Y la PRIMERA NOTA se puede escribir ya, sin guardar antes: es el punto de todo esto.
+        $res->assertSee('name="note"', false);
+        $res->assertSee('name="story_label"', false);
+        $res->assertSee('Primera nota');
+    }
+
+    /**
+     * 🪤 LA REGLA DE ORO DEL MÓDULO: lo único obligatorio es la LOCACIÓN.
+     *
+     * El owner lo marcó — «se llena mucha información antes de poder emitir notas». En campo se
+     * llega, se ve algo que resolver y se anota; permisos y fechas se rellenan después, sentado.
+     * Ese primer acto tiene que dejar el scouting guardado, como un borrador: esa capa no se pierde.
+     */
+    public function test_se_puede_crear_con_la_primera_nota_y_nada_mas(): void
+    {
+        Storage::fake('public');
+        $this->actingAsRole('safety-officer');
+
+        $this->post(route('techscout.store'), [
+            'location_name' => 'Casa Pantalla',
+            'note'          => 'Quitar las cortinas de esta ventana',
+            'photo'         => UploadedFile::fake()->image('ventana.jpg'),
+        ])->assertSessionHasNoErrors();
+
+        $s = TechScout::latest('id')->first();
+        $this->assertSame('Casa Pantalla', $s->location_name);
+        $this->assertCount(1, $s->notes, 'la primera nota debe guardarse EN EL MISMO acto que crea el scouting.');
+        $this->assertSame('Quitar las cortinas de esta ventana', $s->notes->first()->note);
+        $this->assertNotNull($s->notes->first()->photo_path);
+    }
+
+    public function test_crear_sin_nota_sigue_funcionando(): void
+    {
+        $this->actingAsRole('safety-officer');
+
+        $this->post(route('techscout.store'), ['location_name' => 'Bodega'])->assertSessionHasNoErrors();
+
+        $s = TechScout::latest('id')->first();
+        $this->assertSame('Bodega', $s->location_name);
+        $this->assertCount(0, $s->notes, 'sin nota no se inventa una vacía.');
     }
 
     public function test_se_crea_con_todo_el_panel_de_un_solo_envio(): void

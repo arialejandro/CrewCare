@@ -15,14 +15,16 @@
      Bootstrap: texto oscuro sin fondo sobre el tema oscuro → INVISIBLES. Pasó el 2026-09-16. --}}
 @include('componentes._crew-list-styles')
 <style>
-    .ts-band{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:1rem 1.15rem;margin-bottom:1.25rem}
-    .ts-band__ico{width:42px;height:42px;flex:none;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;
+    /* 🪤 `align-items:center` + `flex:1 1 260px` en el main estiraban esta banda hasta ocupar media
+       pantalla para tres líneas de texto. Va compacta: alto por contenido y sin crecer. */
+    .ts-band{display:flex;align-items:center;gap:1rem;flex-wrap:nowrap;padding:.85rem 1.1rem;margin-bottom:1.25rem}
+    .ts-band__ico{width:38px;height:38px;flex:none;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;
         background:color-mix(in srgb,var(--brand-primary) 14%,transparent);border:1px solid color-mix(in srgb,var(--brand-primary) 30%,transparent);color:var(--brand-primary)}
-    .ts-band__ico .cc-ico{width:20px;height:20px}
-    .ts-band__main{flex:1 1 260px;min-width:0}
-    .ts-band__lbl{font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--text-muted);font-weight:700}
-    .ts-band__val{font-family:'Poppins',sans-serif;font-weight:800;font-size:clamp(1.05rem,2vw,1.4rem);color:var(--text);line-height:1.15;margin:.1rem 0 .15rem;overflow-wrap:anywhere}
-    .ts-band__sub{font-size:.82rem;color:var(--text-muted);margin:0;overflow-wrap:anywhere}
+    .ts-band__ico .cc-ico{width:18px;height:18px}
+    .ts-band__main{flex:1 1 auto;min-width:0}
+    .ts-band__lbl{font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--text-muted);font-weight:700}
+    .ts-band__val{font-family:'Poppins',sans-serif;font-weight:800;font-size:clamp(1rem,1.7vw,1.25rem);color:var(--text);line-height:1.15;margin:.05rem 0 0;overflow-wrap:anywhere}
+    .ts-band__sub{font-size:.78rem;color:var(--text-muted);margin:.1rem 0 0;overflow-wrap:anywhere}
     .ts-band__stats{display:flex;gap:1.4rem;flex:none}
     .ts-band__stat{text-align:center}
     .ts-band__stat .n{display:block;font-family:'Poppins',sans-serif;font-weight:800;font-size:1.3rem;color:var(--text);line-height:1}
@@ -47,7 +49,11 @@
     .ts-cell__meta .ed{font-style:italic}
 
     .ts-empty{text-align:center;padding:2.5rem 1rem;color:var(--text-muted)}
-    .ts-locked{opacity:.55;pointer-events:none}
+    /* Editar en línea: discreto hasta que se abre, para que la rejilla siga siendo de consulta. */
+    .ts-edit > summary{font-size:.7rem;color:var(--text-muted);cursor:pointer;list-style:none;margin-top:.15rem}
+    .ts-edit > summary::-webkit-details-marker{display:none}
+    .ts-edit > summary:hover{color:var(--brand-primary)}
+    .ts-edit[open] > summary{color:var(--brand-primary)}
 </style>
 @endpush
 
@@ -144,7 +150,9 @@
                     <label class="form-label fw-semibold" for="loc_setting">Tipo de locación</label>
                     <select name="loc_setting" id="loc_setting" class="form-select">
                         <option value="">—</option>
-                        @foreach(['Interior', 'Exterior', 'Mixto'] as $ls)
+                        {{-- Lenguaje universal de producción: Int. / Ext. / Int.-Ext. "Mixto" era
+                             invención nuestra; en set nadie lo dice así. --}}
+                        @foreach(['Interior', 'Exterior', 'Int./Ext.'] as $ls)
                             <option value="{{ $ls }}" @selected(old('loc_setting', $scout->loc_setting) === $ls)>{{ $ls }}</option>
                         @endforeach
                     </select>
@@ -204,45 +212,32 @@
             @endforeach
         </div>
 
+        {{-- 🪤 AL CREAR, la nota va DENTRO de este mismo formulario. El owner lo marcó: «se llena
+             mucha información antes de poder emitir notas». En campo se llega, se ve algo que hay
+             que resolver y se anota; los permisos y las fechas se rellenan después, sentado.
+             Escribir la nota guarda también el scouting con lo que haya — como un borrador, esa
+             primera capa ya no se pierde. Lo único obligatorio es la locación. --}}
+        @if ($nuevo)
+            <div class="card p-3 p-md-4 mb-3">
+                <h2 class="h6 mb-1" style="font-family:'Poppins',sans-serif;font-weight:700">Primera nota</h2>
+                <p class="cc-muted mb-3" style="font-size:.82rem">Opcional. Si anotas algo aquí, se guarda junto con el scouting.</p>
+                @include('techscout._note-fields', ['lastLabel' => null])
+            </div>
+        @endif
+
         <button type="submit" class="btn btn-crew-accent">{{ $nuevo ? 'Crear Tech Scout' : 'Guardar datos' }}</button>
     </form>
     @include('componentes._collapsible-sections')
 
-    {{-- ══ NOTAS ══ Una a una, y debajo la rejilla de lo capturado. --}}
-    <div class="card p-3 p-md-4 mb-4 {{ $nuevo ? 'ts-locked' : '' }}">
-        <h2 class="h6 mb-3" style="font-family:'Poppins',sans-serif;font-weight:700">Agregar nota</h2>
-        @if ($nuevo)
-            {{-- Una nota necesita un documento al que pertenecer. En vez de esconder la sección,
-                 se deja a la vista y apagada: así se entiende que existe y qué falta para usarla. --}}
-            <p class="cc-muted mb-0" style="font-size:.86rem">Guarda los datos de arriba y aquí podrás capturar foto y nota.</p>
-        @else
+    @unless ($nuevo)
+        <div class="card p-3 p-md-4 mb-4">
+            <h2 class="h6 mb-3" style="font-family:'Poppins',sans-serif;font-weight:700">Agregar nota</h2>
             <form action="{{ route('techscout.note.store', $scout->id) }}" method="POST" enctype="multipart/form-data">
                 @csrf
-                <div class="row g-3">
-                    <div class="col-md-5">
-                        <label class="form-label fw-semibold" for="photo">Foto</label>
-                        {{-- SIN `capture`: en set hacen falta las dos opciones, cámara y galería. --}}
-                        <input type="file" name="photo" id="photo" class="form-control"
-                               accept="image/*,.heic,.heif" data-cc-photo>
-                    </div>
-                    <div class="col-md-7">
-                        <label class="form-label fw-semibold" for="note">Qué hay que resolver</label>
-                        <textarea name="note" id="note" class="form-control" rows="3" maxlength="2000"
-                                  placeholder="Ej. «Quitar las cortinas de esta ventana»">{{ old('note') }}</textarea>
-                    </div>
-                    <div class="col-md-7">
-                        <label class="form-label fw-semibold" for="story_label">Nombre en la historia <span class="cc-muted fw-normal">(opcional)</span></label>
-                        <input type="text" name="story_label" id="story_label" class="form-control"
-                               value="{{ old('story_label', $lastLabel) }}" maxlength="120" placeholder="Ej. «Depa Pablo»">
-                        <small class="cc-muted d-block mt-1">Se mantiene para las siguientes. Bórralo al cambiar de espacio.</small>
-                    </div>
-                    <div class="col-md-5 d-flex align-items-start">
-                        <button type="submit" class="btn btn-crew-accent mt-md-4">Agregar nota</button>
-                    </div>
-                </div>
+                @include('techscout._note-fields', ['lastLabel' => $lastLabel, 'submitLabel' => 'Agregar nota'])
             </form>
-        @endif
-    </div>
+        </div>
+    @endunless
 
     @unless ($nuevo)
         @if (! $notas->count())
@@ -260,6 +255,27 @@
                                 <span>{{ $n->authorName() }}</span>
                                 @if ($n->wasEdited())<span class="ed">editada</span>@endif
                             </div>
+
+                            {{-- EDITAR EN LÍNEA. El owner lo pidió para no tener que volver a
+                                 fotografiar lo mismo y saturar el documento de información
+                                 repetida. Se usa <details>, que es HTML nativo: no necesita
+                                 JavaScript, no rompe la CSP y funciona sin red.
+                                 Sólo el AUTOR: cada quien corrige lo suyo. Y editar deja marca —
+                                 es lo que sostiene el "si no está en las notas, no se pidió". --}}
+                            @if ((int) $n->created_by_id === (int) auth()->id())
+                                <details class="ts-edit">
+                                    <summary>Editar</summary>
+                                    <form action="{{ route('techscout.note.update', [$scout->id, $n->id]) }}" method="POST" class="mt-2">
+                                        @csrf
+                                        @method('PUT')
+                                        <textarea name="note" class="form-control form-control-sm" rows="3"
+                                                  maxlength="2000">{{ $n->note }}</textarea>
+                                        <input type="text" name="story_label" class="form-control form-control-sm mt-1"
+                                               maxlength="120" value="{{ $n->story_label }}" placeholder="Nombre en la historia">
+                                        <button type="submit" class="btn btn-crew-accent btn-sm mt-2">Guardar</button>
+                                    </form>
+                                </details>
+                            @endif
                         </div>
                     </div>
                 @endforeach

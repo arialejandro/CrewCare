@@ -59,6 +59,16 @@
 
   .tsn-none{padding:26px 0;text-align:center;color:var(--muted);font-size:.85rem}
 
+  /* 🪤 AIRE. Al exportar, las secciones salían pegadas al borde y unas contra otras: el documento
+     se veía apretado y costaba leerlo. El chrome v2 no impone margen lateral dentro del <td>, así
+     que lo pone este documento. Un reporte que va a arte tiene que respirar. */
+  .ts-pad{padding:0 14px}
+  .ts-pad > .sec-h{margin-top:18px}
+  .ts-pad > .sec-h:first-child{margin-top:4px}
+  .ts-pad .tbl{margin-bottom:18px}
+  .ts-pad .tbl th,.ts-pad .tbl td{padding:8px 10px}
+  :root[data-view="print"] .ts-pad{padding:0 10mm}
+
   :root[data-view="print"] .tsn{border-bottom-color:rgba(0,0,0,.12)}
   :root[data-view="print"] .tsn-ph img{border-color:rgba(0,0,0,.15)}
   :root[data-view="print"] .tsn-tx{color:#111}
@@ -95,6 +105,7 @@
       ])
     </td></tr></thead>
     <tbody><tr><td>
+    <div class="ts-pad">
 
       {{-- ── DATOS DEL RECORRIDO ── Mismos campos y nombres que el Scouting H&S: quien lee los dos
            documentos no debería tener que traducir. Sólo se imprime lo que está lleno — un dato
@@ -175,6 +186,7 @@
         @endforeach
       @endif
 
+    </div>
     </td></tr></tbody>
     </table>
 
