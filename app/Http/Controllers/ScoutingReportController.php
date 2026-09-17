@@ -317,6 +317,31 @@ class ScoutingReportController extends Controller
         return $this->draftsOk;
     }
 
+    /**
+     * RECUPERAR el borrador del autor: devuelve las fotos que ya viajaron.
+     *
+     * 🪤 ESTA MITAD FALTABA, y su ausencia convirtió la función en una trampa. El 2026-09-16 se
+     * capturaron 27 fotos que subieron correctamente al borrador… y no había NINGUNA forma de que
+     * volvieran a un scouting: `create()` calculaba los borradores y la vista los ignoraba. El
+     * owner guardó el scouting y salió VACÍO, con las 27 fotos vivas en disco pero sin dueño.
+     *
+     * Guardar sin poder recuperar no es media función: es peor que nada, porque promete una red
+     * que no existe. Un mecanismo de recuperación se prueba RECUPERANDO.
+     */
+    public function draftShow(Request $request)
+    {
+        if (! $this->draftsAvailable()) {
+            return response()->json(['ok' => false, 'photos' => []]);
+        }
+
+        $draft = ScoutingDraft::forAuthor((string) $request->query('client_key', ''), auth()->id());
+
+        return response()->json([
+            'ok'     => true,
+            'photos' => $draft ? $draft->photoList() : [],
+        ]);
+    }
+
     /** Autoguardado de los CAMPOS (sin fotos). Upsert por (autor, clave local). */
     public function draftSave(Request $request)
     {
@@ -577,7 +602,21 @@ class ScoutingReportController extends Controller
             // queda huérfano y no pasa nada — reaparece una vez y se descarta.
             try {
                 if ($draftKey !== '' && $this->draftsAvailable()) {
-                    ScoutingDraft::forAuthor($draftKey, auth()->id())?->delete();
+                    $vivo = ScoutingDraft::forAuthor($draftKey, auth()->id());
+
+                    // 🪤 SÓLO se retira si sus fotos SE USARON (o si no tenía). Borrarlo a ciegas
+                    // fue el segundo eslabón del desastre del 2026-09-16: el borrador guardaba 27
+                    // fotos, el formulario no las mandó —no había forma de recuperarlas—, y al
+                    // guardar el scouting se destruyó la ÚNICA referencia que quedaba a esos
+                    // archivos. Quedaron vivos en disco y sin dueño.
+                    //
+                    // Si el borrador conserva fotos que nadie usó, SIGUE VIVO: reaparecerá la
+                    // próxima vez y el owner decidirá si las usa o las descarta. Que reaparezca un
+                    // borrador molesta; perder la jornada de fotos, no.
+                    $sinUsar = $vivo && count($vivo->photoList()) > 0 && count($items) === 0;
+                    if ($vivo && ! $sinUsar) {
+                        $vivo->delete();
+                    }
                 }
             } catch (\Throwable $e) {
                 Log::warning('scouting: no se pudo retirar el borrador (el reporte SÍ se guardó)', [

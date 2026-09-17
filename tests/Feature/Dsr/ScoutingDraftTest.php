@@ -256,6 +256,105 @@ class ScoutingDraftTest extends QaTestCase
         );
     }
 
+    // =====================================================================
+    //  RECUPERAR — la mitad que faltaba, y sin la cual todo lo demás es una trampa
+    // =====================================================================
+
+    /**
+     * 🔥 EL BUG DEL 2026-09-16. Las fotos subían bien… y no había NINGUNA forma de que volvieran a
+     * un scouting: `create()` calculaba los borradores y la vista los ignoraba. El owner capturó 27
+     * fotos, guardó, y el scouting salió VACÍO — con las 27 vivas en disco y sin dueño.
+     *
+     * Guardar sin poder recuperar es peor que no guardar: promete una red que no existe. Un
+     * mecanismo de recuperación sólo está probado cuando se prueba RECUPERANDO.
+     */
+    public function test_al_volver_a_entrar_las_fotos_del_borrador_se_recuperan(): void
+    {
+        Storage::fake('public');
+        $user = $this->actingAsRole('safety-officer');
+
+        $this->post(route('scoutings.draft.photos'), [
+            'client_key' => 'sd-recuperar',
+            'photos'     => [UploadedFile::fake()->image('a.jpg'), UploadedFile::fake()->image('b.jpg')],
+        ])->assertOk();
+
+        // Se cierra la pestaña. Al volver, el navegador pide lo suyo con su clave.
+        $res = $this->getJson(route('scoutings.draft.show', ['client_key' => 'sd-recuperar']));
+        $res->assertOk();
+        $res->assertJsonCount(2, 'photos');
+
+        $rutas = array_column($res->json('photos'), 'path');
+        $this->assertSame(
+            array_column(ScoutingDraft::forAuthor('sd-recuperar', $user->id)->photoList(), 'path'),
+            $rutas,
+            'deben volver EXACTAMENTE las que se subieron.'
+        );
+    }
+
+    public function test_no_se_recuperan_las_fotos_del_borrador_de_otra_persona(): void
+    {
+        Storage::fake('public');
+
+        $this->actingAsRole('safety-officer');
+        $this->post(route('scoutings.draft.photos'), [
+            'client_key' => 'misma-clave',
+            'photos'     => [UploadedFile::fake()->image('a.jpg')],
+        ])->assertOk();
+
+        $this->actingAsRole('line-producer');
+        $this->getJson(route('scoutings.draft.show', ['client_key' => 'misma-clave']))
+            ->assertOk()
+            ->assertJsonCount(0, 'photos');
+    }
+
+    /**
+     * 🪤 EL SEGUNDO ESLABÓN del mismo desastre: al guardar, el borrador se borraba A CIEGAS. Como
+     * el formulario no mandó sus fotos —no había cómo—, el guardado destruyó la ÚNICA referencia
+     * que quedaba a esos archivos y los dejó huérfanos para siempre.
+     *
+     * Ahora, si el borrador conserva fotos que NADIE usó, sobrevive al guardado. Que reaparezca un
+     * borrador molesta; perder una jornada de fotos, no.
+     */
+    public function test_un_borrador_con_fotos_sin_usar_sobrevive_al_guardado(): void
+    {
+        Storage::fake('public');
+        $user = $this->actingAsRole('safety-officer');
+
+        $this->post(route('scoutings.draft.photos'), [
+            'client_key' => 'sd-sin-usar',
+            'photos'     => [UploadedFile::fake()->image('a.jpg')],
+        ])->assertOk();
+
+        // Se guarda un scouting mandando la clave pero NINGUNA foto (el caso que ocurrió).
+        $this->post(route('scoutings.store'), $this->payload(['draft_key' => 'sd-sin-usar']))
+            ->assertSessionHasNoErrors();
+
+        $vivo = ScoutingDraft::forAuthor('sd-sin-usar', $user->id);
+        $this->assertNotNull($vivo, 'el borrador NO puede llevarse por delante fotos que nadie usó.');
+        $this->assertCount(1, $vivo->photoList());
+    }
+
+    public function test_un_borrador_cuyas_fotos_si_se_usaron_si_se_retira(): void
+    {
+        Storage::fake('public');
+        $user = $this->actingAsRole('safety-officer');
+
+        $this->post(route('scoutings.draft.photos'), [
+            'client_key' => 'sd-usado',
+            'photos'     => [UploadedFile::fake()->image('a.jpg')],
+        ])->assertOk();
+
+        $rutas = array_column(ScoutingDraft::forAuthor('sd-usado', $user->id)->photoList(), 'path');
+        $this->post(route('scoutings.store'), $this->payload([
+            'draft_key' => 'sd-usado', 'draft_photos' => $rutas,
+        ]))->assertSessionHasNoErrors();
+
+        $this->assertNull(
+            ScoutingDraft::forAuthor('sd-usado', $user->id),
+            'cumplida su función, se retira: si no, reaparecería en el siguiente scouting.'
+        );
+    }
+
     public function test_el_borrador_exige_sesion(): void
     {
         $this->post(route('scoutings.draft.photos'), ['client_key' => 'x', 'photos' => []])

@@ -73,6 +73,22 @@
         return [];
     }
 
+    /**
+     * Fotos que ya viajaron y siguen esperando en el borrador de esta persona.
+     *
+     * 🪤 Sin esto, subir las fotos era una TRAMPA en vez de una red: el 2026-09-16 se capturaron
+     * 27 que subieron bien y no había forma de que volvieran a un scouting. Se guardó vacío y las
+     * fotos quedaron vivas en disco, sin dueño. Guardar sin recuperar es peor que no guardar,
+     * porque promete una protección que no existe.
+     */
+    function restore() {
+        return fetch(SAVE_URL + '?client_key=' + encodeURIComponent(key()), {
+            headers: { 'Accept': 'application/json' }
+        }).then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (j) { return (j && j.photos) || []; })
+          .catch(function () { return []; });
+    }
+
     function save(form) {
         return fetch(SAVE_URL, {
             method: 'POST',
@@ -160,6 +176,7 @@
     w.CCScoutDraft = {
         key: key,
         resetKey: resetKey,
+        restore: restore,
         save: save,
         upload: upload,
         enqueue: enqueue,
