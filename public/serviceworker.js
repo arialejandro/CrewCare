@@ -70,6 +70,11 @@ self.addEventListener('activate', event => {
                     .map(cacheName => caches.delete(cacheName))
             );
         })
+        // clients.claim(): toma el control de las pestañas YA ABIERTAS en cuanto se activa, sin
+        // esperar a que se cierren todas. Con `skipWaiting()` solo, un arreglo del service worker
+        // puede tardar días en llegar al dispositivo de quien nunca cierra la app — y este arreglo
+        // en concreto es el que hace que los formularios vuelvan a enviar su contenido.
+        .then(() => self.clients.claim())
     );
 });
 
@@ -90,6 +95,27 @@ function isCaptureForm(req) {
 
 self.addEventListener("fetch", event => {
     var req = event.request;
+
+    /* 🪤 EL SERVICE WORKER NO TOCA NADA QUE NO SEA GET. Y esto no es higiene: es un bug que
+     * costó una tarde y se comió formularios enteros.
+     *
+     * Antes, el `event.respondWith(...)` de abajo corría para TODAS las peticiones — POST y PUT
+     * incluidos — y las reemitía con `fetch(req)`. En ese viaje el CUERPO se pierde. El servidor
+     * recibía la cabecera `multipart/form-data` con su boundary… y CERO campos. Dos síntomas que
+     * parecían no tener nada que ver:
+     *
+     *   · Los formularios con archivo (notas del Tech Scout) llegaban vacíos, y el servidor
+     *     respondía "escribe la nota o adjunta una foto" con el formulario bien lleno.
+     *   · Cualquier PUT/DELETE daba 405. Laravel lee el método real del campo `_method`, que va
+     *     EN EL CUERPO: sin cuerpo se queda en POST, y esa ruta no acepta POST.
+     *
+     * La Cache API no soporta peticiones que no sean GET, así que interceptarlas nunca aportó
+     * nada — sólo podía quitar. Que vayan directas a la red.
+     *
+     * ⚠ Afectaba a TODA la app, no sólo al módulo nuevo: cualquier formulario, en cualquier
+     * dispositivo donde el service worker estuviera registrado (se registra solo al visitar).
+     * Se descubrió por el Tech Scout porque fue el primero que registró en el log QUÉ llegó. */
+    if (req.method !== 'GET') { return; }
 
     if (isCaptureForm(req)) {
         event.respondWith(
