@@ -21,6 +21,35 @@ use Tests\QaTestCase;
  */
 class TechScoutTest extends QaTestCase
 {
+    /**
+     * En ESTE módulo, actuar como alguien implica estar en LOCACIONES.
+     *
+     * Desde el 2026-09-16 el Tech Scout no lo abre un permiso sino el DEPARTAMENTO (decisión del
+     * owner; ver App\Support\LocationsAccess). Se sobreescribe el ayudante para que las pruebas
+     * de comportamiento sigan hablando de lo suyo —notas, autoría, documento— y no de accesos.
+     * El aislamiento tiene sus propias pruebas más abajo, explícitas.
+     */
+    protected function actingAsRole(string $role, array $attrs = []): \App\Models\User
+    {
+        $user = parent::actingAsRole($role, $attrs);
+        $this->ponerEnLocaciones($user);
+
+        return $user;
+    }
+
+    /** Fila de pivote que mete al usuario en Locaciones (fuente de verdad de ownDepartmentIds). */
+    private function ponerEnLocaciones(\App\Models\User $user): void
+    {
+        $dept = \App\Models\Department::whereRaw('LOWER(name) LIKE ?', ['%locacion%'])->value('id');
+        $this->assertNotNull($dept, 'La fábrica debe sembrar el departamento de Locaciones.');
+
+        \Illuminate\Support\Facades\DB::table('production_user')->updateOrInsert(
+            ['production_id' => (int) \App\Support\CurrentProduction::get()->id, 'user_id' => $user->id],
+            ['department_id' => $dept, 'role' => 'crew', 'is_lead' => false,
+             'created_at' => now(), 'updated_at' => now()]
+        );
+    }
+
     private function nuevoRecorrido(array $over = []): TechScout
     {
         $this->post(route('techscout.store'), array_merge([
@@ -415,5 +444,116 @@ class TechScoutTest extends QaTestCase
     public function test_el_modulo_exige_sesion(): void
     {
         $this->post(route('techscout.store'), ['location_name' => 'X'])->assertRedirect();
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────────────────
+    // AISLAMIENTO POR DEPARTAMENTO (owner, 2026-09-16)
+    //
+    // «Que eso sólo lo vea quien esté en el departamento de Locaciones, no importa su puesto.»
+    // Es un criterio distinto al del resto de la app —permisos— y por eso se prueba por los dos
+    // lados: que el de fuera NO entra aunque tenga rango, y que el de dentro SÍ aunque no tenga
+    // ningún permiso de locaciones. Una prueba sola de las dos se puede pasar sin querer.
+    // ────────────────────────────────────────────────────────────────────────────────────────
+
+    public function test_quien_no_es_de_locaciones_no_entra_aunque_tenga_permiso(): void
+    {
+        // safety-officer TIENE `locations.create` — con la regla vieja entraba de sobra. Se usa
+        // el ayudante de la clase base a propósito: este usuario NO pasa por Locaciones.
+        $fuera = parent::actingAsRole('safety-officer');
+        $this->assertTrue($fuera->can('locations.create'),
+            'si este rol pierde el permiso, la prueba deja de demostrar lo que dice demostrar.');
+
+        $this->get(route('techscout.index'))->assertForbidden();
+        $this->get(route('techscout.create'))->assertForbidden();
+        $this->post(route('techscout.store'), ['location_name' => 'Bodega ajena'])->assertForbidden();
+    }
+
+    public function test_ni_siquiera_el_documento_ni_las_notas_de_otro_departamento(): void
+    {
+        // Lo crea alguien de Locaciones…
+        $this->actingAsRole('safety-officer');
+        $scout = $this->nuevoRecorrido(['location_name' => 'Casa Narvarte']);
+
+        // …y lo intenta abrir alguien de fuera. Incluye el DOCUMENTO y la rejilla de notas: son
+        // rutas de LECTURA, justo las que se olvidan al cerrar un módulo.
+        parent::actingAsRole('line-producer');
+        $this->get(route('techscout.show', $scout->id))->assertForbidden();
+        $this->get(route('techscout.document', $scout->id))->assertForbidden();
+        $this->get(route('techscout.notes', $scout->id))->assertForbidden();
+    }
+
+    public function test_el_departamento_basta_sin_ningun_permiso_de_locaciones(): void
+    {
+        // Un P.A. de Locaciones no trae permisos de nada: el puesto no importa, el departamento sí.
+        $pa = $this->makeUser('crew');
+        $this->actingAs($pa);
+        $this->ponerEnLocaciones($pa);
+
+        $this->assertFalse($pa->can('locations.create'),
+            'el sentido de esta prueba es que entre SIN permiso; si lo tiene, no prueba nada.');
+
+        $this->get(route('techscout.index'))->assertOk();
+        $this->post(route('techscout.store'), ['location_name' => 'Depa Pablo'])
+            ->assertSessionHasNoErrors();
+    }
+
+    public function test_el_super_admin_conserva_la_llave(): void
+    {
+        // Única excepción, y deliberada: hoy en producción el owner es el único usuario y no está
+        // en ningún departamento. Sin esto, el cambio lo dejaría fuera de su propio módulo.
+        parent::actingAsRole('super-admin');
+        $this->get(route('techscout.index'))->assertOk();
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────────────────
+    // REFRESCO PERIÓDICO — dos scouters en la misma locación
+    // ────────────────────────────────────────────────────────────────────────────────────────
+
+    public function test_la_rejilla_sola_trae_las_notas_y_cambia_de_firma_al_entrar_una(): void
+    {
+        $this->actingAsRole('safety-officer');
+        $scout = $this->nuevoRecorrido();
+
+        $this->post(route('techscout.note.store', $scout->id), ['note' => 'Cambiar la cerradura'])
+            ->assertSessionHasNoErrors();
+
+        $antes = $this->get(route('techscout.notes', $scout->id));
+        $antes->assertOk()->assertSee('Cambiar la cerradura');
+
+        // La FIRMA es lo que decide si el navegador reemplaza la rejilla. Si no cambiara al
+        // entrar una nota, el refresco quedaría mudo y nadie vería lo del otro scouter — que es
+        // exactamente el problema que esta pieza existe para resolver.
+        $firmaAntes = $this->firmaDe($antes->getContent());
+        $this->assertNotSame('', $firmaAntes, 'la rejilla debe publicar su firma.');
+
+        $this->post(route('techscout.note.store', $scout->id), ['note' => 'El vecino ensaya batería'])
+            ->assertSessionHasNoErrors();
+
+        $despues = $this->get(route('techscout.notes', $scout->id));
+        $despues->assertOk()->assertSee('El vecino ensaya batería');
+        $this->assertNotSame($firmaAntes, $this->firmaDe($despues->getContent()),
+            'con una nota más, la firma tiene que cambiar.');
+    }
+
+    public function test_la_nota_del_otro_scouter_aparece_en_la_rejilla_compartida(): void
+    {
+        $a = $this->actingAsRole('safety-officer');
+        $scout = $this->nuevoRecorrido(['location_name' => 'Bodega Vallejo']);
+
+        $b = $this->actingAsRole('line-producer');
+        $this->post(route('techscout.note.store', $scout->id), ['note' => 'Falta luz en el pasillo'])
+            ->assertSessionHasNoErrors();
+
+        // A pregunta por la rejilla y ve lo de B sin recargar la pantalla entera.
+        $this->actingAs($a);
+        $this->get(route('techscout.notes', $scout->id))
+            ->assertOk()
+            ->assertSee('Falta luz en el pasillo');
+    }
+
+    /** Extrae el valor de `data-ts-sig` del fragmento (lo que compara el refresco). */
+    private function firmaDe(string $html): string
+    {
+        return preg_match('/data-ts-sig="([^"]*)"/', $html, $m) ? $m[1] : '';
     }
 }

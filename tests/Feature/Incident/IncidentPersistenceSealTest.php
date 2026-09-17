@@ -45,7 +45,11 @@ class IncidentPersistenceSealTest extends QaTestCase
         $resp->assertSessionHas('success');
 
         // AUTOFIRMA server-side (no falseable desde el form).
-        $this->assertSame($so->name, $injury->make_by);
+        // El autor es el NOMBRE EN CRÉDITOS, no `users.name` (regla owner 2026-09-16: «si hay dos
+        // Genaro eso sería confuso»). Se compara contra User::displayName —la misma función que
+        // estampa el documento— y no contra una cadena literal: si mañana cambia la regla, cambia
+        // en un sitio y la prueba sigue diciendo lo que quiere decir.
+        $this->assertSame(\App\Models\User::displayName($so), $injury->make_by);
         $this->assertSame($so->id, (int) $injury->created_by_id);
         $this->assertNotEmpty($injury->uuid);
 
@@ -67,7 +71,7 @@ class IncidentPersistenceSealTest extends QaTestCase
 
         $this->assertDatabaseHas('injury_reports', [
             'created_by_id' => $crew->id,
-            'make_by'       => $crew->name,
+            'make_by'       => \App\Models\User::displayName($crew),
             'what_happened' => 'Me corté con un vidrio en el set',
         ]);
     }
@@ -120,7 +124,7 @@ class IncidentPersistenceSealTest extends QaTestCase
 
         $haz = hazardnotification::latest('id')->first();
         $this->assertNotNull($haz);
-        $this->assertSame($so->name, $haz->make_by);
+        $this->assertSame(\App\Models\User::displayName($so), $haz->make_by);
         $this->assertSame($so->id, (int) $haz->created_by_id);
         $this->assertSame('Abierto', $haz->action_status, 'El acto nace con la acción "Abierto".');
         $this->assertTrue($haz->signatures()->exists(), 'El acto inseguro debe sellarse al crearse.');

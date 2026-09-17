@@ -18,6 +18,9 @@
 
     Arranque: por defecto TODAS abiertas (nada se esconde por sorpresa). Para arrancar
     contraídas —dejando abierta la 1ª y las que traen error— usa data-cc-sections="collapsed".
+    Y con data-cc-sections="closed" arrancan TODAS cerradas (salvo las que traen error): para
+    pantallas donde el formulario no es lo primero que se viene a hacer —el Tech Scout, donde el
+    trabajo es capturar notas y estos paneles son datos de cabecera que se llenan después—.
 
     Uso:  <form ... data-cc-sections> … </form>   +   @include('componentes._collapsible-sections')
 --}}
@@ -93,7 +96,9 @@
     function initForm(form) {
         if (form.__ccSections) return;
         form.__ccSections = true;
-        var startCollapsed = (form.getAttribute('data-cc-sections') || '') === 'collapsed';
+        var modo = form.getAttribute('data-cc-sections') || '';
+        var startCollapsed = (modo === 'collapsed' || modo === 'closed');
+        var cerrarTodas = (modo === 'closed');
 
         // Tarjetas-sección: hijas DIRECTAS con encabezado y cuerpo propios.
         var cards = Array.prototype.filter.call(form.children, function (c) {
@@ -157,7 +162,9 @@
 
             // Estado inicial de apertura.
             var hasError = !!body.querySelector('.is-invalid');
-            var open = !startCollapsed || idx === 0 || hasError;
+            // Una sección con error se abre SIEMPRE: esconder lo que hay que corregir es la
+            // manera más rápida de que alguien reenvíe sin arreglar nada.
+            var open = hasError || !startCollapsed || (! cerrarTodas && idx === 0);
             setOpen(open);
             refresh();
         });

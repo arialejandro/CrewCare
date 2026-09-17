@@ -81,6 +81,11 @@ class Kernel extends HttpKernel
         // así que el envío interactivo en línea ni lo nota. Ver App\Http\Middleware\IdempotentReplay.
         'idempotent' => \App\Http\Middleware\IdempotentReplay::class,
 
+        // (2026-09-16) Tech Scout. Acceso por DEPARTAMENTO, no por permiso — el owner lo pidió
+        // cerrado a Locaciones «no importa su puesto». Igual que los dos de arriba: no va en
+        // ningún grupo, se cuelga sólo de las rutas del módulo. Ver App\Support\LocationsAccess.
+        'locaciones' => \App\Http\Middleware\EnsureLocationsDepartment::class,
+
         // Spatie RBAC aliases. (2026-08-11 · upgrade L10) spatie/laravel-permission v6 movió
         // el namespace de `Middlewares` (plural, v5) a `Middleware` (singular).
         'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,

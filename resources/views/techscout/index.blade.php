@@ -25,6 +25,18 @@
     .cc-chip-neutral{color:var(--text-muted);background:var(--glass-2);border-color:var(--stroke)}
     .cc-chip-ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 15%,transparent);border-color:color-mix(in srgb,var(--ok) 32%,transparent)}
 
+    /* TELÉFONO. El owner trabaja en iPad; los scouters traen sólo el móvil. Ahí la cabecera
+       ocupaba media pantalla antes de la primera tarjeta, y el botón de alta quedaba a un lado,
+       estrecho. Se compacta el titular y el botón se va a todo el ancho: es la acción con la que
+       se llega a esta pantalla. */
+    @media (max-width:575.98px){
+        .cc-idx-head{gap:.6rem;margin-bottom:1.1rem}
+        .cc-idx-title{font-size:1.35rem;margin:.2rem 0 .1rem}
+        .cc-idx-sub{font-size:.82rem}
+        .cc-idx-cta{width:100%;justify-content:center}
+        .sct-cover,.sct-cover-placeholder{height:150px}
+    }
+
     .cc-idx-empty{text-align:center;padding:3.5rem 1.5rem;color:var(--text-muted)}
     .cc-idx-empty .cc-ico{width:46px;height:46px;color:var(--text-muted);opacity:.55;margin-bottom:.85rem}
     .cc-idx-empty h5{font-family:'Poppins',sans-serif;font-weight:700;color:var(--text)}

@@ -213,6 +213,25 @@ class TechScoutController extends Controller
     }
 
     /**
+     * SÓLO la rejilla de notas, en HTML. La pide el refresco periódico de la pantalla de trabajo.
+     *
+     * Dos scouters recorren la misma locación a la vez y cada uno tiene que ver aparecer lo del
+     * otro sin recargar a mano — pedido del owner. Se devuelve HTML y no JSON a propósito: la
+     * rejilla la pinta la MISMA plantilla que la pantalla (`_notes-grid`), así que lo que llega
+     * por refresco no puede verse distinto de lo que se ve al cargar. Con JSON habría que
+     * reescribir el pintado en JavaScript, y esa segunda copia se desincroniza.
+     */
+    public function notesFragment($id)
+    {
+        $scout = TechScout::with(['notes.author'])->findOrFail($id);
+
+        return response()
+            ->view('techscout._notes-grid', ['scout' => $scout, 'notas' => $scout->notes])
+            // Es un fragmento vivo: que ningún intermediario (ni el navegador) lo guarde.
+            ->header('Cache-Control', 'no-store, max-age=0');
+    }
+
+    /**
      * EL DOCUMENTO — lo que sustituye al Word.
      *
      * Hoy los scouters descargan las fotos, las pegan a mano y reescriben lo de sus libretas. Aquí

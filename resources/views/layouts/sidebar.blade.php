@@ -419,13 +419,17 @@
                                 @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>{{ __('nav.loc_scoutings') }}</span>
                             </a>
-                            {{-- Tech Scout: el recorrido técnico de Locaciones. Nombre de la FASE real
-                                 de producción, no una etiqueta inventada, y no se traduce. --}}
+                        @endcan
+                        {{-- Tech Scout: el recorrido técnico de Locaciones. Nombre de la FASE real
+                             de producción, no una etiqueta inventada, y no se traduce.
+                             Fuera del @can('locations.view') a propósito: aquí manda el
+                             DEPARTAMENTO, no el permiso (ver App\Support\LocationsAccess). --}}
+                        @if (\App\Support\LocationsAccess::allows(auth()->user()))
                             <a href="{{ route('techscout.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'camera', 'class' => 'cc-item__ico', 'label' => null])
                                 <span>Tech Scout</span>
                             </a>
-                        @endcan
+                        @endif
                         @can('riskmap.issue')
                             <a href="{{ route('riskmaps.index') }}" class="cc-item">
                                 @include('componentes._icon', ['name' => 'image', 'class' => 'cc-item__ico', 'label' => null])
@@ -925,11 +929,14 @@
                                     @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-item__ico', 'label' => null])
                                     <span>{{ __('nav.loc_scoutings') }}</span>
                                 </a>
+                            @endcan
+                            {{-- Por DEPARTAMENTO, no por permiso — igual que arriba. --}}
+                            @if (\App\Support\LocationsAccess::allows(auth()->user()))
                                 <a href="{{ route('techscout.index') }}" class="cc-item">
                                     @include('componentes._icon', ['name' => 'camera', 'class' => 'cc-item__ico', 'label' => null])
                                     <span>Tech Scout</span>
                                 </a>
-                            @endcan
+                            @endif
                             @can('riskmap.issue')
                                 <a href="{{ route('riskmaps.index') }}" class="cc-item">
                                     @include('componentes._icon', ['name' => 'image', 'class' => 'cc-item__ico', 'label' => null])

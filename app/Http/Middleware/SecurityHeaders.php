@@ -170,7 +170,16 @@ class SecurityHeaders
         }
 
         if ($html !== $orig) {
+            // 🪤 `setContent()` PISA `$response->original` — el objeto View que produjo esta página.
+            // Reescribir el HTML no debería borrar de dónde salió, y sí lo borraba: cualquier prueba
+            // que mirara los datos de la vista de una página con <script> o <style> en línea moría
+            // con "The response is not a view". Se llevó por delante tres pruebas de AISLAMIENTO de
+            // reportes —justo las que vigilan que un safety no vea el injury de otro—, que llevaban
+            // rojas desde el barrido de nonce sin que el rojo tuviera nada que ver con el aislamiento.
+            // El daño real no era la prueba: era quedarnos sin vigilancia sobre eso.
+            $vista = $response->original;
             $response->setContent($html);
+            $response->original = $vista;
             $response->headers->remove('Content-Length'); // el largo cambió; que se recalcule al enviar.
         }
     }

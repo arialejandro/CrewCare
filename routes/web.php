@@ -372,6 +372,30 @@ Route::middleware(['auth','permission:medical.create'])->group(function () {
 // + ~13 categorías de riesgo + catálogo normativo + gatillo SB132 + AUTOFIRMA del usuario logueado.
 // Reutiliza permisos locations.*. OJO orden: `/scoutings/create` (fijo) va ANTES que
 // `/scoutings/{id}`. Requiere tabla `scouting_reports` (el owner aplica el CREATE TABLE).
+// ── TECH SCOUT · recorrido técnico de LOCACIONES ──────────────────────────────────────────
+// Documento de TRABAJO (foto + nota de lo que hay que resolver). NO es el Scouting H&S: aquél se
+// sella y tiene valor probatorio; éste se edita a diario y no lleva hash.
+//
+// 🔒 GRUPO PROPIO, y no por gusto: aquí NO gobierna un permiso sino el DEPARTAMENTO. Decisión del
+// owner (2026-09-16): «que eso sólo lo vea quien esté en el departamento de Locaciones, no importa
+// su puesto». Por eso estas rutas salieron del grupo `permission:locations.create` — tener ese
+// permiso ya no basta para entrar. El porqué y la única excepción (super-admin), en
+// App\Support\LocationsAccess.
+Route::middleware(['auth','locaciones'])->group(function () {
+    Route::get('/tech-scout', [App\Http\Controllers\TechScoutController::class, 'index'])->name('techscout.index');
+    Route::get('/tech-scout/nuevo', [App\Http\Controllers\TechScoutController::class, 'create'])->name('techscout.create');
+    Route::post('/tech-scout', [App\Http\Controllers\TechScoutController::class, 'store'])->name('techscout.store');
+    // El DOCUMENTO va antes que `{id}` a secas por el mismo motivo de siempre (rutas fijas primero).
+    Route::get('/tech-scout/{id}/documento', [App\Http\Controllers\TechScoutController::class, 'document'])->name('techscout.document')->whereNumber('id');
+    // Sólo la REJILLA de notas, en HTML. La pide el refresco periódico: dos scouters recorren la
+    // misma locación y cada uno tiene que ver aparecer lo del otro sin recargar a mano.
+    Route::get('/tech-scout/{id}/notas', [App\Http\Controllers\TechScoutController::class, 'notesFragment'])->name('techscout.notes')->whereNumber('id');
+    Route::get('/tech-scout/{id}', [App\Http\Controllers\TechScoutController::class, 'show'])->name('techscout.show')->whereNumber('id');
+    Route::put('/tech-scout/{id}', [App\Http\Controllers\TechScoutController::class, 'update'])->name('techscout.update')->whereNumber('id');
+    Route::post('/tech-scout/{id}/notas', [App\Http\Controllers\TechScoutController::class, 'storeNote'])->name('techscout.note.store')->whereNumber('id');
+    Route::put('/tech-scout/{id}/notas/{noteId}', [App\Http\Controllers\TechScoutController::class, 'updateNote'])->name('techscout.note.update')->whereNumber('id')->whereNumber('noteId');
+});
+
 Route::middleware(['auth','permission:locations.create'])->group(function () {
     Route::get('/scoutings/create', [App\Http\Controllers\ScoutingReportController::class, 'create'])->name('scoutings.create');
     Route::post('/scoutings', [App\Http\Controllers\ScoutingReportController::class, 'store'])->middleware('idempotent')->name('scoutings.store');
@@ -379,21 +403,6 @@ Route::middleware(['auth','permission:locations.create'])->group(function () {
     // BORRADOR EN SERVIDOR — mismo permiso que crear, porque es literalmente crear a medias.
     // Van ANTES de `/scoutings/{id}` por el mismo motivo que `create` (rutas fijas primero).
     // Las fotos suben EN CUANTO se capturan para que cerrar la pestaña no cueste la jornada.
-    // ── TECH SCOUT · recorrido técnico de LOCACIONES ──────────────────────────────────────
-    // Documento de TRABAJO (foto + nota de lo que hay que resolver). NO es el Scouting H&S:
-    // aquél se sella y tiene valor probatorio; éste se edita a diario y no lleva hash.
-    // De momento reusa los permisos `locations.*` — su juego propio va en la siguiente tanda,
-    // junto con el alta de los scouters (hoy en producción sólo existe el owner).
-    Route::get('/tech-scout', [App\Http\Controllers\TechScoutController::class, 'index'])->name('techscout.index');
-    Route::get('/tech-scout/nuevo', [App\Http\Controllers\TechScoutController::class, 'create'])->name('techscout.create');
-    Route::post('/tech-scout', [App\Http\Controllers\TechScoutController::class, 'store'])->name('techscout.store');
-    // El DOCUMENTO va antes que `{id}` a secas por el mismo motivo de siempre (rutas fijas primero).
-    Route::get('/tech-scout/{id}/documento', [App\Http\Controllers\TechScoutController::class, 'document'])->name('techscout.document')->whereNumber('id');
-    Route::get('/tech-scout/{id}', [App\Http\Controllers\TechScoutController::class, 'show'])->name('techscout.show')->whereNumber('id');
-    Route::put('/tech-scout/{id}', [App\Http\Controllers\TechScoutController::class, 'update'])->name('techscout.update')->whereNumber('id');
-    Route::post('/tech-scout/{id}/notas', [App\Http\Controllers\TechScoutController::class, 'storeNote'])->name('techscout.note.store')->whereNumber('id');
-    Route::put('/tech-scout/{id}/notas/{noteId}', [App\Http\Controllers\TechScoutController::class, 'updateNote'])->name('techscout.note.update')->whereNumber('id')->whereNumber('noteId');
-
     Route::get('/scoutings/draft', [App\Http\Controllers\ScoutingReportController::class, 'draftShow'])->name('scoutings.draft.show');
     Route::post('/scoutings/draft', [App\Http\Controllers\ScoutingReportController::class, 'draftSave'])->name('scoutings.draft.save');
     Route::post('/scoutings/draft/photos', [App\Http\Controllers\ScoutingReportController::class, 'draftPhotos'])->name('scoutings.draft.photos');

@@ -27,7 +27,9 @@
     </div>
     @isset($submitLabel)
         <div class="col-md-5 d-flex align-items-start">
-            <button type="submit" class="btn btn-crew-accent mt-md-4">{{ $submitLabel }}</button>
+            {{-- A todo el ancho en teléfono: es el botón que más se pulsa del módulo y se atiza
+                 con el pulgar, andando por la locación, sin apuntar. --}}
+            <button type="submit" class="btn btn-crew-accent mt-md-4 ts-submit">{{ $submitLabel }}</button>
         </div>
     @endisset
 </div>
