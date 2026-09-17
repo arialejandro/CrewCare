@@ -1,6 +1,13 @@
 @extends('layouts.app')
 @section('title', 'Nuevo recorrido - ' . ($branding['brand_name'] ?? 'CrewCare'))
 
+{{-- 🪤 SIN esto, `btn-crew-accent` no existe y los botones caen al `.btn` pelado de Bootstrap:
+     fondo transparente y texto oscuro sobre el tema oscuro de la app — se vuelven INVISIBLES.
+     Pasó el 2026-09-16. Cualquier vista que use las clases btn-crew-* debe incluir este parcial. --}}
+@push('styles')
+    @include('componentes._crew-list-styles')
+@endpush
+
 @section('content')
 <div class="container-fluid px-3 px-md-4 py-4" style="max-width:640px">
 

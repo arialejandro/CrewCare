@@ -2,6 +2,7 @@
 @section('title', 'Tech Scout - ' . ($branding['brand_name'] ?? 'CrewCare'))
 
 @push('styles')
+@include('componentes._crew-list-styles')
 <style>
     .ts-head{display:flex;align-items:flex-end;gap:1.25rem;flex-wrap:wrap;justify-content:space-between;margin-bottom:1.75rem}
     .ts-eyebrow{font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--brand-primary);font-weight:700;display:inline-flex;align-items:center;gap:.5rem}
