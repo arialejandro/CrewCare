@@ -44,35 +44,77 @@ class TechScoutController extends Controller
         return view('techscout.index', compact('scouts'));
     }
 
+    /**
+     * UNA SOLA PANTALLA. Crear y editar usan la MISMA vista.
+     *
+     * 🪤 Antes eran dos: una pantalla mínima pedía la locación y luego aparecía el panel. El owner
+     * lo dijo sin rodeos — «son 2 pantallas nuevamente, todo entra directo a ese panel». Y tenía
+     * razón: partir la captura en dos pasos obliga a decidir qué es "lo mínimo" antes de dejar
+     * trabajar, y en campo eso es fricción pura. Aquí se abre el panel completo desde el primer
+     * momento; lo único que no está disponible hasta guardar son las notas, porque una nota
+     * necesita un documento al que pertenecer.
+     */
     public function create()
     {
-        return view('techscout.create');
+        return view('techscout.form', [
+            'scout'     => new TechScout(),
+            'lastLabel' => null,
+        ]);
     }
 
-    /**
-     * Alta del recorrido: SÓLO la cabecera (dónde estamos). Deliberadamente mínimo — el trabajo
-     * real son las notas, y pedir un formulario largo antes de dejar capturar es justo lo que hace
-     * que la gente vuelva a la libreta.
-     */
+    /** Alta del scouting. Guarda el panel COMPLETO de una vez: es la misma pantalla que editar. */
     public function store(Request $request)
     {
-        $data = $request->validate([
+        $data = $this->validatePanel($request);
+
+        $scout = new TechScout();
+        $scout->created_by_id = auth()->id();
+        $scout->production_id = CurrentProduction::id();
+        if (Schema::hasColumn('tech_scouts', 'unit_id')) {
+            $scout->unit_id = CurrentUnit::id();
+        }
+
+        $this->fillPanel($scout, $request, $data);
+
+        return redirect()->route('techscout.show', $scout->id)
+            ->with('success', 'Scouting creado. Ya puedes capturar notas.');
+    }
+
+    /** Reglas del panel — MISMAS al crear y al editar, para que no puedan divergir. */
+    private function validatePanel(Request $request): array
+    {
+        return $request->validate([
             'location_name'    => 'required|string|max:255',
             'location_address' => 'nullable|string|max:500',
             'latitude'         => 'nullable|numeric|between:-90,90',
             'longitude'        => 'nullable|numeric|between:-180,180',
+            'loc_setting'      => 'nullable|string|max:60',
+            'shoot_time'       => 'nullable|string|max:60',
+            'date_prep'        => 'nullable|date',
+            'date_shoot'       => 'nullable|date',
+            // El fin no puede ser ANTERIOR al inicio; igual sí se acepta.
+            'date_shoot_end'   => 'nullable|date|after_or_equal:date_shoot',
+            'date_wrap'        => 'nullable|date',
+            'viability'        => 'nullable|array',
+            'agreements'       => 'nullable|array',
+            'hero_image'       => 'nullable|mimes:jpeg,png,jpg,gif,webp,heic,heif|heic_ok|max:12288',
         ]);
+    }
 
-        $data['created_by_id'] = auth()->id();
-        $data['production_id'] = CurrentProduction::id();
-        if (Schema::hasColumn('tech_scouts', 'unit_id')) {
-            $data['unit_id'] = CurrentUnit::id();
+    /** Vuelca el panel en el modelo y guarda. Compartido por store() y update(). */
+    private function fillPanel(TechScout $scout, Request $request, array $data): void
+    {
+        $scout->fill(collect($data)->except(['viability', 'agreements', 'hero_image'])->all());
+        $scout->viability_checklist = $this->cleanRows($request->input('viability', []));
+        $scout->agreements          = $this->cleanRows($request->input('agreements', []));
+
+        // La portada se reemplaza SÓLO si suben una nueva: reguardar el panel sin tocar el archivo
+        // no puede llevarse por delante la que ya había.
+        if ($request->hasFile('hero_image') && $request->file('hero_image')->isValid()) {
+            $scout->hero_image_path = $this->storePhoto($request->file('hero_image'));
         }
 
-        $scout = TechScout::create($data);
-
-        return redirect()->route('techscout.show', $scout->id)
-            ->with('success', 'Recorrido iniciado. Empieza a capturar notas.');
+        $scout->save();
     }
 
     /**
@@ -86,39 +128,9 @@ class TechScoutController extends Controller
     public function update(Request $request, $id)
     {
         $scout = TechScout::findOrFail($id);
+        $this->fillPanel($scout, $request, $this->validatePanel($request));
 
-        $data = $request->validate([
-            'location_name'    => 'required|string|max:255',
-            'location_address' => 'nullable|string|max:500',
-            'latitude'         => 'nullable|numeric|between:-90,90',
-            'longitude'        => 'nullable|numeric|between:-180,180',
-            'production_type'  => 'nullable|string|max:60',
-            'manager_name'     => 'nullable|string|max:255',
-            'loc_setting'      => 'nullable|string|max:60',
-            'shoot_time'       => 'nullable|string|max:60',
-            'date_prep'        => 'nullable|date',
-            'date_shoot'       => 'nullable|date',
-            // Igual que en el scouting: el fin no puede ser ANTERIOR al inicio; igual sí se acepta.
-            'date_shoot_end'   => 'nullable|date|after_or_equal:date_shoot',
-            'date_wrap'        => 'nullable|date',
-            'viability'        => 'nullable|array',
-            'agreements'       => 'nullable|array',
-            'hero_image'       => 'nullable|mimes:jpeg,png,jpg,gif,webp,heic,heif|heic_ok|max:12288',
-        ]);
-
-        $scout->fill(collect($data)->except(['viability', 'agreements', 'hero_image'])->all());
-
-        // Imagen de portada del documento. Se reemplaza sólo si suben una nueva: guardar el panel
-        // sin tocar el archivo NO puede borrar la que ya había.
-        if ($request->hasFile('hero_image') && $request->file('hero_image')->isValid()) {
-            $scout->hero_image_path = $this->storePhoto($request->file('hero_image'));
-        }
-
-        $scout->viability_checklist = $this->cleanRows($request->input('viability', []));
-        $scout->agreements          = $this->cleanRows($request->input('agreements', []));
-        $scout->save();
-
-        return redirect()->route('techscout.show', $scout->id)->with('success', 'Datos del recorrido guardados.');
+        return redirect()->route('techscout.show', $scout->id)->with('success', 'Datos guardados.');
     }
 
     /**
@@ -142,7 +154,7 @@ class TechScoutController extends Controller
         return $out;
     }
 
-    /** La vista de trabajo: cabecera + notas en orden de recorrido + captura de la siguiente. */
+    /** La vista de trabajo — LA MISMA que la de alta: panel + notas + rejilla de lo capturado. */
     public function show($id)
     {
         $scout = TechScout::with(['notes.author'])->findOrFail($id);
@@ -151,7 +163,7 @@ class TechScoutController extends Controller
         // "Depa Pablo", se escribe UNA vez. Se borra a mano al cambiar de espacio.
         $lastLabel = $scout->lastStoryLabel();
 
-        return view('techscout.show', compact('scout', 'lastLabel'));
+        return view('techscout.form', compact('scout', 'lastLabel'));
     }
 
     /**
