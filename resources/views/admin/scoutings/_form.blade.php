@@ -1486,7 +1486,20 @@
                 var thumb = document.createElement('div'); thumb.className = 'ai-thumb';
                 var img = document.createElement('img'); img.src = entry.path; img.alt = '';
                 var ok = document.createElement('span'); ok.className = 'ai-sz'; ok.textContent = 'a salvo ✓';
-                thumb.appendChild(img); thumb.appendChild(ok);
+
+                // Quitar: la saca de ESTE scouting. NO la borra del servidor — sigue en el
+                // borrador, así que si se quitó por error reaparece al volver a entrar.
+                var quitar = document.createElement('button');
+                quitar.type = 'button'; quitar.className = 'ai-rm'; quitar.innerHTML = '&times;';
+                quitar.title = 'Quitar de este scouting';
+                quitar.addEventListener('click', function () {
+                    cell.remove();
+                    sdTotal = Math.max(0, sdTotal - 1);
+                    if (sdCount) { sdCount.textContent = sdTotal; }
+                    if (!sdTotal) { sdWrap.hidden = true; }
+                });
+
+                thumb.appendChild(img); thumb.appendChild(ok); thumb.appendChild(quitar);
 
                 var hid = document.createElement('input');
                 hid.type = 'hidden'; hid.name = 'draft_photos[]'; hid.value = entry.path;
@@ -1534,6 +1547,24 @@
                 var i = files.indexOf(file);
                 if (i >= 0) { removeAt(i); }
             }
+
+            /* AL ABRIR: recuperar lo que ya viajó y quedó esperando.
+             *
+             * 🪤 Esta llamada faltaba, y su ausencia volvió trampa a todo lo demás. El 2026-09-16
+             * se capturaron 27 fotos que subieron bien y NO había forma de que volvieran: el
+             * scouting se guardó vacío y las fotos quedaron vivas en disco, sin dueño. Subir sin
+             * poder recuperar promete una red que no existe. */
+            function sdRestore() {
+                if (!sdOn) { return; }
+                window.CCScoutDraft.restore().then(function (fotos) {
+                    if (!fotos.length) { return; }
+                    sdKeyInput();
+                    fotos.forEach(sdCell);
+                    sdSay('Recuperadas ' + fotos.length + (fotos.length === 1 ? ' foto' : ' fotos')
+                        + ' de tu captura anterior. Se guardarán con este scouting; quita las que no quieras.', 'text-success');
+                });
+            }
+            sdRestore();
 
             function sdUpload(nuevas) {
                 if (!sdOn || !nuevas || !nuevas.length) { return; }

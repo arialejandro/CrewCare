@@ -379,6 +379,7 @@ Route::middleware(['auth','permission:locations.create'])->group(function () {
     // BORRADOR EN SERVIDOR — mismo permiso que crear, porque es literalmente crear a medias.
     // Van ANTES de `/scoutings/{id}` por el mismo motivo que `create` (rutas fijas primero).
     // Las fotos suben EN CUANTO se capturan para que cerrar la pestaña no cueste la jornada.
+    Route::get('/scoutings/draft', [App\Http\Controllers\ScoutingReportController::class, 'draftShow'])->name('scoutings.draft.show');
     Route::post('/scoutings/draft', [App\Http\Controllers\ScoutingReportController::class, 'draftSave'])->name('scoutings.draft.save');
     Route::post('/scoutings/draft/photos', [App\Http\Controllers\ScoutingReportController::class, 'draftPhotos'])->name('scoutings.draft.photos');
     Route::post('/scoutings/draft/discard', [App\Http\Controllers\ScoutingReportController::class, 'draftDiscard'])->name('scoutings.draft.discard');
