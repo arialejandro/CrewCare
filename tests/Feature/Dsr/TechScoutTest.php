@@ -517,6 +517,41 @@ class TechScoutTest extends QaTestCase
             ->assertSee(route('techscout.index'), false);
     }
 
+    /**
+     * 🪤 EL SCOUTER VE LO SUYO, Y NADA MÁS.
+     *
+     * Entra al panel por PERTENENCIA al departamento, no por permisos de oficina — así que el menú
+     * no puede ofrecerle el resto de la casa. El owner lo marcó al ver el primer alta: el Panel SFX
+     * («no es viable en este proyecto») y Contratos («tampoco es de su departamento»). No es sólo
+     * orden: la ruta del Panel SFX en vivo NO pide permiso —la abre cualquiera con sesión— y en
+     * producción el módulo de contratos ni siquiera está desplegado.
+     */
+    public function test_el_scouter_no_ve_el_resto_de_la_casa_en_el_menu(): void
+    {
+        $pa = $this->makeUser('crew');
+        $this->actingAs($pa);
+        $this->ponerEnLocaciones($pa);
+
+        $home = $this->get(route('home'))->assertOk();
+
+        $home->assertDontSee(route('sfx.index'), false);
+        $home->assertDontSee('Panel SFX');
+        if (\Illuminate\Support\Facades\Route::has('contracts.index')) {
+            $home->assertDontSee(route('contracts.index'), false);
+        }
+
+        // Lo SUYO sigue estando: su módulo y el autoservicio de siempre (reportar lo que ve).
+        $home->assertSee(route('techscout.index'), false);
+    }
+
+    /** Y a quien sí es de la casa no se le quita nada: el permiso manda como siempre. */
+    public function test_a_quien_tiene_permisos_no_se_le_esconde_nada(): void
+    {
+        parent::actingAsRole('super-admin');
+
+        $this->get(route('home'))->assertOk()->assertSee(route('sfx.index'), false);
+    }
+
     /** Y quien no es de Locaciones NO lo ve en el menú, aunque la pantalla cargue igual. */
     public function test_quien_no_es_de_locaciones_no_ve_la_entrada_en_el_menu(): void
     {

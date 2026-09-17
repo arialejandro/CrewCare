@@ -507,14 +507,15 @@ class User extends Authenticatable
     ];
 
     /**
-     * ¿Este usuario ve el panel (sidebar) o sólo su portal de autoservicio?
+     * ¿Tiene AL MENOS UN permiso de panel? (el criterio "de oficina", sin atajos.)
      *
-     * Se conserva el flag legacy `admin` en el OR mientras existan instancias que aún dependan
-     * de él; el criterio real es tener AL MENOS UN permiso de panel.
+     * Se conserva el flag legacy `admin` mientras existan instancias que aún dependan de él.
      *
-     * @return bool
+     * Se separa de canSeePanel() porque hace falta distinguir dos cosas que no son iguales: quién
+     * PUEDE ver el panel, y quién está en el panel sólo porque su departamento le dio una llave
+     * concreta. A ese segundo se le muestra lo suyo y nada más — ver el sidebar.
      */
-    public function canSeePanel(): bool
+    public function hasPanelPermission(): bool
     {
         try {
             if (! empty($this->admin)) {
@@ -524,6 +525,28 @@ class User extends Authenticatable
                 if ($this->can($p)) {
                     return true;
                 }
+            }
+        } catch (\Throwable $e) {
+            // Permiso inexistente en una instancia sin sembrar → no reventar el layout.
+        }
+
+        return false;
+    }
+
+    /**
+     * ¿Este usuario ve el panel (sidebar) o sólo su portal de autoservicio?
+     *
+     * El criterio base es tener al menos un permiso de panel; además entran quienes consultan
+     * TODOS los contratos y quienes pertenecen a Locaciones (su módulo vive en el panel). A estos
+     * últimos el menú les muestra lo suyo y nada más — ver el sidebar (`$__soloLoc`).
+     *
+     * @return bool
+     */
+    public function canSeePanel(): bool
+    {
+        try {
+            if ($this->hasPanelPermission()) {
+                return true;
             }
             // Consulta de contratos: contabilidad / oficina de producción / producción (los que "ven
             // todo") entran al panel aunque no tengan otro permiso. Los HOD de cada depto ya entran por

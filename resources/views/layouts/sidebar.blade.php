@@ -29,7 +29,22 @@
     $__pendingAuth = \Auth::check() ? \App\Support\InfosheetSigning::countForUser(\Auth::user()) : 0;
     // CONSULTA DE CONTRATOS · quién ve la entrada "Contratos" (por departamento). Producción / Oficina
     // de Producción / Contabilidad y super-admin ven todo; cada depto ve lo suyo. Ver ContractVisibility.
-    $__seesContracts = \Auth::check() ? \App\Support\ContractVisibility::seesAny($__u) : false;
+    // ── EN EL PANEL SÓLO POR LOCACIONES ──────────────────────────────────────────────────────
+    // Un scouter entra al panel por PERTENENCIA al departamento, no por permisos de oficina (ver
+    // User::canSeePanel). A ése se le enseña LO SUYO y nada más: decisión del owner —«el
+    // aislamiento hacia los demás departamentos es de locaciones solamente»— y aplicada el
+    // 2026-09-16 al Panel SFX («no es viable en este proyecto») y a Contratos («tampoco es de su
+    // departamento»). No es cosmética: el Panel SFX en vivo NO tiene permiso en su ruta —lo abre
+    // cualquiera con sesión— y en esta instancia el módulo de contratos ni siquiera está
+    // desplegado, así que su entrada llevaría a una pantalla que no existe.
+    // Lo de autoservicio (reportar un accidente, un peligro, sus documentos) sigue: eso SÍ es suyo.
+    $__soloLoc = \Auth::check()
+        && ! $__u->hasPanelPermission()
+        && \App\Support\LocationsAccess::isInLocations($__u);
+
+    $__seesContracts = \Auth::check() && ! $__soloLoc
+        ? \App\Support\ContractVisibility::seesAny($__u)
+        : false;
 @endphp
 
 <style>
@@ -541,11 +556,16 @@
                                 </a>
                             @endcan
                             {{-- OPERACIÓN (en vivo): desde aquí se dispara de verdad. Va al final y
-                                 conserva 'flame'; en modo rail el ícono es lo único que se ve. --}}
-                            <a href="{{ route('sfx.index') }}" class="cc-item">
-                                @include('componentes._icon', ['name' => 'flame', 'class' => 'cc-item__ico', 'label' => null])
-                                <span>Panel SFX (en vivo)</span>
-                            </a>
+                                 conserva 'flame'; en modo rail el ícono es lo único que se ve.
+                                 ⚠ Esta ruta NO pide permiso: la abre cualquiera con sesión. Por eso
+                                 el enlace se esconde a quien está en el panel sólo por Locaciones —
+                                 pero esconder no es cerrar; queda reportado al owner. --}}
+                            @unless ($__soloLoc)
+                                <a href="{{ route('sfx.index') }}" class="cc-item">
+                                    @include('componentes._icon', ['name' => 'flame', 'class' => 'cc-item__ico', 'label' => null])
+                                    <span>Panel SFX (en vivo)</span>
+                                </a>
+                            @endunless
                         @endfeature
                     </div></div>
                 </div>
@@ -1044,12 +1064,14 @@
                                         <span>Catálogo de Efectos SPFX</span>
                                     </a>
                                 @endcan
-                                {{-- OPERACIÓN (en vivo): desde aquí se dispara de verdad. Va al final y
-                                     conserva 'flame'; en modo rail el ícono es lo único que se ve. --}}
-                                <a href="{{ route('sfx.index') }}" class="cc-item">
-                                    @include('componentes._icon', ['name' => 'flame', 'class' => 'cc-item__ico', 'label' => null])
-                                    <span>Panel SFX (en vivo)</span>
-                                </a>
+                                {{-- OPERACIÓN (en vivo) — oculto a quien está en el panel sólo por
+                                     Locaciones, igual que en la copia de escritorio. --}}
+                                @unless ($__soloLoc)
+                                    <a href="{{ route('sfx.index') }}" class="cc-item">
+                                        @include('componentes._icon', ['name' => 'flame', 'class' => 'cc-item__ico', 'label' => null])
+                                        <span>Panel SFX (en vivo)</span>
+                                    </a>
+                                @endunless
                             @endfeature
                         </div></div>
                     </div>
