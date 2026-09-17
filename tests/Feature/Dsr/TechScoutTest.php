@@ -497,6 +497,36 @@ class TechScoutTest extends QaTestCase
             ->assertSessionHasNoErrors();
     }
 
+    /**
+     * 🪤 EL ENLACE DEL MENÚ, que es por donde se entra de verdad.
+     *
+     * El 2026-09-16 se dio de alta al primer scouter (rol `crew`, departamento Locaciones) y NO
+     * veía el Tech Scout: el enlace estaba bien gateado por departamento, pero vivía dentro de la
+     * sección "Locaciones" del menú, que sólo se pintaba con permisos `locations.*`. Una puerta
+     * buena dentro de una puerta cerrada. Poder ENTRAR por la URL no basta: si no está en el
+     * menú, para quien lo usa el módulo no existe.
+     */
+    public function test_el_scouter_ve_la_entrada_en_el_menu(): void
+    {
+        $pa = $this->makeUser('crew');
+        $this->actingAs($pa);
+        $this->ponerEnLocaciones($pa);
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee(route('techscout.index'), false);
+    }
+
+    /** Y quien no es de Locaciones NO lo ve en el menú, aunque la pantalla cargue igual. */
+    public function test_quien_no_es_de_locaciones_no_ve_la_entrada_en_el_menu(): void
+    {
+        parent::actingAsRole('safety-officer');
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertDontSee(route('techscout.index'), false);
+    }
+
     public function test_el_super_admin_conserva_la_llave(): void
     {
         // Única excepción, y deliberada: hoy en producción el owner es el único usuario y no está

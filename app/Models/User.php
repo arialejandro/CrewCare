@@ -531,6 +531,14 @@ class User extends Authenticatable
             if (\App\Support\ContractVisibility::seesAll($this)) {
                 return true;
             }
+            // 🪤 DEPARTAMENTO DE LOCACIONES (2026-09-16). El Tech Scout no lo abre un permiso sino
+            // la pertenencia al departamento, y un scouter suele ser rol `crew` — sin ningún
+            // permiso de panel. Sin esto entra a la app y NO VE BARRA LATERAL: el módulo existe,
+            // la ruta lo deja pasar… y para él no hay por dónde llegar. Pasó con el primer scouter
+            // dado de alta, la misma tarde. Ver App\Support\LocationsAccess.
+            if (\App\Support\LocationsAccess::isInLocations($this)) {
+                return true;
+            }
         } catch (\Throwable $e) {
             // Permiso inexistente en una instancia sin sembrar → no reventar el layout.
         }

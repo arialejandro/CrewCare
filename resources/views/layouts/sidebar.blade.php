@@ -404,8 +404,13 @@
                 </div>
             @endcanany
 
-            {{-- ===== LOCACIONES ===== --}}
-            @canany(['locations.view', 'locations.create', 'riskmap.issue'])
+            {{-- ===== LOCACIONES =====
+                 🪤 La SECCIÓN también tiene que abrirse por DEPARTAMENTO, no sólo por permiso. El
+                 2026-09-16 se dio de alta al primer scouter (rol `crew`, departamento Locaciones) y
+                 no veía el Tech Scout: el enlace estaba bien gateado, pero vivía dentro de esta
+                 sección, que sólo se pintaba con `locations.*` — un permiso que el crew no tiene.
+                 Una puerta buena dentro de una puerta cerrada no sirve de nada. --}}
+            @if (\App\Support\LocationsAccess::allows(auth()->user()) || auth()->user()?->canAny(['locations.view', 'locations.create', 'riskmap.issue']))
                 <div class="cc-sec" data-open="false">
                     <button type="button" class="cc-sec-head" aria-expanded="false">
                         @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-sec-head__ico', 'label' => null])
@@ -438,7 +443,7 @@
                         @endcan
                     </div></div>
                 </div>
-            @endcanany
+            @endif
 
             {{-- ===== SEGURIDAD (H&S) ===== --}}
             @canany(['dsr.view', 'dsr.create', 'hazards.view', 'hazards.create', 'injury.view', 'injury.create', 'tools.inspect', 'permits.issue', 'pae.issue', 'epi.view', 'ambulance.manage', 'ambulance.view'])
@@ -914,8 +919,8 @@
                     </div>
                 @endcanany
 
-                {{-- ===== LOCACIONES ===== --}}
-                @canany(['locations.view', 'locations.create', 'riskmap.issue'])
+                {{-- ===== LOCACIONES ===== (por DEPARTAMENTO también — ver la copia de escritorio) --}}
+                @if (\App\Support\LocationsAccess::allows(auth()->user()) || auth()->user()?->canAny(['locations.view', 'locations.create', 'riskmap.issue']))
                     <div class="cc-sec" data-open="false">
                         <button type="button" class="cc-sec-head" aria-expanded="false">
                             @include('componentes._icon', ['name' => 'map-pin', 'class' => 'cc-sec-head__ico', 'label' => null])
@@ -945,7 +950,7 @@
                             @endcan
                         </div></div>
                     </div>
-                @endcanany
+                @endif
 
                 {{-- ===== SEGURIDAD (H&S) ===== --}}
                 @canany(['dsr.view', 'dsr.create', 'hazards.view', 'hazards.create', 'injury.view', 'injury.create', 'tools.inspect', 'permits.issue', 'pae.issue', 'epi.view', 'ambulance.manage', 'ambulance.view'])
