@@ -36,7 +36,13 @@
             <h1>{{ $scout->location_name }}</h1>
             @if ($scout->location_address)<p>{{ $scout->location_address }}</p>@endif
         </div>
-        <a href="{{ route('techscout.index') }}" class="btn btn-crew-soft">Volver</a>
+        <div class="d-flex gap-2">
+            <a href="{{ route('techscout.document', $scout->id) }}" class="btn btn-crew-accent d-inline-flex align-items-center gap-1">
+                @include('componentes._icon', ['name' => 'file-text', 'label' => null])
+                <span>Ver documento</span>
+            </a>
+            <a href="{{ route('techscout.index') }}" class="btn btn-crew-soft">Volver</a>
+        </div>
     </div>
 
     @if (session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif

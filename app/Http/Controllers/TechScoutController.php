@@ -88,6 +88,31 @@ class TechScoutController extends Controller
     }
 
     /**
+     * EL DOCUMENTO — lo que sustituye al Word.
+     *
+     * Hoy los scouters descargan las fotos, las pegan a mano y reescriben lo de sus libretas. Aquí
+     * sale en un clic. Con `?pdf=1` se baja por Browsershot (Chrome headless) reusando ESTA MISMA
+     * vista: el PDF y la pantalla no se pueden separar porque son el mismo HTML.
+     */
+    public function document($id)
+    {
+        $scout = TechScout::with(['notes.author'])->findOrFail($id);
+
+        if (request()->boolean('pdf')) {
+            $html = view('techscout.documento', compact('scout'))->render();
+
+            return \App\Support\PdfExporter::download(
+                $html,
+                'TECHSCOUT-' . str_pad((string) $scout->id, 4, '0', STR_PAD_LEFT),
+                [0, 0, 0, 0]   // el @page manda los márgenes
+            );
+        }
+
+        return view('techscout.documento', compact('scout')
+            + ['pdfUrl' => request()->fullUrlWithQuery(['pdf' => 1])]);
+    }
+
+    /**
      * Añadir una nota. Esta es la unidad de trabajo del módulo.
      *
      * La foto es opcional a propósito: a veces la nota es sobre algo que no se puede fotografiar
