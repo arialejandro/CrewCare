@@ -62,10 +62,26 @@ class TechScoutController extends Controller
         ]);
     }
 
-    /** Alta del scouting. Guarda el panel COMPLETO de una vez: es la misma pantalla que editar. */
+    /**
+     * Alta del scouting — y, si viene, su PRIMERA NOTA en el mismo envío.
+     *
+     * 🪤 Lo único obligatorio es la LOCACIÓN. El owner lo marcó: «se llena mucha información antes
+     * de poder emitir notas». En campo se llega, se ve algo que hay que resolver y se anota — los
+     * permisos y las fechas se rellenan después, sentado. Obligar a completar el panel antes de
+     * dejar capturar es lo que hace que la gente vuelva a la libreta.
+     *
+     * Por eso el alta acepta la primera nota de una vez: se escribe lo que se vio, y ESE acto deja
+     * el scouting guardado con lo que hubiera. Como un borrador del Scouting H&S — esa primera capa
+     * ya no se pierde.
+     */
     public function store(Request $request)
     {
         $data = $this->validatePanel($request);
+        $request->validate([
+            'note'        => 'nullable|string|max:2000',
+            'story_label' => 'nullable|string|max:120',
+            'photo'       => 'nullable|mimes:jpeg,png,jpg,gif,webp,heic,heif|heic_ok|max:12288',
+        ]);
 
         $scout = new TechScout();
         $scout->created_by_id = auth()->id();
@@ -76,8 +92,38 @@ class TechScoutController extends Controller
 
         $this->fillPanel($scout, $request, $data);
 
-        return redirect()->route('techscout.show', $scout->id)
-            ->with('success', 'Scouting creado. Ya puedes capturar notas.');
+        $conNota = $this->addNote($scout, $request);
+
+        return redirect()->route('techscout.show', $scout->id)->with(
+            'success',
+            $conNota ? 'Scouting creado con su primera nota.' : 'Scouting creado. Ya puedes capturar notas.'
+        );
+    }
+
+    /**
+     * Crea una nota si el envío trae algo que decir. Devuelve si la creó.
+     *
+     * Compartido por el alta y por la captura normal, para que la regla de "qué cuenta como nota"
+     * sea UNA sola y no dos que se desincronicen.
+     */
+    private function addNote(TechScout $scout, Request $request): bool
+    {
+        $texto = trim((string) $request->input('note'));
+        $foto  = $request->hasFile('photo') && $request->file('photo')->isValid();
+
+        if ($texto === '' && ! $foto) {
+            return false;
+        }
+
+        TechScoutNote::create([
+            'tech_scout_id' => $scout->id,
+            'photo_path'    => $foto ? $this->storePhoto($request->file('photo')) : null,
+            'note'          => $texto !== '' ? $texto : null,
+            'story_label'   => trim((string) $request->input('story_label')) ?: null,
+            'created_by_id' => auth()->id(),
+        ]);
+
+        return true;
     }
 
     /** Reglas del panel — MISMAS al crear y al editar, para que no puedan divergir. */
@@ -227,18 +273,7 @@ class TechScoutController extends Controller
             ]);
         }
 
-        $path = null;
-        if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
-            $path = $this->storePhoto($request->file('photo'));
-        }
-
-        TechScoutNote::create([
-            'tech_scout_id' => $scout->id,
-            'photo_path'    => $path,
-            'note'          => $data['note'] ?? null,
-            'story_label'   => trim((string) ($data['story_label'] ?? '')) ?: null,
-            'created_by_id' => auth()->id(),
-        ]);
+        $this->addNote($scout, $request);
 
         return redirect()->route('techscout.show', $scout->id)->with('success', 'Nota agregada.');
     }
